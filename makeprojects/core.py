@@ -73,6 +73,8 @@ class FileTypes(Enum):
 	xcconfig = 15
 	## X86 assembly
 	x86 = 16
+	## 6502/65812 assembly
+	a65 = 17
 	
 #
 ## List of default file extensions and mapped types
@@ -107,7 +109,9 @@ defaultcodeextensions = [
 	['.glsl',FileTypes.glsl],
 	['.x360sl',FileTypes.x360sl],	# Xbox 360 shader files
 	['.vitacg',FileTypes.vitacg],	# PS Vita shader files
-	['.xml',FileTypes.xml]			# XML data files
+	['.xml',FileTypes.xml],			# XML data files
+	['.a65',FileTypes.a65],			# 6502/65816 source code
+	['.x86',FileTypes.x86]			# Intel ASM 80x86 source code
 ]
 
 #
@@ -284,6 +288,9 @@ class SolutionData:
 		## No extra folders for include files
 		self.includefolders = []
 	
+		## Initial array of SourceFile in the solution
+		self.codefiles = []
+
 		## Create default XCode object
 		self.xcode = xcode.XCodeDefaults()
 
@@ -767,7 +774,7 @@ class SolutionData:
 		# Get the files in the directory list
 		#
 	
-		codefiles = []
+		codefiles = list(self.codefiles)
 		includedirectories = []
 		for item in self.sourcefolders:
 		
@@ -1704,7 +1711,7 @@ def createvs2010solution(solution):
 		for item in listhlsl:
 			fp.write('\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
 			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
+			basename = burger.converttowindowsslashes(item.filename).lower().rsplit('\\',1)[1]
 			splitname = os.path.splitext(basename)
 			if splitname[0].startswith('vs41'):
 				profile = 'vs_4_1'

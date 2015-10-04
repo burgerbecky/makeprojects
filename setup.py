@@ -12,11 +12,27 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-from setuptools import setup
 
+#
+# Project specific strings
+#
+
+projectname = 'makeprojects'
+projectkeywords='makeprojects xcode visual studio visualstudio codeblocks watcom ps4 xboxone xbox360 vita mac ios android'
+
+
+#
+# Imports
+#
+
+from setuptools import setup
 import sys
 
-import makeprojects
+#
+# Manually import the project
+#
+
+projectmodule = __import__(projectname)
 
 #
 # Create the dependency list
@@ -43,22 +59,22 @@ if sys.version_info[:2] < (3, 4):
 
 setup_args = dict(
 	
-	name='makeprojects',
-	version=makeprojects.__version__,
+	name=projectname,
+	version=projectmodule.__version__,
 	
 #
 # Use the readme as the long description
 #
 
-	description=makeprojects.__summary__,
+	description=projectmodule.__summary__,
 	long_description=open('README.rst').read(),
-	license=makeprojects.__license__,
-	url=makeprojects.__uri__,
+	license=projectmodule.__license__,
+	url=projectmodule.__uri__,
 
-	author=makeprojects.__author__,
-	author_email=makeprojects.__email__,
+	author=projectmodule.__author__,
+	author_email=projectmodule.__email__,
 	
-	keywords='makeprojects xcode visual studio codeblocks watcom',
+	keywords=projectkeywords,
 	platforms='any',
 	install_requires=install_requires,
 	
@@ -84,7 +100,7 @@ setup_args = dict(
 		'Programming Language :: Python :: 3.4',
 		'Topic :: Software Development'],
 		
-	packages=['makeprojects'],
+	packages=[projectname],
 	
 	entry_points={
 		'console_scripts': [ 'makeprojects = makeprojects.makeprojects:main' ]

@@ -16,7 +16,35 @@ import os
 import sys
 import burger
 import argparse
-import makeprojects
+
+#
+# Name of the project
+#
+
+projectname = 'makeprojects'
+
+#
+# Delete all *.pyc and *.pyo files (Recursively)
+#
+
+def cleanpycfiles(workingDir):
+	nameList = os.listdir(workingDir)
+	for item in nameList:
+		fileName = os.path.join(workingDir,item)
+		
+		# Is it a file?
+		if os.path.isfile(fileName):
+		
+			# Only dispose of the pyo and pyc files
+			if item.endswith('.pyc') or item.endswith('.pyo') :
+				os.remove(fileName)
+				
+		# A directory?
+		elif os.path.isdir(fileName):
+		
+			# Recurse
+			cleanpycfiles(fileName)
+
 
 #
 # Clean up all the temp files after uploading
@@ -26,32 +54,40 @@ import makeprojects
 
 def clean(workingDir):
 
+	#
+	# Specific folders to wipe
+	#
+	
 	dirlist = [
-		'makeprojects.egg-info',
-		'makeprojects-' + makeprojects.__version__,
+		projectname + '.egg-info',
 		'dist',
 		'build',
 		'temp'
 	]
 	
 	#
-	# Delete all folders, including read only files
+	# Delete all specific folders, including read only files
 	#
 	
 	for item in dirlist:
 		burger.deletedirectory(os.path.join(workingDir,item),True)
 
 	#
-	# Delete all *.pyc and *.pyo files
+	# Delete all versioned folders
 	#
 	
 	nameList = os.listdir(workingDir)
-	for baseName in nameList:
-		fileName = os.path.join(workingDir,baseName)
-		# Is it a file?
-		if os.path.isfile(fileName):
-			if baseName.endswith('.pyc') or baseName.endswith('.pyo') :
-				os.remove(fileName)
+	for item in nameList:
+		if item.startswith(projectname+'-'):
+			burger.deletedirectory(os.path.join(workingDir,item),True)
+			
+		
+	#
+	# Delete all *.pyc and *.pyo files (Recursively
+	#
+	
+	cleanpycfiles(workingDir)
+
 
 #
 # Upload the documentation to the server
@@ -83,7 +119,7 @@ def main(workingDir):
 	#
 	
 	if args.upload==True:
-		sys.argv = ['setup.py','sdist','upload']
+		sys.argv = ['setup.py','build','sdist','upload']
 		error = execfile('setup.py')
 		
 		if error == 0:
