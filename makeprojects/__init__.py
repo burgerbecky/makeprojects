@@ -17,7 +17,7 @@
 #
 
 ## Current version of the library
-__version__ = '0.3.7'
+__version__ = '0.4.0'
 
 ## Author's name
 __author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
@@ -54,7 +54,7 @@ __all__ = [
 	'__license__',
 	'__copyright__',
 	'core',
-#	'vs',
+	'visualstudio',
 #	'watcom',
 #	'codeblocks',
 #	'codewarrior',

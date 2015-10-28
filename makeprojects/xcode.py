@@ -17,7 +17,7 @@ import hashlib
 import os
 import StringIO
 import core
-import burger 
+import burger
 
 #
 ## \package makeprojects.xcode
@@ -26,6 +26,12 @@ import burger
 # IDE
 #
 
+#
+# Default folder for MacOSX tools when invoking 'finalfolder'
+# from the command line
+#
+
+defaultfinalfolder = '$(BURGER_SDKS)/macosx/bin/'
 
 #
 # Given a string, create a 96 bit unique hash for XCode
@@ -70,7 +76,7 @@ def writelist(selfarray,fp):
 # json keyword "xcode" for dictionary of overrides
 #
 
-class XCodeDefaults:
+class Defaults:
 
 	#
 	# Power up defaults
@@ -806,7 +812,7 @@ def generate(solution):
 	# Find the files to put into the project
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	codefiles,includedirectories = solution.getfilelist([core.FileTypes.icns,core.FileTypes.h,core.FileTypes.cpp,core.FileTypes.frameworks,core.FileTypes.exe,core.FileTypes.library,core.FileTypes.glsl])
 
 	#
 	# Configure the xcode writer to the type

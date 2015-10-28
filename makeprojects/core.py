@@ -26,6 +26,7 @@ import copy
 import burger
 import argparse
 from enum import Enum
+import visualstudio
 import xcode
 
 #
@@ -44,37 +45,43 @@ class FileTypes(Enum):
 	## Non compiling file type
 	generic = 2
 	## Compile as C++ 
-	cpp = 2
+	cpp = 3
 	## C/C++ header
-	h = 3
+	h = 4
 	## Object-C
-	m = 4
+	m = 5
 	## XML text file
-	xml = 5
+	xml = 6
 	## Windows resource file
-	rc = 6
+	rc = 7
 	## Mac OS resource file
-	r = 7
+	r = 8
 	## HLSL DirectX Shader
-	hlsl = 8
+	hlsl = 9
 	## GLSL OpenGL Shader
-	glsl = 9
+	glsl = 10
 	## Xbox 360 DirectX Shader
-	x360sl = 10
+	x360sl = 11
 	## Playstation Vita CG Shader
-	vitacg = 11
+	vitacg = 12
 	## Mac OSX Framework
-	frameworks = 12
+	frameworks = 13
 	## Library
-	library = 13
+	library = 14
 	## Exe
-	exe = 14
+	exe = 15
 	## XCode config file
-	xcconfig = 15
+	xcconfig = 16
 	## X86 assembly
-	x86 = 16
+	x86 = 17
 	## 6502/65812 assembly
-	a65 = 17
+	a65 = 18
+	## Image files
+	image = 19
+	## Windows icon files
+	ico = 20
+	## MacOSX icon files
+	icns = 21
 	
 #
 ## List of default file extensions and mapped types
@@ -93,6 +100,7 @@ defaultcodeextensions = [
 	['.c',FileTypes.cpp],			# C/C++ source code
 	['.cc',FileTypes.cpp],
 	['.cpp',FileTypes.cpp],
+	['.c++',FileTypes.cpp],
 	['.hpp',FileTypes.h],			# C/C++ header files
 	['.h',FileTypes.h],
 	['.hh',FileTypes.h],
@@ -111,7 +119,12 @@ defaultcodeextensions = [
 	['.vitacg',FileTypes.vitacg],	# PS Vita shader files
 	['.xml',FileTypes.xml],			# XML data files
 	['.a65',FileTypes.a65],			# 6502/65816 source code
-	['.x86',FileTypes.x86]			# Intel ASM 80x86 source code
+	['.x86',FileTypes.x86],			# Intel ASM 80x86 source code
+	['.ico',FileTypes.ico],			# Windows icon file
+	['.icns',FileTypes.icns],		# Mac OSX Icon file
+	['.png',FileTypes.image],		# Art files
+	['.jpg',FileTypes.image],
+	['.bmp',FileTypes.image]
 ]
 
 #
@@ -190,7 +203,7 @@ class SourceFile:
 		## File base name with extension (Converted to use windows style slashes on creation)
 		self.filename = burger.converttowindowsslashes(filename)
 
-		## Directory the file is found in
+		## Directory the file is found in (Full path)
 		self.directory = directory
 
 		## File type enumeration, see: \ref FileTypes
@@ -292,7 +305,10 @@ class SolutionData:
 		self.codefiles = []
 
 		## Create default XCode object
-		self.xcode = xcode.XCodeDefaults()
+		self.xcode = xcode.Defaults()
+		
+		## Create default Visual Studio object
+		self.visualstudio = visualstudio.Defaults()
 
 	#
 	## Given a json record, process all the sub sections
@@ -316,8 +332,9 @@ class SolutionData:
 	# \li 'defines' = [] (List of #define to add to the project)
 	# \li 'includefolders' = [] (List of folders to add for #include )
 	# \li 'xcode' = dir() (Keys and values for special cases for xcode projects)
+	# \li 'visualstudio' = dir() (Keys and values for special cases for visual studio projects)
 	#
-	# \sa makeprojects.xcode
+	# \sa makeprojects.xcode or makeprojects.visualstudio
 	#
 
 	def processjson(self,myjson):
@@ -353,6 +370,8 @@ class SolutionData:
 			
 			elif key=='xcode':
 				error = self.xcode.loadjson(myjson[key])
+			elif key=='visualstudio':
+				error = self.visualstudio.loadjson(myjson[key])
 			else:
 				print 'Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + '" found in json file'
 				error = 1
@@ -375,10 +394,16 @@ class SolutionData:
 				error = self.processjson(item)
 			elif item=='vs2015':
 				self.ide = item
-				error = createvs2015solution(self)
+				error = visualstudio.generate(self)
+			elif item=='vs2013':
+				self.ide = item
+				error = visualstudio.generate(self)
+			elif item=='vs2012':
+				self.ide = item
+				error = visualstudio.generate(self)
 			elif item=='vs2010':
 				self.ide = item
-				error = createvs2010solution(self)
+				error = visualstudio.generate(self)
 			elif item=='vs2008':
 				self.ide = item
 				error = createvs2008solution(self)
@@ -422,14 +447,13 @@ class SolutionData:
 		# Fake json file and initialization record
 		#
 			
-		myjson = []
-		initializationrecord = dict()
+		dictrecord = dict()
 		
 		#
 		# Use the work folder name as the project name
 		#
 		
-		initializationrecord['projectname'] = os.path.basename(self.workingDir)
+		dictrecord['projectname'] = os.path.basename(self.workingDir)
 		
 		configurations = []
 		if args.debug==True:
@@ -448,7 +472,7 @@ class SolutionData:
 		if not 'Release' in configurations:
 			args.finalfolder==False
 
-		initializationrecord['configurations'] = configurations
+		dictrecord['configurations'] = configurations
 
 		#
 		# Lib, game or tool?
@@ -460,19 +484,20 @@ class SolutionData:
 			kind = 'library'
 		else:
 			kind = 'tool'
-		initializationrecord['kind'] = kind
+		dictrecord['kind'] = kind
 
 		#
 		# Where to find the source
 		#
 		
-		initializationrecord['sourcefolders'] = ['.','source/*.*']
+		dictrecord['sourcefolders'] = ['.','source/*.*']
 		
 		#
-		# Save the initializer
+		# Save the initializer in a fake json record
+		# list
 		#
-		
-		myjson.append(initializationrecord)
+
+		myjson = [dictrecord]
 		
 		#
 		# Xcode projects assume a macosx platform
@@ -483,7 +508,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder==True:
-				initializationrecord['finalfolder'] = '$(SDKS)/macosx/bin/'
+				initializationrecord['finalfolder'] = xcode.defaultfinalfolder
 			myjson.append(initializationrecord)
 			myjson.append('xcode3')
 
@@ -491,7 +516,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder==True:
-				initializationrecord['finalfolder'] = '$(SDKS)/macosx/bin/'
+				initializationrecord['finalfolder'] = xcode.defaultfinalfolder
 			myjson.append(initializationrecord)
 			myjson.append('xcode4')
 			
@@ -499,7 +524,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder==True:
-				initializationrecord['finalfolder'] = '$(SDKS)/macosx/bin/'
+				initializationrecord['finalfolder'] = xcode.defaultfinalfolder
 			myjson.append(initializationrecord)
 			myjson.append('xcode5')
 
@@ -523,7 +548,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder==True:
-				initializationrecord['finalfolder'] = '$(SDKS)/windows/bin/'
+				initializationrecord['finalfolder'] = visualstudio.defaultfinalfolder
 			myjson.append(initializationrecord)
 			myjson.append('vs2010')
 
@@ -531,7 +556,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder==True:
-				initializationrecord['finalfolder'] = '$(SDKS)/windows/bin/'
+				initializationrecord['finalfolder'] = visualstudio.defaultfinalfolder
 			myjson.append(initializationrecord)
 			myjson.append('vs2015')
 
@@ -553,6 +578,12 @@ class SolutionData:
 			myjson.append(initializationrecord)
 			myjson.append('watcom')
 
+		#
+		# These are platform specific, and as such are
+		# tied to specific IDEs that are tailored to
+		# the specific platforms
+		#
+		
 		if args.xbox360==True:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'xbox360'
@@ -678,7 +709,7 @@ class SolutionData:
 # scan for all the files that are to be included in the project
 #
 
-	def scandirectory(self,directory,codefiles,includedirectories,recurse):
+	def scandirectory(self,directory,codefiles,includedirectories,recurse,acceptable):
 
 		#
 		# Root directory is a special case
@@ -701,7 +732,7 @@ class SolutionData:
 			nameList = os.listdir(searchDir)
 	
 			#
-			# No files added, yet
+			# No files added, yet (Flag for adding directory to the search tree)
 			#
 	
 			found = False
@@ -735,6 +766,21 @@ class SolutionData:
 				
 					for item in defaultcodeextensions:
 						if testName.endswith(item[0]):
+							
+							#
+							# Found a match, test if the type is in 
+							# the acceptable list
+							#
+							
+							abort = True
+							for item2 in acceptable:
+								if item[1]==item2:
+									abort = False
+									break
+									
+							if abort==True:
+								break
+									
 							#
 							# If the directory is the root, then don't prepend a directory
 							#
@@ -760,7 +806,7 @@ class SolutionData:
 			
 				elif recurse==True:
 					if os.path.isdir(fileName):
-						codefiles,includedirectories = self.scandirectory(directory + os.sep + baseName,codefiles,includedirectories,recurse)
+						codefiles,includedirectories = self.scandirectory(directory + os.sep + baseName,codefiles,includedirectories,recurse,acceptable)
 						
 		return codefiles,includedirectories
 
@@ -768,10 +814,11 @@ class SolutionData:
 # Obtain the list of source files
 #
 
-	def getfilelist(self):
+	def getfilelist(self,acceptable):
 
 		#
-		# Get the files in the directory list
+		# Get the files that were manually parsed by the json
+		# record
 		#
 	
 		codefiles = list(self.codefiles)
@@ -784,6 +831,7 @@ class SolutionData:
 		
 			recurse = False
 			if item.endswith('/*.*'):
+				# Remove the trailing /*.*
 				item = item[0:len(item)-4]
 				recurse = True
 			
@@ -791,8 +839,15 @@ class SolutionData:
 			# Scan the folder for files
 			#
 			
-			codefiles,includedirectories = self.scandirectory(item,codefiles,includedirectories,recurse)
+			codefiles,includedirectories = self.scandirectory(item,codefiles,includedirectories,recurse,acceptable)
 
+		#
+		# Since the slashes are all windows (No matter what
+		# host this script is running on, the sort will yield consistent
+		# results so it doesn't matter what platform generated the 
+		# file list, it's the same output.
+		#
+		
 		codefiles = sorted(codefiles,cmp=lambda x,y: cmp(x.filename,y.filename))
 		return codefiles,includedirectories
 
@@ -809,16 +864,17 @@ def getconfigurationcode(configuration):
 		return 'int'
 	if configuration=='Profile':
 		return 'pro'
-	return 'unk'
+	# The fallback is the configuration in lower case
+	return configuration.lower()
 
 #
 # Prune the file list for a specific type
 #
 
-def pickfromfilelist(codefiles,type):
+def pickfromfilelist(codefiles,itemtype):
 	filelist = []
 	for item in codefiles:
-		if item.type == type:
+		if item.type == itemtype:
 			filelist.append(item)
 	return filelist
 	
@@ -827,127 +883,6 @@ def pickfromfilelist(codefiles,type):
 # Visual Studio 2003-2013 support #
 #                                 #
 ###################################
-
-#
-# Create Visual Studio .sln file for Visual Studio 2003-2013
-#
-
-def createslnfile(solution):
-	
-	#
-	# First, create the specific year and version codes needed
-	#
-	
-	if solution.ide=='vs2003':
-		formatversion = '8.00'
-		yearversion = '2003'
-		projectsuffix = '.vcproj'
-	elif solution.ide=='vs2005':
-		formatversion = '9.00'
-		yearversion = '2005'
-		projectsuffix = '.vcproj'
-	elif solution.ide=='vs2008':
-		formatversion = '10.00'
-		yearversion = '2008'
-		projectsuffix = '.vcproj'
-	elif solution.ide=='vs2010':
-		formatversion = '11.00'
-		yearversion = '2010'
-		projectsuffix = '.vcxproj'
-	elif solution.ide=='vs2012':
-		formatversion = '12.00'
-		yearversion = '2012'
-		projectsuffix = '.vcxproj'
-	elif solution.ide=='vs2013':
-		formatversion = '12.00'
-		yearversion = '2013'
-		projectsuffix = '.vcxproj'
-	elif solution.ide=='vs2015':
-		formatversion = '12.00'
-		yearversion = '14'
-		projectsuffix = '.vcxproj'
-	else:
-		# Not supported yet
-		return 10,None
-	
-	#
-	# Determine the filename (Sans extension)
-	#
-	
-	idecode = solution.getidecode()
-	platformcode = solution.getplatformcode()
-	projectfilename = str(solution.projectname + idecode + platformcode)
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename))).upper()
-	
-	#
-	# Let's create the solution file!
-	#
-	
-	solutionpathname = os.path.join(solution.workingDir,projectfilename + '.sln')
-	
-	#
-	# Start writing the project file
-	#
-	
-	burger.perforceedit(solutionpathname)
-	fp = open(solutionpathname,'w')
-	
-	#
-	# Save off the UTF-8 header marker
-	#
-	fp.write('\xef\xbb\xbf\n')
-	
-	#
-	# Save off the format header
-	#
-	fp.write('Microsoft Visual Studio Solution File, Format Version ' + formatversion + '\n')
-	fp.write('# Visual Studio ' + yearversion + '\n')
-
-	fp.write('Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + solution.projectname + '", "' + projectfilename + projectsuffix + '", "{' + solutionuuid + '}"\n')
-	fp.write('EndProject\n')
-	
-	fp.write('Global\n')
-
-	#
-	# Write out the SolutionConfigurationPlatforms
-	#
-	
-	vsplatforms = solution.getvsplatform()
-	fp.write('\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
-	for target in solution.configurations:
-		for vsplatform in vsplatforms:
-			token = target + '|' + vsplatform
-			fp.write('\t\t' + token + ' = ' + token + '\n')
-	fp.write('\tEndGlobalSection\n')
-
-	#
-	# Write out the ProjectConfigurationPlatforms
-	#
-	
-	fp.write('\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
-	for target in solution.configurations:
-		for vsplatform in vsplatforms:
-			token = target + '|' + vsplatform
-			fp.write('\t\t{' + solutionuuid + '}.' + token + '.ActiveCfg = ' + token + '\n')
-			fp.write('\t\t{' + solutionuuid + '}.' + token + '.Build.0 = ' + token + '\n')
-	fp.write('\tEndGlobalSection\n')
-
-	
-	#
-	# Hide nodes section
-	#
-	
-	fp.write('\tGlobalSection(SolutionProperties) = preSolution\n')
-	fp.write('\t\tHideSolutionNode = FALSE\n')
-	fp.write('\tEndGlobalSection\n')
-	
-	#
-	# Close it up!
-	#
-	
-	fp.write('EndGlobal\n')	
-	fp.close()
-	return 0,projectfilename
 	
 #
 # Dump out a recursive tree of files to reconstruct a
@@ -984,7 +919,7 @@ def dumptreevs2005(indent,string,entry,fp,groups):
 #
 
 def createvs2005solution(solution):
-	error,projectfilename = createslnfile(solution)
+	error = visualstudio.generate(solution)
 	if error!=0:
 		return error
 		
@@ -992,10 +927,15 @@ def createvs2005solution(solution):
 	# Now, let's create the project file
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	acceptable = [FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.ico]
+	codefiles,includedirectories = solution.getfilelist(acceptable)
+	listh = pickfromfilelist(codefiles,FileTypes.h)
+	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
+	listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
+
 	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,projectfilename + '.vcproj')
+	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.projectfilename))).upper()
+	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.projectfilename + '.vcproj')
 	burger.perforceedit(projectpathname)
 	fp = open(projectpathname,'w')
 	
@@ -1180,24 +1120,6 @@ def createvs2005solution(solution):
 	# Save out the filenames
 	#
 	
-	listh = pickfromfilelist(codefiles,FileTypes.h)
-	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
-	listwindowsresource = []
-	listhlsl = []
-	listglsl = []
-	listx360sl = []
-	listvitacg = []
-	if platformcode=='win':
-		listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
-		listhlsl = pickfromfilelist(codefiles,FileTypes.hlsl)
-		listglsl = pickfromfilelist(codefiles,FileTypes.glsl)
-	
-	if platformcode=='x36':
-		listx360sl = pickfromfilelist(codefiles,FileTypesx360sl)
-
-	if platformcode=='vit':
-		listvitacg = pickfromfilelist(codefiles,FileTypesvitacg)
-	
 	alllists = listh + listcpp + listwindowsresource
 	if len(alllists):
 
@@ -1254,17 +1176,22 @@ def createvs2005solution(solution):
 #
 
 def createvs2008solution(solution):
-	error,projectfilename = createslnfile(solution)
+	error = visualstudio.generate(solution)
 	if error!=0:
 		return error
 	#
 	# Now, let's create the project file
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	acceptable = [FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.ico]
+	codefiles,includedirectories = solution.getfilelist(acceptable)
+	listh = pickfromfilelist(codefiles,FileTypes.h)
+	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
+	listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
+
 	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,projectfilename + '.vcproj')
+	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.projectfilename))).upper()
+	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.projectfilename + '.vcproj')
 	burger.perforceedit(projectpathname)
 	fp = open(projectpathname,'w')
 	
@@ -1450,24 +1377,6 @@ def createvs2008solution(solution):
 	#
 	# Save out the filenames
 	#
-	
-	listh = pickfromfilelist(codefiles,FileTypes.h)
-	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
-	listwindowsresource = []
-	listhlsl = []
-	listglsl = []
-	listx360sl = []
-	listvitacg = []
-	if platformcode=='win':
-		listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
-		listhlsl = pickfromfilelist(codefiles,FileTypes.hlsl)
-		listglsl = pickfromfilelist(codefiles,FileTypes.glsl)
-	
-	if platformcode=='x36':
-		listx360sl = pickfromfilelist(codefiles,FileTypes.x360sl)
-
-	if platformcode=='vit':
-		listvitacg = pickfromfilelist(codefiles,FileTypes.vitacg)
 
 	alllists = listh + listcpp + listwindowsresource
 	if len(alllists):
@@ -1517,776 +1426,6 @@ def createvs2008solution(solution):
 	fp.close()
 		
 	return 0
-	
-#
-# Create the solution and project file for visual studio 2010
-#
-
-def createvs2010solution(solution):
-	
-	error,projectfilename = createslnfile(solution)
-	if error!=0:
-		return error
-		
-	#
-	# Now, let's create the project file
-	#
-	
-	codefiles,includedirectories = solution.getfilelist()
-	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,projectfilename + '.vcxproj')
-	burger.perforceedit(projectpathname)
-	fp = open(projectpathname,'w')
-	
-	#
-	# Save off the xml header
-	#
-	
-	fp.write('<?xml version="1.0" encoding="utf-8"?>\n')
-	fp.write('<Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
-
-	#
-	# nVidia Shield projects have a version header
-	#
-
-	if solution.platform=='shield':
-		fp.write('\t<PropertyGroup Label="NsightTegraProject">\n')
-		fp.write('\t\t<NsightTegraProjectRevisionNumber>8</NsightTegraProjectRevisionNumber>\n')
-		fp.write('\t</PropertyGroup>\n')
-
-	#
-	# Write the project configurations
-	#
-
-	fp.write('\t<ItemGroup Label="ProjectConfigurations">\n')
-	for target in solution.configurations:
-		for vsplatform in solution.getvsplatform():
-			token = target + '|' + vsplatform
-			fp.write('\t\t<ProjectConfiguration Include="' + token + '">\n')		
-			fp.write('\t\t\t<Configuration>' + target + '</Configuration>\n')
-			fp.write('\t\t\t<Platform>' + vsplatform + '</Platform>\n')
-			fp.write('\t\t</ProjectConfiguration>\n')
-	fp.write('\t</ItemGroup>\n')
-	
-	#
-	# Write the project globals
-	#
-	
-	fp.write('\t<PropertyGroup Label="Globals">\n')
-	fp.write('\t\t<ProjectName>' + solution.projectname + '</ProjectName>\n')
-	if solution.finalfolder!=None:
-		final = burger.converttowindowsslasheswithendslash(solution.finalfolder)
-		fp.write('\t\t<FinalFolder>' + final + '</FinalFolder>\n')
-	fp.write('\t\t<ProjectGuid>{' + solutionuuid + '}</ProjectGuid>\n')
-	fp.write('\t</PropertyGroup>\n')	
-	
-	#
-	# Add in the project includes
-	#
-
-	fp.write('\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />\n')
-	if solution.kind=='library':
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.libv10.props" />\n')
-	elif solution.kind=='tool':
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.toolv10.props" />\n')
-	else:
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.gamev10.props" />\n')	
-	fp.write('\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props" />\n')
-	fp.write('\t<ImportGroup Label="ExtensionSettings" />\n')
-	fp.write('\t<ImportGroup Label="PropertySheets" />\n')
-	fp.write('\t<PropertyGroup Label="UserMacros" />\n')
-
-	#
-	# Insert compiler settings
-	#
-	
-	if len(includedirectories) or \
-		len(solution.includefolders) or \
-		len(solution.defines):
-		fp.write('\t<ItemDefinitionGroup>\n')
-		
-		#
-		# Handle global compiler defines
-		#
-		
-		if len(includedirectories) or \
-			len(solution.includefolders) or \
-			len(solution.defines):
-			fp.write('\t\t<ClCompile>\n')
-	
-			# Include directories
-			if len(includedirectories) or len(solution.includefolders):
-				fp.write('\t\t\t<AdditionalIncludeDirectories>')
-				for dir in includedirectories:
-					fp.write('$(ProjectDir)' + burger.converttowindowsslashes(dir) + ';')
-				for dir in solution.includefolders:
-					fp.write(burger.converttowindowsslashes(dir) + ';')
-				fp.write('%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')
-
-			# Global defines
-			if len(solution.defines):
-				fp.write('\t\t\t<PreprocessorDefinitions>')
-				for define in solution.defines:
-					fp.write(define + ';')
-				fp.write('%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-	
-			fp.write('\t\t</ClCompile>\n')
-
-		#
-		# Handle global linker defines
-		#
-		
-		if len(solution.includefolders):
-			fp.write('\t\t<Link>\n')
-	
-			# Include directories
-			if len(solution.includefolders):
-				fp.write('\t\t\t<AdditionalLibraryDirectories>')
-				for dir in solution.includefolders:
-					fp.write(burger.converttowindowsslashes(dir) + ';')
-				fp.write('%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>\n')
-
-			fp.write('\t\t</Link>\n')
-
-		fp.write('\t</ItemDefinitionGroup>\n')
-
-	#
-	# This is needed for the PS3 and PS4 targets :(
-	#
-	
-	if platformcode=='ps3' or platformcode=='ps4':
-		fp.write('\t<ItemDefinitionGroup Condition="\'$(BurgerConfiguration)\'!=\'Release\'">\n')
-		fp.write('\t\t<ClCompile>\n')
-		fp.write('\t\t\t<PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-		fp.write('\t\t</ClCompile>\n')
-		fp.write('\t</ItemDefinitionGroup>\n')
-		fp.write('\t<ItemDefinitionGroup Condition="\'$(BurgerConfiguration)\'==\'Release\'">\n')
-		fp.write('\t\t<ClCompile>\n')
-		fp.write('\t\t\t<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-		fp.write('\t\t</ClCompile>\n')
-		fp.write('\t</ItemDefinitionGroup>\n')
-
-	#
-	# Insert the source files
-	#
-	
-	listh = pickfromfilelist(codefiles,FileTypes.h)
-	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
-	listwindowsresource = []
-	listhlsl = []
-	listglsl = []
-	listx360sl = []
-	listvitacg = []
-	if platformcode=='win':
-		listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
-		listhlsl = pickfromfilelist(codefiles,FileTypes.hlsl)
-		listglsl = pickfromfilelist(codefiles,FileTypes.glsl)
-
-	if platformcode=='x36':
-		listx360sl = pickfromfilelist(codefiles,FileTypes.x360sl)
-
-	if platformcode=='vit':
-		listvitacg = pickfromfilelist(codefiles,FileTypes.vitacg)
-
-	#
-	# Any source files for the item groups?
-	#
-	
-	if len(listh) or \
-		len(listcpp) or \
-		len(listwindowsresource) or \
-		len(listhlsl) or \
-		len(listglsl) or \
-		len(listx360sl) or \
-		len(listvitacg):
-
-		fp.write('\t<ItemGroup>\n')
-		for item in listh:
-			fp.write('\t\t<ClInclude Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listcpp:
-			fp.write('\t\t<ClCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listwindowsresource:
-			fp.write('\t\t<ResourceCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listhlsl:
-			fp.write('\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = burger.converttowindowsslashes(item.filename).lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs41'):
-				profile = 'vs_4_1'
-			elif splitname[0].startswith('vs4'):
-				profile = 'vs_4_0'
-			elif splitname[0].startswith('vs3'):
-				profile = 'vs_3_0'
-			elif splitname[0].startswith('vs2'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('vs1'):
-				profile = 'vs_1_1'
-			elif splitname[0].startswith('vs'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('ps41'):
-				profile = 'ps_4_1'
-			elif splitname[0].startswith('ps4'):
-				profile = 'ps_4_0'
-			elif splitname[0].startswith('ps3'):
-				profile = 'ps_3_0'
-			elif splitname[0].startswith('ps2'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('ps'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('tx'):
-				profile = 'tx_1_0'
-			elif splitname[0].startswith('gs41'):
-				profile = 'gs_4_1'
-			elif splitname[0].startswith('gs'):
-				profile = 'gs_4_0'
-			else:
-				profile = 'fx_2_0'
-		
-			fp.write('\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</HLSL>\n')
-
-		for item in listx360sl:
-			fp.write('\t\t<X360SL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs3'):
-				profile = 'vs_3_0'
-			elif splitname[0].startswith('vs2'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('vs1'):
-				profile = 'vs_1_1'
-			elif splitname[0].startswith('vs'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('ps3'):
-				profile = 'ps_3_0'
-			elif splitname[0].startswith('ps2'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('ps'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('tx'):
-				profile = 'tx_1_0'
-			else:
-				profile = 'fx_2_0'
-		
-			fp.write('\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</X360SL>\n')
-
-		for item in listvitacg:
-			fp.write('\t\t<VitaCGCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs'):
-				profile = 'sce_vp_psp2'
-			else:
-				profile = 'sce_fp_psp2'
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</VitaCGCompile>\n')
-
-		for item in listglsl:
-			fp.write('\t\t<GLSL Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		fp.write('\t</ItemGroup>\n')	
-	
-	#
-	# Close up the project file!
-	#
-	
-	fp.write('\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />\n')
-	fp.write('\t<ImportGroup Label="ExtensionTargets" />\n')
-	fp.write('</Project>\n')
-	fp.close()
-
-	#
-	# Is there need for a filter file? (Only for Visual Studio 2010 and up)
-	#
-	
-	# 
-	# Create the filter filename
-	#
-		
-	filterpathname = os.path.join(solution.workingDir,projectfilename + '.vcxproj.filters')
-	burger.perforceedit(filterpathname)
-	fp = open(filterpathname,'w')
-		
-	#
-	# Stock header
-	#
-		
-	fp.write('<?xml version="1.0" encoding="utf-8"?>\n')
-	fp.write('<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
-
-	groups = []
-	fp.write('\t<ItemGroup>\n')
-
-	for item in listh:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ClInclude Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ClInclude>\n')
-
-	for item in listcpp:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ClCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ClCompile>\n')
-
-	for item in listwindowsresource:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ResourceCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ResourceCompile>\n')
-
-	for item in listhlsl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</HLSL>\n')
-	
-	for item in listx360sl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<X360SL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</X360SL>\n')
-
-	for item in listvitacg:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<VitaCGCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</VitaCGCompile>\n')
-	
-	for item in listglsl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<GLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</GLSL>\n')
-	
-	groupset = set(groups)
-	if len(groupset):
-		for group in groupset:
-			group = burger.converttowindowsslashes(group)
-			fp.write('\t\t<Filter Include="' + group + '">\n')
-			groupuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename + group))).upper()
-			fp.write('\t\t\t<UniqueIdentifier>{' + groupuuid + '}</UniqueIdentifier>\n')
-			fp.write('\t\t</Filter>\n')
-
-	fp.write('\t</ItemGroup>\n')
-	fp.write('</Project>\n')
-	fp.close()
-	
-	#
-	# Uh oh, filters weren't needed at all!
-	#
-	
-	if len(groupset)==0:
-		os.remove(filterpathname)
-			
-	return 0
-	
-#
-# Create the solution and project file for visual studio 2015
-#
-
-def createvs2015solution(solution):
-	
-	error,projectfilename = createslnfile(solution)
-	if error!=0:
-		return error
-		
-	#
-	# Now, let's create the project file
-	#
-	
-	codefiles,includedirectories = solution.getfilelist()
-	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,projectfilename + '.vcxproj')
-	burger.perforceedit(projectpathname)
-	fp = open(projectpathname,'w')
-	
-	#
-	# Save off the xml header
-	#
-	
-	fp.write('<?xml version="1.0" encoding="utf-8"?>\n')
-	fp.write('<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
-
-	#
-	# nVidia Shield projects have a version header
-	#
-
-	if solution.platform=='shield':
-		fp.write('\t<PropertyGroup Label="NsightTegraProject">\n')
-		fp.write('\t\t<NsightTegraProjectRevisionNumber>8</NsightTegraProjectRevisionNumber>\n')
-		fp.write('\t</PropertyGroup>\n')
-
-	#
-	# Write the project configurations
-	#
-
-	fp.write('\t<ItemGroup Label="ProjectConfigurations">\n')
-	for target in solution.configurations:
-		for vsplatform in solution.getvsplatform():
-			token = target + '|' + vsplatform
-			fp.write('\t\t<ProjectConfiguration Include="' + token + '">\n')		
-			fp.write('\t\t\t<Configuration>' + target + '</Configuration>\n')
-			fp.write('\t\t\t<Platform>' + vsplatform + '</Platform>\n')
-			fp.write('\t\t</ProjectConfiguration>\n')
-	fp.write('\t</ItemGroup>\n')
-	
-	#
-	# Write the project globals
-	#
-	
-	fp.write('\t<PropertyGroup Label="Globals">\n')
-	fp.write('\t\t<ProjectName>' + solution.projectname + '</ProjectName>\n')
-	if solution.finalfolder!=None:
-		final = burger.converttowindowsslasheswithendslash(solution.finalfolder)
-		fp.write('\t\t<FinalFolder>' + final + '</FinalFolder>\n')
-	fp.write('\t\t<ProjectGuid>{' + solutionuuid + '}</ProjectGuid>\n')
-	fp.write('\t</PropertyGroup>\n')	
-	
-	#
-	# Add in the project includes
-	#
-
-	fp.write('\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />\n')
-	fp.write('\t<PropertyGroup Label="Configuration">\n')
-	fp.write('\t\t<PlatformToolset>v140</PlatformToolset>\n')
-	fp.write('\t</PropertyGroup>\n')
-
-	if solution.kind=='library':
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.libv10.props" />\n')
-	elif solution.kind=='tool':
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.toolv10.props" />\n')
-	else:
-		fp.write('\t<Import Project="$(SDKS)\\visualstudio\\burger.gamev10.props" />\n')	
-	fp.write('\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props" />\n')
-	fp.write('\t<ImportGroup Label="ExtensionSettings" />\n')
-	fp.write('\t<ImportGroup Label="PropertySheets" />\n')
-	fp.write('\t<PropertyGroup Label="UserMacros" />\n')
-
-	#
-	# Insert compiler settings
-	#
-	
-	if len(includedirectories) or \
-		len(solution.includefolders) or \
-		len(solution.defines):
-		fp.write('\t<ItemDefinitionGroup>\n')
-		
-		#
-		# Handle global compiler defines
-		#
-		
-		if len(includedirectories) or \
-			len(solution.includefolders) or \
-			len(solution.defines):
-			fp.write('\t\t<ClCompile>\n')
-	
-			# Include directories
-			if len(includedirectories) or len(solution.includefolders):
-				fp.write('\t\t\t<AdditionalIncludeDirectories>')
-				for dir in includedirectories:
-					fp.write('$(ProjectDir)' + burger.converttowindowsslashes(dir) + ';')
-				for dir in solution.includefolders:
-					fp.write(burger.converttowindowsslashes(dir) + ';')
-				fp.write('%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')
-
-			# Global defines
-			if len(solution.defines):
-				fp.write('\t\t\t<PreprocessorDefinitions>')
-				for define in solution.defines:
-					fp.write(define + ';')
-				fp.write('%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-	
-			fp.write('\t\t</ClCompile>\n')
-
-		#
-		# Handle global linker defines
-		#
-		
-		if len(solution.includefolders):
-			fp.write('\t\t<Link>\n')
-	
-			# Include directories
-			if len(solution.includefolders):
-				fp.write('\t\t\t<AdditionalLibraryDirectories>')
-				for dir in solution.includefolders:
-					fp.write(burger.converttowindowsslashes(dir) + ';')
-				fp.write('%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>\n')
-
-			fp.write('\t\t</Link>\n')
-
-		fp.write('\t</ItemDefinitionGroup>\n')
-
-	#
-	# This is needed for the PS3 and PS4 targets :(
-	#
-	
-	if platformcode=='ps3' or platformcode=='ps4':
-		fp.write('\t<ItemDefinitionGroup Condition="\'$(BurgerConfiguration)\'!=\'Release\'">\n')
-		fp.write('\t\t<ClCompile>\n')
-		fp.write('\t\t\t<PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-		fp.write('\t\t</ClCompile>\n')
-		fp.write('\t</ItemDefinitionGroup>\n')
-		fp.write('\t<ItemDefinitionGroup Condition="\'$(BurgerConfiguration)\'==\'Release\'">\n')
-		fp.write('\t\t<ClCompile>\n')
-		fp.write('\t\t\t<PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-		fp.write('\t\t</ClCompile>\n')
-		fp.write('\t</ItemDefinitionGroup>\n')
-
-	#
-	# Insert the source files
-	#
-	
-	listh = pickfromfilelist(codefiles,FileTypes.h)
-	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
-	listwindowsresource = []
-	listhlsl = []
-	listglsl = []
-	listx360sl = []
-	listvitacg = []
-	if platformcode=='win':
-		listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
-		listhlsl = pickfromfilelist(codefiles,'hlsl')
-		listglsl = pickfromfilelist(codefiles,'glsl')
-
-	if platformcode=='x36':
-		listx360sl = pickfromfilelist(codefiles,FileTypes.x360sl)
-
-	if platformcode=='vit':
-		listvitacg = pickfromfilelist(codefiles,FileTypes.vitacg)
-
-	#
-	# Any source files for the item groups?
-	#
-	
-	if len(listh) or \
-		len(listcpp) or \
-		len(listwindowsresource) or \
-		len(listhlsl) or \
-		len(listglsl) or \
-		len(listx360sl) or \
-		len(listvitacg):
-
-		fp.write('\t<ItemGroup>\n')
-		for item in listh:
-			fp.write('\t\t<ClInclude Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listcpp:
-			fp.write('\t\t<ClCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listwindowsresource:
-			fp.write('\t\t<ResourceCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		for item in listhlsl:
-			fp.write('\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs41'):
-				profile = 'vs_4_1'
-			elif splitname[0].startswith('vs4'):
-				profile = 'vs_4_0'
-			elif splitname[0].startswith('vs3'):
-				profile = 'vs_3_0'
-			elif splitname[0].startswith('vs2'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('vs1'):
-				profile = 'vs_1_1'
-			elif splitname[0].startswith('vs'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('ps41'):
-				profile = 'ps_4_1'
-			elif splitname[0].startswith('ps4'):
-				profile = 'ps_4_0'
-			elif splitname[0].startswith('ps3'):
-				profile = 'ps_3_0'
-			elif splitname[0].startswith('ps2'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('ps'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('tx'):
-				profile = 'tx_1_0'
-			elif splitname[0].startswith('gs41'):
-				profile = 'gs_4_1'
-			elif splitname[0].startswith('gs'):
-				profile = 'gs_4_0'
-			else:
-				profile = 'fx_2_0'
-		
-			fp.write('\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</HLSL>\n')
-
-		for item in listx360sl:
-			fp.write('\t\t<X360SL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs3'):
-				profile = 'vs_3_0'
-			elif splitname[0].startswith('vs2'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('vs1'):
-				profile = 'vs_1_1'
-			elif splitname[0].startswith('vs'):
-				profile = 'vs_2_0'
-			elif splitname[0].startswith('ps3'):
-				profile = 'ps_3_0'
-			elif splitname[0].startswith('ps2'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('ps'):
-				profile = 'ps_2_0'
-			elif splitname[0].startswith('tx'):
-				profile = 'tx_1_0'
-			else:
-				profile = 'fx_2_0'
-		
-			fp.write('\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</X360SL>\n')
-
-		for item in listvitacg:
-			fp.write('\t\t<VitaCGCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-			basename = item.filename.lower().rsplit('\\',1)[1]
-			splitname = os.path.splitext(basename)
-			if splitname[0].startswith('vs'):
-				profile = 'sce_vp_psp2'
-			else:
-				profile = 'sce_fp_psp2'
-			fp.write('\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
-			fp.write('\t\t</VitaCGCompile>\n')
-
-		for item in listglsl:
-			fp.write('\t\t<GLSL Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-		fp.write('\t</ItemGroup>\n')	
-	
-	#
-	# Close up the project file!
-	#
-	
-	fp.write('\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />\n')
-	fp.write('\t<ImportGroup Label="ExtensionTargets" />\n')
-	fp.write('</Project>\n')
-	fp.close()
-
-	#
-	# Is there need for a filter file? (Only for Visual Studio 2010 and up)
-	#
-	
-	# 
-	# Create the filter filename
-	#
-		
-	filterpathname = os.path.join(solution.workingDir,projectfilename + '.vcxproj.filters')
-	burger.perforceedit(filterpathname)
-	fp = open(filterpathname,'w')
-		
-	#
-	# Stock header
-	#
-		
-	fp.write('<?xml version="1.0" encoding="utf-8"?>\n')
-	fp.write('<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
-
-	groups = []
-	fp.write('\t<ItemGroup>\n')
-
-	for item in listh:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ClInclude Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ClInclude>\n')
-
-	for item in listcpp:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ClCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ClCompile>\n')
-
-	for item in listwindowsresource:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<ResourceCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</ResourceCompile>\n')
-
-	for item in listhlsl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</HLSL>\n')
-	
-	for item in listx360sl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<X360SL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</X360SL>\n')
-
-	for item in listvitacg:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<VitaCGCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</VitaCGCompile>\n')
-	
-	for item in listglsl:
-		groupname = item.extractgroupname()
-		if groupname!='':
-			fp.write('\t\t<GLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write('\t\t\t<Filter>' + groupname + '</Filter>\n')
-			groups.append(groupname)
-			fp.write('\t\t</GLSL>\n')
-	
-	groupset = set(groups)
-	if len(groupset):
-		for group in groupset:
-			group = burger.converttowindowsslashes(group)
-			fp.write('\t\t<Filter Include="' + group + '">\n')
-			groupuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(projectfilename + group))).upper()
-			fp.write('\t\t\t<UniqueIdentifier>{' + groupuuid + '}</UniqueIdentifier>\n')
-			fp.write('\t\t</Filter>\n')
-
-	fp.write('\t</ItemGroup>\n')
-	fp.write('</Project>\n')
-	fp.close()
-	
-	#
-	# Uh oh, filters weren't needed at all!
-	#
-	
-	if len(groupset)==0:
-		os.remove(filterpathname)
-			
-	return 0	
 
 #
 # Dump out a recursive tree of files to reconstruct a
@@ -2339,7 +1478,7 @@ def createcodewarriorsolution(solution):
 	# Now, let's create the project file
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.hlsl,FileTypes.glsl])
 	platformcode = solution.getplatformcode()
 	idecode = solution.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
@@ -2949,7 +2088,7 @@ def createcodeblockssolution(solution):
 	# Now, let's create the project file
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.hlsl,FileTypes.glsl])
 	platformcode = solution.getplatformcode()
 	idecode = solution.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
@@ -3140,7 +2279,7 @@ def createwatcomsolution(solution):
 	# Now, let's create the project file
 	#
 	
-	codefiles,includedirectories = solution.getfilelist()
+	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.x86])
 	platformcode = solution.getplatformcode()
 	idecode = solution.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
