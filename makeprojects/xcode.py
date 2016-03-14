@@ -6,7 +6,7 @@
 # Handler for Apple Computer XCode projects
 #
 
-# Copyright 1995-2014 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2016 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -107,12 +107,12 @@ class Defaults:
 			else:
 				# Frameworks for an iOS app
 				minimumframeworks = [
-					'QuartzCore.framework',
-					'CoreLocation.framework',
 					'AVFoundation.framework',
-					'UIKit.framework',
+					'CoreGraphics.framework',
+					'CoreLocation.framework',
 					'Foundation.framework',
-					'CoreGraphics.framework'
+					'QuartzCore.framework',
+					'UIKit.framework'
 				]
 				if solution.kind=='game':
 					self.configfilename = 'burger.gamexcoios.xcconfig'
@@ -129,8 +129,11 @@ class Defaults:
 				# Frameworks for a Mac OSX app or tool
 				minimumframeworks = [
 					'AppKit.framework',
-					'Cocoa.framework',
+					'AudioToolbox.framework',
+					'AudioUnit.framework',
 					'Carbon.framework',
+					'Cocoa.framework',
+					'CoreAudio.framework',
 					'IOKit.framework',
 					'OpenGL.framework',
 					'QuartzCore.framework'

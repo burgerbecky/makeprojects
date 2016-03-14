@@ -6,7 +6,7 @@
 # other IDEs
 #
 
-# Copyright 1995-2014 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2016 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -275,7 +275,7 @@ class SolutionData:
 		self.projectname = 'project'
 	
 		## Type of ide
-		# 'vs2015', 'vs2010', 'vs2008', 'vs2005',
+		# 'vs2015', 'vs2013', 'vs2012', 'vs2010', 'vs2008', 'vs2005',
 		# 'xcode3', 'xcode4', 'xcode5', 'codewarrior', 'codeblocks',
 		# 'watcom'
 		self.ide = 'vs2010'
@@ -325,7 +325,7 @@ class SolutionData:
 	# \li 'projectname' = Name of the project's filename (basename only)
 	# \li 'platform' = 'windows', 'macosx', 'linux', 'ps3', 'ps4', 'vita',
 	# 'xbox', 'xbox360', 'xboxone', 'shield', 'ios', 'mac', 'msdos',
-	# 'beos', 'ouya'
+	# 'beos', 'ouya', 'wiiu'
 	# \li 'configurations' = ['Debug', 'Release', 'Internal']
 	# \li 'sourcefolders' = ['.','source']
 	# \li 'exclude' = [] (List of files to exclude from processing)
@@ -602,6 +602,12 @@ class SolutionData:
 			myjson.append(initializationrecord)
 			myjson.append('vs2010')
 
+		if args.wiiu==True:
+			initializationrecord = dict()
+			initializationrecord['platform'] = 'wiiu'
+			myjson.append(initializationrecord)
+			myjson.append('vs2013')
+
 		if len(myjson)<2:
 			print 'No default "projects.json" file found nor any project type specified'
 			return 2 
@@ -629,6 +635,8 @@ class SolutionData:
 			return 'v10'
 		if self.ide=='vs2012':
 			return 'v11'
+		if self.ide=='vs2013':
+			return 'v13'
 		if self.ide=='vs2015':
 			return 'v14'
 		if self.ide=='codeblocks':
@@ -676,6 +684,8 @@ class SolutionData:
 			return 'bos'
 		if self.platform=='ouya':
 			return 'oya'
+		if self.platform=='wiiu':
+			return 'wiu'
 		return None
 
 #
@@ -701,6 +711,8 @@ class SolutionData:
 			return ['Tegra-Android']
 		if self.platform=='android':
 			return ['Android']
+		if self.platform=='wiiu':
+			return ['Cafe']
 		return []
 	
 	
@@ -1058,8 +1070,8 @@ def createvs2005solution(solution):
 				if addcolon==True:
 					fp.write(';')
 				if solution.kind!='library' or solution.projectname!='burgerlib':
-					fp.write('$(SDKS)\\windows\\burgerlib;')
-				fp.write('$(SDKS)\\windows\\directx9;$(SDKS)\\windows\\opengl')
+					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
+				fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
 				addcolon = True
 			fp.write('"\n')
 			fp.write('\t\t\t/>\n')
@@ -1103,8 +1115,8 @@ def createvs2005solution(solution):
 				if addcolon==True:
 					fp.write(';')
 				if solution.kind!='library':
-					fp.write('$(SDKS)\\windows\\burgerlib;')
-				fp.write('$(SDKS)\\windows\\opengl"\n')
+					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
+				fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
 				if solution.kind=='tool':
 					# main()
 					fp.write('\t\t\t\tSubSystem="1"\n')
@@ -1316,8 +1328,8 @@ def createvs2008solution(solution):
 				if addcolon==True:
 					fp.write(';')
 				if solution.kind!='library' or solution.projectname!='burgerlib':
-					fp.write('$(SDKS)\\windows\\burgerlib;')
-				fp.write('$(SDKS)\\windows\\directx9;$(SDKS)\\windows\\opengl')
+					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
+				fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
 				addcolon = True
 			fp.write('"\n')
 			fp.write('\t\t\t/>\n')
@@ -1361,8 +1373,8 @@ def createvs2008solution(solution):
 				if addcolon==True:
 					fp.write(';')
 				if solution.kind!='library':
-					fp.write('$(SDKS)\\windows\\burgerlib;')
-				fp.write('$(SDKS)\\windows\\opengl"\n')
+					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
+				fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
 				if solution.kind=='tool':
 					# main()
 					fp.write('\t\t\t\tSubSystem="1"\n')
@@ -1580,15 +1592,15 @@ def createcodewarriorsolution(solution):
 		if solution.platform=='windows':
 		
 			#
-			# Make sure that SDKS are pointed to by the environment variable SDKS on
+			# Make sure that BURGER_SDKS are pointed to by the environment variable BURGER_SDKS on
 			# windows hosts
 			#
 			
 			fp.write('\t\t\t\t<SETTING><NAME>UserSourceTrees</NAME>\n')
 			fp.write('\t\t\t\t\t<SETTING>\n')
-			fp.write('\t\t\t\t\t\t<SETTING><NAME>Name</NAME><VALUE>SDKS</VALUE></SETTING>\n')
+			fp.write('\t\t\t\t\t\t<SETTING><NAME>Name</NAME><VALUE>BURGER_SDKS</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t\t\t<SETTING><NAME>Kind</NAME><VALUE>EnvironmentVariable</VALUE></SETTING>\n')
-			fp.write('\t\t\t\t\t\t<SETTING><NAME>VariableName</NAME><VALUE>SDKS</VALUE></SETTING>\n')
+			fp.write('\t\t\t\t\t\t<SETTING><NAME>VariableName</NAME><VALUE>BURGER_SDKS</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t\t</SETTING>\n')
 			fp.write('\t\t\t\t</SETTING>\n')
 			
@@ -1645,7 +1657,7 @@ def createcodewarriorsolution(solution):
 			fp.write('\t\t\t\t\t\t<SETTING><NAME>SearchPath</NAME>\n')
 			fp.write('\t\t\t\t\t\t\t<SETTING><NAME>Path</NAME><VALUE>' + dirnameentry + '</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t\t\t\t<SETTING><NAME>PathFormat</NAME><VALUE>' + pathformat + '</VALUE></SETTING>\n')
-			fp.write('\t\t\t\t\t\t\t<SETTING><NAME>PathRoot</NAME><VALUE>SDKS</VALUE></SETTING>\n')
+			fp.write('\t\t\t\t\t\t\t<SETTING><NAME>PathRoot</NAME><VALUE>BURGER_SDKS</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t\t\t</SETTING>\n')
 			fp.write('\t\t\t\t\t\t<SETTING><NAME>Recursive</NAME><VALUE>false</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t\t\t<SETTING><NAME>FrameworkPath</NAME><VALUE>false</VALUE></SETTING>\n')
@@ -2230,11 +2242,11 @@ def createcodeblockssolution(solution):
 		fp.write('\t\t\t<Add directory=\'&quot;' + burger.converttolinuxslashes(dirnameentry) + '&quot;\' />\n')
 
 	if solution.kind!='library' or solution.projectname!='burgerlib':
-		fp.write('\t\t\t<Add directory=\'&quot;$(SDKS)/windows/burgerlib&quot;\' />\n')
-	fp.write('\t\t\t<Add directory=\'&quot;$(SDKS)/windows/perforce&quot;\' />\n')
-	fp.write('\t\t\t<Add directory=\'&quot;$(SDKS)/windows/opengl&quot;\' />\n')
-	fp.write('\t\t\t<Add directory=\'&quot;$(SDKS)/windows/directx9&quot;\' />\n')
-	fp.write('\t\t\t<Add directory=\'&quot;$(SDKS)/windows/windows5&quot;\' />\n')
+		fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/burgerlib&quot;\' />\n')
+	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/perforce&quot;\' />\n')
+	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/opengl&quot;\' />\n')
+	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/directx9&quot;\' />\n')
+	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/windows5&quot;\' />\n')
 	fp.write('\t\t</Compiler>\n')
 		
 	#
@@ -2506,6 +2518,9 @@ def run(workingDir):
 	parser.add_argument('-360', dest='xbox360', action='store_true',
 		default=False,
 		help='Build for XBox 360 with Visual Studio 2010.')
+	parser.add_argument('-wiiu', dest='wiiu', action='store_true',
+		default=False,
+		help='Build for WiiU with Visual Studio 2013.')
 
 	parser.add_argument('-release', dest='release', action='store_true',
 		default=False,

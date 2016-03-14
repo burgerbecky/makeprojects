@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 2013-2015 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2013-2016 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -17,7 +17,7 @@
 #
 
 ## Current version of the library
-__version__ = '0.4.0'
+__version__ = '0.4.2'
 
 ## Author's name
 __author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
@@ -38,7 +38,7 @@ __email__ = 'becky@burgerbecky.com'
 __license__ = 'MIT License'
 
 ## Copyright owner
-__copyright__ = 'Copyright 2013-2015 Rebecca Ann Heineman'
+__copyright__ = 'Copyright 2013-2016 Rebecca Ann Heineman'
 
 #
 ## Items to import on "from makeprojects import *"

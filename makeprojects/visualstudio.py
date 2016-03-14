@@ -6,7 +6,7 @@
 # Handler for Microsoft Visual Studio projects
 #
 
-# Copyright 1995-2014 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2016 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -383,6 +383,10 @@ class SolutionFile:
 		if self.fileversion==FileVersions.vs2015:
 			fp.write(u'VisualStudioVersion = 14.0.22823.1\n')
 			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
+			
+		if self.fileversion==FileVersions.vs2013:
+			fp.write(u'VisualStudioVersion = 12.0.31101.0\n')
+			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
 
 		#
 		# If there were any nested projects, output the master list
@@ -494,7 +498,7 @@ class vsProject:
 
 		if self.defaults.platformcode=='shi':
 			fp.write(u'\t<PropertyGroup Label="NsightTegraProject">\n')
-			fp.write(u'\t\t<NsightTegraProjectRevisionNumber>8</NsightTegraProjectRevisionNumber>\n')
+			fp.write(u'\t\t<NsightTegraProjectRevisionNumber>11</NsightTegraProjectRevisionNumber>\n')
 			fp.write(u'\t</PropertyGroup>\n')
 
 		#
