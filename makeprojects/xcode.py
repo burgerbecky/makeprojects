@@ -101,8 +101,8 @@ class Defaults:
 		
 		# Handle iOS targets
 		
-		if solution.platform=='ios':
-			if solution.kind=='library':
+		if solution.platform==core.PlatformTypes.ios:
+			if solution.projecttype==core.ProjectTypes.library:
 				self.configfilename = 'burger.libxcoios.xcconfig'
 			else:
 				# Frameworks for an iOS app
@@ -114,16 +114,16 @@ class Defaults:
 					'QuartzCore.framework',
 					'UIKit.framework'
 				]
-				if solution.kind=='game':
+				if solution.projecttype==core.ProjectTypes.game:
 					self.configfilename = 'burger.gamexcoios.xcconfig'
 				else:
 					self.configfilename = 'burger.toolxcoios.xcconfig'
 
 		# Handle Mac OSX targets
 		
-		elif solution.platform=='macosx':
+		elif solution.platform==core.PlatformTypes.macosx:
 		
-			if solution.kind=='library':
+			if solution.projecttype==core.ProjectTypes.library:
 				self.configfilename = 'burger.libxcoosx.xcconfig'
 			else:
 				# Frameworks for a Mac OSX app or tool
@@ -136,9 +136,10 @@ class Defaults:
 					'CoreAudio.framework',
 					'IOKit.framework',
 					'OpenGL.framework',
-					'QuartzCore.framework'
+					'QuartzCore.framework',
+					'SystemConfiguration.framework'
 				]
-				if solution.kind=='game':
+				if solution.projecttype==core.ProjectTypes.game:
 					self.configfilename = 'burger.gamexcoosx.xcconfig'
 				else:
 					self.configfilename = 'burger.toolxcoosx.xcconfig'
@@ -228,7 +229,7 @@ class PBXFileReference:
 			if basename.endswith('.app'):
 				fp.write(' explicitFileType = wrapper.application; includeInIndex = 0; path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;')
 			else:
-				fp.write(' explicitFileType = compiled.mach-o.executable; includeInIndex = 0; path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;')
+				fp.write(' explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;')
 		elif self.type == core.FileTypes.frameworks:
 			fp.write(' lastKnownFileType = wrapper.framework; name = ' + basename + '; path = System/Library/Frameworks/' + basename + '; sourceTree = SDKROOT;')
 		elif self.type == core.FileTypes.glsl:
@@ -239,7 +240,7 @@ class PBXFileReference:
 			else:
 				fp.write(' lastKnownFileType = text.xml; name = ' + basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;')
 		elif self.type == core.FileTypes.xcconfig:
-			fp.write(' lastKnownFileType = text.xcconfig; name = ' + basename + '; path = xcode/' + basename + '; sourceTree = SDKS;')
+			fp.write(' lastKnownFileType = text.xcconfig; name = ' + basename + '; path = xcode/' + basename + '; sourceTree = BURGER_SDKS;')
 		elif self.type == core.FileTypes.cpp:
 			fp.write(' lastKnownFileType = sourcecode.cpp.cpp; name = ' + basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;')
 		else:
@@ -267,7 +268,7 @@ class PBXBuildRule:
 		fp.write('\t\t\toutputFiles = (\n')
 		fp.write('\t\t\t\t"${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h",\n')
 		fp.write('\t\t\t);\n')
-		fp.write('\t\t\tscript = "${SDKS}/macosx/bin/stripcomments ${INPUT_FILE_PATH} -c -l g_${INPUT_FILE_BASE} ${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h";\n')
+		fp.write('\t\t\tscript = "${BURGER_SDKS}/macosx/bin/stripcomments ${INPUT_FILE_PATH} -c -l g_${INPUT_FILE_BASE} ${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h";\n')
 		fp.write('\t\t};\n')
 
 #
@@ -835,8 +836,8 @@ def generate(solution):
 	# Determine the ide and target type for the final file name
 	#
 
-	idecode = solution.getidecode()
-	platformcode = solution.getplatformcode()
+	idecode = solution.ide.getidecode()
+	platformcode = solution.platform.getplatformcode()
 	xcodeprojectfile = Project(solution.projectname,idecode,platformcode)
 	rootproject = xcodeprojectfile.pbxprojects[0]
 	
@@ -880,14 +881,14 @@ def generate(solution):
 	# What's the final output file?
 	#
 	
-	if solution.kind=='library':
-		if solution.platform=='ios':
+	if solution.projecttype==core.ProjectTypes.library:
+		if solution.platform==core.PlatformTypes.ios:
 			libextension = 'ios.a'
 		else:
 			libextension = 'osx.a'
 		outputfilereference = xcodeprojectfile.addfilereference('lib' + solution.projectname + idecode + libextension,core.FileTypes.library)
 	else:
-		if solution.kind=='game':
+		if solution.projecttype==core.ProjectTypes.game:
 			outputfilereference = xcodeprojectfile.addfilereference(solution.projectname + '.app',core.FileTypes.exe)
 		else:
 			outputfilereference = xcodeprojectfile.addfilereference(solution.projectname,core.FileTypes.exe)
@@ -897,8 +898,8 @@ def generate(solution):
 	#
 
 	ioslibrary = False
-	if solution.platform=='ios':
-		if solution.kind=='library':
+	if solution.platform==core.PlatformTypes.ios:
+		if solution.projecttype==core.ProjectTypes.library:
 			ioslibrary = True
 	
 	if ioslibrary == True:
@@ -1050,14 +1051,14 @@ def generate(solution):
 	#
 	
 	sdkroot = None
-	if solution.platform=='ios':
+	if solution.platform==core.PlatformTypes.ios:
 		sdkroot = 'iphoneos'
 
-	if solution.kind=='library':
+	if solution.projecttype==core.ProjectTypes.library:
 		outputtype = 'com.apple.product-type.library.static'
-	elif solution.kind=='screensaver':
+	elif solution.projecttype==core.ProjectTypes.screensaver:
 		outputtype = 'com.apple.product-type.bundle'
-	elif solution.kind=='game':
+	elif solution.projecttype==core.ProjectTypes.game:
 		outputtype = 'com.apple.product-type.application'
 	else:
 		outputtype = 'com.apple.product-type.tool'
@@ -1069,11 +1070,11 @@ def generate(solution):
 	if ioslibrary==False:
 		configlistref = xcodeprojectfile.addxcconfigurationlist('PBXNativeTarget',xcodeprojectfile.projectname)
 		install = False
-		if solution.kind=='game':
+		if solution.projecttype==core.ProjectTypes.game:
 			install = True
 		for item in solution.configurations:
 			configlistref.configurations.append(xcodeprojectfile.addxcbuildconfigurationlist(item,None,configlistref,sdkroot,install))
-		if solution.kind=='library':
+		if solution.projecttype==core.ProjectTypes.library:
 			finalname = xcodeprojectfile.projectnamecode
 		else:
 			finalname = xcodeprojectfile.projectname
@@ -1131,15 +1132,15 @@ def generate(solution):
 	# Is this an application?
 	#
 	
-	if solution.platform=='macosx':
-		if solution.kind=='tool':
+	if solution.platform==core.PlatformTypes.macosx:
+		if solution.projecttype==core.ProjectTypes.tool:
 			input = ['${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
 			output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
 			command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
 				'${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
 			shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(input,output,command)
 			nativetarget1.append(shellbuildphase.uuid,'ShellScript')
-		elif solution.kind=='game':
+		elif solution.projecttype==core.ProjectTypes.game:
 			input = ['${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app/Contents/MacOS/${EXECUTABLE_NAME}']
 			output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app/Contents/MacOS/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
 			command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
@@ -1163,13 +1164,13 @@ def generate(solution):
 		finalfolder = solution.finalfolder.replace('(','{')
 		finalfolder = finalfolder.replace(')','}')
 		if ioslibrary==True:
-			command = '${SDKS}/macosx/bin/p4 edit ' + finalfolder + '${FINAL_OUTPUT}\\nlipo -output ' + \
+			command = 'p4 edit ' + finalfolder + '${FINAL_OUTPUT}\\nlipo -output ' + \
 				finalfolder + '${FINAL_OUTPUT} -create ${BUILD_ROOT}/' + solution.projectname + idecode + \
 				'dev${SUFFIX}/lib' + solution.projectname + idecode + 'dev.a ${BUILD_ROOT}/' + solution.projectname + idecode + 'sim${SUFFIX}/lib' + solution.projectname + idecode + 'sim.a\\n';
-		elif solution.kind=='library':
-			command = '${SDKS}/macosx/bin/p4 edit ' + finalfolder + '${FINAL_OUTPUT}\\n${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + finalfolder + '${FINAL_OUTPUT}\\n'
+		elif solution.projecttype==core.ProjectTypes.library:
+			command = 'p4 edit ' + finalfolder + '${FINAL_OUTPUT}\\n${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + finalfolder + '${FINAL_OUTPUT}\\n'
 		else:
-			command = 'if [ \\"${CONFIGURATION}\\" == \\"Release\\" ]; then\\n${SDKS}/macosx/bin/p4 edit ' + finalfolder + '${FINAL_OUTPUT}\\n${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + finalfolder + '${FINAL_OUTPUT}\\nfi\\n'
+			command = 'if [ \\"${CONFIGURATION}\\" == \\"Release\\" ]; then\\np4 edit ' + finalfolder + '${FINAL_OUTPUT}\\n${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + finalfolder + '${FINAL_OUTPUT}\\nfi\\n'
 		shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(input,solution.finalfolder + '${FINAL_OUTPUT}',command)
 		nativetarget1.append(shellbuildphase.uuid,'ShellScript')
 		

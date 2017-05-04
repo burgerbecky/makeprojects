@@ -25,7 +25,9 @@ import subprocess
 import copy
 import burger
 import argparse
-from enum import Enum
+import enum
+from enum import IntEnum, unique, EnumMeta
+import re
 import visualstudio
 import xcode
 
@@ -36,53 +38,445 @@ import xcode
 #
 
 #
+## Class to allow auto generation of enumerations
+#
+
+class auto_enum(EnumMeta):
+	def __new__(metacls,cls,bases,classdict):
+		original_dict = classdict
+		# Replace the dictionary with a new copy
+		classdict = enum._EnumDict()
+		for k,v in original_dict.items():
+			classdict[k] = v
+
+		temp = type(classdict)()
+		names = set(classdict._member_names)
+
+		# Start the enumeration with this value
+		i = 0
+		for k in classdict._member_names:
+			v = classdict[k]
+			# Does this entry need assignment?
+			if v != ():
+				# Use the assigned value
+				i = v
+			temp[k] = i
+			# Increment for the next assigned value
+			i += 1
+
+		# Update the dictionary	
+		for k, v in classdict.items():
+			if k not in names:
+				temp[k] = v
+
+		# Pass the dictionary up
+		return super(auto_enum, metacls).__new__(metacls, cls, bases, temp)
+
+#
+## Integer enumerator
+#
+
+AutoIntEnum = auto_enum('AutoIntEnum', (IntEnum,), {})
+
+#
 ## Enumeration of supported file types for input
 #
 
-class FileTypes(Enum):
+class FileTypes(AutoIntEnum):
 	## User file type (Unknown)
-	user = 1
+	user = ()
 	## Non compiling file type
-	generic = 2
+	generic = ()
 	## Compile as C++ 
-	cpp = 3
+	cpp = ()
 	## C/C++ header
-	h = 4
+	h = ()
 	## Object-C
-	m = 5
+	m = ()
 	## XML text file
-	xml = 6
+	xml = ()
 	## Windows resource file
-	rc = 7
+	rc = ()
 	## Mac OS resource file
-	r = 8
+	r = ()
 	## HLSL DirectX Shader
-	hlsl = 9
+	hlsl = ()
 	## GLSL OpenGL Shader
-	glsl = 10
+	glsl = ()
 	## Xbox 360 DirectX Shader
-	x360sl = 11
+	x360sl = ()
 	## Playstation Vita CG Shader
-	vitacg = 12
+	vitacg = ()
 	## Mac OSX Framework
-	frameworks = 13
+	frameworks = ()
 	## Library
-	library = 14
+	library = ()
 	## Exe
-	exe = 15
+	exe = ()
 	## XCode config file
-	xcconfig = 16
+	xcconfig = ()
 	## X86 assembly
-	x86 = 17
+	x86 = ()
+	## X64 assembly
+	x64 = ()
 	## 6502/65812 assembly
-	a65 = 18
+	a65 = ()
+	## PowerPC assembly
+	ppc = ()
+	## 680x0 assembly
+	a68 = ()
 	## Image files
-	image = 19
+	image = ()
 	## Windows icon files
-	ico = 20
+	ico = ()
 	## MacOSX icon files
-	icns = 21
-	
+	icns = ()
+
+#
+## Enumeration of supported project types
+#
+
+class ProjectTypes(AutoIntEnum):
+	## Code library
+	library = ()
+	## Command line tool
+	tool = ()
+	## Application
+	game = ()
+	## Screen saver
+	screensaver = ()
+	## Shared library (DLL)
+	sharedlibrary = ()
+	## Empty project
+	empty = ()
+
+#
+## Enumeration of supported configuration types
+#
+
+class ConfigurationTypes(AutoIntEnum):
+	## Debug
+	debug = ()
+	## Release builds
+	release = ()
+	## Internal builds (Debug enabled, full optimizations)
+	internal = ()
+	## Profile builds
+	profile = ()
+
+#
+## Enumeration of supported IDEs
+#
+
+class IDETypes(AutoIntEnum):
+	## Visual studio 2003
+	vs2003 = ()
+	## Visual studio 2005
+	vs2005 = ()
+	## Visual studio 2008
+	vs2008 = ()
+	## Visual studio 2010
+	vs2010 = ()
+	## Visual studio 2012
+	vs2012 = ()
+	## Visual studio 2013
+	vs2013 = ()
+	## Visual studio 2015
+	vs2015 = ()
+	## Open Watcom 1.9 or later
+	watcom = ()
+	## Codewarrior 9 (Windows)
+	codewarrior9 = ()
+	## Codewarrior 10 (Mac OS Carbon)
+	codewarrior10 = ()
+	## XCode 3 (PowerPC 3.1.4 is the target version)
+	xcode3 = ()
+	## XCode 4
+	xcode4 = ()
+	## XCode 5
+	xcode5 = ()
+	## XCode 6
+	xcode6 = ()
+	## XCode 7
+	xcode7 = ()
+	## Codeblocks
+	codeblocks = ()
+
+	#
+	# Create the ide code from the ide type
+	#
+
+	def getidecode(self):
+		# Microsoft Visual Studio
+		if self == self.vs2003:
+			return 'vc7'
+		if self == self.vs2005:
+			return 'vc8'
+		if self == self.vs2008:
+			return 'vc9'
+		if self == self.vs2010:
+			return 'v10'
+		if self == self.vs2012:
+			return 'v12'
+		if self == self.vs2013:
+			return 'v13'
+		if self == self.vs2015:
+			return 'v15'
+
+		# Watcom MAKEFILE
+		if self == self.watcom:
+			return 'wat'
+
+		# Metrowerks / Freescale CodeWarrior
+		if self == self.codewarrior9:
+			return 'cw9'
+		if self == self.codewarrior10:
+			return 'c10'
+
+		# Apple's XCode
+		if self == self.xcode3:
+			return 'xc3'
+		if self == self.xcode4:
+			return 'xc4'
+		if self == self.xcode5:
+			return 'xc5'
+		if self == self.xcode6:
+			return 'xc6'
+		if self == self.xcode7:
+			return 'xc7'
+
+		# Codeblocks
+		if self == self.codeblocks:
+			return 'cdb'
+		return None
+
+#
+## Enumeration of supported target platforms
+#
+
+class PlatformTypes(AutoIntEnum):
+	## Windows 32 and 64 bit Intel
+	windows = ()
+	## Windows 32 bit intel only
+	win32 = ()
+	## Window 64 bit intel only
+	win64 = ()
+
+	## Mac OSX, all CPUs
+	macosx = ()
+	## Mac OSX PowerPC 32 bit only
+	macosxppc32 = ()
+	## Mac OSX PowerPC 64 bit only
+	macosxppc64 = ()
+	## Mac OSX Intel 32 bit only
+	macosxintel32 = ()
+	## Mac OSX Intel 64 bit only
+	macosxintel64 = ()
+
+	## Mac OS 9, all CPUs
+	macos9 = ()
+	## Mac OS 9 680x0 only
+	macos968k = ()
+	## Mac OS 9 PowerPC 32 bit only
+	macos9ppc = ()
+	## Mac OS Carbon, all CPUs
+	maccarbon = ()
+	## Mac OS Carbon 680x0 only (CFM)
+	maccarbon68k = ()
+	## Mac OS Carbon PowerPC 32 bit only
+	maccarbonppc = ()
+
+	## iOS, all CPUs
+	ios = ()
+	## iOS 32 bit ARM only
+	ios32 = ()
+	## iOS 64 bit ARM only
+	ios64 = ()
+	## iOS emulator, all CPUs
+	iosemu = ()
+	## iOS emulator 32 bit Intel only
+	iosemu32 = ()
+	## iOS emulator 64 bit Intel only
+	iosemu64 = ()
+
+	## Microsoft Xbox classic
+	xbox = ()
+	## Microsoft Xbox 360
+	xbox360 = ()
+	## Microsoft Xbox ONE
+	xboxone = ()
+
+	## Sony PS3
+	ps3 = ()
+	## Sony PS4
+	ps4 = ()
+	## Sony Playstation VITA
+	vita = ()
+
+	## Nintendo WiiU
+	wiiu = ()
+	## Nintendo 3DS
+	dsi = ()
+	## Nintendo DS
+	ds = ()
+
+	## Generic Android
+	android = ()
+	## nVidia SHIELD
+	shield = ()
+	## Ouya (Now Razor)
+	ouya = ()
+	## Generic Linux
+	linux = ()
+	## MSDOS
+	msdos = ()
+	## BeOS
+	beos = ()
+
+	#
+	## Convert the enumeration to a 3 letter code for filename suffix
+	#
+
+	def getplatformcode(self):
+		# Windows targets
+		if self == self.windows:
+			return 'win'
+		if self == self.win32:
+			return 'winx86'
+		if self == self.win64:
+			return 'winx64'
+
+		# Mac OSX targets
+		if self == self.macosx:
+			return 'osx'
+		if self == self.macosxppc32:
+			return 'osxp32'
+		if self == self.macosxppc64:
+			return 'osxp64'
+		if self == self.macosxintel32:
+			return 'osxx86'
+		if self == self.macosxintel64:
+			return 'osxx64'
+
+		# Mac OS targets (Pre-OSX)
+		if self == self.macos9:
+			return 'mac'
+		if self == self.macos968k:
+			return 'mac68k'
+		if self == self.macos9ppc:
+			return 'macppc'
+		if self == self.maccarbon:
+			return 'car'
+		if self == self.maccarbon68k:
+			return 'car68k'
+		if self == self.maccarbonppc:
+			return 'carppc'
+
+		# iOS target
+		if self == self.ios:
+			return 'ios'
+		if self == self.ios32:
+			return 'iosa32'
+		if self == self.ios64:
+			return 'iosa64'
+		if self == self.iosemu:
+			return 'ioe'
+		if self == self.iosemu32:
+			return 'ioex86'
+		if self == self.iosemu64:
+			return 'ioex64'
+
+		# Microsoft Xbox versions
+		if self == self.xbox:
+			return 'xbx'
+		if self == self.xbox360:
+			return 'x36'
+		if self == self.xboxone:
+			return 'one'
+
+		# Sony platforms
+		if self == self.ps3:
+			return 'ps3'
+		if self == self.ps4:
+			return 'ps4'
+		if self == self.vita:
+			return 'vit'
+
+		# Nintendo platforms
+		if self == self.wiiu:
+			return 'wiu'
+		if self == self.dsi:
+			return 'dsi'
+		if self == self.ds:
+			return '2ds'
+
+		# Google platforms
+		if self == self.android:
+			return 'and'
+		if self == self.shield:
+			return 'shi'
+		if self == self.ouya:
+			return 'oya'
+
+		# Linux platforms
+		if self == self.linux:
+			return 'lnx'
+
+		# MSDOS (Watcom or Codeblocks)
+		if self == self.msdos:
+			return 'dos'
+
+		# BeOS
+		if self == self.beos:
+			return 'bos'
+		return None
+
+	#
+	# Create the platform codes from the platform type for Visual Studio
+	#
+
+	def getvsplatform(self):
+		# Windows targets
+		if self==PlatformTypes.windows:
+			return ['Win32','x64']
+		if self==PlatformTypes.win32:
+			return ['Win32']
+		if self==PlatformTypes.win64:
+			return ['x64']
+
+		# Microsoft Xbox versions
+		if self==PlatformTypes.xbox:
+			return ['Xbox']
+		if self==PlatformTypes.xbox360:
+			return ['Xbox 360']
+		if self==PlatformTypes.xboxone:
+			return ['Xbox ONE']
+
+		# Sony platforms
+		if self==PlatformTypes.ps3:
+			return ['PS3']
+		if self==PlatformTypes.ps4:
+			return ['ORBIS']
+		if self==PlatformTypes.vita:
+			return ['PSVita']
+
+		# Nintendo platforms
+		if self==PlatformTypes.wiiu:
+			return ['Cafe']
+		if self==PlatformTypes.dsi:
+			return ['CTR']
+
+		# Google platforms
+		if self==PlatformTypes.android:
+			return ['Android']
+		if self==PlatformTypes.shield:
+			return ['Tegra-Android',
+				'ARM-Android-NVIDIA',
+				'AArch64-Android-NVIDIA',
+				'x86-Android-NVIDIA',
+				'x64-Android-NVIDIA']
+		return []
+
 #
 ## List of default file extensions and mapped types
 #
@@ -118,65 +512,17 @@ defaultcodeextensions = [
 	['.x360sl',FileTypes.x360sl],	# Xbox 360 shader files
 	['.vitacg',FileTypes.vitacg],	# PS Vita shader files
 	['.xml',FileTypes.xml],			# XML data files
-	['.a65',FileTypes.a65],			# 6502/65816 source code
 	['.x86',FileTypes.x86],			# Intel ASM 80x86 source code
+	['.x64',FileTypes.x64],			# AMD 64 bit source code
+	['.a65',FileTypes.a65],			# 6502/65816 source code
+	['.ppc',FileTypes.ppc],			# PowerPC source code
+	['.a68',FileTypes.a68],			# 680x0 source code
 	['.ico',FileTypes.ico],			# Windows icon file
 	['.icns',FileTypes.icns],		# Mac OSX Icon file
 	['.png',FileTypes.image],		# Art files
 	['.jpg',FileTypes.image],
 	['.bmp',FileTypes.image]
 ]
-
-#
-## Save the default json file
-#
-# If the -default option is parsed from the command line, 
-# this function is called to output a sample .json file
-#
-# \param solutionpathname Filename for the .json file to output
-#
-
-def savedefault(solutionpathname):
-	fp = open(solutionpathname,'w')
-	fp.write(
-		'# Json file to create a project file\n' 
-		'\n'
-		'# Copyright 1995-2015 by Rebecca Ann Heineman becky@burgerbecky.com\n'
-		'\n'
-		'# It is released under an MIT Open Source license. Please see LICENSE\n'
-		'# for license details. Yes, you can use it in a\n'
-		'# commercial title without paying anything, just give me a credit.\n'
-		'# Please? It\'s not like I\'m asking you for money!\n'
-		'\n'
-		'[\n'
-		'\t// Initial settings\n'
-		'\t{\n'
-		'\t\t// Name of the project (And output filename)\n'
-		'\t\t"projectname": "greatapp",\n'
-		'\t\t// Kind of project (library,game,screensaver,tool)\n'
-		'\t\t"kind": "tool",\n'
-		'\t\t// Configurations to generate (Debug,Internal,Release,Profile)\n'
-		'\t\t"configurations": ["Debug","Internal","Release"],\n'
-		'\t\t// List of filenames to exclude from parsing\n'
-		'\t\t"exclude": [],\n'
-		'\t\t// List of additional defines\n'
-		'\t\t"defines": [],\n'
-		'\t\t// Folder to store the final binary that\'s checked into Perforce\n'
-		'\t\t"finalfolder": "",\n'
-		'\t\t// Operating system target to build for (windows,macosx,linux,ps3,ps4,xbox,\n'
-		'\t\t// xbox360,xboxone,shield,ios,mac,msdos,beos,ouya,vita)\n'
-		'\t\t"platform" : "windows",\n'
-		'\t\t// Folders to scan for source code (Append with /*.* for recursive search)\n'
-		'\t\t"sourcefolders": ["./*.*"],\n'
-		'\t\t// Folders to add for include files (No file scanning is performed)\n'
-		'\t\t"includefolders" : []\n'
-		'\t},\n'
-		'\t// Windows -> Visual Studio 2010\n'
-		'\t// (xcode3,xcode4,xcode5,vs2003,vs2005,vs2008,vs2010,vs2012,vs2015,codeblocks,watcom,codewarrior)\n'
-		'\t"vs2010"\n'
-		']\n'
-		)
-	fp.close()
 
 #
 ## Object for each input file to insert to a solution
@@ -192,22 +538,25 @@ class SourceFile:
 	## Default constructor
 	#
 	# \param self The 'this' reference
-	# \param filename Filename of the input file (relative to the root)
+	# \param relativepathname Filename of the input file (relative to the root)
 	# \param directory Pathname of the root directory
-	# \param type Compiler to apply
+	# \param filetype Compiler to apply
 	# \sa defaultcodeextensions
 	#
 
-	def __init__(self,filename,directory,type):
-	
+	def __init__(self,relativepathname,directory,filetype):
+		# Sanity check
+		if not isinstance(filetype,FileTypes):
+			raise TypeError("parameter 'filetype' must be of type FileTypes")
+
 		## File base name with extension (Converted to use windows style slashes on creation)
-		self.filename = burger.converttowindowsslashes(filename)
+		self.filename = burger.converttowindowsslashes(relativepathname)
 
 		## Directory the file is found in (Full path)
 		self.directory = directory
 
 		## File type enumeration, see: \ref FileTypes
-		self.type = type
+		self.type = filetype
 	
 	#
 	## Given a filename with a directory, extract the filename, leaving only the directory
@@ -243,45 +592,47 @@ class SourceFile:
 		# If there is a .\\, remove the single prefix
 		#
 	
-		if newname.startswith('.\\'):
+		while newname.startswith('.\\'):
 			newname = newname[2:len(newname)]
 
 		return newname
 		
-		
-		
-	
-
 #
-## Object for processing a solution file
+## Object for processing a project file
 #
 # This object contains all of the items needed to
-# create a solution
+# create a project 
+# \note Oon most IDEs, this is merged into
+# one file, but Visual Studio 2010 and higher
+# generates a project file for each project
 #
 
-class SolutionData:
-	def __init__(self):
+class ProjectData:
+	def __init__(self,name='project',projecttype=ProjectTypes.tool,suffixenable=False):
+		# Sanity check
+		if not isinstance(projecttype,ProjectTypes):
+			raise TypeError("parameter 'projecttype' must be of type ProjectTypes")
 	
-		## True if verbose output is requested (Default False)
-		self.verbose = False
-
 		## Root directory (Default None)
 		self.workingDir = None
 	
 		## Type of project, tool is default ('tool', 'game', 'library')
-		self.kind = 'tool'
+		self.projecttype = projecttype
 	
 		## Generic name for the project, 'project' is default
-		self.projectname = 'project'
+		self.projectname = name
+	
+		## No parent solution yet
+		self.solution = None
 	
 		## Type of ide
 		# 'vs2015', 'vs2013', 'vs2012', 'vs2010', 'vs2008', 'vs2005',
 		# 'xcode3', 'xcode4', 'xcode5', 'codewarrior', 'codeblocks',
 		# 'watcom'
-		self.ide = 'vs2010'
+		self.ide = IDETypes.vs2010
 	
 		## Generate a windows project as a default
-		self.platform = 'windows'
+		self.platform = PlatformTypes.windows
 	
 		## Generate the three default configurations
 		self.configurations = ['Debug','Internal','Release']
@@ -304,11 +655,156 @@ class SolutionData:
 		## Initial array of SourceFile in the solution
 		self.codefiles = []
 
+		## Initial array of ProjectData records that need to be built first
+		self.dependentprojects = []
+
 		## Create default XCode object
 		self.xcode = xcode.Defaults()
 		
 		## Create default Visual Studio object
 		self.visualstudio = visualstudio.Defaults()
+
+	#
+	## Set the names of the configurations this project will support
+	#
+	# Given a string or an array of strings, replace the
+	# configurations with the new list.
+	#
+	# \param self The 'this' reference
+	# \param configurations String or an array of strings for the new configuration list
+	#
+
+	def setconfigurations(self,configurations):
+		# Force to a list
+		self.configurations = burger.converttoarray(configurations)
+
+	#
+	## Set the names of the configurations this project will support
+	#
+	# Given a string or an array of strings, replace the
+	# configurations with the new list.
+	#
+	# \param self The 'this' reference
+	# \param configurations String or an array of strings for the new configuration list
+	#
+
+	def setplatform(self,platform):
+		# Sanity check
+		if not isinstance(platform,PlatformTypes):
+			raise TypeError("parameter 'platform' must be of type PlatformTypes")
+		self.platform = platform
+
+
+	def adddependency(self,project):
+		# Sanity check
+		if not isinstance(project,ProjectData):
+			raise TypeError("parameter 'project' must be of type ProjectData")
+		self.dependentprojects.append(project)
+
+#
+## Object for processing a solution file
+#
+# This object contains all of the items needed to
+# create a solution
+#
+
+class SolutionData:
+	def __init__(self,name='project',projecttype=ProjectTypes.tool,suffixenable=False):
+		# Sanity check
+		if not isinstance(projecttype,ProjectTypes):
+			raise TypeError("parameter 'projecttype' must be of type ProjectTypes")
+	
+		## True if verbose output is requested (Default False)
+		self.verbose = False
+
+		## Root directory (Default None)
+		self.workingDir = os.getcwd()
+	
+		## Type of project, tool is default ('tool', 'game', 'library')
+		self.projecttype = projecttype
+	
+		## Generic name for the project, 'project' is default
+		self.projectname = name
+	
+		## Type of ide
+		# 'vs2015', 'vs2013', 'vs2012', 'vs2010', 'vs2008', 'vs2005',
+		# 'xcode3', 'xcode4', 'xcode5', 'codewarrior', 'codeblocks',
+		# 'watcom'
+		self.ide = IDETypes.vs2010
+	
+		## Generate a windows project as a default
+		self.platform = PlatformTypes.windows
+	
+		## Generate the three default configurations
+		self.configurations = ['Debug','Internal','Release']
+	
+		## No special folder for the final binary
+		self.finalfolder = None
+	
+		## Don't exclude any files
+		self.exclude = []
+	
+		## No special #define for C/C++ code
+		self.defines = []
+	
+		## Scan at the current folder
+		self.sourcefolders = ['.']
+	
+		## No extra folders for include files
+		self.includefolders = []
+	
+		## Initial array of SourceFile in the solution
+		self.codefiles = []
+
+		## Initial array of ProjectData records for projects
+		self.projects = []
+
+		## Create default XCode object
+		self.xcode = xcode.Defaults()
+		
+		## Create default Visual Studio object
+		self.visualstudio = visualstudio.Defaults()
+
+	#
+	## Add a project to the list of projects found in this solution
+	#
+	# Given a new ProjectData class instance, append it
+	# to the list of projects that this solution is
+	# managing.
+	#
+	# \param self The 'this' reference
+	# \param project Reference to an instance of a ProjectData
+	#
+
+	def addproject(self,project):
+		# Sanity check
+		if not isinstance(project,ProjectData):
+			raise TypeError("parameter 'project' must be of type ProjectData")
+
+		project.solution = self
+		self.projects.append(project)
+
+	#
+	## Generate a project file and write it out to disk
+	#
+
+	def generate(self,ide,platform):
+		# Sanity check
+		if not isinstance(ide,IDETypes):
+			raise TypeError("parameter 'ide' must be of type IDETypes")
+		
+		self.platform = platform
+
+		if ide==IDETypes.vs2003 or \
+			ide==IDETypes.vs2005 or \
+			ide==IDETypes.vs2008 or \
+			ide==IDETypes.vs2010 or \
+			ide==IDETypes.vs2012 or \
+			ide==IDETypes.vs2013 or \
+			ide==IDETypes.vs2015:
+			return visualstudio.generate(self,ide)
+
+		return 10
 
 	#
 	## Given a json record, process all the sub sections
@@ -325,7 +821,7 @@ class SolutionData:
 	# \li 'projectname' = Name of the project's filename (basename only)
 	# \li 'platform' = 'windows', 'macosx', 'linux', 'ps3', 'ps4', 'vita',
 	# 'xbox', 'xbox360', 'xboxone', 'shield', 'ios', 'mac', 'msdos',
-	# 'beos', 'ouya', 'wiiu'
+	# 'beos', 'ouya', 'wiiu', 'dsi'
 	# \li 'configurations' = ['Debug', 'Release', 'Internal']
 	# \li 'sourcefolders' = ['.','source']
 	# \li 'exclude' = [] (List of files to exclude from processing)
@@ -347,11 +843,12 @@ class SolutionData:
 					self.finalfolder = myjson[key]
 					
 			elif key=='kind':
-				self.kind = myjson[key]
+				# Convert json token to enumeration (Will assert if not enumerated)
+				self.projecttype = ProjectTypes[myjson[key]]
 			elif key=='projectname':
 				self.projectname = myjson[key]
 			elif key=='platform':
-				self.platform = myjson[key]
+				self.platform = PlatformTypes[myjson[key]]
 				
 			elif key=='configurations':
 				self.configurations = burger.converttoarray(myjson[key])
@@ -393,40 +890,43 @@ class SolutionData:
 			if type(item) is dict:
 				error = self.processjson(item)
 			elif item=='vs2015':
-				self.ide = item
-				error = visualstudio.generate(self)
+				self.ide = IDETypes.vs2015
+				error = visualstudio.generateold(self,IDETypes.vs2015)
 			elif item=='vs2013':
-				self.ide = item
-				error = visualstudio.generate(self)
+				self.ide = IDETypes.vs2013
+				error = visualstudio.generateold(self,IDETypes.vs2013)
 			elif item=='vs2012':
-				self.ide = item
-				error = visualstudio.generate(self)
+				self.ide = IDETypes.vs2012
+				error = visualstudio.generateold(self,IDETypes.vs2012)
 			elif item=='vs2010':
-				self.ide = item
-				error = visualstudio.generate(self)
+				self.ide = IDETypes.vs2010
+				error = visualstudio.generateold(self,IDETypes.vs2010)
 			elif item=='vs2008':
-				self.ide = item
+				self.ide = IDETypes.vs2008
 				error = createvs2008solution(self)
 			elif item=='vs2005':
-				self.ide = item
+				self.ide = IDETypes.vs2005
 				error = createvs2005solution(self)
 			elif item=='xcode3':
-				self.ide = item
+				self.ide = IDETypes.xcode3
 				error = xcode.generate(self)
 			elif item=='xcode4':
-				self.ide = item
+				self.ide = IDETypes.xcode4
 				error = xcode.generate(self)
 			elif item=='xcode5':
-				self.ide = item
+				self.ide = IDETypes.xcode5
 				error = xcode.generate(self)
-			elif item=='codewarrior':
-				self.ide = item
+			elif item=='codewarrior9':
+				self.ide = IDETypes.codewarrior9
+				error = createcodewarriorsolution(self)
+			elif item=='codewarrior10':
+				self.ide = IDETypes.codewarrior10
 				error = createcodewarriorsolution(self)
 			elif item=='codeblocks':
-				self.ide = item
+				self.ide = IDETypes.codeblocks
 				error = createcodeblockssolution(self)
 			elif item=='watcom':
-				self.ide = item
+				self.ide = IDETypes.watcom
 				error = createwatcomsolution(self)
 			else:
 				print 'Saving ' + item + ' not implemented yet'
@@ -570,7 +1070,7 @@ class SolutionData:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			myjson.append(initializationrecord)
-			myjson.append('codewarrior')
+			myjson.append('codewarrior9')
 
 		if args.watcom==True:
 			initializationrecord = dict()
@@ -608,112 +1108,17 @@ class SolutionData:
 			myjson.append(initializationrecord)
 			myjson.append('vs2013')
 
+		if args.dsi==True:
+			initializationrecord = dict()
+			initializationrecord['platform'] = 'dsi'
+			myjson.append(initializationrecord)
+			myjson.append('vs2015')
+
 		if len(myjson)<2:
 			print 'No default "projects.json" file found nor any project type specified'
 			return 2 
 	
 		return self.process(myjson)
-		
-#
-# Create the ide code from the ide type
-#
-
-	def getidecode(self):
-		if self.ide=='xcode3':
-			return 'xc3'
-		if self.ide=='xcode4':
-			return 'xc4'
-		if self.ide=='xcode5':
-			return 'xc5'
-		if self.ide=='vs2003':
-			return 'vc7'
-		if self.ide=='vs2005':
-			return 'vc8'
-		if self.ide=='vs2008':
-			return 'vc9'
-		if self.ide=='vs2010':
-			return 'v10'
-		if self.ide=='vs2012':
-			return 'v11'
-		if self.ide=='vs2013':
-			return 'v13'
-		if self.ide=='vs2015':
-			return 'v14'
-		if self.ide=='codeblocks':
-			return 'cdb'
-		if self.ide=='watcom':
-			return 'wat'
-		if self.ide=='codewarrior' and self.platform=='windows':
-			return 'cw9'
-		if self.ide=='codewarrior' and self.platform=='mac':
-			return 'c10'
-		return None
-
-#
-# Create the platform code from the platform type
-#
-
-	def getplatformcode(self):
-		if self.platform=='windows':
-			return 'win'
-		if self.platform=='macosx':
-			return 'osx'
-		if self.platform=='linux':
-			return 'lnx'
-		if self.platform=='ps3':
-			return 'ps3'
-		if self.platform=='ps4':
-			return 'ps4'
-		if self.platform=='vita':
-			return 'vit'
-		if self.platform=='xbox':
-			return 'xbx'
-		if self.platform=='xbox360':
-			return 'x36'
-		if self.platform=='xboxone':
-			return 'one'
-		if self.platform=='shield':
-			return 'shi'
-		if self.platform=='ios':
-			return 'ios'
-		if self.platform=='mac':
-			return 'mac'
-		if self.platform=='msdos':
-			return 'dos'
-		if self.platform=='beos':
-			return 'bos'
-		if self.platform=='ouya':
-			return 'oya'
-		if self.platform=='wiiu':
-			return 'wiu'
-		return None
-
-#
-# Create the platform codes from the platform type for Visual Studio
-#
-
-	def getvsplatform(self):
-		if self.platform=='windows':
-			return ['Win32','x64']
-		if self.platform=='ps3':
-			return ['PS3']
-		if self.platform=='ps4':
-			return ['ORBIS']
-		if self.platform=='vita':
-			return ['PSVita']
-		if self.platform=='xbox':
-			return ['Xbox']
-		if self.platform=='xbox360':
-			return ['Xbox 360']
-		if self.platform=='xboxone':
-			return ['Xbox ONE']
-		if self.platform=='shield':
-			return ['Tegra-Android']
-		if self.platform=='android':
-			return ['Android']
-		if self.platform=='wiiu':
-			return ['Cafe']
-		return []
 	
 	
 #
@@ -890,6 +1295,25 @@ def pickfromfilelist(codefiles,itemtype):
 			filelist.append(item)
 	return filelist
 	
+
+#
+## Save the default projects.py file
+#
+# If the -default option is parsed from the command line, 
+# this function is called to output a sample .py file
+#
+# \param destinationfile Filename for the .py file to output
+#
+
+def savedefault(destinationfile='projects.py'):
+	src = os.path.join(os.path.dirname(os.path.abspath(__file__)),'projects.py')
+	print src
+	try:
+		shutil.copyfile(src,destinationfile)
+	except Exception, e:
+		print e
+
+
 ###################################
 #                                 #
 # Visual Studio 2003-2013 support #
@@ -931,7 +1355,7 @@ def dumptreevs2005(indent,string,entry,fp,groups):
 #
 
 def createvs2005solution(solution):
-	error = visualstudio.generate(solution)
+	error = visualstudio.generateold(solution,IDETypes.vs2005)
 	if error!=0:
 		return error
 		
@@ -945,9 +1369,9 @@ def createvs2005solution(solution):
 	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
 	listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
 
-	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.projectfilename + '.vcproj')
+	platformcode = solution.platform.getplatformcode()
+	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.outputfilename))).upper()
+	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.outputfilename + '.vcproj')
 	burger.perforceedit(projectpathname)
 	fp = open(projectpathname,'w')
 	
@@ -968,7 +1392,7 @@ def createvs2005solution(solution):
 	#
 
 	fp.write('\t<Platforms>\n')
-	for vsplatform in solution.getvsplatform():
+	for vsplatform in solution.platform.getvsplatform():
 		fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
 	fp.write('\t</Platforms>\n')
 
@@ -978,7 +1402,7 @@ def createvs2005solution(solution):
 	
 	fp.write('\t<Configurations>\n')
 	for target in solution.configurations:
-		for vsplatform in solution.getvsplatform():
+		for vsplatform in solution.platform.getvsplatform():
 			token = target + '|' + vsplatform
 			fp.write('\t\t<Configuration\n')
 			fp.write('\t\t\tName="' + token + '"\n')
@@ -989,9 +1413,9 @@ def createvs2005solution(solution):
 				platformcode2 = 'w32'
 			else:
 				platformcode2 = platformcode
-			intdirectory = solution.projectname + solution.getidecode() + platformcode2 + getconfigurationcode(target)
+			intdirectory = solution.projectname + solution.ide.getidecode() + platformcode2 + getconfigurationcode(target)
 			fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '"\n')
-			if solution.kind=='library':
+			if solution.projecttype==ProjectTypes.library:
 				# Library
 				fp.write('\t\t\tConfigurationType="4"\n')
 			else:
@@ -1028,7 +1452,7 @@ def createvs2005solution(solution):
 			# 8 byte alignment
 			fp.write('\t\t\t\tWarningLevel="4"\n')
 			fp.write('\t\t\t\tSuppressStartupBanner="true"\n')
-			if solution.kind=='library' or target!='Release':
+			if solution.projecttype==ProjectTypes.library or target!='Release':
 				fp.write('\t\t\t\tDebugInformationFormat="3"\n')
 				fp.write('\t\t\t\tProgramDataBaseFileName="$(OutDir)\$(TargetName).pdb"\n')
 			else:
@@ -1069,7 +1493,7 @@ def createvs2005solution(solution):
 			if platformcode=='win':
 				if addcolon==True:
 					fp.write(';')
-				if solution.kind!='library' or solution.projectname!='burgerlib':
+				if solution.projecttype!=ProjectTypes.library or solution.projectname!='burgerlib':
 					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
 				fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
 				addcolon = True
@@ -1081,7 +1505,7 @@ def createvs2005solution(solution):
 			fp.write('\t\t\t\tCulture="1033"\n')
 			fp.write('\t\t\t/>\n')
 			
-			if solution.kind=='library':
+			if solution.projecttype==ProjectTypes.library:
 				fp.write('\t\t\t<Tool\n')
 				fp.write('\t\t\t\tName="VCLibrarianTool"\n')
 				fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.lib&quot;"\n')
@@ -1102,7 +1526,7 @@ def createvs2005solution(solution):
 			else:
 				fp.write('\t\t\t<Tool\n')
 				fp.write('\t\t\t\tName="VCLinkerTool"\n')
-				fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.getidecode() + platformcode2 + getconfigurationcode(target) + '.lib"\n')
+				fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.getidecode() + platformcode2 + getconfigurationcode(target) + '.lib"\n')
 				fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.exe&quot;"\n')
 				fp.write('\t\t\t\tAdditionalLibraryDirectories="')
 				addcolon = False
@@ -1114,10 +1538,10 @@ def createvs2005solution(solution):
 					
 				if addcolon==True:
 					fp.write(';')
-				if solution.kind!='library':
+				if solution.projecttype!=ProjectTypes.library:
 					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
 				fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
-				if solution.kind=='tool':
+				if solution.projecttype==ProjectTypes.tool:
 					# main()
 					fp.write('\t\t\t\tSubSystem="1"\n')
 				else:
@@ -1188,7 +1612,7 @@ def createvs2005solution(solution):
 #
 
 def createvs2008solution(solution):
-	error = visualstudio.generate(solution)
+	error = visualstudio.generateold(solution,IDETypes.vs2008)
 	if error!=0:
 		return error
 	#
@@ -1201,9 +1625,9 @@ def createvs2008solution(solution):
 	listcpp = pickfromfilelist(codefiles,FileTypes.cpp)
 	listwindowsresource = pickfromfilelist(codefiles,FileTypes.rc)
 
-	platformcode = solution.getplatformcode()
-	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.projectfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.projectfilename + '.vcproj')
+	platformcode = solution.platform.getplatformcode()
+	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,str(solution.visualstudio.outputfilename))).upper()
+	projectpathname = os.path.join(solution.workingDir,solution.visualstudio.outputfilename + '.vcproj')
 	burger.perforceedit(projectpathname)
 	fp = open(projectpathname,'w')
 	
@@ -1224,7 +1648,7 @@ def createvs2008solution(solution):
 	#
 
 	fp.write('\t<Platforms>\n')
-	for vsplatform in solution.getvsplatform():
+	for vsplatform in solution.platform.getvsplatform():
 		fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
 	fp.write('\t</Platforms>\n')
 
@@ -1234,7 +1658,7 @@ def createvs2008solution(solution):
 	
 	fp.write('\t<Configurations>\n')
 	for target in solution.configurations:
-		for vsplatform in solution.getvsplatform():
+		for vsplatform in solution.platform.getvsplatform():
 			token = target + '|' + vsplatform
 			fp.write('\t\t<Configuration\n')
 			fp.write('\t\t\tName="' + token + '"\n')
@@ -1245,9 +1669,9 @@ def createvs2008solution(solution):
 				platformcode2 = 'w32'
 			else:
 				platformcode2 = platformcode
-			intdirectory = solution.projectname + solution.getidecode() + platformcode2 + getconfigurationcode(target)
+			intdirectory = solution.projectname + solution.ide.getidecode() + platformcode2 + getconfigurationcode(target)
 			fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '\\"\n')
-			if solution.kind=='library':
+			if solution.projecttype==ProjectTypes.library:
 				# Library
 				fp.write('\t\t\tConfigurationType="4"\n')
 			else:
@@ -1284,7 +1708,7 @@ def createvs2008solution(solution):
 			# 8 byte alignment
 			fp.write('\t\t\t\tWarningLevel="4"\n')
 			fp.write('\t\t\t\tSuppressStartupBanner="true"\n')
-			if solution.kind=='library' or target!='Release':
+			if solution.projecttype==ProjectTypes.library or target!='Release':
 				fp.write('\t\t\t\tDebugInformationFormat="3"\n')
 				fp.write('\t\t\t\tProgramDataBaseFileName="$(OutDir)\$(TargetName).pdb"\n')
 			else:
@@ -1327,7 +1751,7 @@ def createvs2008solution(solution):
 			if platformcode=='win':
 				if addcolon==True:
 					fp.write(';')
-				if solution.kind!='library' or solution.projectname!='burgerlib':
+				if solution.projecttype!=ProjectTypes.library or solution.projectname!='burgerlib':
 					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
 				fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
 				addcolon = True
@@ -1339,7 +1763,7 @@ def createvs2008solution(solution):
 			fp.write('\t\t\t\tCulture="1033"\n')
 			fp.write('\t\t\t/>\n')
 			
-			if solution.kind=='library':
+			if solution.projecttype==ProjectTypes.library:
 				fp.write('\t\t\t<Tool\n')
 				fp.write('\t\t\t\tName="VCLibrarianTool"\n')
 				fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.lib&quot;"\n')
@@ -1360,7 +1784,7 @@ def createvs2008solution(solution):
 			else:
 				fp.write('\t\t\t<Tool\n')
 				fp.write('\t\t\t\tName="VCLinkerTool"\n')
-				fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.getidecode() + platformcode2 + getconfigurationcode(target) + '.lib"\n')
+				fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.getidecode() + platformcode2 + getconfigurationcode(target) + '.lib"\n')
 				fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.exe&quot;"\n')
 				fp.write('\t\t\t\tAdditionalLibraryDirectories="')
 				addcolon = False
@@ -1372,10 +1796,10 @@ def createvs2008solution(solution):
 					
 				if addcolon==True:
 					fp.write(';')
-				if solution.kind!='library':
+				if solution.projecttype!=ProjectTypes.library:
 					fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
 				fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
-				if solution.kind=='tool':
+				if solution.projecttype==ProjectTypes.tool:
 					# main()
 					fp.write('\t\t\t\tSubSystem="1"\n')
 				else:
@@ -1491,8 +1915,8 @@ def createcodewarriorsolution(solution):
 	#
 	
 	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.hlsl,FileTypes.glsl])
-	platformcode = solution.getplatformcode()
-	idecode = solution.getidecode()
+	platformcode = solution.platform.getplatformcode()
+	idecode = solution.ide.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
 	projectpathname = os.path.join(solution.workingDir,projectfilename + '.mcp.xml')
 
@@ -1551,10 +1975,10 @@ def createcodewarriorsolution(solution):
 	if len(solution.configurations)!=0:
 		fp.write('\t\t\t<SUBTARGETLIST>\n')
 		for target in solution.configurations:
-			if solution.platform=='windows':
+			if solution.platform==PlatformTypes.windows:
 				platformcode2 = 'Win32'
 			else:
-				platformcode2 = solution.platform
+				platformcode2 = solution.platform.name
 			fp.write('\t\t\t\t<SUBTARGET>\n')
 			fp.write('\t\t\t\t\t<TARGETNAME>' + platformcode2 + ' ' + target + '</TARGETNAME>\n')	
 			fp.write('\t\t\t\t</SUBTARGET>\n')
@@ -1569,11 +1993,11 @@ def createcodewarriorsolution(solution):
 	
 		# Create the target name
 		
-		if solution.platform=='windows':
+		if solution.platform==PlatformTypes.windows:
 			platformcode2 = 'Win32'
 			pathformat = 'Windows'
 		else:
-			platformcode2 = solution.platform
+			platformcode2 = solution.platform.name
 			pathformat = 'Unix'
 		fp.write('\t\t<TARGET>\n')
 		fp.write('\t\t\t<NAME>' + platformcode2 + ' ' + target + '</NAME>\n')	
@@ -1589,7 +2013,7 @@ def createcodewarriorsolution(solution):
 		#
 		
 		
-		if solution.platform=='windows':
+		if solution.platform==PlatformTypes.windows:
 		
 			#
 			# Make sure that BURGER_SDKS are pointed to by the environment variable BURGER_SDKS on
@@ -1623,7 +2047,7 @@ def createcodewarriorsolution(solution):
 			for dirnameentry in includedirectories:
 				fp.write('\t\t\t\t\t<SETTING>\n')
 				fp.write('\t\t\t\t\t\t<SETTING><NAME>SearchPath</NAME>\n')
-				if solution.platform=='windows':
+				if solution.platform==PlatformTypes.windows:
 					fp.write('\t\t\t\t\t\t\t<SETTING><NAME>Path</NAME><VALUE>' + burger.converttowindowsslashes(dirnameentry) + '</VALUE></SETTING>\n')
 				else:
 					fp.write('\t\t\t\t\t\t\t<SETTING><NAME>Path</NAME><VALUE>' + burger.converttolinuxslashes(dirnameentry) + '</VALUE></SETTING>\n')
@@ -1643,7 +2067,7 @@ def createcodewarriorsolution(solution):
 		fp.write('\t\t\t\t<SETTING><NAME>SystemSearchPaths</NAME>\n')
 		directoryfolders = []
 		
-		if solution.kind!='library' or solution.projectname!='burgerlib':
+		if solution.projecttype!=ProjectTypes.library or solution.projectname!='burgerlib':
 			directoryfolders.append('windows\\burgerlib')
 			#directoryfolders.append('windows\\burgerlib4')
 		
@@ -1682,11 +2106,11 @@ def createcodewarriorsolution(solution):
 		# Library/Application?
 		#
 		
-		if solution.platform=='windows':
+		if solution.platform==PlatformTypes.windows:
 			platformcode2 = 'w32'
 		else:
-			platformcode2 = solution.platform
-		if solution.kind=='library':
+			platformcode2 = solution.platform.name
+		if solution.projecttype==ProjectTypes.library:
 			fp.write('\t\t\t\t<SETTING><NAME>MWProject_X86_type</NAME><VALUE>Library</VALUE></SETTING>\n')
 			fp.write('\t\t\t\t<SETTING><NAME>MWProject_X86_outfile</NAME><VALUE>' + solution.projectname + idecode + platformcode2 + getconfigurationcode(target) + '.lib</VALUE></SETTING>\n')
 		else:
@@ -1872,7 +2296,7 @@ def createcodewarriorsolution(solution):
 		#
 		
 		liblist = []
-		if solution.kind!='library':
+		if solution.projecttype!=ProjectTypes.library:
 			if target=='Debug':
 				liblist.append('burgerlibcw9w32dbg.lib')
 				#liblist.append('burgercw9w32dbg.lib')
@@ -1891,6 +2315,7 @@ def createcodewarriorsolution(solution):
 		liblist.append('shell32.lib')
 		liblist.append('advapi32.lib')
 		liblist.append('shlwapi.lib')
+		liblist.append('ole32.lib')
 
 		if target=='Debug':
 			liblist.append('MSL_All_x86_D.lib')
@@ -1900,7 +2325,7 @@ def createcodewarriorsolution(solution):
 		if len(alllists)!=0:
 			
 			fp.write('\t\t\t<FILELIST>\n')
-			if solution.kind!='library':
+			if solution.projecttype!=ProjectTypes.library:
 				for i in liblist:
 					fp.write('\t\t\t\t<FILE>\n')
 					fp.write('\t\t\t\t\t<PATHTYPE>Name</PATHTYPE>\n')
@@ -1935,7 +2360,7 @@ def createcodewarriorsolution(solution):
 			fp.write('\t\t\t</FILELIST>\n')
 		
 			fp.write('\t\t\t<LINKORDER>\n')
-			if solution.kind!='library':
+			if solution.projecttype!=ProjectTypes.library:
 				for i in liblist:
 					fp.write('\t\t\t\t<FILEREF>\n')
 					fp.write('\t\t\t\t\t<PATHTYPE>Name</PATHTYPE>\n')
@@ -1965,10 +2390,10 @@ def createcodewarriorsolution(solution):
 	fp.write('\t<TARGETORDER>\n')
 	fp.write('\t\t<ORDEREDTARGET><NAME>Everything</NAME></ORDEREDTARGET>\n')
 	for target in solution.configurations:
-		if solution.platform=='windows':
+		if solution.platform==PlatformTypes.windows:
 			platformcode2 = 'Win32'
 		else:
-			platformcode2 = solution.platform
+			platformcode2 = solution.platform.name
 		fp.write('\t\t<ORDEREDTARGET><NAME>' + platformcode2 + ' ' + target + '</NAME></ORDEREDTARGET>\n')
 	fp.write('\t</TARGETORDER>\n')
 
@@ -2024,7 +2449,7 @@ def createcodewarriorsolution(solution):
 		# Use this tree to play back all the data
 		dumptreecodewarrior(2,'',tree,fp,groups,solconfig)
 		
-		if solution.kind!='library':
+		if solution.projecttype!=ProjectTypes.library:
 			liblist = []
 				
 			liblist.append(['user32.lib',solconfig])
@@ -2035,6 +2460,7 @@ def createcodewarriorsolution(solution):
 			liblist.append(['shell32.lib',solconfig])
 			liblist.append(['advapi32.lib',solconfig])
 			liblist.append(['shlwapi.lib',solconfig])
+			liblist.append(['ole32.lib',solconfig])
 			
 			if 'Release' in solution.configurations:
 				liblist.append(['burgerlibcw9w32rel.lib','Win32 Release'])
@@ -2078,7 +2504,7 @@ def createcodewarriorsolution(solution):
 	#
 	
 	cwfile = os.getenv('CWFolder')
-	if cwfile!=None and solution.platform=='windows':
+	if cwfile!=None and solution.platform==PlatformTypes.windows:
 		burger.perforceedit(os.path.join(solution.workingDir,projectfilename + '.mcp'))
 		cwfile = os.path.join(cwfile,'Bin','ide')
 		cmd = '"' + cwfile + '" /x "' + projectpathname + '" "' + os.path.join(solution.workingDir,projectfilename + '.mcp') + '" /s /c /q'
@@ -2101,8 +2527,8 @@ def createcodeblockssolution(solution):
 	#
 	
 	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.rc,FileTypes.hlsl,FileTypes.glsl])
-	platformcode = solution.getplatformcode()
-	idecode = solution.getidecode()
+	platformcode = solution.platform.getplatformcode()
+	idecode = solution.ide.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
 	projectpathname = os.path.join(solution.workingDir,projectfilename + '.cbp')
 
@@ -2150,7 +2576,7 @@ def createcodeblockssolution(solution):
 	fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32dbg.lib" prefix_auto="0" extension_auto="0" />\n')
 	fp.write('\t\t\t\t<Option working_dir="" />\n')
 	fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32dbg/" />\n')
-	if solution.kind=='tool':
+	if solution.projecttype==ProjectTypes.tool:
 		fp.write('\t\t\t\t<Option type="1" />\n')
 	else:
 		fp.write('\t\t\t\t<Option type="2" />\n')
@@ -2170,7 +2596,7 @@ def createcodeblockssolution(solution):
 	fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32int.lib" prefix_auto="0" extension_auto="0" />\n')
 	fp.write('\t\t\t\t<Option working_dir="" />\n')
 	fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32int/" />\n')
-	if solution.kind=='tool':
+	if solution.projecttype==ProjectTypes.tool:
 		fp.write('\t\t\t\t<Option type="1" />\n')
 	else:
 		fp.write('\t\t\t\t<Option type="2" />\n')
@@ -2191,7 +2617,7 @@ def createcodeblockssolution(solution):
 	fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32rel.lib" prefix_auto="0" extension_auto="0" />\n')
 	fp.write('\t\t\t\t<Option working_dir="" />\n')
 	fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32rel/" />\n')
-	if solution.kind=='tool':
+	if solution.projecttype==ProjectTypes.tool:
 		fp.write('\t\t\t\t<Option type="1" />\n')
 	else:
 		fp.write('\t\t\t\t<Option type="2" />\n')
@@ -2241,7 +2667,7 @@ def createcodeblockssolution(solution):
 	for dirnameentry in includedirectories:
 		fp.write('\t\t\t<Add directory=\'&quot;' + burger.converttolinuxslashes(dirnameentry) + '&quot;\' />\n')
 
-	if solution.kind!='library' or solution.projectname!='burgerlib':
+	if solution.projecttype!=ProjectTypes.library or solution.projectname!='burgerlib':
 		fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/burgerlib&quot;\' />\n')
 	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/perforce&quot;\' />\n')
 	fp.write('\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/opengl&quot;\' />\n')
@@ -2292,8 +2718,8 @@ def createwatcomsolution(solution):
 	#
 	
 	codefiles,includedirectories = solution.getfilelist([FileTypes.h,FileTypes.cpp,FileTypes.x86])
-	platformcode = solution.getplatformcode()
-	idecode = solution.getidecode()
+	platformcode = solution.platform.getplatformcode()
+	idecode = solution.ide.getidecode()
 	projectfilename = str(solution.projectname + idecode + platformcode)
 	projectpathname = os.path.join(solution.workingDir,projectfilename + '.wmk')
 
@@ -2314,7 +2740,7 @@ def createwatcomsolution(solution):
 	fp = open(projectpathname,'w')
 	fp.write(
 		'#\n'
-		'# Build ' + solution.projectname + ' for ' + solution.platform + '\n'
+		'# Build ' + solution.projectname + ' for ' + solution.platform.name + '\n'
 		'#\n\n'
 		'#\n'
 		'# sourcedir = Set the work directories for the source\n'
@@ -2413,12 +2839,12 @@ def createwatcomsolution(solution):
 		'all : .SYMBOLIC\n')
 	
 	platforms = []
-	if solution.platform == 'msdos':
+	if solution.platform == PlatformTypes.msdos:
 		platforms = ['x32','dos4gw']
-	elif solution.platform == 'windows':
+	elif solution.platform == PlatformTypes.windows:
 		platforms = ['w32']
 	
-	if solution.kind=='library':
+	if solution.projecttype==ProjectTypes.library:
 		suffix = 'lib'
 	else:
 		suffix = 'exe'
@@ -2450,7 +2876,7 @@ def createwatcomsolution(solution):
 			fp.write('A = $(basetempdir)wat' + theplatform + getconfigurationcode(target) + '\n'
 				'$(destdir)\\$(projectname)wat' + theplatform + getconfigurationcode(target) + '.' + suffix + ' : $+$(OBJS)$- ' + projectfilename + '.wmk\n'
 				'\t@if not exist $(destdir) @!mkdir $(destdir)\n')
-			if solution.kind=='library':
+			if solution.projecttype==ProjectTypes.library:
 
 				fp.write('\t@SET WOW=$+$(OBJS)$-\n'
 					'\t@WLIB -q -b -c -n $^@ @WOW\n')
@@ -2466,172 +2892,3 @@ def createwatcomsolution(solution):
 	fp.close()
 	return 0
 
-#
-# Command line shell
-#
-
-	
-def run(workingDir):
-
-	#
-	# Parse the command line
-	#
-	
-	parser = argparse.ArgumentParser(
-		description='Create project files. Copyright by Rebecca Ann Heineman. Given a .json input file, create project files')
-	parser.add_argument('-xcode3', dest='xcode3', action='store_true',
-		default=False,
-		help='Build for Xcode 3.')
-	parser.add_argument('-xcode4', dest='xcode4', action='store_true',
-		default=False,
-		help='Build for Xcode 4.')
-	parser.add_argument('-xcode5', dest='xcode5', action='store_true',
-		default=False,
-		help='Build for Xcode 5.')
-	parser.add_argument('-vs2005', dest='vs2005', action='store_true',
-		default=False,
-		help='Build for Visual Studio 2005.')
-	parser.add_argument('-vs2008', dest='vs2008', action='store_true',
-		default=False,
-		help='Build for Visual Studio 2008.')
-	parser.add_argument('-vs2010', dest='vs2010', action='store_true',
-		default=False,
-		help='Build for Visual Studio 2010.')
-	parser.add_argument('-vs2015', dest='vs2015', action='store_true',
-		default=False,
-		help='Build for Visual Studio 2015.')
-	parser.add_argument('-codeblocks', dest='codeblocks', action='store_true',
-		default=False,
-		help='Build for CodeBlocks 13.12')
-	parser.add_argument('-codewarrior', dest='codewarrior', action='store_true',
-		default=False,
-		help='Build for CodeWarrior')
-	parser.add_argument('-watcom', dest='watcom', action='store_true',
-		default=False,
-		help='Build for Watcom WMAKE')
-	parser.add_argument('-ios', dest='ios', action='store_true',
-		default=False,
-		help='Build for iOS with XCode 5 or higher.')
-	parser.add_argument('-vita', dest='vita', action='store_true',
-		default=False,
-		help='Build for PS Vita with Visual Studio 2010.')
-	parser.add_argument('-360', dest='xbox360', action='store_true',
-		default=False,
-		help='Build for XBox 360 with Visual Studio 2010.')
-	parser.add_argument('-wiiu', dest='wiiu', action='store_true',
-		default=False,
-		help='Build for WiiU with Visual Studio 2013.')
-
-	parser.add_argument('-release', dest='release', action='store_true',
-		default=False,
-		help='Create a release target (Default is release/debug/internal)')
-	parser.add_argument('-debug', dest='debug', action='store_true',
-		default=False,
-		help='Create a debug target')
-	parser.add_argument('-internal', dest='internal', action='store_true',
-		default=False,
-		help='Create an internal target')
-	parser.add_argument('-finalfolder', dest='finalfolder', action='store_true',
-		default=False,
-		help='Add a script to copy a release build to a folder and check in with Perforce')
-	parser.add_argument('-app', dest='app', action='store_true',
-		default=False,
-		help='Build an application instead of a tool')
-	parser.add_argument('-lib', dest='library', action='store_true',
-		default=False,
-		help='Build a library instead of a tool')
-
-	parser.add_argument('-f',dest='jsonfiles',action='append',
-		help='Input file to process')
-	parser.add_argument('-v','-verbose',dest='verbose',action='store_true',
-		default=False,
-		help='Verbose output.')
-	parser.add_argument('-default',dest='default',action='store_true',
-		help='Create a default projects.json file')
-	parser.add_argument('args',nargs=argparse.REMAINDER,help='project filenames')
-
-	args = parser.parse_args()
-	verbose = args.verbose
-	
-	#
-	# Shall a default file be generated?
-	#
-	
-	if args.default==True:
-		savedefault(os.path.join(workingDir,'projects.json'))
-		return 0
-		
-	#
-	# Process defaults first
-	#
-
-	solution = SolutionData()
-	solution.verbose = verbose
-	solution.workingDir = workingDir
-	
-	#
-	# No input file?
-	#
-	
-	if args.jsonfiles==None:
-		projectpathname = os.path.join(workingDir,'projects.json')
-		if len(sys.argv)==1 and os.path.isfile(projectpathname)==True:
-			args.jsonfiles = ['projects.json']
-		else:
-			error = solution.processcommandline(args)
-			return error
-	
-	#
-	# Read in the json file
-	#
-	
-	for input in args.jsonfiles:
-		projectpathname = os.path.join(workingDir,input)
-		if os.path.isfile(projectpathname)!=True:
-			print input + ' was not found'
-			return 2
-	
-		#
-		# To allow '#' and '//' comments, the file has to be pre-processed
-		#
-		
-		fp = open(projectpathname,'r')
-		jsonlines = fp.readlines()
-		fp.close()
-		
-		#
-		# Remove all lines that have a leading '#' or '//'
-		#
-		
-		pure = ''
-		for item in jsonlines:
-			cleanitem = item.lstrip()
-			if cleanitem.startswith('#') or cleanitem.startswith('//'):
-				# Insert an empty line so that line numbers still match on error
-				pure = pure + '\n'
-			else:
-				pure = pure + item
-			
-		#
-		# Parse the json file (Handle errors)
-		#
-		
-		try:
-			myjson = json.loads(pure)
-		except Exception as e:
-			print str(e) + ' in parsing ' + projectpathname
-			return 2
-
-		#
-		# Process the list of commands
-		#
-	
-		if type(myjson) is list:
-			error = solution.process(myjson)
-		else:
-			print 'Invalid json input file!'
-			error = 2
-		if error!=0:
-			break
-
-	return error
