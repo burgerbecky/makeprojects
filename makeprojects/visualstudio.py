@@ -6,7 +6,7 @@
 # Handler for Microsoft Visual Studio projects
 #
 
-# Copyright 1995-2016 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-8 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -15,10 +15,12 @@
 
 import os
 import uuid
-import burger
 import io
-import core
 from enum import Enum
+import makeprojects.core
+import burger
+from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
+	ConfigurationTypes, IDETypes
 
 #
 ## \package makeprojects.visualstudio
@@ -36,21 +38,19 @@ defaultfinalfolder = '$(BURGER_SDKS)/windows/bin/'
 
 
 
-
 #
 ## Convert a string to a UUUD
 #
 # Given a project name string, create a 128 bit unique hash for
 # Visual Studio
 #
-# \param input Unicode string of the filename to convert into a hash
+# \param input_str Unicode string of the filename to convert into a hash
 #
 # \return A string in the format of CF994A05-58B3-3EF5-8539-E7753D89E84F
 #
 
-def calcuuid(input):
-	return unicode(uuid.uuid3(uuid.NAMESPACE_DNS,input.encode('utf-8'))).upper()
-
+def calcuuid(input_str):
+	return unicode(uuid.uuid3(uuid.NAMESPACE_DNS, input_str.encode('utf-8'))).upper()
 
 
 
@@ -60,8 +60,8 @@ def calcuuid(input):
 # by semicolons
 #
 
-class SemicolonArray:
-	def __init__(self,entries=[]):
+class SemicolonArray(object):
+	def __init__(self, entries=[]):
 		self.entries = entries
 
 	#
@@ -70,7 +70,7 @@ class SemicolonArray:
 
 	def __unicode__(self):
 		# Output nothing if there is no data
-		if self.entries==None:
+		if self.entries is None:
 			return ''
 
 		# Output the entries seperated by semicolons
@@ -87,7 +87,7 @@ class SemicolonArray:
 	## Add a string to the array
 	#
 
-	def append(self,entry):
+	def append(self, entry):
 		self.entries.append(entry)
 
 
@@ -101,7 +101,7 @@ class SemicolonArray:
 # XML records were used for settings for each and every compiler tool
 #
 
-class Tool2003:
+class Tool2003(object):
 
 	#
 	## Initialize the record with the entries and the name of the tool
@@ -111,7 +111,7 @@ class Tool2003:
 	# /param tabs Number of tabs printed before each line
 	#
 
-	def __init__(self,name,entries=[],tabs=3):
+	def __init__(self, name, entries=[], tabs=3):
 		self.name = name
 		self.entries = entries
 		self.tabstring = u'\t' * tabs
@@ -128,8 +128,8 @@ class Tool2003:
 		# Save off the entries, if any
 		for item in self.entries:
 			# Ignore entries without data
-			if item[1]!=None:
-				output += '\n' + self.tabstring + '\t' + item[0] +  '="' + unicode(item[1]) + '"'
+			if item[1] != None:
+				output += '\n' + self.tabstring + '\t' + item[0] + '="' + unicode(item[1]) + '"'
 
 		# Close off the XML and return the final string
 		return output + '/>\n'
@@ -151,14 +151,14 @@ class Tool2003:
 	# \param newvalue Value to substitute
 	#
 
-	def setvalue(self,name,newvalue):
+	def setvalue(self, name, newvalue):
 		for item in self.entries:
-			if item[0]==name:
+			if item[0] == name:
 				item[1] = newvalue
 				return
 
 		# Not found? Add the entry and then exit
-		self.entries.append([name,newvalue])
+		self.entries.append([name, newvalue])
 
 	#
 	## Remove an entry
@@ -167,18 +167,18 @@ class Tool2003:
 	#
 	# \param name String of the entry to remove
 	#
-	
-	def removeentry(self,name):
+
+	def removeentry(self, name):
 		i = 0
 		while i < len(self.entries):
 			# Match?
-			if self.entries[i][0]==name:
+			if self.entries[i][0] == name:
 				# Remove the entry and exit
 				del self.entries[i]
 				return
 
 			# Next entry
-			i+=1
+			i += 1
 
 
 
@@ -190,84 +190,82 @@ class Tool2003:
 
 class VCCLCompilerTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['AdditionalIncludeDirectories',SemicolonArray()],
-			['AdditionalUsingDirectories',None],
-			['SuppressStartupBanner','TRUE'],
-			['DebugInformationFormat','3'],
-			['WarningLevel','4'],
-			['Detect64BitPortabilityProblems','TRUE'],
-			['WarnAsError',None],
+		entries = [ """ General menu """ \
+			['AdditionalIncludeDirectories', SemicolonArray()], \
+			['AdditionalUsingDirectories', None], \
+			['SuppressStartupBanner', 'TRUE'], \
+			['DebugInformationFormat', '3'], \
+			['WarningLevel', '4'], \
+			['Detect64BitPortabilityProblems', 'TRUE'], \
+			['WarnAsError', None], \
 
-			# Optimization menu
-			['Optimization','2'],
-			['GlobalOptimizations',None],
-			['InlineFunctionExpansion','2'],
-			['EnableIntrinsicFunctions','TRUE'],
-			['ImproveFloatingPointConsistency','TRUE'],
-			['FavorSizeOrSpeed','1'],
-			['OmitFramePointers','TRUE'],
-			['EnableFiberSafeOptimizations','TRUE'],
-			['OptimizeForProcessor',None],
-			['OptimizeForWindowsApplication',None],
+			""" Optimization menu """ \
+			['Optimization', '2'], \
+			['GlobalOptimizations', None], \
+			['InlineFunctionExpansion', '2'], \
+			['EnableIntrinsicFunctions', 'TRUE'], \
+			['ImproveFloatingPointConsistency', 'TRUE'], \
+			['FavorSizeOrSpeed', '1'], \
+			['OmitFramePointers', 'TRUE'], \
+			['EnableFiberSafeOptimizations', 'TRUE'], \
+			['OptimizeForProcessor', None], \
+			['OptimizeForWindowsApplication', None], \
 
-			# Preprocess menu
-			['PreprocessorDefinitions',None],
-			['IgnoreStandardIncludePath',None],
-			['GeneratePreprocessedFile',None],
-			['KeepComments',None],
+			""" Preprocess menu """ \
+			['PreprocessorDefinitions', None], \
+			['IgnoreStandardIncludePath', None], \
+			['GeneratePreprocessedFile', None], \
+			['KeepComments', None], \
 
-			# Code generation menu
-			['StringPooling','TRUE'],
-			['MinimalRebuild','TRUE'],
-			['ExceptionHandling','0'],
-			['SmallerTypeCheck',None],
-			['BasicRuntimeChecks',None],
-			['RuntimeLibrary','1'],
-			['StructMemberAlignment','4'],
-			['BufferSecurityCheck','FALSE'],
-			['EnableFunctionLevelLinking','TRUE'],
-			['EnableEnhancedInstructionSet',None],
+			""" Code generation menu  """ \
+			['StringPooling', 'TRUE'], \
+			['MinimalRebuild', 'TRUE'], \
+			['ExceptionHandling', '0'], \
+			['SmallerTypeCheck', None], \
+			['BasicRuntimeChecks', None], \
+			['RuntimeLibrary', '1'], \
+			['StructMemberAlignment', '4'], \
+			['BufferSecurityCheck', 'FALSE'], \
+			['EnableFunctionLevelLinking', 'TRUE'], \
+			['EnableEnhancedInstructionSet', None], \
 
-			# Language extensions menu
-			['DisableLanguageExtensions',None],
-			['DefaultCharIsUnsigned',None],
-			['TreatWChar_tAsBuiltInType',None],
-			['ForceConformanceInForLoopScope',None],
-			['RuntimeTypeInfo','FALSE'],
+			""" Language extensions menu """ \
+			['DisableLanguageExtensions', None], \
+			['DefaultCharIsUnsigned', None], \
+			['TreatWChar_tAsBuiltInType', None], \
+			['ForceConformanceInForLoopScope', None], \
+			['RuntimeTypeInfo', 'FALSE'], \
 
-			# Precompiled header menu
-			['UsePrecompiledHeader',None],
-			['PrecompiledHeaderThrough',None],
-			['PrecompiledHeaderFile',None],
+			""" Precompiled header menu """ \
+			['UsePrecompiledHeader', None], \
+			['PrecompiledHeaderThrough', None], \
+			['PrecompiledHeaderFile', None], \
 
-			# Output files menu
-			['ExpandAttributedSource',None],
-			['AssemblerOutput',None],
-			['AssemblerListingLocation',None],
-			['ObjectFile',None],
-			['ProgramDataBaseFileName','$(OutDir)\\$(TargetName).pdb'],
+			""" Output files menu """ \
+			['ExpandAttributedSource', None], \
+			['AssemblerOutput', None], \
+			['AssemblerListingLocation', None], \
+			['ObjectFile', None], \
+			['ProgramDataBaseFileName', '$(OutDir)\\$(TargetName).pdb'], \
 
-			# Browse information menu
-			['BrowseInformation',None],
-			['BrowseInformationFile',None],
+			""" Browse information menu """ \
+			['BrowseInformation', None], \
+			['BrowseInformationFile', None], \
 
-			# Advanced menu
-			['CallingConvention','1'],
-			['CompileAs','2'],
-			['DisableSpecificWarnings','4201'],
-			['ForcedIncludeFile',None],
-			['ForcedUsingFiles',None],
-			['ShowIncludes',None],
-			['UndefinePreprocessorDefinitions',None],
-			['UndefineAllPreprocessorDefinitions',None],
+			""" Advanced menu """ \
+			['CallingConvention', '1'], \
+			['CompileAs', '2'], \
+			['DisableSpecificWarnings', '4201'], \
+			['ForcedIncludeFile', None], \
+			['ForcedUsingFiles', None], \
+			['ShowIncludes', None], \
+			['UndefinePreprocessorDefinitions', None], \
+			['UndefineAllPreprocessorDefinitions', None], \
 
-			# Command line menu
-			['AdditionalOptions',None]
-
+			""" Command line menu """ \
+			['AdditionalOptions', None] \
 		]
-		Tool2003.__init__(self,name='VCCLCompilerTool',entries=entries)
+		Tool2003.__init__(self, name='VCCLCompilerTool', entries=entries)
 
 
 
@@ -277,14 +275,14 @@ class VCCLCompilerTool(Tool2003):
 
 class VCCustomBuildTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['Description',None],
-			['CommandLine',None],
-			['AdditionalDependencies',None],
-			['Outputs',None]
+		entries = [ \
+			""" General menu """ \
+			['Description', None], \
+			['CommandLine', None], \
+			['AdditionalDependencies', None], \
+			['Outputs', None] \
 		]
-		Tool2003.__init__(self,name='VCCustomBuildTool',entries=entries)
+		Tool2003.__init__(self, name='VCCustomBuildTool', entries=entries)
 
 #
 # Visual Studio 2003 VCLinkerTool
@@ -292,84 +290,84 @@ class VCCustomBuildTool(Tool2003):
 
 class VCLinkerTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['OutputFile','&quot;$(OutDir)unittestsvc8w32dbg.exe&quot;'],
-			['ShowProgress',None],
-			['Version',None],
-			['LinkIncremental','TRUE'],
-			['SuppressStartupBanner',None],
-			['IgnoreImportLibrary',None],
-			['RegisterOutput',None],
-			['AdditionalLibraryDirectories',SemicolonArray(
-				[	
-					'$(BURGER_SDKS)\\windows\\perforce',
-					'$(BURGER_SDKS)\\windows\\burgerlib',
-					'$(BURGER_SDKS)\\windows\\opengl'
-				]
-			)],
+		entries = [ \
+			""" General menu """ \
+			['OutputFile', '&quot;$(OutDir)unittestsvc8w32dbg.exe&quot;'], \
+			['ShowProgress', None], \
+			['Version', None], \
+			['LinkIncremental', 'TRUE'], \
+			['SuppressStartupBanner', None], \
+			['IgnoreImportLibrary', None], \
+			['RegisterOutput', None], \
+			['AdditionalLibraryDirectories', SemicolonArray( \
+				[ \
+					'$(BURGER_SDKS)\\windows\\perforce', \
+					'$(BURGER_SDKS)\\windows\\burgerlib', \
+					'$(BURGER_SDKS)\\windows\\opengl' \
+				] \
+			)], \
 
-			# Input menu
-			['AdditionalDependencies','burgerlibvc8w32dbg.lib'],
-			['IgnoreAllDefaultLibraries',None],
-			['IgnoreDefaultLibraryNames',None],
-			['ModuleDefinitionFile',None],
-			['AddModuleNamesToAssembly',None],
-			['EmbedManagedResourceFile',None],
-			['ForceSymbolReferences',None],
-			['DelayLoadDLLs',None],
+			""" Input menu """ \
+			['AdditionalDependencies', 'burgerlibvc8w32dbg.lib'], \
+			['IgnoreAllDefaultLibraries', None], \
+			['IgnoreDefaultLibraryNames', None], \
+			['ModuleDefinitionFile', None], \
+			['AddModuleNamesToAssembly', None], \
+			['EmbedManagedResourceFile', None], \
+			['ForceSymbolReferences', None], \
+			['DelayLoadDLLs', None], \
 
-			# Debugging menu
-			['GenerateDebugInformation','TRUE'],
-			['ProgramDatabaseFile',None],
-			['StripPrivateSymbols',None],
-			['GenerateMapFile',None],
-			['MapFileName',None],
-			['MapExports',None],
-			['MapLines',None],
-			['AssemblyDebug',None],
-			
-			# System menu
-			['SubSystem','1'],
-			['HeapReserveSize',None],
-			['HeapCommitSize',None],
-			['StackReserveSize',None],
-			['StackCommitSize',None],
-			['LargeAddressAware',None],
-			['TerminalServerAware',None],
-			['SwapRunFromCD',None],
-			['SwapRunFromNet',None],
+			""" Debugging menu """ \
+			['GenerateDebugInformation', 'TRUE'], \
+			['ProgramDatabaseFile', None], \
+			['StripPrivateSymbols', None], \
+			['GenerateMapFile', None], \
+			['MapFileName', None], \
+			['MapExports', None], \
+			['MapLines', None], \
+			['AssemblyDebug', None], \
 
-			# Optimization
-			['OptimizeReferences','2'],
-			['EnableCOMDATFolding','2'],
-			['OptimizeForWindows98',None],
-			['FunctionOrder',None],
+			""" System menu """ \
+			['SubSystem', '1'], \
+			['HeapReserveSize', None], \
+			['HeapCommitSize', None], \
+			['StackReserveSize', None], \
+			['StackCommitSize', None], \
+			['LargeAddressAware', None], \
+			['TerminalServerAware', None], \
+			['SwapRunFromCD', None], \
+			['SwapRunFromNet', None], \
 
-			# Embedded MIDL menu
-			['MidlCommandFile',None],
-			['IgnoreEmbeddedIDL',None],
-			['MergedIDLBaseFileName',None],
-			['TypeLibraryFile',None],
-			['TypeLibraryResourceID',None],
+			""" Optimization """ \
+			['OptimizeReferences', '2'], \
+			['EnableCOMDATFolding', '2'], \
+			['OptimizeForWindows98', None], \
+			['FunctionOrder', None], \
 
-			# Advanced menu
-			['EntryPointSymbol',None],
-			['ResourceOnlyDLL',None],
-			['SetChecksum',None],
-			['BaseAddress',None],
-			['FixedBaseAddress',None],
-			['TurnOffAssemblyGeneration',None],
-			['SupportUnloadOfDelayLoadedDLL',None],
-			['ImportLibrary',None],
-			['MergeSections',None],
-			['TargetMachine','1'],
+			""" Embedded MIDL menu """ \
+			['MidlCommandFile', None], \
+			['IgnoreEmbeddedIDL', None], \
+			['MergedIDLBaseFileName', None], \
+			['TypeLibraryFile', None], \
+			['TypeLibraryResourceID', None], \
 
-			# Command line menui
-			['AdditionalOptions',None]
+			""" Advanced menu """ \
+			['EntryPointSymbol', None], \
+			['ResourceOnlyDLL', None], \
+			['SetChecksum', None], \
+			['BaseAddress', None], \
+			['FixedBaseAddress', None], \
+			['TurnOffAssemblyGeneration', None], \
+			['SupportUnloadOfDelayLoadedDLL', None], \
+			['ImportLibrary', None], \
+			['MergeSections', None], \
+			['TargetMachine', '1'], \
+
+			""" Command line menu """ \
+			['AdditionalOptions', None] \
 		]
-		Tool2003.__init__(self,name='VCLinkerTool',entries=entries)
-	
+		Tool2003.__init__(self, name='VCLinkerTool', entries=entries)
+
 
 #
 ## Visual Studio 2003 for the MIDL tool
@@ -377,107 +375,107 @@ class VCLinkerTool(Tool2003):
 
 class VCMIDLTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCMIDLTool')
-	
+		Tool2003.__init__(self, name='VCMIDLTool')
+
 
 
 class VCPostBuildEventTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['Description',None],
-			['CommandLine',None],
-			['ExcludedFromBuild',None]
+		entries = [ \
+			""" General menu """ \
+			['Description', None], \
+			['CommandLine', None], \
+			['ExcludedFromBuild', None] \
 		]
-		Tool2003.__init__(self,name='VCPostBuildEventTool',entries=entries)
-	
+		Tool2003.__init__(self, name='VCPostBuildEventTool', entries=entries)
+
 
 
 class VCPreBuildEventTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['Description',None],
-			['CommandLine',None],
-			['ExcludedFromBuild',None]
+		entries = [ \
+			""" General menu """ \
+			['Description', None], \
+			['CommandLine', None], \
+			['ExcludedFromBuild', None] \
 		]
-		Tool2003.__init__(self,name='VCPreBuildEventTool',entries=entries)
+		Tool2003.__init__(self, name='VCPreBuildEventTool', entries=entries)
 
 
 class VCPreLinkEventTool(Tool2003):
 	def __init__(self):
-		entries = [
-			# General menu
-			['Description',None],
-			['CommandLine',None],
-			['ExcludedFromBuild',None]
+		entries = [ \
+			""" General menu """ \
+			['Description', None], \
+			['CommandLine', None], \
+			['ExcludedFromBuild', None] \
 		]
-		Tool2003.__init__(self,name='VCPreLinkEventTool',entries=entries)
-	
+		Tool2003.__init__(self, name='VCPreLinkEventTool', entries=entries)
+
 
 class VCResourceCompilerTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCResourceCompilerTool')
+		Tool2003.__init__(self, name='VCResourceCompilerTool')
 
 
 class VCWebServiceProxyGeneratorTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCWebServiceProxyGeneratorTool')
+		Tool2003.__init__(self, name='VCWebServiceProxyGeneratorTool')
 
 
 class VCXMLDataGeneratorTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCXMLDataGeneratorTool')
-	
+		Tool2003.__init__(self, name='VCXMLDataGeneratorTool')
+
 
 class VCWebDeploymentTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCWebDeploymentTool')
+		Tool2003.__init__(self, name='VCWebDeploymentTool')
 
 class VCManagedWrapperGeneratorTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCManagedWrapperGeneratorTool')
+		Tool2003.__init__(self, name='VCManagedWrapperGeneratorTool')
 
 class VCAuxiliaryManagedWrapperGeneratorTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='VCAuxiliaryManagedWrapperGeneratorTool')
+		Tool2003.__init__(self, name='VCAuxiliaryManagedWrapperGeneratorTool')
 
 class XboxDeploymentTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='XboxDeploymentTool')
+		Tool2003.__init__(self, name='XboxDeploymentTool')
 
 class XboxImageTool(Tool2003):
 	def __init__(self):
-		Tool2003.__init__(self,name='XboxImageTool')
-	
+		Tool2003.__init__(self, name='XboxImageTool')
+
 
 
 #
 # Configuration records
 #
 
-class VS2003Configuration:
+class VS2003Configuration(object):
 
 	#
 	# Initialize a Visual Studio 2003 configuration record
 	#
 
-	def __init__(self,project,configuration,vsplatform):
+	def __init__(self, project, configuration, vsplatform):
 		self.project = project
 		self.configuration = configuration
 		self.vsplatform = vsplatform
 
-		self.entries = [
-			['OutputDirectory','bin\\'],
-			['IntermediateDirectory','temp\\'],
-			['ConfigurationType','1'],
-			['UseOfMFC','0'],
-			['ATLMinimizesCRunTimeLibraryUsage','false'],
-			['CharacterSet','1'],
-			['DeleteExtensionsOnClean',None],
-			['ManagedExtensions',None],
-			['WholeProgramOptimization',None],
-			['ReferencesPath',None]
+		self.entries = [ \
+			['OutputDirectory', 'bin\\'], \
+			['IntermediateDirectory', 'temp\\'], \
+			['ConfigurationType', '1'], \
+			['UseOfMFC', '0'], \
+			['ATLMinimizesCRunTimeLibraryUsage', 'false'], \
+			['CharacterSet', '1'], \
+			['DeleteExtensionsOnClean', None], \
+			['ManagedExtensions', None], \
+			['WholeProgramOptimization', None], \
+			['ReferencesPath', None] \
 		]
 
 		self.tools = []
@@ -486,14 +484,14 @@ class VS2003Configuration:
 		self.tools.append(VCCustomBuildTool())
 		self.tools.append(VCLinkerTool())
 
-		if vsplatform=='Win32' or vsplatform=='x64':
+		if vsplatform == 'Win32' or vsplatform == 'x64':
 			self.tools.append(VCMIDLTool())
 
 		self.tools.append(VCPostBuildEventTool())
 		self.tools.append(VCPreBuildEventTool())
 		self.tools.append(VCPreLinkEventTool())
 
-		if vsplatform=='Xbox':
+		if vsplatform == 'Xbox':
 			self.tools.append(XboxDeploymentTool())
 			self.tools.append(XboxImageTool())
 		else:
@@ -504,34 +502,34 @@ class VS2003Configuration:
 			self.tools.append(VCManagedWrapperGeneratorTool())
 			self.tools.append(VCAuxiliaryManagedWrapperGeneratorTool())
 
-	def write(self,fp):
+	def write(self, fileref):
 
-		fp.write(u'\t\t<Configuration')
-		fp.write(u'\n\t\t\tName="' + self.configuration + '|' + self.vsplatform + '"')
+		fileref.write(u'\t\t<Configuration')
+		fileref.write(u'\n\t\t\tName="' + self.configuration + '|' + self.vsplatform + '"')
 
 		for item in self.entries:
-			if item[1]!=None:
-				fp.write(u'\n\t\t\t' + item[0] + '="' + item[1] + '"')
+			if item[1] != None:
+				fileref.write(u'\n\t\t\t' + item[0] + '="' + item[1] + '"')
 
-		fp.write(u'>\n')
+		fileref.write(u'>\n')
 
 		for tool in self.tools:
-			fp.write(unicode(tool))
+			fileref.write(unicode(tool))
 
-		fp.write(u'\t\t</Configuration>\n')
+		fileref.write(u'\t\t</Configuration>\n')
 
 #
 # Visual Studio 2003 formatter
 # This record instructs how to write a Visual 2003 format vcproj file
 #
 
-class VS2003vcproj:
+class VS2003vcproj(object):
 
 	#
 	# Set the defaults
 	#
 
-	def __init__(self,project):
+	def __init__(self, project):
 		self.project = project
 		self.ProjectType = 'Visual C++'
 		self.Version = '7.10'
@@ -545,7 +543,7 @@ class VS2003vcproj:
 			# x64 platforms
 			#
 
-			if vsplatform=='x64':
+			if vsplatform == 'x64':
 				continue
 
 			#
@@ -553,10 +551,10 @@ class VS2003vcproj:
 			#
 
 			for configuration in project.solution.configurations:
-				self.configurations.append(VS2003Configuration(project,configuration,vsplatform))
+				self.configurations.append(VS2003Configuration(project, configuration, vsplatform))
 
 
-	def write(self,fp):
+	def write(self, fp):
 
 		#
 		# Save off the UTF-8 header marker (Needed for 2003 only)
@@ -571,23 +569,23 @@ class VS2003vcproj:
 
 		fp.write(u'<VisualStudioProject')
 
-		if self.ProjectType!=None:
+		if self.ProjectType != None:
 			fp.write(u'\n\tProjectType="' + self.ProjectType + '"')
-		
-		if self.Version!=None:
+
+		if self.Version != None:
 			fp.write(u'\n\tVersion="' + self.Version + '"')
 
 		fp.write(u'\n\tName="' + self.project.projectname + '"')
 		fp.write(u'\n\tProjectGUID="{' + self.project.visualstudio.uuid + '}"')
 
-		if self.Keyword!=None:
+		if self.Keyword != None:
 			fp.write(u'\n\tKeyword="' + self.Keyword + '"')
-		
+
 		#
 		# Close the XML token
 		#
 		fp.write(u'>\n')
-	
+
 		#
 		# Write the project platforms
 		#
@@ -596,11 +594,11 @@ class VS2003vcproj:
 		for vsplatform in self.project.platform.getvsplatform():
 
 			# Ignore x64 platforms on Visual Studio 2003
-			if vsplatform=='x64':
+			if vsplatform == 'x64':
 				continue
 
 			fp.write(u'\t\t<Platform Name="' + vsplatform + '"/>\n')
-		fp.write(u'\t</Platforms>\n')	
+		fp.write(u'\t</Platforms>\n')
 
 		#
 		# Write out the Configuration records
@@ -612,7 +610,7 @@ class VS2003vcproj:
 			configuration.write(fp)
 
 		fp.write(u'\t</Configurations>\n')
-		
+
 		#
 		# Write out the Reference records
 		#
@@ -626,15 +624,15 @@ class VS2003vcproj:
 
 		fp.write(u'\t<Files>\n')
 		fp.write(u'\t</Files>\n')
-		
+
 		#
 		# Write out the Globals records
 		#
 
 		fp.write(u'\t<Globals>\n')
 		fp.write(u'\t</Globals>\n')
-		
-		# 
+
+		#
 		# Wrap up with the closing of the XML token
 		#
 
@@ -650,31 +648,31 @@ class VS2003vcproj:
 # \param fp File record to stream out the output
 # \param solution Reference to the raw solution record
 # \param ide IDE enumeration of IDETypes which determine which version
-#		 of Visual Studio this solution file will be made for. 
+#		 of Visual Studio this solution file will be made for.
 #
 
-def generatesolutionfile(fp,solution,ide):
+def generatesolutionfile(fp, solution, ide):
 
 	#
 	# Use UTF 8 encoding, so start with a UTF-8 byte mark
 	#
 
 	fp.write(u'\xef\xbb\xbf\n')
-	
+
 	#
 	# Save off the format header for the version of Visual Studio being generated
 	#
 
-	if ide==core.IDETypes.vs2003:
+	if ide == IDETypes.vs2003:
 		fp.write(u'Microsoft Visual Studio Solution File, Format Version 8.00\n')
 
-	elif ide==core.IDETypes.vs2005:
+	elif ide == IDETypes.vs2005:
 		fp.write(u'Microsoft Visual Studio Solution File, Format Version 9.00\n# Visual Studio 2005\n')
 
-	elif ide==core.IDETypes.vs2008:
+	elif ide == IDETypes.vs2008:
 		fp.write(u'Microsoft Visual Studio Solution File, Format Version 10.00\n# Visual Studio 2008\n')
 
-	elif ide==core.IDETypes.vs2010:
+	elif ide == IDETypes.vs2010:
 		fp.write(u'Microsoft Visual Studio Solution File, Format Version 11.00\n# Visual Studio 2010\n')
 
 	else:
@@ -682,18 +680,22 @@ def generatesolutionfile(fp,solution,ide):
 		# All other version use a standarded solution file (About damn time)
 
 		fp.write(u'Microsoft Visual Studio Solution File, Format Version 12.00\n# Visual Studio ')
-		if ide==core.IDETypes.vs2012:
+		if ide == IDETypes.vs2012:
 			fp.write(u'2012\n')
 
 		# Versions later than 2012 have mininum and recommended version information
 		# (About damn time!)
 
-		elif ide==core.IDETypes.vs2013:
+		elif ide == IDETypes.vs2013:
 			fp.write(u'2013\nVisualStudioVersion = 12.0.31101.0\n')
 			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
-		else:
-			# Visual studio 2015 or later
+		elif ide == IDETypes.vs2015:
+			# Visual studio 2015
 			fp.write(u'14\nVisualStudioVersion = 14.0.25123.0\n')
+			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
+		else:
+			# Visual studio 2017 or later
+			fp.write(u'15\nVisualStudioVersion = 15.0.26430.15\n')
 			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
 
 	#
@@ -708,7 +710,8 @@ def generatesolutionfile(fp,solution,ide):
 		# Save off the project record
 		#
 
-		fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + project.projectname + '", "' + project.visualstudio.outputfilename + '", "{' + project.visualstudio.uuid + '}"\n')
+		fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + project.projectname + \
+			'", "' + project.visualstudio.outputfilename + '", "{' + project.visualstudio.uuid + '}"\n')
 
 		# Write out the dependencies, if any
 		fp.write(u'\tProjectSection(ProjectDependencies) = postProject\n')
@@ -716,32 +719,32 @@ def generatesolutionfile(fp,solution,ide):
 			fp.write(u'\t\t{' + dependent.visualstudio.uuid + '} = {' + dependent.visualstudio.uuid + '}\n')
 		fp.write(u'\tEndProjectSection\n')
 		fp.write(u'EndProject\n')
-	
+
 	#
 	# Begin the Global record
 	#
-	
+
 	fp.write(u'Global\n')
 
-	# 
+	#
 	# Visual Studio 2003 format is unique, write it out in its
 	# own exporter
 	#
 
-	if ide==core.IDETypes.vs2003:
+	if ide == IDETypes.vs2003:
 
 		#
 		# List the configuration pairs (Like Xbox and Win32)
 		#
 
 		fp.write(u'\tGlobalSection(SolutionConfiguration) = preSolution\n')
-		
+
 		#
 		# Only output if there are attached projects, if there are
 		# no projects, there is no need to output platforms
 		#
 
-		if len(solution.projects)!=0:
+		if solution.projects:
 			for platform in solution.platform.getvsplatform():
 
 				#
@@ -749,7 +752,7 @@ def generatesolutionfile(fp,solution,ide):
 				# x64 platforms
 				#
 
-				if platform=='x64':
+				if platform == 'x64':
 					continue
 
 				#
@@ -758,7 +761,8 @@ def generatesolutionfile(fp,solution,ide):
 				#
 
 				for configuration in solution.configurations:
-					fp.write(u'\t\t' + configuration + ' ' + platform + ' = ' + configuration + ' ' + platform + '\n')
+					fp.write(u'\t\t' + configuration + ' ' + platform + ' = ' + configuration + \
+						' ' + platform + '\n')
 
 		fp.write(u'\tEndGlobalSection\n')
 
@@ -775,19 +779,21 @@ def generatesolutionfile(fp,solution,ide):
 				# Visual Studio 2003 doesn't support 64 bit compilers
 				#
 
-				if platform=='x64':
+				if platform == 'x64':
 					continue
 
 				#
 				# Using the faked Platform/Configuration pair used above, create the appropriate
 				# pairs here and match them up.
 				#
-				
+
 				for configuration in solution.configurations:
 					tokenwithspace = configuration + ' ' + platform
 					token = configuration + '|' + platform
-					fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + '.ActiveCfg = ' + token + '\n')
-					fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + '.Build.0 = ' + token + '\n')
+					fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + \
+						'.ActiveCfg = ' + token + '\n')
+					fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + \
+						'.Build.0 = ' + token + '\n')
 
 		fp.write(u'\tEndGlobalSection\n')
 
@@ -808,17 +814,17 @@ def generatesolutionfile(fp,solution,ide):
 
 	else:
 
-		if len(solution.projects)>0:
+		if solution.projects:
 			#
 			# Write out the SolutionConfigurationPlatforms for all other versions of
 			# Visual Studio
 			#
-	
+
 			fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
 
 			for configuration in solution.configurations:
 				for platform in solution.platform.getvsplatform():
-					token = configuration + '|' + platform 
+					token = configuration + '|' + platform
 					fp.write(u'\t\t' + token + ' = ' + token + '\n')
 
 			fp.write(u'\tEndGlobalSection\n')
@@ -826,7 +832,7 @@ def generatesolutionfile(fp,solution,ide):
 			#
 			# Write out the ProjectConfigurationPlatforms
 			#
-	
+
 			fp.write(u'\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
 
 			for project in solution.projects:
@@ -842,16 +848,16 @@ def generatesolutionfile(fp,solution,ide):
 		#
 		# Hide nodes section
 		#
-	
+
 		fp.write(u'\tGlobalSection(SolutionProperties) = preSolution\n')
 		fp.write(u'\t\tHideSolutionNode = FALSE\n')
 		fp.write(u'\tEndGlobalSection\n')
-			
+
 	#
 	# Close it up!
 	#
-		
-	fp.write(u'EndGlobal\n')	
+
+	fp.write(u'EndGlobal\n')
 	return 0
 
 
@@ -873,12 +879,14 @@ class FileVersions(Enum):
 	## Visual Studio 2010
 	vs2010 = 3
 	## Visual Studio 2012
-	vs2012 = 4	
+	vs2012 = 4
 	## Visual Studio 2013
-	vs2013 = 5	
+	vs2013 = 5
 	## Visual Studio 2015
 	vs2015 = 6
-	
+	## Visual Studio 2017
+	vs2017 = 7
+
 #
 ## Solution (.sln) file version number to encode
 #
@@ -890,13 +898,14 @@ formatversion = [
 	'11.00',		# 2010
 	'12.00',		# 2012
 	'12.00',		# 2013
-	'12.00'			# 2015
+	'12.00',		# 2015
+	'12.00'			# 2017
 ]
 
 #
 ## Solution (.sln) year version number to encode
 #
-	
+
 yearversion = [
 	'2003',			# 2003
 	'2005',			# 2005
@@ -904,7 +913,8 @@ yearversion = [
 	'2010',			# 2010
 	'2012',			# 2012
 	'2013',			# 2013
-	'14'			# 2015
+	'14',			# 2015
+	'15'			# 2017
 ]
 
 #
@@ -918,7 +928,8 @@ projectsuffix = [
 	'.vcxproj',		# 2010
 	'.vcxproj',		# 2012
 	'.vcxproj',		# 2013
-	'.vcxproj'		# 2015
+	'.vcxproj',		# 2015
+	'.vcxproj'		# 2017
 ]
 
 #
@@ -932,28 +943,30 @@ platformtoolsets = [
 	'v100',			# 2010
 	'v110_xp',		# 2012
 	'v120_xp',		# 2013
-	'v140_xp'		# 2015
+	'v140_xp',		# 2015
+	'v141_xp'		# 2017
 ]
 
 #
 # Subroutine for saving out a group of filenames based on compiler used
 # Used by the filter exporter
 #
-	
-def writefiltergroup(fp,filelist,groups,compilername):
-		
+
+def writefiltergroup(fileref, filelist, groups, compilername):
+
 	# Iterate over the list
 	for item in filelist:
 		# Get the Visual Studio group name
 		groupname = item.extractgroupname()
-		if groupname!='':
+		if groupname != '':
 			# Add to the list of groups found
 			groups.append(groupname)
 			# Write out the record
-			fp.write(u'\t\t<' + compilername + ' Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
-			fp.write(u'\t\t\t<Filter>' + groupname + '</Filter>\n')
-			fp.write(u'\t\t</' + compilername + '>\n')
-					
+			fileref.write(u'\t\t<' + compilername + ' Include="' + \
+				burger.convert_to_windows_slashes(item.filename) + '">\n')
+			fileref.write(u'\t\t\t<Filter>' + groupname + '</Filter>\n')
+			fileref.write(u'\t\t</' + compilername + '>\n')
+
 #
 ## Compare text file and a string for equality
 #
@@ -968,36 +981,36 @@ def writefiltergroup(fp,filelist,groups,compilername):
 # \param string string object to test against
 #
 
-def comparefiletostring(filename,string):
+def comparefiletostring(filename, string):
 
 	#
 	# Do a data compare as a text file
 	#
-	
+
 	f1 = None
 	try:
-		f1 = io.open(filename,'r')
+		f1 = io.open(filename, 'r')
 		fileOneLines = f1.readlines()
 		f1.close()
 
 	except:
-		if f1!=None:
+		if f1 != None:
 			f1.close()
 		return False
-	
+
 	#
 	# Compare the file contents taking into account
 	# different line endings
 	#
-	
+
 	fileTwoLines = string.getvalue().splitlines(True)
 	f1size = len(fileOneLines)
 	f2size = len(fileTwoLines)
-	
+
 	#
 	# Not the same size?
 	#
-	
+
 	if f1size != f2size:
 		return False
 
@@ -1006,24 +1019,24 @@ def comparefiletostring(filename,string):
 		if i != fileTwoLines[x]:
 			return False
 		x += 1
-		
+
 	# It's a match!
 
 	return True
 
-	
+
 #
 # Class to hold the defaults and settings to output a visualstudio
 # compatible project file.
 # json keyword "visualstudio" for dictionary of overrides
 #
 
-class Defaults:
+class Defaults(object):
 
 	#
 	# Power up defaults
 	#
-	
+
 	def __init__(self):
 		# Visual studio version code
 		self.idecode = None
@@ -1043,33 +1056,37 @@ class Defaults:
 	# The solution has been set up, perform setup
 	# based on the type of project being created
 	#
-	
-	def defaults(self,solution):
-		
+
+	def defaults(self, solution):
+
 		#
 		# Determine settings for the generated solution file
 		#
-		
-		if solution.ide==core.IDETypes.vs2003:
+
+		if solution.ide == IDETypes.vs2003:
 			self.fileversion = FileVersions.vs2003
-	
-		elif solution.ide==core.IDETypes.vs2005:
+
+		elif solution.ide == IDETypes.vs2005:
 			self.fileversion = FileVersions.vs2005
 
-		elif solution.ide==core.IDETypes.vs2008:
+		elif solution.ide == IDETypes.vs2008:
 			self.fileversion = FileVersions.vs2008
 
-		elif solution.ide==core.IDETypes.vs2010:
+		elif solution.ide == IDETypes.vs2010:
 			self.fileversion = FileVersions.vs2010
 
-		elif solution.ide==core.IDETypes.vs2012:
+		elif solution.ide == IDETypes.vs2012:
 			self.fileversion = FileVersions.vs2012
 
-		elif solution.ide==core.IDETypes.vs2013:
+		elif solution.ide == IDETypes.vs2013:
 			self.fileversion = FileVersions.vs2013
 
-		elif solution.ide==core.IDETypes.vs2015:
+		elif solution.ide == IDETypes.vs2015:
 			self.fileversion = FileVersions.vs2015
+
+		elif solution.ide == IDETypes.vs2017:
+			self.fileversion = FileVersions.vs2017
+
 		else:
 			# Not supported yet
 			return 10
@@ -1077,39 +1094,39 @@ class Defaults:
 		#
 		# Get the config file name and default frameworks
 		#
-		
-		self.idecode = solution.ide.getidecode()
-		self.platformcode = solution.platform.getplatformcode()
+
+		self.idecode = solution.ide.getshortcode()
+		self.platformcode = solution.platform.getshortcode()
 		self.outputfilename = str(solution.projectname + self.idecode + self.platformcode)
 		self.uuid = calcuuid(self.outputfilename)
-	
+
 		#
 		# Create a list of acceptable files that can be included in the project
 		#
-		
-		self.acceptable = [core.FileTypes.h,core.FileTypes.cpp]
-		if self.platformcode=='win':
-			self.acceptable.extend([core.FileTypes.rc,core.FileTypes.ico])
+
+		self.acceptable = [FileTypes.h, FileTypes.cpp]
+		if self.platformcode == 'win':
+			self.acceptable.extend([FileTypes.rc, FileTypes.ico])
 			# 2010 or higher supports hlsl and glsl files
-			if self.fileversion.value>=FileVersions.vs2010.value:
-				self.acceptable.extend([core.FileTypes.hlsl,core.FileTypes.glsl])
-				
+			if self.fileversion.value >= FileVersions.vs2010.value:
+				self.acceptable.extend([FileTypes.hlsl, FileTypes.glsl])
+
 		# Xbox 360 shaders are supported
-		elif self.platformcode=='x36' and self.fileversion==FileVersions.vs2010:
-			self.acceptable.append(core.FileTypes.x360sl)
-			
+		elif self.platformcode == 'x36' and self.fileversion == FileVersions.vs2010:
+			self.acceptable.append(FileTypes.x360sl)
+
 		# PS Vita shaders are supported
-		elif self.platformcode=='vit' and self.fileversion==FileVersions.vs2010:
-			self.acceptable.append(core.FileTypes.vitacg)
-			
+		elif self.platformcode == 'vit' and self.fileversion == FileVersions.vs2010:
+			self.acceptable.append(FileTypes.vitacg)
+
 		return 0
-	
+
 	#
 	# A json file had the key "visualstudio" with a dictionary.
 	# Parse the dictionary for extra control
 	#
 
-	def loadjson(self,myjson):
+	def loadjson(self, myjson):
 		error = 0
 		for key in myjson.keys():
 			print 'Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + '" found in loadjson'
@@ -1129,37 +1146,38 @@ class Defaults:
 # Class to manage a solution file's nested class
 #
 
-class NestedProjects:
-	def __init__(self,name):
+class NestedProjects(object):
+	def __init__(self, name):
 		self.name = name
 		self.uuid = calcuuid(name + 'NestedProjects')
 		self.uuidlist = []
-		
+
 	#
 	# Add a uuid to track for this nested project list
 	#
-	
-	def adduuid(self,uuid):
-		self.uuidlist.append(uuid)
-		
+
+	def adduuid(self, input_uuid):
+		self.uuidlist.append(input_uuid)
+
 	#
 	# Write the record into project record
 	#
-	
-	def write(self,fp):
-		fp.write(u'Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "' + self.name + '", "' + self.name + '", "{' + self.uuid + '}"\n')
-		fp.write(u'EndProject\n')
+
+	def write(self, fileref):
+		fileref.write(u'Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "' + self.name + '", "' + \
+			self.name + '", "{' + self.uuid + '}"\n')
+		fileref.write(u'EndProject\n')
 
 	#
 	# Inside the GlobalSection(NestedProjects) = preSolution record, output
 	# the uuid list this item controls
 	#
-			
-	def writeGlobalSection(self,fp):
+
+	def writeGlobalSection(self, fileref):
 		for item in self.uuidlist:
-			fp.write(u'\t\t{' + item + '} = {' + self.uuid + '}\n')
-			
-				
+			fileref.write(u'\t\t{' + item + '} = {' + self.uuid + '}\n')
+
+
 #
 ## Object that contains constants for specific versions of Visual Studio
 #
@@ -1168,18 +1186,18 @@ class NestedProjects:
 # this class
 #
 
-class SolutionFile:
+class SolutionFile(object):
 
-	def __init__(self,fileversion,solution):
+	def __init__(self, fileversion, solution):
 		self.fileversion = fileversion
 		self.solution = solution
 		self.nestedprojects = []
-		
+
 	#
 	## Add a nested project entry
 	#
-	
-	def addnestedprojects(self,name):
+
+	def addnestedprojects(self, name):
 		entry = NestedProjects(name)
 		self.nestedprojects.append(entry)
 		return entry
@@ -1188,32 +1206,37 @@ class SolutionFile:
 	# Serialize the solution file (Requires UTF-8 encoding)
 	#
 
-	def write(self,fp):
+	def write(self, fp):
 		#
 		# Save off the UTF-8 header marker
 		#
 		fp.write(u'\xef\xbb\xbf\n')
-	
+
 		#
 		# Save off the format header
 		#
-		fp.write(u'Microsoft Visual Studio Solution File, Format Version ' + formatversion[self.fileversion.value] + '\n')
+		fp.write(u'Microsoft Visual Studio Solution File, Format Version ' + \
+			formatversion[self.fileversion.value] + '\n')
 
 		#
 		# Save the version of Visual Studio requested
 		#
-	
+
 		fp.write(u'# Visual Studio ' + yearversion[self.fileversion.value] + '\n')
 
 		#
-		# New lines added for Visual Studio 2013 and 2015 for file versioning 
+		# New lines added for Visual Studio 2013 and 2015 for file versioning
 		#
-		
-		if self.fileversion==FileVersions.vs2015:
+
+		if self.fileversion == FileVersions.vs2017:
+			fp.write(u'VisualStudioVersion = 15.0.26430.15\n')
+			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
+
+		if self.fileversion == FileVersions.vs2015:
 			fp.write(u'VisualStudioVersion = 14.0.25123.0\n')
 			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
-			
-		if self.fileversion==FileVersions.vs2013:
+
+		if self.fileversion == FileVersions.vs2013:
 			fp.write(u'VisualStudioVersion = 12.0.31101.0\n')
 			fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
 
@@ -1227,105 +1250,110 @@ class SolutionFile:
 		#
 		# Save off the project record
 		#
-	
-		fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.projectname + '", "' + self.solution.visualstudio.outputfilename + projectsuffix[self.fileversion.value] + '", "{' + self.solution.visualstudio.uuid + '}"\n')
+
+		fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.projectname + \
+			'", "' + self.solution.visualstudio.outputfilename + projectsuffix[self.fileversion.value] + \
+			'", "{' + self.solution.visualstudio.uuid + '}"\n')
 		fp.write(u'EndProject\n')
-	
+
 		#
 		# Begin the Global record
 		#
-	
+
 		fp.write(u'Global\n')
 
 		#
 		# Write out the SolutionConfigurationPlatforms
 		#
-	
+
 		fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
 		vsplatforms	= self.solution.platform.getvsplatform()
 		for target in self.solution.configurations:
 			for item in vsplatforms:
-				token = target + '|' + item
+				token = str(target) + '|' + item
 				fp.write(u'\t\t' + token + ' = ' + token + '\n')
 		fp.write(u'\tEndGlobalSection\n')
 
 		#
 		# Write out the ProjectConfigurationPlatforms
 		#
-	
+
 		fp.write(u'\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
 		for target in self.solution.configurations:
 			for item in vsplatforms:
-				token = target + '|' + item
-				fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + '.ActiveCfg = ' + token + '\n')
-				fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + '.Build.0 = ' + token + '\n')
+				token = str(target) + '|' + item
+				fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + \
+					'.ActiveCfg = ' + token + '\n')
+				fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + \
+					'.Build.0 = ' + token + '\n')
 		fp.write(u'\tEndGlobalSection\n')
 
 		#
 		# Hide nodes section
 		#
-	
+
 		fp.write(u'\tGlobalSection(SolutionProperties) = preSolution\n')
 		fp.write(u'\t\tHideSolutionNode = FALSE\n')
 		fp.write(u'\tEndGlobalSection\n')
-	
-		if len(self.nestedprojects):
+
+		if self.nestedprojects:
 			fp.write(u'\tGlobalSection(NestedProjects) = preSolution\n')
 			for item in self.nestedprojects:
 				item.writeGlobalSection(fp)
 			fp.write(u'\tEndGlobalSection\n')
-			
+
 		#
 		# Close it up!
 		#
-		
-		fp.write(u'EndGlobal\n')	
+
+		fp.write(u'EndGlobal\n')
 		return 0
 
 #
 # Project file generator (Generates main project file and the filter file)
 #
 
-class vsProject:
-	
+class vsProject(object):
+
 	#
 	# Create a project file
 	#
-	def __init__(self,defaults,codefiles,includedirectories):
+	def __init__(self, defaults, codefiles, includedirectories):
 		self.defaults = defaults
 		# Directories to use for file inclusion
 		self.includedirectories = includedirectories
 		# Seperate all the files to the types to be generated with
-		self.listh = core.pickfromfilelist(codefiles,core.FileTypes.h)
-		self.listcpp = core.pickfromfilelist(codefiles,core.FileTypes.cpp)
-		self.listwindowsresource = core.pickfromfilelist(codefiles,core.FileTypes.rc)
-		self.listhlsl = core.pickfromfilelist(codefiles,core.FileTypes.hlsl)
-		self.listglsl = core.pickfromfilelist(codefiles,core.FileTypes.glsl)
-		self.listx360sl = core.pickfromfilelist(codefiles,core.FileTypes.x360sl)
-		self.listvitacg = core.pickfromfilelist(codefiles,core.FileTypes.vitacg)
-		self.listico = core.pickfromfilelist(codefiles,core.FileTypes.ico)
-	
+		self.listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
+		self.listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
+		self.listwindowsresource = makeprojects.core.pickfromfilelist(codefiles, FileTypes.rc)
+		self.listhlsl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.hlsl)
+		self.listglsl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.glsl)
+		self.listx360sl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.x360sl)
+		self.listvitacg = makeprojects.core.pickfromfilelist(codefiles, FileTypes.vitacg)
+		self.listico = makeprojects.core.pickfromfilelist(codefiles, FileTypes.ico)
+
 	#
 	# Write out the project file in the 2010 format
 	#
-	
-	def writeproject2010(self,fp,solution):
+
+	def writeproject2010(self, fp, solution):
 		#
 		# Save off the xml header
 		#
-	
+
 		fp.write(u'<?xml version="1.0" encoding="utf-8"?>\n')
-		if self.defaults.fileversion.value>=FileVersions.vs2015.value:
+		if self.defaults.fileversion.value >= FileVersions.vs2015.value:
 			toolsversion = '14.0'
 		else:
 			toolsversion = '4.0'
-		fp.write(u'<Project DefaultTargets="Build" ToolsVersion="' + toolsversion + '" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
+		fp.write(u'<Project DefaultTargets="Build" ToolsVersion="' + toolsversion + \
+			'" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
 
 		#
 		# nVidia Shield projects have a version header
 		#
 
-		if self.defaults.platformcode=='shi':
+		if self.defaults.platformcode == 'shi':
 			fp.write(u'\t<PropertyGroup Label="NsightTegraProject">\n')
 			fp.write(u'\t\t<NsightTegraProjectRevisionNumber>11</NsightTegraProjectRevisionNumber>\n')
 			fp.write(u'\t</PropertyGroup>\n')
@@ -1337,60 +1365,61 @@ class vsProject:
 		fp.write(u'\t<ItemGroup Label="ProjectConfigurations">\n')
 		for target in solution.configurations:
 			for vsplatform in solution.platform.getvsplatform():
-				token = target + '|' + vsplatform
-				fp.write(u'\t\t<ProjectConfiguration Include="' + token + '">\n')		
-				fp.write(u'\t\t\t<Configuration>' + target + '</Configuration>\n')
+				token = str(target) + '|' + vsplatform
+				fp.write(u'\t\t<ProjectConfiguration Include="' + token + '">\n')
+				fp.write(u'\t\t\t<Configuration>' + str(target) + '</Configuration>\n')
 				fp.write(u'\t\t\t<Platform>' + vsplatform + '</Platform>\n')
 				fp.write(u'\t\t</ProjectConfiguration>\n')
 		fp.write(u'\t</ItemGroup>\n')
-	
+
 		#
 		# Write the project globals
 		#
-	
+
 		fp.write(u'\t<PropertyGroup Label="Globals">\n')
 		fp.write(u'\t\t<ProjectName>' + solution.projectname + '</ProjectName>\n')
-		if solution.finalfolder!=None:
-			final = burger.converttowindowsslasheswithendslash(solution.finalfolder)
+		if solution.finalfolder != None:
+			final = burger.convert_to_windows_slashes(solution.finalfolder, True)
 			fp.write(u'\t\t<FinalFolder>' + final + '</FinalFolder>\n')
 		fp.write(u'\t\t<ProjectGuid>{' + self.defaults.uuid + '}</ProjectGuid>\n')
-		fp.write(u'\t</PropertyGroup>\n')	
+		fp.write(u'\t</PropertyGroup>\n')
 
 		#
 		# Default properties
 		#
-			
+
 		fp.write(u'\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.Default.props" />\n')
 
 		#
 		# Add in the platform tool set for Windows targets
 		#
 
-		if self.defaults.platformcode=='win':
+		if self.defaults.platformcode == 'win':
 			fp.write(u'\t<PropertyGroup Label="Configuration">\n')
-			fp.write(u'\t\t<PlatformToolset>' + platformtoolsets[self.defaults.fileversion.value] + '</PlatformToolset>\n')
+			fp.write(u'\t\t<PlatformToolset>' + platformtoolsets[self.defaults.fileversion.value] + \
+				'</PlatformToolset>\n')
 			fp.write(u'\t</PropertyGroup>\n')
 
 		#
 		# Add in the burgerlib includes
 		#
-		
-		if solution.projecttype==core.ProjectTypes.library:
+
+		if solution.projecttype == ProjectTypes.library:
 			fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.libv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.libv10.props\')" />\n')
-		elif solution.projecttype==core.ProjectTypes.tool:
+		elif solution.projecttype == ProjectTypes.tool:
 			fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props\')" />\n')
 		else:
 			fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props\')" />\n')
 
 		fp.write(u'\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props" />\n')
 
-		if self.defaults.platformcode=='dsi':
+		if self.defaults.platformcode == 'dsi':
 			fp.write(u'\t<ImportGroup Label="ExtensionSettings">\n')
 			fp.write(u'\t\t<Import Project="$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.props" Condition="exists(\'$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.props\')" />\n')
 			fp.write(u'\t</ImportGroup>\n')
 		else:
 			fp.write(u'\t<ImportGroup Label="ExtensionSettings" />\n')
-			
+
 		fp.write(u'\t<ImportGroup Label="PropertySheets">\n')
 		fp.write(u'\t\t<Import Project="$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props" Condition="exists(\'$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props\')" Label="LocalAppDataPlatform" />\n')
 		fp.write(u'\t</ImportGroup>\n')
@@ -1400,55 +1429,55 @@ class vsProject:
 		#
 		# Insert compiler settings
 		#
-	
+
 		linkerdirectories = list(solution.includefolders)
-		if self.defaults.platformcode=='dsi':
+		if self.defaults.platformcode == 'dsi':
 			linkerdirectories += [u'$(BURGER_SDKS)\\dsi\\burgerlib']
 
-		if len(self.includedirectories) or \
-			len(linkerdirectories) or \
-			len(solution.defines):
+		if self.includedirectories or \
+			linkerdirectories or \
+			solution.defines:
 			fp.write(u'\t<ItemDefinitionGroup>\n')
-		
+
 			#
 			# Handle global compiler defines
 			#
-		
-			if len(self.includedirectories) or \
-				len(linkerdirectories) or \
-				len(solution.defines):
+
+			if self.includedirectories or \
+				linkerdirectories or \
+				solution.defines:
 				fp.write(u'\t\t<ClCompile>\n')
-	
+
 				# Include directories
-				if len(self.includedirectories) or len(linkerdirectories):
+				if self.includedirectories or linkerdirectories:
 					fp.write(u'\t\t\t<AdditionalIncludeDirectories>')
-					for dir in self.includedirectories:
-						fp.write(u'$(ProjectDir)' + burger.converttowindowsslashes(dir) + ';')
-					for dir in linkerdirectories:
-						fp.write(burger.converttowindowsslashes(dir) + ';')
-					fp.write(u'%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')	
+					for item in self.includedirectories:
+						fp.write(u'$(ProjectDir)' + burger.convert_to_windows_slashes(item) + ';')
+					for item in linkerdirectories:
+						fp.write(burger.convert_to_windows_slashes(item) + ';')
+					fp.write(u'%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')
 
 				# Global defines
-				if len(solution.defines):
+				if solution.defines:
 					fp.write(u'\t\t\t<PreprocessorDefinitions>')
 					for define in solution.defines:
 						fp.write(define + ';')
 					fp.write(u'%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
-		
+
 				fp.write(u'\t\t</ClCompile>\n')
 
 			#
 			# Handle global linker defines
 			#
-		
-			if len(linkerdirectories):
+
+			if linkerdirectories:
 				fp.write(u'\t\t<Link>\n')
-	
+
 				# Include directories
-				if len(linkerdirectories):
+				if linkerdirectories:
 					fp.write(u'\t\t\t<AdditionalLibraryDirectories>')
-					for dir in linkerdirectories:
-						fp.write(burger.converttowindowsslashes(dir) + ';')
+					for item in linkerdirectories:
+						fp.write(burger.convert_to_windows_slashes(item) + ';')
 					fp.write(u'%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>\n')
 
 				fp.write(u'\t\t</Link>\n')
@@ -1458,8 +1487,8 @@ class vsProject:
 		#
 		# This is needed for the PS3 and PS4 targets :(
 		#
-	
-		if self.defaults.platformcode=='ps3' or self.defaults.platformcode=='ps4':
+
+		if self.defaults.platformcode == 'ps3' or self.defaults.platformcode == 'ps4':
 			fp.write(u'\t<ItemDefinitionGroup Condition="\'$(BurgerConfiguration)\'!=\'Release\'">\n')
 			fp.write(u'\t\t<ClCompile>\n')
 			fp.write(u'\t\t\t<PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
@@ -1475,7 +1504,7 @@ class vsProject:
 		# This is needed for Nintendo DSI and 3DS targets :(
 		#
 
-		if self.defaults.platformcode=='dsi':
+		if self.defaults.platformcode == 'dsi':
 			fp.write(u'\t<ItemDefinitionGroup>\n')
 			fp.write(u'\t<ProjectReference>\n')
 			fp.write(u'\t\t<LinkLibraryDependencies>true</LinkLibraryDependencies>\n')
@@ -1519,31 +1548,31 @@ class vsProject:
 		#
 		# Any source files for the item groups?
 		#
-		
-		if len(self.listh) or \
-			len(self.listcpp) or \
-			len(self.listwindowsresource) or \
-			len(self.listhlsl) or \
-			len(self.listglsl) or \
-			len(self.listx360sl) or \
-			len(self.listvitacg) or \
-			len(self.listico):
+
+		if self.listh or \
+			self.listcpp or \
+			self.listwindowsresource or \
+			self.listhlsl or \
+			self.listglsl or \
+			self.listx360sl or \
+			self.listvitacg or \
+			self.listico:
 
 			fp.write(u'\t<ItemGroup>\n')
 
 			for item in self.listh:
-				fp.write(u'\t\t<ClInclude Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
+				fp.write(u'\t\t<ClInclude Include="' + burger.convert_to_windows_slashes(item.filename) + '" />\n')
 
 			for item in self.listcpp:
-				fp.write(u'\t\t<ClCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
+				fp.write(u'\t\t<ClCompile Include="' + burger.convert_to_windows_slashes(item.filename) + '" />\n')
 
 			for item in self.listwindowsresource:
-				fp.write(u'\t\t<ResourceCompile Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
+				fp.write(u'\t\t<ResourceCompile Include="' + burger.convert_to_windows_slashes(item.filename) + '" />\n')
 
 			for item in self.listhlsl:
-				fp.write(u'\t\t<HLSL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
+				fp.write(u'\t\t<HLSL Include="' + burger.convert_to_windows_slashes(item.filename) + '">\n')
 				# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-				basename = burger.converttowindowsslashes(item.filename).lower().rsplit('\\',1)[1]
+				basename = burger.convert_to_windows_slashes(item.filename).lower().rsplit('\\', 1)[1]
 				splitname = os.path.splitext(basename)
 				if splitname[0].startswith('vs41'):
 					profile = 'vs_4_1'
@@ -1575,15 +1604,15 @@ class vsProject:
 					profile = 'gs_4_0'
 				else:
 					profile = 'fx_2_0'
-		
+
 				fp.write(u'\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
 				fp.write(u'\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
 				fp.write(u'\t\t</HLSL>\n')
 
 			for item in self.listx360sl:
-				fp.write(u'\t\t<X360SL Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
+				fp.write(u'\t\t<X360SL Include="' + burger.convert_to_windows_slashes(item.filename) + '">\n')
 				# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-				basename = item.filename.lower().rsplit('\\',1)[1]
+				basename = item.filename.lower().rsplit('\\', 1)[1]
 				splitname = os.path.splitext(basename)
 				if splitname[0].startswith('vs3'):
 					profile = 'vs_3_0'
@@ -1603,15 +1632,15 @@ class vsProject:
 					profile = 'tx_1_0'
 				else:
 					profile = 'fx_2_0'
-		
+
 				fp.write(u'\t\t\t<VariableName>g_' + splitname[0] + '</VariableName>\n')
 				fp.write(u'\t\t\t<TargetProfile>' + profile + '</TargetProfile>\n')
 				fp.write(u'\t\t</X360SL>\n')
 
 			for item in self.listvitacg:
-				fp.write(u'\t\t<VitaCGCompile Include="' + burger.converttowindowsslashes(item.filename) + '">\n')
+				fp.write(u'\t\t<VitaCGCompile Include="' + burger.convert_to_windows_slashes(item.filename) + '">\n')
 				# Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-				basename = item.filename.lower().rsplit('\\',1)[1]
+				basename = item.filename.lower().rsplit('\\', 1)[1]
 				splitname = os.path.splitext(basename)
 				if splitname[0].startswith('vs'):
 					profile = 'sce_vp_psp2'
@@ -1621,77 +1650,77 @@ class vsProject:
 				fp.write(u'\t\t</VitaCGCompile>\n')
 
 			for item in self.listglsl:
-				fp.write(u'\t\t<GLSL Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-				
-			if self.defaults.fileversion.value>=FileVersions.vs2015.value:
+				fp.write(u'\t\t<GLSL Include="' + burger.convert_to_windows_slashes(item.filename) + '" />\n')
+
+			if self.defaults.fileversion.value >= FileVersions.vs2015.value:
 				chunkname = 'Image'
 			else:
 				chunkname = 'None'
 			for item in self.listico:
-				fp.write(u'\t\t<' + chunkname + ' Include="' + burger.converttowindowsslashes(item.filename) + '" />\n')
-				
-			fp.write(u'\t</ItemGroup>\n')	
-	
+				fp.write(u'\t\t<' + chunkname + ' Include="' + burger.convert_to_windows_slashes(item.filename) + '" />\n')
+
+			fp.write(u'\t</ItemGroup>\n')
+
 		#
 		# Close up the project file!
 		#
-	
-		fp.write(u'\t<Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />\n')
 
-		if self.defaults.platformcode=='dsi':
+		fp.write(u'\t<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.targets" />\n')
+
+		if self.defaults.platformcode == 'dsi':
 			fp.write(u'\t<ImportGroup Label="ExtensionTargets">\n')
-			fp.write(u'\t\t<Import Project="$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.targets" Condition="exists(\'$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.targets\')" />\n') 
+			fp.write(u'\t\t<Import Project="$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.targets" Condition="exists(\'$(VCTargetsPath)\\BuildCustomizations\\ctr2_asm.targets\')" />\n')
 			fp.write(u'\t\t<Import Project="$(VCTargetsPath)\\BuildCustomizations\\ctr2_items.targets" Condition="exists(\'$(VCTargetsPath)\\BuildCustomizations\\ctr2_items.targets\')" />\n')
-			
+
 			fp.write(u'\t</ImportGroup>\n')
 		else:
 			fp.write(u'\t<ImportGroup Label="ExtensionTargets" />\n')
 
 		fp.write(u'</Project>\n')
 		return 0
-		
+
 	#
 	# Write out the filter file
 	#
-		
-	def writefilter(self,fp):
+
+	def writefilter(self, fileref):
 
 		#
 		# Stock header for the filter
 		#
-		
-		fp.write(u'<?xml version="1.0" encoding="utf-8"?>\n')
-		fp.write(u'<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
-		fp.write(u'\t<ItemGroup>\n')
+
+		fileref.write(u'<?xml version="1.0" encoding="utf-8"?>\n')
+		fileref.write(u'<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">\n')
+		fileref.write(u'\t<ItemGroup>\n')
 
 		groups = []
-		writefiltergroup(fp,self.listh,groups,u'ClInclude')
-		writefiltergroup(fp,self.listcpp,groups,u'ClCompile')
-		writefiltergroup(fp,self.listwindowsresource,groups,u'ResourceCompile')
-		writefiltergroup(fp,self.listhlsl,groups,u'HLSL')
-		writefiltergroup(fp,self.listx360sl,groups,u'X360SL')
-		writefiltergroup(fp,self.listvitacg,groups,u'VitaCGCompile')
-		writefiltergroup(fp,self.listglsl,groups,u'GLSL')
+		writefiltergroup(fileref, self.listh, groups, u'ClInclude')
+		writefiltergroup(fileref, self.listcpp, groups, u'ClCompile')
+		writefiltergroup(fileref, self.listwindowsresource, groups, u'ResourceCompile')
+		writefiltergroup(fileref, self.listhlsl, groups, u'HLSL')
+		writefiltergroup(fileref, self.listx360sl, groups, u'X360SL')
+		writefiltergroup(fileref, self.listvitacg, groups, u'VitaCGCompile')
+		writefiltergroup(fileref, self.listglsl, groups, u'GLSL')
 		# Visual Studio 2015 and later have a "compiler" for ico files
-		if self.defaults.fileversion.value>=FileVersions.vs2015.value:
-			writefiltergroup(fp,self.listico,groups,u'Image')
+		if self.defaults.fileversion.value >= FileVersions.vs2015.value:
+			writefiltergroup(fileref, self.listico, groups, u'Image')
 		else:
-			writefiltergroup(fp,self.listico,groups,u'None')
-	
+			writefiltergroup(fileref, self.listico, groups, u'None')
+
 		# Remove all duplicate in the groups
 		groupset = set(groups)
-		
+
 		# Output the group list
 		for item in groupset:
-			item = burger.converttowindowsslashes(item)
+			item = burger.convert_to_windows_slashes(item)
 			groupuuid = calcuuid(self.defaults.outputfilename + item)
-			fp.write(u'\t\t<Filter Include="' + item + '">\n')
-			fp.write(u'\t\t\t<UniqueIdentifier>{' + groupuuid + '}</UniqueIdentifier>\n')
-			fp.write(u'\t\t</Filter>\n')
+			fileref.write(u'\t\t<Filter Include="' + item + '">\n')
+			fileref.write(u'\t\t\t<UniqueIdentifier>{' + groupuuid + '}</UniqueIdentifier>\n')
+			fileref.write(u'\t\t</Filter>\n')
 
-		fp.write(u'\t</ItemGroup>\n')
-		fp.write(u'</Project>\n')	
-		
+		fileref.write(u'\t</ItemGroup>\n')
+		fileref.write(u'</Project>\n')
+
 		return len(groupset)
 
 #
@@ -1700,62 +1729,61 @@ class vsProject:
 # the platform code (win, ps4)
 #
 
-class Project:
-	def __init__(self,defaults,solution):
+class Project(object):
+	def __init__(self, defaults, solution):
 		self.defaults = defaults
-		self.slnfile = SolutionFile(defaults.fileversion,solution)
+		self.slnfile = SolutionFile(defaults.fileversion, solution)
 		self.projects = []
 
 	#
 	# Add a nested project into the solution
 	#
-	
-	def addnestedprojects(self,name):
+
+	def addnestedprojects(self, name):
 		return self.slnfile.addnestedprojects(name)
-		
+
 	#
 	# Generate a .sln file for Visual Studio
 	#
-	
-	def writesln(self,fp):
-		return self.slnfile.write(fp)
+
+	def writesln(self, fileref):
+		return self.slnfile.write(fileref)
 
 	#
 	# Generate a .vcxproj.filters file for Visual Studio 2010 or higher
 	#
-			
-	def writeproject2010(self,fp,solution):
+
+	def writeproject2010(self, fileref, solution):
 		error = 0
-		if len(self.projects):
+		if self.projects:
 			for item in self.projects:
-				error = item.writeproject2010(fp,solution)
+				error = item.writeproject2010(fileref, solution)
 				break
 		return error
 
 	#
 	# Generate a .vcxproj.filters file for Visual Studio 2010 or higher
 	#
-			
-	def writefilter(self,fp):
+
+	def writefilter(self, fileref):
 		count = 0
-		if len(self.projects):
+		if self.projects:
 			for item in self.projects:
-				count = count + item.writefilter(fp)
-		return count	
+				count = count + item.writefilter(fileref)
+		return count
 
 
-###################################
-#                                 #
-# Visual Studio 2003, 2005, 2008  #
-# 2010, 2012 and 2015 support     #
-#                                 #
-###################################		
-	
+
+#
+# Visual Studio 2003, 2005, 2008
+# 2010, 2012 and 2015 support
+#
+
 #
 # Create a project file for Visual Studio (All supported flavors)
 #
 
-def generate(solution,ide,perforce=False,verbose=False):
+def generate(solution, ide, perforce=False, verbose=False):
 
 	#
 	# For starters, generate the UUID and filenames for the solution file
@@ -1770,16 +1798,16 @@ def generate(solution,ide,perforce=False,verbose=False):
 	if solution.visualstudio.idecode != None:
 		idecode = solution.visualstudio.idecode
 	else:
-		idecode = ide.getidecode()
-		
+		idecode = ide.getshortcode()
+
 	#
 	# Set the visual studio platform code
 	#
-	
+
 	if solution.visualstudio.platformcode != None:
 		platformcode = solution.visualstudio.platformcode
 	else:
-		platformcode = solution.platform.getplatformcode()
+		platformcode = solution.platform.getshortcode()
 
 	#
 	# Save the final filename for the Visual Studio Solution file
@@ -1793,9 +1821,9 @@ def generate(solution,ide,perforce=False,verbose=False):
 	#
 
 	projectfilenamesuffix = '.vcxproj'
-	if ide==core.IDETypes.vs2003 or \
-		ide==core.IDETypes.vs2005 or \
-		ide==core.IDETypes.vs2008:
+	if ide == IDETypes.vs2003 or \
+		ide == IDETypes.vs2005 or \
+		ide == IDETypes.vs2008:
 		projectfilenamesuffix = '.vcproj'
 
 	#
@@ -1807,21 +1835,21 @@ def generate(solution,ide,perforce=False,verbose=False):
 		item.visualstudio.uuid = calcuuid(item.visualstudio.outputfilename)
 
 	# Write to memory for file comparison
-	fp = io.StringIO()
-	error = generatesolutionfile(fp,solution,ide)
-	if error!=0:
-		fp.close()
+	fileref = io.StringIO()
+	error = generatesolutionfile(fileref, solution, ide)
+	if error != 0:
+		fileref.close()
 		return error
 
-	filename = os.path.join(solution.workingDir,solution.visualstudio.outputfilename)
-	if comparefiletostring(filename,fp):
-		if verbose==True:
+	filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename)
+	if comparefiletostring(filename, fileref):
+		if verbose is True:
 			print filename + ' was not changed'
 	else:
-		if perforce==True:
-			burger.perforceedit(filename)
-		fp2 = io.open(filename,'w')
-		fp2.write(fp.getvalue())
+		if perforce is True:
+			burger.perforce_edit(filename)
+		fp2 = io.open(filename, 'w')
+		fp2.write(fileref.getvalue())
 		fp2.close()
 
 	#
@@ -1829,113 +1857,113 @@ def generate(solution,ide,perforce=False,verbose=False):
 	# using the format appropriate for the selected IDE
 	#
 
-	if ide==core.IDETypes.vs2003:
+	if ide == IDETypes.vs2003:
 		for item in solution.projects:
 			exporter = VS2003vcproj(item)
-			fp = io.StringIO()
-			exporter.write(fp)
+			fileref = io.StringIO()
+			exporter.write(fileref)
 
-			filename = os.path.join(solution.workingDir,item.visualstudio.outputfilename)
-			if comparefiletostring(filename,fp):
-				if verbose==True:
+			filename = os.path.join(solution.workingDir, item.visualstudio.outputfilename)
+			if comparefiletostring(filename, fileref):
+				if verbose is True:
 					print filename + ' was not changed'
 			else:
-				if perforce==True:
-					burger.perforceedit(filename)
-				fp2 = io.open(filename,'w')
-				fp2.write(fp.getvalue())
+				if perforce is True:
+					burger.perforce_edit(filename)
+				fp2 = io.open(filename, 'w')
+				fp2.write(fileref.getvalue())
 				fp2.close()
 
 
 	return 0
 
-def generateold(solution,ide):
+def generateold(solution, ide):
 
 	#
 	# Configure the Visual Studio writer to the type
 	# of solution requested
 	#
-	
+
 	error = solution.visualstudio.defaults(solution)
-	if error!=0:
+	if error != 0:
 		return error
-		
+
 	#
 	# Obtain the list of files of interest to include in
 	# the project
 	#
-	
-	codefiles,includedirectories = solution.getfilelist(solution.visualstudio.acceptable)
-		
+
+	codefiles, includedirectories = solution.getfilelist(solution.visualstudio.acceptable)
+
 	#
 	# Create a blank project
 	#
-	
-	project = Project(solution.visualstudio,solution)
-	project.projects.append(vsProject(solution.visualstudio,codefiles,includedirectories))
+
+	project = Project(solution.visualstudio, solution)
+	project.projects.append(vsProject(solution.visualstudio, codefiles, includedirectories))
 
 	#
 	# Serialize the solution file and write if changed
 	#
-	
-	fp = io.StringIO()
-	project.writesln(fp)
-	filename = os.path.join(solution.workingDir,solution.visualstudio.outputfilename + '.sln')
-	if comparefiletostring(filename,fp):
-		if solution.verbose==True:
+
+	fileref = io.StringIO()
+	project.writesln(fileref)
+	filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + '.sln')
+	if comparefiletostring(filename, fileref):
+		if solution.verbose is True:
 			print filename + ' was not changed'
 	else:
-		burger.perforceedit(filename)
-		fp2 = io.open(filename,'w')
-		fp2.write(fp.getvalue())
+		burger.perforce_edit(filename)
+		fp2 = io.open(filename, 'w')
+		fp2.write(fileref.getvalue())
 		fp2.close()
-	fp.close()
-	
+	fileref.close()
+
 	#
 	# Create the project file
 	#
-	
-	fp = io.StringIO()
-	if solution.visualstudio.fileversion.value>=FileVersions.vs2010.value:
-		project.writeproject2010(fp,solution)
-		filename = os.path.join(solution.workingDir,solution.visualstudio.outputfilename + projectsuffix[solution.visualstudio.fileversion.value])
-		if comparefiletostring(filename,fp):
-			if solution.verbose==True:
+
+	fileref = io.StringIO()
+	if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
+		project.writeproject2010(fileref, solution)
+		filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + projectsuffix[solution.visualstudio.fileversion.value])
+		if comparefiletostring(filename, fileref):
+			if solution.verbose is True:
 				print filename + ' was not changed'
 		else:
-			burger.perforceedit(filename)
-			fp2 = io.open(filename,'w')
-			fp2.write(fp.getvalue())
+			burger.perforce_edit(filename)
+			fp2 = io.open(filename, 'w')
+			fp2.write(fileref.getvalue())
 			fp2.close()
-	fp.close()
-	
-	
+	fileref.close()
+
+
 	#
 	# If it's visual studio 2010 or higher, output the filter file if needed
 	#
-	
-	if solution.visualstudio.fileversion.value>=FileVersions.vs2010.value:
-		
-		fp = io.StringIO()
-		count = project.writefilter(fp)
-		filename = os.path.join(solution.workingDir,solution.visualstudio.outputfilename + '.vcxproj.filters')
-		
+
+	if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
+
+		fileref = io.StringIO()
+		count = project.writefilter(fileref)
+		filename = os.path.join(solution.workingDir, \
+			solution.visualstudio.outputfilename + '.vcxproj.filters')
+
 		# No groups found?
-		if count==0:
+		if count == 0:
 			# Just delete the file
 			burger.deletefileifpresent(filename)
 		else:
 			# Did it change?
-			if comparefiletostring(filename,fp):
-				if solution.verbose==True:
+			if comparefiletostring(filename, fileref):
+				if solution.verbose is True:
 					print filename + ' was not changed'
 			else:
 				# Update the file
-				burger.perforceedit(filename)
-				fp2 = io.open(filename,'w')
-				fp2.write(fp.getvalue())
+				burger.perforce_edit(filename)
+				fp2 = io.open(filename, 'w')
+				fp2.write(fileref.getvalue())
 				fp2.close()
-		fp.close()
+		fileref.close()
 
 	return 0
-	

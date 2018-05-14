@@ -21,9 +21,7 @@ Try one of these:
 
     python setup.py install
 
-    easy_install makeprojects
-
-    pip install makeprojects
+    pip install -U makeprojects
 
     putting the folder makeprojects in some directory listed in sys.path should also work
 

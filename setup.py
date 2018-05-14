@@ -1,117 +1,214 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Build egg file
-#
+"""
+Build the egg file for makeprojects for python
 
-# Copyright 2013-2015 by Rebecca Ann Heineman becky@burgerbecky.com
+setup.py clean
+setup.py build
+setup.py sdist
+setup.py upload
 
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
+Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
 
+It is released under an MIT Open Source license. Please see LICENSE
+for license details. Yes, you can use it in a
+commercial title without paying anything, just give me a credit.
+Please? It's not like I'm asking you for money!
 
-#
-# Project specific strings
-#
+"""
 
-projectname = 'makeprojects'
-projectkeywords='makeprojects xcode visual studio visualstudio codeblocks watcom ps4 xboxone xbox360 vita mac ios android'
-
-
-#
-# Imports
-#
-
-from setuptools import setup
+from __future__ import absolute_import, print_function, unicode_literals
+import io
+import os
 import sys
+import setuptools
+import burger
 
-#
+CWD = os.path.dirname(os.path.abspath(__file__))
+
+# Project specific strings
+PROJECT_NAME = 'makeprojects'
+PROJECT_KEYWORDS = 'makeprojects xcode visual studio visualstudio ' \
+	'codeblocks watcom ps4 xboxone xbox360 vita mac ios android'
+
 # Manually import the project
-#
+PROJECT_MODULE = __import__(PROJECT_NAME)
 
-projectmodule = __import__(projectname)
+# Read me file is the long description
+with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
+	LONG_DESCRIPTION = filep.read()
 
-#
 # Create the dependency list
-#
-
-install_requires = [
+INSTALL_REQUIRES = \
+[
 	'setuptools >= 0.7.0',
-	'burger >= 0.9.3'
+	'enum34 >= 1.0.0',
+	'burger >= 1.0.3',
+	'argparse >= 1.0',
+	'glob2 >= 0.6'
 ]
 
-#
-# Support for python 2.6 or earlier
-#
+# Project classifiers
+CLASSIFIERS = \
+[
+	'Development Status :: 3 - Alpha',
+	'Environment :: Console',
+	'Intended Audience :: Developers',
+	'Topic :: Software Development',
+	'Topic :: Software Development :: Build Tools',
+	'License :: OSI Approved :: MIT License',
+	'Operating System :: OS Independent',
+	'Natural Language :: English',
+	'Programming Language :: Python',
+	'Programming Language :: Python :: 2',
+	'Programming Language :: Python :: 2.7',
+	'Programming Language :: Python :: 3',
+	'Programming Language :: Python :: 3.3',
+	'Programming Language :: Python :: 3.4',
+	'Programming Language :: Python :: 3.5',
+	'Programming Language :: Python :: 3.6'
+]
 
-if sys.version_info[:2] < (2, 7):
-	install_requires += ['argparse']
-
-if sys.version_info[:2] < (3, 4):
-	install_requires += [ 'enum34']
+# Extra files to include in the form of this tuple (directory,[files])
+DATA_FILES = \
+[
+	('.', ['LICENSE.txt'])
+]
 
 #
 # Parms for setup
 #
 
-setup_args = dict(
-	
-	name=projectname,
-	version=projectmodule.__version__,
-	
-#
-# Use the readme as the long description
-#
+SETUP_ARGS = \
+dict(
 
-	description=projectmodule.__summary__,
-	long_description=open('README.rst').read(),
-	license=projectmodule.__license__,
-	url=projectmodule.__uri__,
+	name=PROJECT_NAME,
+	version=PROJECT_MODULE.__version__,
 
-	author=projectmodule.__author__,
-	author_email=projectmodule.__email__,
-	
-	keywords=projectkeywords,
+	# Use the readme as the long description
+	description=PROJECT_MODULE.__summary__,
+	long_description=LONG_DESCRIPTION,
+	#long_description_content_type='text/x-rst; charset=UTF-8',
+	license=PROJECT_MODULE.__license__,
+	url=PROJECT_MODULE.__uri__,
+
+	author=PROJECT_MODULE.__author__,
+	author_email=PROJECT_MODULE.__email__,
+
+	keywords=PROJECT_KEYWORDS,
 	platforms='any',
-	install_requires=install_requires,
-	
-	classifiers=[
-		'Development Status :: 3 - Alpha',
-		'Environment :: Console',
-		'Intended Audience :: Developers',
-		'License :: OSI Approved :: MIT License',
-		'Operating System :: OS Independent',
-		'Natural Language :: English',
-		'Programming Language :: Python',
-		'Programming Language :: Python :: 2',
-		'Programming Language :: Python :: 3',
-		'Programming Language :: Python :: 2.3',
-		'Programming Language :: Python :: 2.4',
-		'Programming Language :: Python :: 2.5',
-		'Programming Language :: Python :: 2.6',
-		'Programming Language :: Python :: 2.7',
-		'Programming Language :: Python :: 3.0',
-		'Programming Language :: Python :: 3.1',
-		'Programming Language :: Python :: 3.2',
-		'Programming Language :: Python :: 3.3',
-		'Programming Language :: Python :: 3.4',
-		'Topic :: Software Development'],
-		
-	packages=[projectname],
-	
-	entry_points={
-		'console_scripts': [ 'makeprojects = makeprojects.makeprojects:main' ]
+	install_requires=INSTALL_REQUIRES,
+	zip_safe=False,
+	python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
+
+	classifiers=CLASSIFIERS,
+	packages=[PROJECT_NAME],
+	include_package_data=True,
+	data_files=DATA_FILES,
+
+	entry_points=
+	{ \
+		'console_scripts':
+		[ \
+			'makeprojects = makeprojects.__main__:main',
+			'buildme = makeprojects.buildme:main',
+			'cleanme = makeprojects.cleanme:main',
+			'rebuildme = makeprojects.rebuildme:main'
+		]
 	}
 )
 
+########################################
+
+def cleanpycfiles(working_dir):
+	"""
+	Delete all *.pyc and *.pyo files (Recursively)
+	"""
+
+	for item in os.listdir(working_dir):
+		file_name = os.path.join(working_dir, item)
+
+		# Is it a file?
+		if os.path.isfile(file_name):
+
+			# Only dispose of the pyo and pyc files
+			if item.endswith('.pyc') or item.endswith('.pyo'):
+				os.remove(file_name)
+
+		# A directory?
+		elif os.path.isdir(file_name):
+
+			# Recurse
+			cleanpycfiles(file_name)
+
+########################################
+
+
+def clean(working_dir):
+	"""
+	Clean up all the temp files after uploading
+
+	Helps in keeping source control from having to track
+	temp files
+	"""
+
+	#
+	# Specific folders to wipe
+	#
+
+	# pylint: disable=C0330
+	dirlist = [ \
+		PROJECT_NAME + '.egg-info',
+		PROJECT_NAME + '-' + PROJECT_MODULE.__version__,
+		'dist',
+		'build',
+		'temp',
+		'_build',
+		'__pycache__',
+		'.pytest_cache',
+		'.tox']
+
+	# Delete all specific folders, including read only files
+
+	for item in dirlist:
+		burger.delete_directory(os.path.join(working_dir, item))
+
+	#
+	# Delete all versioned folders
+	#
+
+	for item in os.listdir(working_dir):
+		if item.startswith(PROJECT_NAME+'-'):
+			burger.delete_directory(os.path.join(working_dir, item))
+
+	#
+	# Delete all *.pyc and *.pyo files (Recursively
+	#
+
+	cleanpycfiles(working_dir)
+
 #
-# Actually perform the creation of the egg file
-# by using setuptools
+# Perform the setup
 #
 
 if __name__ == '__main__':
-	setup(**setup_args)
+	# Ensure the directory is the current one
+	if CWD:
+		os.chdir(CWD)
 
+	LOCK_LIST = []
+	# Perform a thorough cleaning job
+	if 'clean' in sys.argv:
+		clean(CWD)
+
+	# Unlock the files to handle Perforce locking
+	if 'sdist' in sys.argv:
+		LOCK_LIST = burger.unlock_files(CWD, True)
+
+	try:
+		setuptools.setup(**SETUP_ARGS)
+
+	# If any files were unlocked, relock them
+	finally:
+		burger.lock_files(LOCK_LIST)
