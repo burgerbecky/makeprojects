@@ -328,7 +328,8 @@ def main(working_dir=None):
 
 	# Parse the command line
 	parser = argparse.ArgumentParser( \
-		description='Remove project output files. Copyright by Rebecca Ann Heineman', \
+		description='Remove project output files. ' \
+		'Copyright by Rebecca Ann Heineman', \
 		usage='clean [-h] [-r] [-v]')
 	parser.add_argument('-r', '-all', dest='all', action='store_true', \
 		default=False, help='Perform a recursive clean')

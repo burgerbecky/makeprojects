@@ -29,8 +29,26 @@ CWD = os.path.dirname(os.path.abspath(__file__))
 
 # Project specific strings
 PROJECT_NAME = 'makeprojects'
-PROJECT_KEYWORDS = 'makeprojects xcode visual studio visualstudio ' \
-	'codeblocks watcom ps4 xboxone xbox360 vita mac ios android'
+PROJECT_KEYWORDS = \
+[
+	'burger',
+	'perforce',
+	'burgerlib',
+	'development',
+	'makeprojects',
+	'xcode',
+	'visual studio',
+	'visualstudio',
+	'codeblocks',
+	'watcom',
+	'ps4',
+	'xboxone',
+	'xbox360',
+	'vita',
+	'mac',
+	'ios',
+	'android'
+]
 
 # Manually import the project
 PROJECT_MODULE = __import__(PROJECT_NAME)
@@ -42,7 +60,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 # Create the dependency list
 INSTALL_REQUIRES = \
 [
-	'setuptools >= 0.7.0',
+	'setuptools >= 17.1',
 	'enum34 >= 1.0.0',
 	'burger >= 1.0.3',
 	'argparse >= 1.0',
@@ -97,7 +115,7 @@ dict(
 	author_email=PROJECT_MODULE.__email__,
 
 	keywords=PROJECT_KEYWORDS,
-	platforms='any',
+	platforms=['Any'],
 	install_requires=INSTALL_REQUIRES,
 	zip_safe=False,
 	python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',

@@ -1,4 +1,22 @@
-""" Makeprojects package """
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+Makeprojects package
+
+Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
+
+It is released under an MIT Open Source license. Please see LICENSE
+for license details. Yes, you can use it in a
+commercial title without paying anything, just give me a credit.
+Please? It's not like I'm asking you for money!
+
+"""
+
+#
+## \package makeprojects
+# Root namespace for the makeprojects tool
+#
 
 from __future__ import absolute_import
 
@@ -10,28 +28,11 @@ from .rebuildme import main as rebuild
 from .cleanme import main as clean
 from .buildme import main as build
 
-# Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
-
-#
-# Note: This is only executed if makeprojects is imported as a module
-#
-
-#
-## \package makeprojects
-# Root namespace for the makeprojects tool
-#
-
-#
-# Describe this module
-#
+## Current version of the library as a numeric tuple
+from .__version__ import NUMVERSION as NUMVERSION
 
 ## Current version of the library
-__version__ = '0.7.0'
+from .__version__ import VERSION as __version__
 
 ## Author's name
 __author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
