@@ -756,11 +756,13 @@ def recursivegetprojects(projects, working_dir):
 
 ########################################
 
-def main(working_dir=os.getcwd()):
+def main(working_dir=None):
 	"""
 	Command line shell
 	"""
 
+	if working_dir is None:
+		working_dir = os.getcwd()
 	# Don't clutter my system with pyc files
 	sys.dont_write_bytecode = True
 

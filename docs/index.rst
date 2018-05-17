@@ -45,11 +45,13 @@ Bugs
 If you find a bug, issue or have a feature request, please submit a bug report
 by emailing becky@burgerbecky.com and mention python version, integer
 size (32 bit or 64 bit) and what platform was used (Windows / Mac OSX / Linux).
+
 Table of contents
 -----------------
 
 .. toctree::
 
-    functions
+    constants
     classes
+    functions
 
