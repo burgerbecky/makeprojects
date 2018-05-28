@@ -208,7 +208,7 @@ class SourceFile(object):
 			directory: Pathname of the root directory
 			filetype: Compiler to apply
 		See:
-			FileTypes_lookup
+			_FILETYPES_LOOKUP
 		"""
 		# Sanity check
 		if not isinstance(filetype, FileTypes):

@@ -1,0 +1,45 @@
+# https://travis-ci.org/burgerbecky/makeprojects
+sudo: false
+language: python
+cache: pip
+python:
+  - "2.7"
+  - "3.4"
+  - "3.5"
+  - "3.6"
+  - "pypy"
+  - "pypy3"
+  - "3.7-dev"
+
+# Log these
+before_install:
+  - python --version
+  - uname -a
+  - pyenv versions
+  - readlink -f `which python`
+  - echo $PATH
+  - ls $(dirname $(readlink -f `which python`))
+  
+# Install tox-travis for seamless tox integration
+install:
+  - pip install tox-travis wheel codecov coverage
+  - virtualenv --version
+  - easy_install --version
+  - pip --version
+  - tox --version
+
+script:
+  - tox
+
+after_failure:
+  - more temp/tox/log/* | cat
+  - more temp/tox/*/log/* | cat
+
+notifications:
+  email:
+    on_success: change
+    on_failure: always
+
+addons:
+  apt:
+    update: true

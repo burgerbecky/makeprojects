@@ -5,9 +5,8 @@
 Build the egg file for makeprojects for python
 
 setup.py clean
-setup.py build
-setup.py sdist
-setup.py upload
+setup.py build sdist bdist_wheel upload
+setup.py flake8
 
 Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -29,8 +28,7 @@ CWD = os.path.dirname(os.path.abspath(__file__))
 
 # Project specific strings
 PROJECT_NAME = 'makeprojects'
-PROJECT_KEYWORDS = \
-[
+PROJECT_KEYWORDS = [
 	'burger',
 	'perforce',
 	'burgerlib',
@@ -58,8 +56,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 	LONG_DESCRIPTION = filep.read()
 
 # Create the dependency list
-INSTALL_REQUIRES = \
-[
+INSTALL_REQUIRES = [
 	'setuptools >= 17.1',
 	'enum34 >= 1.0.0',
 	'burger >= 1.0.3',
@@ -68,8 +65,7 @@ INSTALL_REQUIRES = \
 ]
 
 # Project classifiers
-CLASSIFIERS = \
-[
+CLASSIFIERS = [
 	'Development Status :: 3 - Alpha',
 	'Environment :: Console',
 	'Intended Audience :: Developers',
@@ -89,17 +85,24 @@ CLASSIFIERS = \
 ]
 
 # Extra files to include in the form of this tuple (directory,[files])
-DATA_FILES = \
-[
-	('.', ['LICENSE.txt'])
+DATA_FILES = [
+	# ('.', ['LICENSE.txt'])
 ]
+
+# Entry points for the generated command line tools
+ENTRY_POINTS = {
+	'console_scripts': [ \
+		'makeprojects = makeprojects.__main__:main',
+		'buildme = makeprojects.buildme:main',
+		'cleanme = makeprojects.cleanme:main',
+		'rebuildme = makeprojects.rebuildme:main']
+}
 
 #
 # Parms for setup
 #
 
-SETUP_ARGS = \
-dict(
+SETUP_ARGS = dict(
 
 	name=PROJECT_NAME,
 	version=PROJECT_MODULE.__version__,
@@ -107,7 +110,7 @@ dict(
 	# Use the readme as the long description
 	description=PROJECT_MODULE.__summary__,
 	long_description=LONG_DESCRIPTION,
-	#long_description_content_type='text/x-rst; charset=UTF-8',
+	# long_description_content_type='text/x-rst; charset=UTF-8',
 	license=PROJECT_MODULE.__license__,
 	url=PROJECT_MODULE.__uri__,
 
@@ -125,19 +128,11 @@ dict(
 	include_package_data=True,
 	data_files=DATA_FILES,
 
-	entry_points=
-	{ \
-		'console_scripts':
-		[ \
-			'makeprojects = makeprojects.__main__:main',
-			'buildme = makeprojects.buildme:main',
-			'cleanme = makeprojects.cleanme:main',
-			'rebuildme = makeprojects.rebuildme:main'
-		]
-	}
+	entry_points=ENTRY_POINTS
 )
 
 ########################################
+
 
 def cleanpycfiles(working_dir):
 	"""
@@ -197,7 +192,7 @@ def clean(working_dir):
 	#
 
 	for item in os.listdir(working_dir):
-		if item.startswith(PROJECT_NAME+'-'):
+		if item.startswith(PROJECT_NAME + '-'):
 			burger.delete_directory(os.path.join(working_dir, item))
 
 	#
@@ -206,24 +201,24 @@ def clean(working_dir):
 
 	cleanpycfiles(working_dir)
 
-#
-# Perform the setup
-#
+
+########################################
+
 
 if __name__ == '__main__':
+
+	# Perform the setup
+
 	# Ensure the directory is the current one
 	if CWD:
 		os.chdir(CWD)
 
-	LOCK_LIST = []
 	# Perform a thorough cleaning job
 	if 'clean' in sys.argv:
 		clean(CWD)
 
 	# Unlock the files to handle Perforce locking
-	if 'sdist' in sys.argv:
-		LOCK_LIST = burger.unlock_files(CWD, True)
-
+	LOCK_LIST = burger.unlock_files(CWD, True)
 	try:
 		setuptools.setup(**SETUP_ARGS)
 

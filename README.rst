@@ -7,7 +7,10 @@ Makeprojects for Python
 .. image:: https://img.shields.io/pypi/l/makeprojects.svg
     :target: https://github.com/burgerbecky/makeprojects/blob/master/LICENSE.txt
     :alt: License
-.. image:: https://readthedocs.org/projects/makeprojects/badge/?version=latest
+.. image:: https://img.shields.io/travis/burgerbecky/makeprojects.svg
+    :target: https://travis-ci.org/burgerbecky/makeprojects
+    :alt: Travis Status
+.. image:: https://img.shields.io/readthedocs/makeprojects.svg
     :target: http://makeprojects.readthedocs.io
     :alt: Documentation Status
 .. image:: https://img.shields.io/pypi/pyversions/makeprojects.svg
@@ -28,16 +31,13 @@ Compatibility
 -------------
 
 * Python 2.7.1 or higher
-* Python 3.3 or higher
+* Python 3.4 or higher
 
 Installation
 ------------
 
-Try one of these:
-
-    ``python setup.py install``
-
-    ``pip install -U makeprojects``
+Type in ``pip install -U makeprojects``. Some platforms may require the ``sudo``
+prefix.
 
 Bugs
 ----
