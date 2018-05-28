@@ -19,6 +19,7 @@
 # project files intended for use by Codeblocks
 #
 
+from __future__ import absolute_import, print_function, unicode_literals
 import os
 import burger
 import makeprojects.core

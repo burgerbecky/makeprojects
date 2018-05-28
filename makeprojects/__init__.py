@@ -19,7 +19,7 @@ tools to automate building, cleaning and rebuilding projects.
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-from __future__ import absolute_import
+from __future__ import absolute_import, print_function, unicode_literals
 
 import burger
 
@@ -289,7 +289,7 @@ def savedefault(destinationfile='projects.py'):
 	try:
 		shutil.copyfile(src, destinationfile)
 	except OSError as error:
-		print error
+		print(error)
 
 def newsolution(name='project', suffixenable=False):
 	"""

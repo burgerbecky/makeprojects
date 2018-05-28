@@ -13,6 +13,7 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
+from __future__ import absolute_import, print_function, unicode_literals
 import os
 import uuid
 import burger
@@ -347,8 +348,8 @@ class Solution(object):
 			elif key == 'codewarrior':
 				error = self.codewarrior.loadjson(myjson[key])
 			else:
-				print 'Unknown keyword "' + str(key) + '" with data "' + \
-					str(myjson[key]) + '" found in json file'
+				print('Unknown keyword "' + str(key) + '" with data "' + \
+					str(myjson[key]) + '" found in json file')
 				error = 1
 
 			if error != 0:
@@ -424,7 +425,7 @@ class Solution(object):
 				self.ide = IDETypes.watcom
 				error = makeprojects.watcom.generate(self)
 			else:
-				print 'Saving ' + item + ' not implemented yet'
+				print('Saving ' + item + ' not implemented yet')
 				error = 0
 			if error != 0:
 				break
@@ -666,7 +667,7 @@ class Solution(object):
 			myjson.append('vs2015')
 
 		if len(myjson) < 2:
-			print 'No default "projects.json" file found nor any project type specified'
+			print('No default "projects.json" file found nor any project type specified')
 			return 2
 
 		return self.process(myjson)

@@ -13,6 +13,7 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
+from __future__ import absolute_import, print_function, unicode_literals
 import os
 import uuid
 import io
@@ -1129,7 +1130,7 @@ class Defaults(object):
 	def loadjson(self, myjson):
 		error = 0
 		for key in myjson.keys():
-			print 'Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + '" found in loadjson'
+			print('Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + '" found in loadjson')
 			error = 1
 
 		return error
@@ -1844,7 +1845,7 @@ def generate(solution, ide, perforce=False, verbose=False):
 	filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename)
 	if comparefiletostring(filename, fileref):
 		if verbose is True:
-			print filename + ' was not changed'
+			print(filename + ' was not changed')
 	else:
 		if perforce is True:
 			burger.perforce_edit(filename)
@@ -1866,7 +1867,7 @@ def generate(solution, ide, perforce=False, verbose=False):
 			filename = os.path.join(solution.workingDir, item.visualstudio.outputfilename)
 			if comparefiletostring(filename, fileref):
 				if verbose is True:
-					print filename + ' was not changed'
+					print(filename + ' was not changed')
 			else:
 				if perforce is True:
 					burger.perforce_edit(filename)
@@ -1911,7 +1912,7 @@ def generateold(solution, ide):
 	filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + '.sln')
 	if comparefiletostring(filename, fileref):
 		if solution.verbose is True:
-			print filename + ' was not changed'
+			print(filename + ' was not changed')
 	else:
 		burger.perforce_edit(filename)
 		fp2 = io.open(filename, 'w')
@@ -1929,7 +1930,7 @@ def generateold(solution, ide):
 		filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + projectsuffix[solution.visualstudio.fileversion.value])
 		if comparefiletostring(filename, fileref):
 			if solution.verbose is True:
-				print filename + ' was not changed'
+				print(filename + ' was not changed')
 		else:
 			burger.perforce_edit(filename)
 			fp2 = io.open(filename, 'w')
@@ -1957,7 +1958,7 @@ def generateold(solution, ide):
 			# Did it change?
 			if comparefiletostring(filename, fileref):
 				if solution.verbose is True:
-					print filename + ' was not changed'
+					print(filename + ' was not changed')
 			else:
 				# Update the file
 				burger.perforce_edit(filename)

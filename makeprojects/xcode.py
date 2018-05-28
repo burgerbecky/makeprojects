@@ -13,13 +13,21 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
+from __future__ import absolute_import, print_function, unicode_literals
 import hashlib
 import os
-import StringIO
+import sys
 import makeprojects.core
 import burger
 from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
 	ConfigurationTypes, IDETypes, PlatformTypes, SourceFile
+
+# Use the old way for Python 2 versus 3
+_PY2 = sys.version_info[0] == 2
+if _PY2:
+	from cStringIO import StringIO
+else:
+	from io import StringIO
 
 #
 ## \package makeprojects.xcode
@@ -167,8 +175,8 @@ class Defaults(object):
 			if key == 'frameworks':
 				self.frameworks = burger.convert_to_array(myjson[key])
 			else:
-				print 'Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + \
-					'" found in loadjson'
+				print('Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) + \
+					'" found in loadjson')
 				error = 1
 
 		return error
@@ -1284,7 +1292,7 @@ def generate(solution):
 
 	if burger.compare_file_to_string(projectfilename, fp):
 		if solution.verbose is True:
-			print projectfilename + ' was not changed'
+			print(projectfilename + ' was not changed')
 	else:
 		burger.perforce_edit(projectfilename)
 		fp2 = open(projectfilename, 'w')

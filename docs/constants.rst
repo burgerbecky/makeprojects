@@ -24,3 +24,6 @@ Internal tables
 .. doxygenvariable:: makeprojects::enums::_CONFIGURATIONTYPES_READABLE
 .. doxygenvariable:: makeprojects::enums::_IDETYPES_CODES
 .. doxygenvariable:: makeprojects::enums::_IDETYPES_READABLE
+.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_CODES
+.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_VS
+.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_READABLE

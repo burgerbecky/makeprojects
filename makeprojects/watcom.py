@@ -20,6 +20,7 @@
 # WMAKE 1.9 or higher
 #
 
+from __future__ import absolute_import, print_function, unicode_literals
 import os
 import burger
 import makeprojects.core

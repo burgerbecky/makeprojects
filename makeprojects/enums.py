@@ -17,8 +17,7 @@ All enumerations are stored in this package
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-from __future__ import absolute_import
-
+from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum, EnumMeta, _EnumDict
 import os
 
@@ -111,7 +110,7 @@ class AutoEnum(EnumMeta):
 #
 # @sa makeprojects.enums.AutoEnum
 
-AutoIntEnum = AutoEnum('AutoIntEnum', (IntEnum,), {})
+AutoIntEnum = AutoEnum(str('AutoIntEnum'), (IntEnum,), {})
 
 
 ########################################
