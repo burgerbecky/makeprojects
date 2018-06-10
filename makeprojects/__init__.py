@@ -23,8 +23,10 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import burger
 
-from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, EMAIL, LICENSE, COPYRIGHT
-from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, ConfigurationTypes, ProjectTypes
+from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, \
+	EMAIL, LICENSE, COPYRIGHT
+from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, \
+	ConfigurationTypes, ProjectTypes
 
 ########################################
 
@@ -86,6 +88,7 @@ __all__ = [
 
 ########################################
 
+
 def build(working_dir=None):
 	"""
 	Invoke the buildme command line from within Python
@@ -102,12 +105,14 @@ def build(working_dir=None):
 
 ########################################
 
-def clean(working_dir=None):
+
+def clean(working_dir=None, args=None):
 	"""
 	Invoke the cleanme command line from within Python
 
 	Args:
 		working_dir: Directory to process, ``None`` for current working directory
+		args: Argument list to pass to the command, None uses sys.argv
 	Returns:
 		Zero on success, system error code on failure
 	See:
@@ -115,9 +120,10 @@ def clean(working_dir=None):
 	"""
 
 	from .cleanme import main
-	return main(working_dir)
+	return main(working_dir, args)
 
 ########################################
+
 
 def rebuild(working_dir=None):
 	"""
@@ -135,6 +141,7 @@ def rebuild(working_dir=None):
 
 ########################################
 
+
 class Property(object):
 	"""
 	Object for special properties
@@ -143,10 +150,13 @@ class Property(object):
 	or more properties that affect the generated project
 	files either by object or globally
 	"""
+
 	def __init__(self, configuration=None, platform=None, name=None, data=None):
 		# Sanity check
-		if not configuration is None and not isinstance(configuration, ConfigurationTypes):
-			raise TypeError("parameter 'configuration' must be of type ConfigurationTypes")
+		if configuration is None or \
+			not isinstance(configuration, ConfigurationTypes):
+			raise TypeError( \
+				"parameter 'configuration' must be of type ConfigurationTypes")
 		if name is None:
 			raise TypeError("Property is missing a name")
 
@@ -166,8 +176,10 @@ class Property(object):
 		"""
 		result = []
 		for item in entries:
-			if configuration is None or item.configuration is None or item.configuration == configuration:
-				if platform is None or item.platform is None or PlatformTypes.match(item.platform, platform):
+			if configuration is None or item.configuration is None or \
+				item.configuration == configuration:
+				if platform is None or item.platform is None or \
+					PlatformTypes.match(item.platform, platform):
 					if name is None or item.name == name:
 						result.append(item)
 		return result
@@ -179,11 +191,14 @@ class Property(object):
 		"""
 		result = []
 		for item in entries:
-			if configuration is None or item.configuration is None or item.configuration == configuration:
-				if platform is None or item.platform is None or PlatformTypes.match(item.platform, platform):
+			if configuration is None or item.configuration is None or \
+				item.configuration == configuration:
+				if platform is None or item.platform is None or \
+					PlatformTypes.match(item.platform, platform):
 					if name is None or item.name == name:
 						result.append(item.data)
 		return result
+
 
 class SourceFile(object):
 
@@ -214,7 +229,7 @@ class SourceFile(object):
 		if not isinstance(filetype, FileTypes):
 			raise TypeError("parameter 'filetype' must be of type FileTypes")
 
-		## File base name with extension (Converted to use windows style slashes on creation)
+		## File base name with extension using windows style slashes
 		self.filename = burger.convert_to_windows_slashes(relativepathname)
 
 		## Directory the file is found in (Full path)
@@ -225,7 +240,7 @@ class SourceFile(object):
 
 	def extractgroupname(self):
 		"""
-		Given a filename with a directory, extract the filename, leaving only the directory
+		Given a filename with a directory, remove the filename
 
 		To determine if the file should be in a sub group in the project, scan
 		the filename to find if it's a base filename or part of a directory
@@ -270,7 +285,10 @@ class SourceFile(object):
 #
 # Expose these classes
 #
+
+
 from .core import Project, Solution
+
 
 def savedefault(destinationfile='projects.py'):
 	"""
@@ -291,6 +309,7 @@ def savedefault(destinationfile='projects.py'):
 	except OSError as error:
 		print(error)
 
+
 def newsolution(name='project', suffixenable=False):
 	"""
 	Create a new instance of a core.Solution
@@ -299,13 +318,16 @@ def newsolution(name='project', suffixenable=False):
 
 	Args:
 		name: Name of the solution
-		suffixenable: True if suffixes are added to project names to denote project type and compiler
+		suffixenable: True if suffixes are added to project names to denote
+			project type and compiler
 	See:
 		core.Solution
 	"""
 	return Solution(name=name, suffixenable=suffixenable)
 
-def newproject(name='project', projecttype=ProjectTypes.tool, suffixenable=False):
+
+def newproject(name='project', projecttype=ProjectTypes.tool, \
+	suffixenable=False):
 	"""
 	Create a new instance of a core.Project
 
@@ -313,8 +335,10 @@ def newproject(name='project', projecttype=ProjectTypes.tool, suffixenable=False
 
 	Args:
 		name: Name of the project
-		projecttype: Kind of project to make 'tool','app','library','sharedlibrary' \ref ProjectTypes
-		suffixenable: True if suffixes are added to project names to denote project type and compiler
+		projecttype: Kind of project to make 'tool', 'app', 'library',
+			'sharedlibrary' \ref ProjectTypes
+		suffixenable: True if suffixes are added to project names to denote
+			project type and compiler
 	See:
 		core.Project
 	"""

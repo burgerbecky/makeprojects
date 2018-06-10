@@ -27,3 +27,13 @@ Internal tables
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_CODES
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_VS
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_READABLE
+
+Folder locations
+^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_DOT_PROJECTSRC
+.. doxygenvariable:: makeprojects::config::_PROJECTSRC
+.. doxygenvariable:: makeprojects::config::_PROJECTSRC_VAR
+.. doxygenvariable:: makeprojects::config::USER_HOME
+.. doxygenvariable:: makeprojects::config::PROJECTS_HOME
+.. doxygenvariable:: makeprojects::config::PROJECTSRC
+.. doxygenvariable:: makeprojects::config::CONFIG_PARSER

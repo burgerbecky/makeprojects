@@ -19,6 +19,8 @@ import shutil
 import sys
 import argparse
 import burger
+from .config import import_configuration
+from .__pkginfo__ import VERSION
 
 #
 ## \package makeprojects.cleanme
@@ -28,8 +30,7 @@ import burger
 # Regex .*_Data$
 
 ## List of directories to delete if they end with this suffix
-DIR_ENDS_WITH = \
-[
+DIR_ENDS_WITH = [
 	'.xcodeproj',		# Special cased in the code
 	'_Data',			# Codewarrior droppings
 	' Data',			# Codewarrior mac droppings
@@ -37,8 +38,7 @@ DIR_ENDS_WITH = \
 ]
 
 ## List of directories to delete if their names match
-DIR_IS = \
-[
+DIR_IS = [
 	'dist',				# Python builder
 	'build',			# Python and XCode
 	'appfolder',		# Obsolete from burger
@@ -51,6 +51,7 @@ DIR_IS = \
 ]
 
 ########################################
+
 
 def remove_folder(folder_name, verbose=False):
 	"""
@@ -66,6 +67,7 @@ def remove_folder(folder_name, verbose=False):
 	shutil.rmtree(folder_name, ignore_errors=True)
 
 ########################################
+
 
 def remove_global_data(verbose=False):
 	"""
@@ -105,6 +107,7 @@ def remove_global_data(verbose=False):
 
 ########################################
 
+
 def remove_by_file_extension(working_dir, extension_list, verbose=False):
 	"""
 	Remove all files with specific extensions.
@@ -141,14 +144,15 @@ def remove_by_file_extension(working_dir, extension_list, verbose=False):
 					except OSError as error:
 						print(error)
 					else:
-						objectsremoved = objectsremoved+1
+						objectsremoved = objectsremoved + 1
 					break
 
 	return objectsremoved
 
 ########################################
 
-def clean(working_dir, verbose=False):	# pylint: disable=R0912,R0915
+
+def clean(working_dir, verbose=False):		# pylint: disable=R0912,R0915
 	"""
 	Perform a "clean" operation on the current folder
 
@@ -190,7 +194,8 @@ def clean(working_dir, verbose=False):	# pylint: disable=R0912,R0915
 					# XCode project folder are special cased
 
 					# Remove a user's pref files
-					objectsremoved += remove_by_file_extension(file_name, ['.mode1v3', '.pbxuser'], verbose)
+					objectsremoved += remove_by_file_extension(file_name, \
+						['.mode1v3', '.pbxuser'], verbose)
 
 					# Remove special folders, if found inside the xcode folder
 					xcuserdata = os.path.join(file_name, 'xcuserdata')
@@ -244,21 +249,22 @@ def clean(working_dir, verbose=False):	# pylint: disable=R0912,R0915
 				except OSError as error:
 					print(error)
 				else:
-					objectsremoved = objectsremoved+1
+					objectsremoved = objectsremoved + 1
 
 			# Remove CodeBlocks files ONLY if a codeblocks project is present
 			# to prevent accidental deletion of legitimate files
 
 			elif base_name.endswith('.layout') or \
 				base_name.endswith('.depend'):
-				if os.path.isfile(os.path.join(working_dir, os.path.splitext(base_name)[0] + '.cbp')):
+				if os.path.isfile(os.path.join(working_dir, \
+					os.path.splitext(base_name)[0] + '.cbp')):
 					if verbose:
 						print('Deleting file "{}"'.format(file_name))
 					try:
 						os.remove(file_name)
 					except OSError as error:
 						print(error)
-					objectsremoved = objectsremoved+1
+					objectsremoved = objectsremoved + 1
 
 			# Is it possible to have doxygen leftovers?
 
@@ -270,12 +276,12 @@ def clean(working_dir, verbose=False):	# pylint: disable=R0912,R0915
 					if verbose:
 						print('Deleting file "{}"'.format(file_name))
 					os.remove(file_name)
-					objectsremoved = objectsremoved+1
-
+					objectsremoved = objectsremoved + 1
 
 	return objectsremoved
 
 ########################################
+
 
 def recursive_clean(working_dir, verbose=False):
 	"""
@@ -312,7 +318,8 @@ def recursive_clean(working_dir, verbose=False):
 
 ########################################
 
-def main(working_dir=None):
+
+def main(working_dir=None, args=None):
 	"""
 	Command line shell
 
@@ -326,21 +333,37 @@ def main(working_dir=None):
 	if working_dir is None:
 		working_dir = os.getcwd()
 
+	#usage='clean [-h] [-r] [-v]',
 	# Parse the command line
 	parser = argparse.ArgumentParser( \
+		version='cleanme ' + VERSION, \
 		description='Remove project output files. ' \
-		'Copyright by Rebecca Ann Heineman', \
-		usage='clean [-h] [-r] [-v]')
+		'Copyright by Rebecca Ann Heineman',
+		add_help=True)
+
 	parser.add_argument('-r', '-all', dest='all', action='store_true', \
 		default=False, help='Perform a recursive clean')
-	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
+	parser.add_argument('--v', '--verbose', dest='verbose', action='store_true', \
 		default=False, help='Verbose output')
 
-	args = parser.parse_args()
+	# Parse everything
+	args = parser.parse_args(args=args)
 
 	# True if debug spew is requested
 	verbose = args.verbose
 
+	# Load the configuration file
+	config = import_configuration(verbose=verbose)
+
+	for item in config.sections():
+		print('section = {}'.format(item))
+		options = config.options(item)
+		for item2 in options:
+			data = config.get(item, item2)
+			# print('option = {} = {}'.format(item2, data))
+			print('process = {} = {}'.format(item2, burger.parse_csv(data)))
+
+	return 0
 	# Get rid of one shot data
 	objectsremoved = remove_global_data(verbose)
 
@@ -358,10 +381,9 @@ def main(working_dir=None):
 		print('No files or folders were removed.')
 	return 0
 
-#
+
 # If called as a function and not a class,
 # call my main
-#
 
 if __name__ == "__main__":
 	sys.exit(main())
