@@ -217,21 +217,6 @@ todo_include_todos = True
 
 ########################################
 
-def run_doxygen(folder):
-	"""
-	Run the doxygen make command in the requested folder
-
-	ReadTheDocs.org has doxygen support
-	"""
-
-	try:
-		retcode = subprocess.call('doxygen', cwd=folder, shell=True)
-		if retcode < 0:
-			sys.stderr.write("doxygen terminated by signal %s" % (-retcode))
-	except OSError as error:
-		sys.stderr.write("doxygen execution failed: %s" % error)
-
-########################################
 
 def generate_doxygen_xml(app):
 	"""
@@ -248,7 +233,20 @@ def generate_doxygen_xml(app):
 		if error.errno != errno.EEXIST:
 			raise
 
-	run_doxygen(CWD)
+	# Invoke the prebuild python script to create the README.html
+	# file if needed using pandoc
+	sys.path.append(CWD)
+	prebuild = __import__('prebuild')
+	sys.path.pop()
+	prebuild.main(CWD)
+
+	# Call Doxygen to build the documentation
+	try:
+		retcode = subprocess.call('doxygen', cwd=CWD, shell=True)
+		if retcode < 0:
+			sys.stderr.write("doxygen terminated by signal %s" % (-retcode))
+	except OSError as error:
+		sys.stderr.write("doxygen execution failed: %s" % error)
 
 	# If on ReadTheDocs.org, copy to public folder
 	if on_rtd:

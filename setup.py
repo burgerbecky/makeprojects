@@ -59,7 +59,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
 	'setuptools >= 17.1',
 	'enum34 >= 1.0.0',
-	'burger >= 1.1.5',
+	'burger >= 1.1.6',
 	'argparse >= 1.0',
 	'glob2 >= 0.6'
 ]

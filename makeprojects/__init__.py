@@ -4,20 +4,56 @@
 """
 Root namespace for the makeprojects tool
 
-Makeprojects is a set of functions to generate project files
-for the most popular IDEs and build systems. Included are
-tools to automate building, cleaning and rebuilding projects.
-
 """
 
-## \package makeprojects
-
-# Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
 #
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
+## \package makeprojects
+#
+# Makeprojects is a set of functions to generate project files
+# for the most popular IDEs and build systems. Included are
+# tools to automate building, cleaning and rebuilding projects.
+#
+
+#
+## \mainpage
+#
+# \htmlinclude README.html
+#
+# \par List of IDE classes
+#
+# \li \ref makeprojects
+# \li \ref makeprojects.core
+# \li \ref makeprojects.FileTypes
+# \li \ref makeprojects.SourceFile
+# \li \ref makeprojects.Solution
+# \li \ref makeprojects.Project
+#
+# \par List of sub packages
+#
+# \li \ref makeprojects.__pkginfo__
+# \li \ref makeprojects.enums
+# \li \ref makeprojects.visualstudio
+# \li \ref makeprojects.xcode
+# \li \ref makeprojects.codewarrior
+# \li \ref makeprojects.codeblocks
+# \li \ref makeprojects.watcom
+#
+# To use in your own script:
+#
+# \code
+# from makeprojects import *
+#
+# solution = newsolution(name='myproject')
+# project = newproject(name='myproject')
+# solution.addproject(project=project)
+#
+# project.setconfigurations(['Debug','Internal','Release'])
+# project.setplatform(project.Windows)
+# project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
+# solution.save(solution.xcode3)
+#
+# \endcode
+#
 
 from __future__ import absolute_import, print_function, unicode_literals
 

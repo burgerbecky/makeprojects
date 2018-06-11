@@ -21,3 +21,10 @@ Enumerations
     :members:
 .. doxygenclass:: makeprojects::enums::ProjectTypes
     :members:
+
+Clean Classes
+^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::cleanme::CleanFileLists
+    :members:
+.. doxygenclass:: makeprojects::cleanme::Clean
+    :members:

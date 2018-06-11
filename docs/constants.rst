@@ -37,3 +37,8 @@ Folder locations
 .. doxygenvariable:: makeprojects::config::PROJECTS_HOME
 .. doxygenvariable:: makeprojects::config::PROJECTSRC
 .. doxygenvariable:: makeprojects::config::CONFIG_PARSER
+
+Clean Constants
+^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::cleanme::_CODEBLOCKS_MATCH
+.. doxygenvariable:: makeprojects::cleanme::_PYTHON_MATCH
