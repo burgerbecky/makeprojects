@@ -2,3 +2,4 @@ breathe
 doxypypy
 sphinx_rtd_theme
 burger
+pypandoc
