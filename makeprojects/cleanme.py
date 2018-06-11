@@ -430,15 +430,21 @@ def main(working_dir=None, args=None):
 	# usage='clean [-h] [-r] [-v]',
 	# Parse the command line
 	parser = argparse.ArgumentParser( \
-		version='cleanme ' + VERSION, \
 		description='Remove project output files. ' \
 		'Copyright by Rebecca Ann Heineman',
 		add_help=True)
 
+	parser.add_argument('--version', action='version', \
+		version='%(prog)s ' + VERSION)
 	parser.add_argument('-r', '-all', dest='recursive', action='store_true', \
 		default=False, help='Perform a recursive clean')
-	parser.add_argument('--v', '--verbose', dest='verbose', action='store_true', \
-		default=False, help='Verbose output')
+	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', \
+		default=False, help='Verbose output.')
+	parser.add_argument('--generate-rcfile', dest='generate_rc', \
+		action='store_true', default=False, \
+		help='Generate a sample configuration file and exit.')
+	parser.add_argument('--rcfile', dest='rcfile', \
+		metavar='<file>', default=None, help='Specify a configuration file.')
 
 	# Parse everything
 	args = parser.parse_args(args=args)
@@ -446,8 +452,14 @@ def main(working_dir=None, args=None):
 	# True if debug spew is requested
 	verbose = args.verbose
 
+	# Output default configuration
+	if args.generate_rc:
+		from .config import savedefault
+		savedefault()
+		return 0
+
 	# Load the configuration file
-	config = import_configuration(verbose=verbose)
+	config = import_configuration(file_name=args.rcfile, verbose=verbose)
 
 	# Create an instance of the cleaner
 	cleaner = Clean()
@@ -457,6 +469,7 @@ def main(working_dir=None, args=None):
 	objectsremoved = cleaner.process(working_dir, verbose=verbose, \
 		recursive=args.recursive)
 
+	# Wrap up!
 	if verbose:
 		if objectsremoved:
 			print('Removed {} objects.'.format(objectsremoved))

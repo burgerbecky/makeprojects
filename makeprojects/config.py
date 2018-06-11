@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 
 """
-Read the configuration file
-
 Package that reads, parses and processes the configuration file
 """
 
@@ -14,6 +12,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import configparser
 import io
+import shutil
 import burger
 
 ## Projectsrc file to detect first
@@ -33,6 +32,26 @@ if 'MAKEPROJECTS_HOME' in os.environ:
 	PROJECTS_HOME = os.environ['MAKEPROJECTS_HOME']
 else:
 	PROJECTS_HOME = USER_HOME
+
+########################################
+
+
+def savedefault(destinationfile='.projectsrc'):
+	"""
+	Calls the internal function to save a default .projectsrc file
+
+	Given a pathname, create and write out a default .projectsrc file
+	that can be used as input to makeprojects to generate project files.
+
+	Args:
+		destinationfile: Pathname of where to save the default configuation file
+	"""
+
+	src = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.projectsrc')
+	try:
+		shutil.copyfile(src, destinationfile)
+	except OSError as error:
+		print(error)
 
 ########################################
 

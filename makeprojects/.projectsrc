@@ -1,0 +1,31 @@
+# Settings for the command cleanme
+
+# Files to delete in all cases
+[clean]
+directories = temp, ipch, bin, *_Data, '* Data'
+files = .DS_Store, *.suo, *.user, *.ncb, *.err, *.sdf, *.layout.cbTemp, *.VC.db
+purge_xcode = True
+doxyfile = Doxyfile
+
+# Files to delete only under Windows hosts
+[clean:windows]
+global_files = ${LOCALAPPDATA}\Metrowerks\default.cww
+
+# Files to delete only under macOS hosts
+[clean:macos]
+
+# Files to delete only under Linux hosts
+[clean:linux]
+
+# Files to delete only if folder contains python files
+[clean:python]
+directories = __pycache__, dist, build, _build, .tox, .pytestcache, *.egg-info
+files = *.pyc, *.pyo
+
+# Files to delete only if the folder contains a doxygen project file
+[clean:doxygen]
+files = doxygenerrors.txt, *.chm, *.chw, *.tmp
+
+# Files to delete only if the folder contains a CodeBlocks project file
+[clean:codeblocks]
+files = *.depend, *.layout

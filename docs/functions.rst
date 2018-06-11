@@ -9,6 +9,7 @@ Dispatchers
 
 Configuration
 ^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::config::savedefault
 .. doxygenfunction:: makeprojects::config::find_projectsrc
 .. doxygenfunction:: makeprojects::config::import_configuration
 

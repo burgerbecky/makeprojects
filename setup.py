@@ -84,11 +84,6 @@ CLASSIFIERS = [
 	'Programming Language :: Python :: 3.6'
 ]
 
-# Extra files to include in the form of this tuple (directory,[files])
-DATA_FILES = [
-	# ('.', ['LICENSE.txt'])
-]
-
 # Entry points for the generated command line tools
 ENTRY_POINTS = {
 	'console_scripts': [ \
@@ -125,8 +120,8 @@ SETUP_ARGS = dict(
 
 	classifiers=CLASSIFIERS,
 	packages=[PROJECT_NAME],
-	include_package_data=True,
-	data_files=DATA_FILES,
+	package_dir={PROJECT_NAME: PROJECT_NAME},
+	package_data={str(PROJECT_NAME): ['.projectsrc']},
 
 	entry_points=ENTRY_POINTS
 )
