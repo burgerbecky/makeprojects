@@ -2,15 +2,10 @@
 # -*- coding: utf-8 -*-
 
 """
-Build project files
-
-Copyright 1995-2016 by Rebecca Ann Heineman becky@burgerbecky.com
-
-It is released under an MIT Open Source license. Please see LICENSE
-for license details. Yes, you can use it in a
-commercial title without paying anything, just give me a credit.
-Please? It's not like I'm asking you for money!
+Module that contains the code for the command line "buildme"
 """
+
+## \package makeprojects.buildme
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -20,14 +15,8 @@ import argparse
 import subprocess
 import burger
 
-#
-## \package makeprojects.buildme
-# Module that contains the code for the command line "buildme"
-#
-
 ## List of watcom platforms to build
-WATCOM_PLATFORM_LIST = \
-[
+WATCOM_PLATFORM_LIST = [
 	'dos4gw',
 	'dosx32',
 	'win32'
@@ -35,8 +24,7 @@ WATCOM_PLATFORM_LIST = \
 
 ## List of default configurations to build
 
-DEFAULT_CONFIGURATION_LIST = \
-[
+DEFAULT_CONFIGURATION_LIST = [
 	'Debug',
 	'Internal',
 	'Release'
@@ -44,64 +32,48 @@ DEFAULT_CONFIGURATION_LIST = \
 
 ########################################
 
-def invokepython(fullpathname):
+
+def build_rez_script(full_pathname, verbose):
 	"""
-	Call a user supplied python script for custom build rules
-	"""
-	# Get the working directory
-	working_dir = os.path.dirname(fullpathname)
+	Build a rezfile using 'makerez'
 
-	# extract the class name from the filename
-	basename = os.path.basename(fullpathname)
-	splitname = os.path.splitext(basename)
+	Execute the program 'makerez' to build the script.
 
-	# Add this folder to python so it can find the new file
-	sys.path.append(working_dir)
+	Args:
+		full_pathname: Pathname to the *.rezscript to build
+		verbose: True if verbose output
+	Returns:
+		0 if no error, non-zero on error
 
-	# Import the new code
-	externalcode = __import__(splitname[0])
-
-	# Force a load (Clear the cache)
-	reload(externalcode)
-
-	# Compile, and then execute the custom code
-	error = externalcode.main(working_dir)
-
-	# Restore the pathnames
-	sys.path.pop()
-
-	# Return the error, if any
-	return error
-
-########################################
-
-def buildrezscript(fullpathname, verbose):
-	"""
-	Build a rezfile
-	Return 0 if no error, non-zero on error
 	"""
 	# Create the build command
+	cmd = ['makerez', burger.encapsulate_path(full_pathname)]
 	if verbose:
-		cmd = 'makerez -v "' + fullpathname + '"'
-		print(cmd)
-	else:
-		cmd = 'makerez "' + fullpathname + '"'
-	return subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
+		cmd.insert(1, '-v')
+		print(' '.join(cmd))
+	return subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
 
 ########################################
 
-def buildslicerscript(fullpathname, verbose):
+
+def build_slicer_script(full_pathname, verbose):
 	"""
 	Build slicer data
-	Return 0 if no error, non-zero on error
+
+	Args:
+		full_pathname: Pathname to the *.slicer to build
+		verbose: True if verbose output
+	Returns:
+		0 if no error, non-zero on error
 	"""
 	# Create the build command
-	cmd = 'slicer "' + fullpathname + '"'
+	cmd = ['slicer', burger.encapsulate_path(full_pathname)]
 	if verbose:
-		print(cmd)
-	return subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
+		print(' '.join(cmd))
+	return subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
 
 ########################################
+
 
 def builddoxygen(fullpathname, verbose):
 	"""
@@ -110,7 +82,7 @@ def builddoxygen(fullpathname, verbose):
 	"""
 	# Is Doxygen installed?
 
-	doxygenpath = burger.where_is_doxygen()
+	doxygenpath = burger.where_is_doxygen(verbose=verbose)
 	if doxygenpath is None:
 		return 0
 
@@ -124,24 +96,26 @@ def builddoxygen(fullpathname, verbose):
 	errorsfile = os.path.join(bindir, 'doxygenerrors.txt')
 
 	# Create the build command
-	if burger.get_mac_host_type() is not False:
-		# The mac version requires the file to have Linux line feeds!!!
+	if burger.get_windows_host_type():
+		cmd = [doxygenpath, burger.encapsulate_path(fullpathname), \
+			'2>', burger.encapsulate_path(errorsfile)]
+		if verbose:
+			print(' '.join(cmd))
+		error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
+	else:
+		with open(fullpathname, 'r') as filep:
+			file_one_lines = filep.read().splitlines()
 		tempdox = fullpathname + '.tempfile'
-		cmd = 'addlf -l "' + fullpathname +'" "' + tempdox + '"'
+		with open(tempdox, 'w') as filep:
+			filep.write('\n'.join(file_one_lines))
+
+		# The mac version requires the file to have Linux line feeds!!!
+		cmd = [doxygenpath, burger.encapsulate_path(tempdox), \
+			'2>', burger.encapsulate_path(errorsfile)]
 		if verbose:
-			print(cmd)
-		subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
-		cmd = '"' + os.path.join(doxygenpath) + '" "' + tempdox + '" 2> "' + errorsfile + '"'
-		if verbose:
-			print(cmd)
+			print(' '.join(cmd))
 		error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
 		os.remove(tempdox)
-
-	else:
-		cmd = '"' + os.path.join(doxygenpath) + '" "' + fullpathname + '" 2> "' + errorsfile + '"'
-		if verbose:
-			print(cmd)
-		error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
 
 	# If the error log has nothing, delete it
 	if os.stat(errorsfile).st_size == 0:
@@ -150,6 +124,7 @@ def builddoxygen(fullpathname, verbose):
 	return error
 
 ########################################
+
 
 def buildwatcommakefile(results, fullpathname, verbose, fatal):
 	"""
@@ -168,11 +143,12 @@ def buildwatcommakefile(results, fullpathname, verbose, fatal):
 
 	erroroccurred = 0
 	oldpath = os.environ['PATH']
-	os.environ['PATH'] = os.path.join(watcompath, 'binnt') + ';' + os.path.join(watcompath, 'binw') + \
-		';' + oldpath
+	os.environ['PATH'] = os.path.join(watcompath, 'binnt') + ';' + \
+		os.path.join(watcompath, 'binw') + ';' + oldpath
 
 	if fullpathname.endswith('.wmk'):
-		cmd = '"' + os.path.join(watcompath, 'binnt', 'wmake') + '" -e -h -f "' + fullpathname + '" all'
+		cmd = '"' + os.path.join(watcompath, 'binnt', 'wmake') + '" -e -h -f "' + \
+			fullpathname + '" all'
 		if verbose:
 			print(cmd)
 		error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
@@ -187,7 +163,8 @@ def buildwatcommakefile(results, fullpathname, verbose, fatal):
 		for platform in WATCOM_PLATFORM_LIST:
 			for target in DEFAULT_CONFIGURATION_LIST:
 
-				cmd = '"' + os.path.join(watcompath, 'binnt', 'wmake') + '" -e -h -f "' + fullpathname + \
+				cmd = '"' + os.path.join(watcompath, 'binnt', 'wmake') + \
+					'" -e -h -f "' + fullpathname + \
 					'" Target=' + target + ' Platform=' + platform
 				if verbose:
 					print(cmd)
@@ -203,6 +180,7 @@ def buildwatcommakefile(results, fullpathname, verbose, fatal):
 	return erroroccurred
 
 ########################################
+
 
 def parseslnfile(fullpathname):
 	"""
@@ -226,7 +204,7 @@ def parseslnfile(fullpathname):
 		if secondtest and '# Visual Studio' in line:
 			# The number is in the last part of the line
 			lineparts = line.rsplit()
-			versionstring = lineparts[len(lineparts)-1]
+			versionstring = lineparts[len(lineparts) - 1]
 			# Use the version string to determine which visual studio to launch
 			if versionstring == '2012':
 				visualstudio = 12
@@ -244,7 +222,7 @@ def parseslnfile(fullpathname):
 
 			# The number is in the last part of the line
 			lineparts = line.rsplit()
-			versionstring = lineparts[len(lineparts)-1]
+			versionstring = lineparts[len(lineparts) - 1]
 			# Use the version string to determine which visual studio to launch
 			if versionstring == '8.00':
 				visualstudio = 7
@@ -273,10 +251,12 @@ def parseslnfile(fullpathname):
 	# Clean up and exit with the results
 	filep.close()
 	if visualstudio == 0:
-		print('The visual studio solution file ' + fullpathname + ' is corrupt or an unknown version!')
+		print('The visual studio solution file ' + fullpathname + \
+			' is corrupt or an unknown version!')
 	return (targetlist, visualstudio)
 
 ########################################
+
 
 def buildvisualstudio(results, fullpathname, verbose, fatal):
 	"""
@@ -421,6 +401,7 @@ def buildvisualstudio(results, fullpathname, verbose, fatal):
 
 ########################################
 
+
 def buildcodewarriormac(file_name, verbose):
 	"""
 	Build a Metrowerks Codewarrior file on MacOS
@@ -438,9 +419,11 @@ def buildcodewarriormac(file_name, verbose):
 		return 0
 
 	if 'c10' in file_name_lower or 'c58' in file_name_lower:
-		cwfile = '/Applications/Metrowerks CodeWarrior 10.0/Metrowerks CodeWarrior/CodeWarrior IDE 10'
+		cwfile = '/Applications/Metrowerks CodeWarrior 10.0/' + \
+			'Metrowerks CodeWarrior/CodeWarrior IDE 10'
 	elif 'cw9' in file_name_lower or 'c50' in file_name_lower:
-		cwfile = '/Applications/Metrowerks CodeWarrior 9.0/Metrowerks CodeWarrior/CodeWarrior IDE 9.6'
+		cwfile = '/Applications/Metrowerks CodeWarrior 9.0/' + \
+			'Metrowerks CodeWarrior/CodeWarrior IDE 9.6'
 	else:
 		print('Codewarrior version was not detected')
 		return 0
@@ -465,6 +448,7 @@ def buildcodewarriormac(file_name, verbose):
 	return error
 
 ########################################
+
 
 def buildcodewarriorwindows(file_name, verbose):
 	"""
@@ -491,7 +475,8 @@ def buildcodewarriorwindows(file_name, verbose):
 	elif 'w32' in file_name_lower or 'win' in file_name_lower:
 		cwfile = os.getenv('CWFolder')
 		if cwfile is None:
-			print('Can\'t build ' + file_name + '! CWFolder not set to Codewarrior 9.4 for Windows!')
+			print('Can\'t build ' + file_name + \
+				'! CWFolder not set to Codewarrior 9.4 for Windows!')
 			return 0
 		# Note: CmdIDE is preferred, however, Codewarrior 9.4 has a bug
 		# that it will die horribly if the pathname to it
@@ -525,6 +510,7 @@ def buildcodewarriorwindows(file_name, verbose):
 	return error
 
 ########################################
+
 
 def parsexcodeprojdir(file_name):
 	"""
@@ -560,6 +546,7 @@ def parsexcodeprojdir(file_name):
 
 ########################################
 
+
 def buildxcode(results, file_name, verbose, ignoreerrors):
 	"""
 	Build a Mac OS X XCode file
@@ -577,13 +564,14 @@ def buildxcode(results, file_name, verbose, ignoreerrors):
 		if not os.path.isfile(xcodebuild):
 			# Use the pre-Lion folder
 			xcodebuild = '/Developer/usr/bin/xcodebuild'
-    # Invoke XCode 4 or higher from the app store
+	# Invoke XCode 4 or higher from the app store
 	else:
 		xcodebuild = '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild'
 
 	# Is this version of XCode installed?
 	if os.path.isfile(xcodebuild) is not True:
-		print('Can\'t build ' + file_name + ', the proper version of XCode is not installed')
+		print('Can\'t build ' + file_name + \
+			', the proper version of XCode is not installed')
 		results.append((0, file_name))
 		return 0
 
@@ -604,6 +592,7 @@ def buildxcode(results, file_name, verbose, ignoreerrors):
 	return 0
 
 ########################################
+
 
 def buildcodeblocks(fullpathname, verbose):
 	"""
@@ -648,16 +637,18 @@ def buildcodeblocks(fullpathname, verbose):
 		codeblockspath = '/Applications/Codeblocks.app/Contents/MacOS/CodeBlocks'
 		codeblocksflags = '--no-ipc'
 	# Create the build command
-	cmd = '"' + codeblockspath + '" ' + codeblocksflags + ' --no-splash-screen --build "' + \
+	cmd = '"' + codeblockspath + '" ' + codeblocksflags + \
+		' --no-splash-screen --build "' + \
 		fullpathname + '" --target=Everything'
 	if verbose:
 		print(cmd)
 	print(cmd)
 	print('Codeblocks is currently broken. Disabled for now')
 	return 0
-	#return subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
+	# return subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
 
 ########################################
+
 
 def addproject(projects, file_name):
 
@@ -707,6 +698,7 @@ def addproject(projects, file_name):
 
 ########################################
 
+
 def getprojects(projects, working_dir):
 	"""
 	Scan a folder for files that need to be 'built'
@@ -720,6 +712,7 @@ def getprojects(projects, working_dir):
 		addproject(projects, file_name)
 
 ########################################
+
 
 def recursivegetprojects(projects, working_dir):
 	"""
@@ -756,6 +749,7 @@ def recursivegetprojects(projects, working_dir):
 
 ########################################
 
+
 def main(working_dir=None):
 	"""
 	Command line shell
@@ -768,25 +762,25 @@ def main(working_dir=None):
 
 	# Was Burgerlib already installed?
 
-	#sdks = burger.get_sdks_folder()
+	# sdks = burger.get_sdks_folder()
 
 	# Where is perforce?
 
-	#perforce = burger.where_is_p4()
+	# perforce = burger.where_is_p4()
 
 	# Failsafe to make sure clean is only run from within
 	# the Burgerlib projects folder
 
-	#if (not working_dir.lower().startswith(rootPath.lower())):
-	#	print 'build can only be run from within the "' + rootPath + '" folder'
-	#	return -1
+	# if (not working_dir.lower().startswith(rootPath.lower())):
+	# print 'build can only be run from within the "' + rootPath + '" folder'
+	# return -1
 
 	# Parse the command line
 
 	parser = argparse.ArgumentParser( \
-		description='Build project files. Copyright by Rebecca Ann Heineman. Builds ' \
-			'*.sln, *.mcp, *.cbp, *.rezscript, *.slicerscript, doxyfile, makefile and ' \
-			'*.xcodeproj files')
+		description='Build project files. Copyright by Rebecca Ann Heineman. ' + \
+		'Builds *.sln, *.mcp, *.cbp, *.rezscript, *.slicerscript, doxyfile, ' + \
+		'makefile and *.xcodeproj files')
 	parser.add_argument('-r', dest='recursive', action='store_true', \
 		default=False, help='Perform a recursive build.')
 	parser.add_argument('-f', dest='fatal', action='store_true', \
@@ -797,7 +791,8 @@ def main(working_dir=None):
 		default=False, help='Compile Doxyfile files.')
 	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
 		default=False, help='Verbose output.')
-	parser.add_argument('args', nargs=argparse.REMAINDER, help='project filenames')
+	parser.add_argument('args', nargs=argparse.REMAINDER, \
+		help='project filenames')
 
 	args = parser.parse_args()
 
@@ -876,21 +871,21 @@ def main(working_dir=None):
 			if os.path.isfile(fullpathname):
 				if verbose:
 					print('Invoking ' + fullpathname)
-				error = invokepython(fullpathname)
+				error = burger.run_py_script(fullpathname, 'main', os.path.dirname(fullpathname))
 				results.append((error, fullpathname))
 
 		# Is it a slicer script?
 
 		elif projecttype == 'slicer':
 			if os.path.isfile(fullpathname):
-				error = buildslicerscript(fullpathname, verbose)
+				error = build_slicer_script(fullpathname, verbose)
 				results.append((error, fullpathname))
 
 		# Is it a makerez script?
 
 		elif projecttype == 'makerez':
 			if os.path.isfile(fullpathname):
-				error = buildrezscript(fullpathname, verbose)
+				error = build_rez_script(fullpathname, verbose)
 				results.append((error, fullpathname))
 
 		# Is this a doxygen file?
@@ -938,7 +933,7 @@ def main(working_dir=None):
 				error = buildcodeblocks(fullpathname, verbose)
 				results.append((error, fullpathname, 'Everything'))
 
-		#Abort on error?
+		# Abort on error?
 		if error != 0:
 			anerroroccured = True
 			if args.fatal:
@@ -962,10 +957,9 @@ def main(working_dir=None):
 			error = 10
 	return error
 
-#
+
 # If called as a function and not a class,
 # call my main
-#
 
 if __name__ == "__main__":
 	sys.exit(main())
