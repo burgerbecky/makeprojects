@@ -8,54 +8,6 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-#
-## \mainpage makeprojects for Python Index
-#
-# A tool to generate projects for popular IDEs
-#
-# \par List of IDE classes
-#
-# \li \ref makeprojects
-# \li \ref makeprojects.core
-# \li \ref makeprojects.FileTypes
-# \li \ref makeprojects.SourceFile
-# \li \ref makeprojects.Solution
-# \li \ref makeprojects.Project
-#
-# \par List of sub packages
-#
-# \li \ref makeprojects.__pkginfo__
-# \li \ref makeprojects.enums
-# \li \ref makeprojects.visualstudio
-# \li \ref makeprojects.xcode
-# \li \ref makeprojects.codewarrior
-# \li \ref makeprojects.codeblocks
-# \li \ref makeprojects.watcom
-#
-# To use in your own script:
-#
-# \code
-# from makeprojects import *
-#
-# solution = newsolution(name='myproject')
-# project = newproject(name='myproject')
-# solution.addproject(project=project)
-#
-# project.setconfigurations(['Debug','Internal','Release'])
-# project.setplatform(project.Windows)
-# project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
-# solution.save(solution.xcode3)
-#
-# \endcode
-#
-#
-# To install type in 'pip install -U makeprojects' from your python command line
-#
-# The source can be found at github at https://github.com/burgerbecky/makeprojects
-#
-# Email becky@burgerbecky.com for comments, bugs or coding suggestions.
-#
-
 """
 Module that contains the main() function
 """
@@ -81,7 +33,7 @@ from .core import Solution
 #
 # \param working_dir String containing the current working directory
 # \return Zero if no error, non-zero on error
-#
+
 
 def main(working_dir=None):
 
@@ -92,8 +44,9 @@ def main(working_dir=None):
 	# Create the parseable arguments
 	#
 
-	parser = argparse.ArgumentParser(prog='makeprojects', description='Version ' + \
-		makeprojects.__version__ + '. ' + makeprojects.__copyright__ + '. ' \
+	parser = argparse.ArgumentParser(prog='makeprojects', \
+		description='Version ' + makeprojects.__version__ + \
+		'. ' + makeprojects.__copyright__ + '. ' \
 		'Given a .py input file, create project files for most of the popular IDEs.')
 
 	parser.add_argument('-xcode3', dest='xcode3', action='store_true', \
@@ -144,13 +97,16 @@ def main(working_dir=None):
 		default=False, help='Build for Nintendo DSI with Visual Studio 2015.')
 
 	parser.add_argument('-release', dest='release', action='store_true', \
-		default=False, help='Create a release target (Default is release/debug/internal)')
+		default=False, \
+		help='Create a release target (Default is release/debug/internal)')
 	parser.add_argument('-debug', dest='debug', action='store_true', \
 		default=False, help='Create a debug target')
 	parser.add_argument('-internal', dest='internal', action='store_true', \
 		default=False, help='Create an internal target')
 	parser.add_argument('-finalfolder', dest='finalfolder', action='store_true', \
-		default=False, help='Add a script to copy a release build to a folder and check in with Perforce')
+		default=False, \
+		help='Add a script to copy a release build to a ' \
+			'folder and check in with Perforce')
 	parser.add_argument('-app', dest='app', action='store_true', \
 		default=False, help='Build an application instead of a tool')
 	parser.add_argument('-lib', dest='library', action='store_true', \
@@ -163,7 +119,8 @@ def main(working_dir=None):
 	parser.add_argument('-default', dest='default', action='store_true', \
 		default=False, help='Create a default projects.py file')
 
-	parser.add_argument('args', nargs=argparse.REMAINDER, help='project filenames')
+	parser.add_argument('args', nargs=argparse.REMAINDER, \
+		help='project filenames')
 
 	#
 	# Parse the command line
@@ -207,7 +164,7 @@ def main(working_dir=None):
 
 	for jsonarg in args.jsonfiles:
 		projectpathname = os.path.join(working_dir, jsonarg)
-		if os.path.isfile(projectpathname) != True:
+		if not os.path.isfile(projectpathname):
 			print(jsonarg + ' was not found')
 			return 2
 
@@ -256,9 +213,8 @@ def main(working_dir=None):
 
 	return error
 
-#
 # If invoked as a tool, call the main with the current working directory
-#
+
 
 if __name__ == '__main__':
 	sys.exit(main(os.getcwd()))

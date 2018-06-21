@@ -23,10 +23,10 @@ Root namespace for the makeprojects tool
 #
 # \li \ref makeprojects
 # \li \ref makeprojects.core
-# \li \ref makeprojects.FileTypes
+# \li \ref makeprojects.enums.FileTypes
 # \li \ref makeprojects.SourceFile
-# \li \ref makeprojects.Solution
-# \li \ref makeprojects.Project
+# \li \ref makeprojects.core.Solution
+# \li \ref makeprojects.core.Project
 #
 # \par List of sub packages
 #
@@ -271,7 +271,7 @@ class SourceFile(object):
 		## Directory the file is found in (Full path)
 		self.directory = directory
 
-		## File type enumeration, see: \ref FileTypes
+		## File type enumeration, see: \ref enums.FileTypes
 		self.type = filetype
 
 	def extractgroupname(self):
@@ -372,7 +372,7 @@ def newproject(name='project', projecttype=ProjectTypes.tool, \
 	Args:
 		name: Name of the project
 		projecttype: Kind of project to make 'tool', 'app', 'library',
-			'sharedlibrary' \ref ProjectTypes
+			'sharedlibrary' \ref enums.ProjectTypes
 		suffixenable: True if suffixes are added to project names to denote
 			project type and compiler
 	See:

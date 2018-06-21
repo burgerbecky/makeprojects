@@ -419,6 +419,7 @@ def main(working_dir=None, args=None):
 
 	Args:
 		working_dir: Directory to operate on, or None for os.getcwd()
+		args: Command line to use instead of sys.argv
 	Returns:
 		Zero
 	"""
