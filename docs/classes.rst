@@ -28,3 +28,8 @@ Clean Classes
     :members:
 .. doxygenclass:: makeprojects::cleanme::Clean
     :members:
+
+Build Classes
+^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::buildme::BuildError
+    :members:
