@@ -415,7 +415,7 @@ class Clean(object):
 
 def main(working_dir=None, args=None):
 	"""
-	Command line shell
+	Command line shell for cleanme
 
 	Args:
 		working_dir: Directory to operate on, or None for os.getcwd()
@@ -428,7 +428,6 @@ def main(working_dir=None, args=None):
 	if working_dir is None:
 		working_dir = os.getcwd()
 
-	# usage='clean [-h] [-r] [-v]',
 	# Parse the command line
 	parser = argparse.ArgumentParser( \
 		description='Remove project output files. ' \
@@ -439,7 +438,7 @@ def main(working_dir=None, args=None):
 		version='%(prog)s ' + VERSION)
 	parser.add_argument('-r', '-all', dest='recursive', action='store_true', \
 		default=False, help='Perform a recursive clean')
-	parser.add_argument('-v', '--verbose', dest='verbose', action='store_true', \
+	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
 		default=False, help='Verbose output.')
 	parser.add_argument('--generate-rcfile', dest='generate_rc', \
 		action='store_true', default=False, \
@@ -450,14 +449,14 @@ def main(working_dir=None, args=None):
 	# Parse everything
 	args = parser.parse_args(args=args)
 
-	# True if debug spew is requested
-	verbose = args.verbose
-
 	# Output default configuration
 	if args.generate_rc:
 		from .config import savedefault
-		savedefault()
+		savedefault(working_dir)
 		return 0
+
+	# True if debug spew is requested
+	verbose = args.verbose
 
 	# Load the configuration file
 	config = import_configuration(file_name=args.rcfile, verbose=verbose)

@@ -101,7 +101,6 @@ __all__ = [
 	'build',
 	'clean',
 	'rebuild',
-	'savedefault',
 	'newsolution',
 	'newproject',
 
@@ -113,8 +112,6 @@ __all__ = [
 
 	'SourceFile',
 	'Property',
-	'Project',
-	'Solution',
 	'visualstudio',
 	'watcom',
 	'codeblocks',
@@ -125,19 +122,20 @@ __all__ = [
 ########################################
 
 
-def build(working_dir=None):
+def build(working_dir=None, args=None):
 	"""
 	Invoke the buildme command line from within Python
 
 	Args:
 		working_dir: Directory to process, ``None`` for current working directory
+		args: Argument list to pass to the command, None uses sys.argv
 	Returns:
 		Zero on success, system error code on failure
 	See:
 		makeprojects.buildme
 	"""
 	from .buildme import main
-	return main(working_dir)
+	return main(working_dir, args)
 
 ########################################
 
@@ -318,32 +316,7 @@ class SourceFile(object):
 
 		return newname
 
-#
-# Expose these classes
-#
-
-
-from .core import Project, Solution
-
-
-def savedefault(destinationfile='projects.py'):
-	"""
-	Calls the internal function to save a default projects.py file
-
-	Given a pathname, create and write out a default projects.py file
-	that can be used as input to makeprojects to generate project files.
-
-	Args:
-		destinationfile: Pathname of where to save the default python script
-	"""
-
-	import os
-	import shutil
-	src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'projects.py')
-	try:
-		shutil.copyfile(src, destinationfile)
-	except OSError as error:
-		print(error)
+########################################
 
 
 def newsolution(name='project', suffixenable=False):
@@ -359,7 +332,11 @@ def newsolution(name='project', suffixenable=False):
 	See:
 		core.Solution
 	"""
+
+	from .core import Solution
 	return Solution(name=name, suffixenable=suffixenable)
+
+########################################
 
 
 def newproject(name='project', projecttype=ProjectTypes.tool, \
@@ -378,4 +355,6 @@ def newproject(name='project', projecttype=ProjectTypes.tool, \
 	See:
 		core.Project
 	"""
+
+	from .core import Project
 	return Project(name=name, projecttype=projecttype, suffixenable=suffixenable)

@@ -417,7 +417,7 @@ def parse_sln_file(full_pathname):
 ########################################
 
 
-def build_visual_studio(fullpathname, verbose=False, fatal=False):
+def build_visual_studio(full_pathname, verbose=False, fatal=False):
 	"""
 	Build a visual studio .sln file
 
@@ -430,11 +430,11 @@ def build_visual_studio(fullpathname, verbose=False, fatal=False):
 	"""
 
 	# Get the list of build targets
-	targetlist, vs_version = parse_sln_file(fullpathname)
+	targetlist, vs_version = parse_sln_file(full_pathname)
 
 	# Was the file corrupted?
 	if not vs_version:
-		return BuildError(10, fullpathname, msg=fullpathname + ' is corrupt!')
+		return BuildError(10, full_pathname, msg=full_pathname + ' is corrupt!')
 
 	# Locate the proper version of Visual Studio for this .sln file
 	vstudioenv = None
@@ -464,17 +464,17 @@ def build_visual_studio(fullpathname, verbose=False, fatal=False):
 		vstudioenv = 'VS150COMNTOOLS'
 	else:
 		msg = '{} requires Visual Studio version {} which is unsupported!'.format( \
-			fullpathname, vs_version)
+			full_pathname, vs_version)
 		print(msg, file=sys.stderr)
-		return BuildError(0, fullpathname, msg=msg)
+		return BuildError(0, full_pathname, msg=msg)
 
 	# Is Visual studio installed?
 	vstudiopath = os.getenv(vstudioenv, default=None)
 	if vstudiopath is None:
 		msg = '{} requires Visual Studio version {} to be installed ' \
-			'to build!'.format(fullpathname, vs_version)
+			'to build!'.format(full_pathname, vs_version)
 		print(msg, file=sys.stderr)
-		return BuildError(0, fullpathname, msg=msg)
+		return BuildError(0, full_pathname, msg=msg)
 
 	# Locate the launcher
 	vstudiopath = os.path.abspath(vstudiopath + r'\..\ide\devenv.com')
@@ -541,12 +541,12 @@ def build_visual_studio(fullpathname, verbose=False, fatal=False):
 		# process the target properly due to the presence of the | character
 		# which causes piping.
 		cmd = '{} {} /Build {}'.format(burger.encapsulate_path(vstudiopath), \
-			burger.encapsulate_path(fullpathname), burger.encapsulate_path(target))
+			burger.encapsulate_path(full_pathname), burger.encapsulate_path(target))
 		if verbose:
 			print(cmd)
 		sys.stdout.flush()
-		error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
-		results.append(BuildError(error, fullpathname, configuration=target))
+		error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
+		results.append(BuildError(error, full_pathname, configuration=target))
 		if error and fatal:
 			break
 
@@ -966,9 +966,12 @@ def getprojects(projects, working_dir):
 	"""
 
 	# Get the list of files in this directory
-	for base_name in os.listdir(working_dir):
-		file_name = os.path.join(working_dir, base_name)
-		addproject(projects, file_name)
+	try:
+		for base_name in os.listdir(working_dir):
+			file_name = os.path.join(working_dir, base_name)
+			addproject(projects, file_name)
+	except OSError as error:
+		print(error)
 
 ########################################
 
@@ -1009,49 +1012,56 @@ def recursivegetprojects(projects, working_dir):
 ########################################
 
 
-def main(working_dir=None):
+def main(working_dir=None, args=None):
 	"""
-	Command line shell
+	Command line shell for buildme
 
 	Args:
 		working_dir: Directory to operate on, or None for os.getcwd()
+		args: Command line to use instead of sys.argv
 	Returns:
 		Zero
 	"""
 
+	# Make sure working_dir is properly set
 	if working_dir is None:
 		working_dir = os.getcwd()
 
-	# Failsafe to make sure clean is only run from within
-	# the Burgerlib projects folder
-
-	# if (not working_dir.lower().startswith(rootPath.lower())):
-	# print 'build can only be run from within the "' + rootPath + '" folder'
-	# return -1
-
 	# Parse the command line
-
 	parser = argparse.ArgumentParser( \
-		description='Build project files. Copyright by Rebecca Ann Heineman. ' + \
-		'Builds *.sln, *.mcp, *.cbp, *.rezscript, *.slicerscript, doxyfile, ' + \
+		description='Build project files. Copyright by Rebecca Ann Heineman. ' \
+		'Builds *.sln, *.mcp, *.cbp, *.rezscript, *.slicerscript, doxyfile, ' \
 		'makefile and *.xcodeproj files')
 
 	parser.add_argument('--version', action='version', \
 		version='%(prog)s ' + VERSION)
-	parser.add_argument('-r', dest='recursive', action='store_true', \
-		default=False, help='Perform a recursive build.')
+	parser.add_argument('-r', '-all', dest='recursive', action='store_true', \
+		default=False, help='Perform a recursive build')
+	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
+		default=False, help='Verbose output.')
+	parser.add_argument('--generate-rcfile', dest='generate_rc', \
+		action='store_true', default=False, \
+		help='Generate a sample configuration file and exit.')
+	parser.add_argument('--rcfile', dest='rcfile', \
+		metavar='<file>', default=None, help='Specify a configuration file.')
+
 	parser.add_argument('-f', dest='fatal', action='store_true', \
 		default=False, help='Quit immediately on any error.')
 	parser.add_argument('-d', dest='directories', action='append', \
 		help='List of directories to build in.')
 	parser.add_argument('-docs', dest='documentation', action='store_true', \
 		default=False, help='Compile Doxyfile files.')
-	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
-		default=False, help='Verbose output.')
 	parser.add_argument('args', nargs=argparse.REMAINDER, \
 		help='project filenames')
 
-	args = parser.parse_args()
+	# Parse everything
+	args = parser.parse_args(args=args)
+
+	# Output default configuration
+	if args.generate_rc:
+		from .config import savedefault
+		savedefault(working_dir)
+		return 0
 
 	verbose = args.verbose
 

@@ -132,8 +132,8 @@ def main(working_dir=None):
 	#
 
 	if args.default is True:
-		from makeprojects import savedefault
-		savedefault(os.path.join(working_dir, 'projects.py'))
+		from .config import savedefault
+		savedefault(working_dir)
 		return 0
 
 	#
@@ -195,7 +195,7 @@ def main(working_dir=None):
 
 		try:
 			myjson = json.loads(pure)
-		except Exception as error:
+		except (ValueError, TypeError) as error:
 			print('{} in parsing {}'.format(error, projectpathname))
 			return 2
 
