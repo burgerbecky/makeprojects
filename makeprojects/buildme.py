@@ -117,7 +117,7 @@ def build_rez_script(full_pathname, verbose=False):
 	"""
 
 	# Create the build command
-	cmd = ['makerez', burger.encapsulate_path(full_pathname)]
+	cmd = ['makerez', full_pathname]
 	if verbose:
 		# Have makerez be verbose
 		cmd.insert(1, '-v')
@@ -125,8 +125,7 @@ def build_rez_script(full_pathname, verbose=False):
 
 	# Perform the command
 	try:
-		error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), \
-			shell=True)
+		error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
 		msg = None
 	except OSError as error:
 		error_code = getattr(error, 'winerror', error.errno)
@@ -151,14 +150,13 @@ def build_slicer_script(full_pathname, verbose=False):
 	"""
 
 	# Create the build command
-	cmd = ['slicer', burger.encapsulate_path(full_pathname)]
+	cmd = ['slicer', full_pathname]
 	if verbose:
 		print(' '.join(cmd))
 
 	# Perform the command
 	try:
-		error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), \
-			shell=True)
+		error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
 		msg = None
 	except OSError as error:
 		error_code = getattr(error, 'winerror', error.errno)
@@ -297,7 +295,8 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
 			error_code = getattr(error, 'winerror', error.errno)
 			msg = str(error)
 			print(msg, file=sys.stderr)
-		results.append(BuildError(error_code, full_pathname, configuration=cmd[1], msg=msg))
+		results.append(BuildError(error_code, full_pathname, configuration=cmd[1], \
+			msg=msg))
 		if error_code and fatal:
 			break
 
@@ -591,7 +590,8 @@ def parse_mcp_file(full_pathname):
 	which version of Codewarrrior was used to build it.
 
 	It will parse Freescale Codewarrior for Nintendo (59), Metrowerks
-	Codewarrior 9.0 for Windows (50) and Metrowerks Codewarrior 10.0 for macOS (58)
+	Codewarrior 9.0 for Windows (50) and Metrowerks Codewarrior 10.0
+	for macOS (58)
 
 	Args:
 		full_pathname: Pathname to the .mcp file
@@ -619,7 +619,9 @@ def parse_mcp_file(full_pathname):
 				return None, None, None
 
 			# Get the offset to the strings
-			filep.seek(8)
+			filep.seek(16)
+			index_offset = struct.unpack(endian + 'I', filep.read(4))[0]
+			filep.seek(index_offset)
 			string_offset = struct.unpack(endian + 'I', filep.read(4))[0]
 
 			# Read in the version
@@ -723,10 +725,16 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
 		cwfile = None
 		if 'x86 Linker' in linkers:
 			cwfile = '/Applications/Metrowerks CodeWarrior 9.0/' + \
-				'Metrowerks CodeWarrior/CodeWarrior IDE 9.6'
+				'Metrowerks CodeWarrior/CodeWarrior IDE'
+			if not os.path.isfile(cwfile):
+				cwfile = '/Applications/Metrowerks CodeWarrior 9.0/' + \
+					'Metrowerks CodeWarrior/CodeWarrior IDE 9.6'
 		elif any(i in ('68K Linker', 'PPC Linker') for i in linkers):
 			cwfile = '/Applications/Metrowerks CodeWarrior 10.0/' + \
-				'Metrowerks CodeWarrior/CodeWarrior IDE 10'
+				'Metrowerks CodeWarrior/CodeWarrior IDE'
+			if not os.path.isfile(cwfile):
+				cwfile = '/Applications/Metrowerks CodeWarrior 10.0/' + \
+					'Metrowerks CodeWarrior/CodeWarrior IDE 10'
 		if cwfile is None:
 			return BuildError(0, full_pathname, \
 					"CodeWarrior with proper linker is not installed.")
@@ -747,26 +755,25 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
 			# /b Build
 			# /c close the project after completion
 			# /q Close Codewarrior on completion
-			cmd = [cwfile, burger.encapsulate_path(full_pathname), \
-			'/t', burger.encapsulate_path(target), '/s', '/c', '/q', '/b']
+			cmd = [cwfile, full_pathname, '/t', target, '/s', '/c', '/q', '/b']
 		else:
 			# Create the folder for the error log
 			error_file = os.path.basename(full_pathname)
 			error_list = os.path.splitext(error_file)
 			error_file = os.path.join(mytempdir, '{}-{}.err'.format( \
 				error_list[0], target))
-			cmd = ['cmdide', '-proj', '-bcwef', burger.encapsulate_path(error_file), \
-				'-y', burger.encapsulate_path(cwfile), '-z', burger.encapsulate_path(target), \
-					burger.encapsulate_path(full_pathname)]
+			cmd = ['cmdide', '-proj', '-bcwef', error_file, \
+				'-y', cwfile, '-z', target, full_pathname]
 
 		if verbose:
 			print(' '.join(cmd))
 		sys.stdout.flush()
-		error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
+		error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
 		msg = None
 		if error and error < len(CODEWARRIOR_ERRORS):
 			msg = CODEWARRIOR_ERRORS[error]
-		results.append(BuildError(error, full_pathname, configuration=target, msg=msg))
+		results.append(BuildError(error, full_pathname, configuration=target, \
+			msg=msg))
 		if error and fatal:
 			break
 
@@ -889,7 +896,8 @@ def buildcodeblocks(fullpathname, verbose):
 		# Is Codeblocks installed?
 		codeblockspath = os.getenv('CODEBLOCKS')
 		if codeblockspath is None:
-			return BuildError(0, fullpathname, msg='Requires Codeblocks to be installed to build!')
+			return BuildError(0, fullpathname, \
+				msg='Requires Codeblocks to be installed to build!')
 		codeblockspath = os.path.join(codeblockspath, 'codeblocks')
 		codeblocksflags = '--no-check-associations --no-dde --no-batch-window-close'
 	else:
@@ -906,7 +914,8 @@ def buildcodeblocks(fullpathname, verbose):
 		print(cmd)
 	print(cmd)
 	# error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
-	return BuildError(0, fullpathname, msg='Codeblocks is currently broken. Disabled for now')
+	return BuildError(0, fullpathname, \
+		msg='Codeblocks is currently broken. Disabled for now')
 
 ########################################
 
@@ -1154,12 +1163,14 @@ def main(working_dir=None, args=None):
 
 		# Is this a Watcom Makefile?
 		elif projecttype == 'watcommakefile':
-			berror = build_watcom_makefile(fullpathname, verbose=verbose, fatal=args.fatal)
+			berror = build_watcom_makefile(fullpathname, verbose=verbose, \
+				fatal=args.fatal)
 
 		# Visual studio solution files?
 		elif projecttype == 'visualstudio':
 			if burger.get_windows_host_type():
-				berror = build_visual_studio(fullpathname, verbose=verbose, fatal=args.fatal)
+				berror = build_visual_studio(fullpathname, verbose=verbose, \
+					fatal=args.fatal)
 
 		# Metrowerks Codewarrior files?
 		elif projecttype == 'codewarrior':
@@ -1208,6 +1219,7 @@ def main(working_dir=None, args=None):
 			if verbose or entry.error:
 				print(entry)
 	return error
+
 
 # If called as a function and not a class,
 # call my main

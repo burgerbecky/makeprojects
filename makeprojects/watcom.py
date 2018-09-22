@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Sub file for makeprojects.
-# Handler for Watcom WMAKE projects
-#
+"""
+Sub file for makeprojects.
+Handler for Watcom WMAKE projects
+"""
 
 # Copyright 1995-2018 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -22,197 +22,509 @@
 
 from __future__ import absolute_import, print_function, unicode_literals
 import os
+from io import StringIO
 import burger
-import makeprojects.core
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes
 
+# pylint: disable=C0302
+
 #
-# Create an OpenWatcom makefile
+## \package makeprojects.watcom
+# This module contains classes needed to generate
+# project files intended for use by OpenWatcom WMAKE
 #
+
+#
+# Default folder for DOS tools when invoking 'finalfolder'
+# from the command line
+#
+
+DEFAULT_FINAL_FOLDER = '$(BURGER_SDKS)/dos/burgerlib'
+
+## Array of targets that Watcom can build
+VALID_TARGETS = [
+	PlatformTypes.msdos4gw,
+	PlatformTypes.msdosx32,
+	PlatformTypes.win32
+]
+
+
+class Project(object):
+	"""
+	Root object for a Watcom IDE project file
+	Created with the name of the project, the IDE code
+	the platform code (4gw, x32, win)
+	"""
+
+	def __init__(self, project_name, ide_code, platform_code):
+		self.project_name = project_name
+		self.ide_code = ide_code
+		self.platform_code = platform_code
+		self.projectname_code = project_name + ide_code + platform_code
+		self.projecttype = None
+		self.code_files = []
+		self.include_folders = []
+		self.final_folder = None
+		self.platforms = []
+		self.configurations = []
+
+	def add_source_file(self, source_file):
+		"""
+		Add a SourceFile() to the project
+		"""
+		self.code_files.append(source_file)
+
+	def add_include_folder(self, include_folder):
+		"""
+		Add a path to the include directory list to the project
+		"""
+		self.include_folders.append(include_folder)
+
+	def write_header(self, filep):
+		"""
+		Write the header for a Watcom wmake file
+		"""
+		filep.write( \
+			'#\n' \
+			'# Build ' + self.project_name + ' with WMAKE\n' \
+			'# Set the environment variable WATCOM to the OpenWatcom folder\n'
+			'#\n' \
+			'\n' \
+			'# This speeds up the building process for Watcom because it\n' \
+			'# keeps the apps in memory and doesn\'t have ' \
+			'to reload for every source file\n' \
+			'# Note: There is a bug that if the wlib app is loaded, it will not\n' \
+			'# get the proper WOW file if a full build is performed\n' \
+			'\n' \
+			'# The bug is gone from Watcom 1.2\n' \
+			'\n' \
+			'!ifdef __LOADDLL__\n' \
+			'!loaddll wcc $(%WATCOM)/binnt/wccd\n' \
+			'!loaddll wccaxp $(%WATCOM)/binnt/wccdaxp\n' \
+			'!loaddll wcc386 $(%WATCOM)/binnt/wccd386\n' \
+			'!loaddll wpp $(%WATCOM)/binnt/wppdi86\n' \
+			'!loaddll wppaxp $(%WATCOM)/binnt/wppdaxp\n' \
+			'!loaddll wpp386 $(%WATCOM)/binnt/wppd386\n' \
+			'!loaddll wlink $(%WATCOM)/binnt/wlinkd\n' \
+			'!loaddll wlib $(%WATCOM)/binnt/wlibd\n' \
+			'!endif\n' \
+			'\n' \
+			'#\n' \
+			'# Set the set of known files supported\n' \
+			'# Note: They are in the reverse order of building. .c is ' \
+			'built first, then .x86\n' \
+			'# until the .exe or .lib files are built\n' \
+			'#\n\n' \
+			'.extensions:\n' \
+			'.extensions: .exe .exp .lib .obj .h .cpp .x86 .c .i86\n')
+
+	def write_source_dir(self, filep):
+		"""
+		Write out the list of directories for the source
+		"""
+
+		# Save the refernence BURGER_SDKS
+		filep.write('\n' \
+			'#\n' \
+			'# Ensure sdks are pulled from the environment\n' \
+			'#\n\n' \
+			'BURGER_SDKS = $(%BURGER_SDKS)\n')
+
+		# Set the folders for the source code to search
+		filep.write( \
+			'\n#\n' \
+			'# sourcedir = Work directories for the source code\n' \
+			'#\n\n')
+
+		# Extract the directories from the files
+		source_dir = []
+		for item in self.code_files:
+			file_name = burger.convert_to_windows_slashes(item.filename)
+
+			# Remove the filename to get the directory
+			index = file_name.rfind('\\')
+			if index == -1:
+				entry = file_name
+			else:
+				entry = file_name[0:index]
+			if entry not in source_dir:
+				source_dir.append(entry)
+
+		# Sort them for consistent diffs for source control
+
+		if source_dir:
+			source_dir = sorted(source_dir)
+			colon = '='
+			for item in source_dir:
+				filep.write('sourcedir ' + colon + \
+					burger.encapsulate_path_linux(item) + '\n')
+				colon = '+=;'
+		else:
+			filep.write("sourcedir =\n")
+
+		# Save the project name
+		filep.write('\n' \
+			'#\n' \
+			'# Name of the output library\n' \
+			'#\n\n' \
+			'projectname = ' + self.project_name + '\n')
+
+		# Save the base name of the temp directory
+		filep.write('\n' \
+			'#\n' \
+			'# Base name of the temp directory\n' \
+			'#\n\n' \
+			'basetempdir = temp/$(projectname)\n')
+
+		# Save the final binary output directory
+		filep.write('\n' \
+			'#\n' \
+			'# Binary directory\n' \
+			'#\n\n' \
+			'destdir = bin\n')
+
+		# Extra include folders
+		filep.write( \
+			'\n' \
+			'#\n' \
+			'# includedir = Header includes\n' \
+			'#\n\n' \
+			'includedir = $(sourcedir)') \
+
+		for item in self.include_folders:
+			filep.write(';' + burger.convert_to_linux_slashes(item))
+		filep.write('\n')
+
+		# Final folder if needed
+		if self.final_folder:
+			filep.write( \
+				'\n' \
+				'#\n' \
+				'# Final location folder\n' \
+				'#\n\n' \
+				'finalfolder = ' + \
+				burger.convert_to_windows_slashes( \
+					self.final_folder, force_ending_slash=True)[:-1] + \
+				'\n')
+
+	def write_rules(self, filep):
+		"""
+		Output the default rules for building object code
+		"""
+
+		# Set the search directories for source files
+		filep.write('\n' \
+			'#\n' \
+			'# Tell WMAKE where to find the files to work with\n' \
+			'#\n' \
+			'\n' \
+			'.c: $(sourcedir)\n' \
+			'.cpp: $(sourcedir)\n' \
+			'.x86: $(sourcedir)\n' \
+			'.i86: $(sourcedir)\n')
+
+		# Ensure the creation of the output folders
+		filep.write('\n' \
+			'#\n' \
+			'# Create folders for object code and binaries\n'
+			'#\n' \
+			'\n' \
+			'.BEFORE\n' \
+			'\t@if not exist "$(destdir)" @mkdir "$(destdir)"\n')
+
+		for platform in self.platforms:
+			for configuration in self.configurations:
+				name = 'wat' + platform.getshortcode()[-3:] + configuration.getshortcode()
+				filep.write('\t@if not exist "$(basetempdir){0}" ' \
+					'@mkdir "$(basetempdir){0}"\n'.format(name))
+
+		# Global compiler flags
+		filep.write('\n' \
+			'#\n' \
+			'# Set the compiler flags for each of the build types\n' \
+			'#\n' \
+			'\n' \
+			'CFlagsDebug=-d_DEBUG -d2 -od\n' \
+			'CFlagsInternal=-d_DEBUG -d2 -oaxsh\n' \
+			'CFlagsRelease=-dNDEBUG -d0 -oaxsh\n' \
+			'\n' \
+			'#\n' \
+			'# Set the flags for each target operating system\n' \
+			'#\n' \
+			'\n' \
+			'CFlagscom=-bt=com -d__COM__=1 -i="$(%BURGER_SDKS)/dos/burgerlib;' \
+			'$(%BURGER_SDKS)/dos/x32;$(%WATCOM)/h"\n' \
+			'CFlagsdosx32=-bt=DOS -d__X32__=1 -i="$(%BURGER_SDKS)/dos/burgerlib;' \
+			'$(%BURGER_SDKS)/dos/x32;$(%WATCOM)/h"\n' \
+			'CFlagsdos4gw=-bt=DOS -d__DOS4G__=1 -i="$(%BURGER_SDKS)/dos/burgerlib;' \
+			'$(%BURGER_SDKS)/dos/sosaudio;$(%WATCOM)/h;$(%WATCOM)/h/nt"\n' \
+			'CFlagsw32=-bt=NT -dGLUT_DISABLE_ATEXIT_HACK -dGLUT_NO_LIB_PRAGMA ' \
+			'-dTARGET_CPU_X86=1 -dTARGET_OS_WIN32=1 -dTYPE_BOOL=1 -dUNICODE ' \
+			'-d_UNICODE -dWIN32_LEAN_AND_MEAN -i="$(%BURGER_SDKS)/windows/burgerlib;' \
+			'$(%BURGER_SDKS)/windows/opengl;$(%BURGER_SDKS)/windows/directx9;' \
+			'$(%BURGER_SDKS)/windows/windows5;$(%BURGER_SDKS)/windows/quicktime7;' \
+			'$(%WATCOM)/h;$(%WATCOM)/h/nt"\n' \
+			'\n' \
+			'#\n' \
+			'# Set the WASM flags for each of the build types\n' \
+			'#\n' \
+			'\n' \
+			'AFlagsDebug=-d_DEBUG\n' \
+			'AFlagsInternal=-d_DEBUG\n' \
+			'AFlagsRelease=-dNDEBUG\n' \
+			'\n' \
+			'#\n' \
+			'# Set the WASM flags for each operating system\n' \
+			'#\n' \
+			'\n' \
+			'AFlagscom=-d__COM__=1\n' \
+			'AFlagsdosx32=-d__X32__=1\n' \
+			'AFlagsdos4gw=-d__DOS4G__=1\n' \
+			'AFlagsw32=-d__WIN32__=1\n' \
+			'\n' \
+			'LFlagsDebug=\n' \
+			'LFlagsInternal=\n' \
+			'LFlagsRelease=\n' \
+			'\n' \
+			'LFlagscom=format dos com libp $(%BURGER_SDKS)/dos/burgerlib\n' \
+			'LFlagsx32=system x32r libp $(%BURGER_SDKS)/dos/burgerlib;' \
+			'$(%BURGER_SDKS)/dos/x32\n' \
+			'LFlagsdos4gw=system dos4g libp $(%BURGER_SDKS)/dos/burgerlib;' \
+			'$(%BURGER_SDKS)/dos/sosaudio\n' \
+			'LFlagsw32=system nt libp $(%BURGER_SDKS)/windows/burgerlib;' \
+			'$(%BURGER_SDKS)/windows/directx9 LIBRARY VERSION.lib,opengl32.lib,' \
+			'winmm.lib,shell32.lib,shfolder.lib\n' \
+			'\n' \
+			'# Now, set the compiler flags\n' \
+			'\n' \
+			'CL=WCC386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 -wcd=7 -i=$(includedir)\n' \
+			'CP=WPP386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 -wcd=7 -i=$(includedir)\n' \
+			'ASM=WASM -5r -fp6 -w4 -zq -d__WATCOM__=1\n' \
+			'LINK=*WLINK option caseexact option quiet PATH $(%WATCOM)/binnt;' \
+			'$(%WATCOM)/binw;.\n' \
+			'\n' \
+			'# Set the default build rules\n' \
+			'# Requires ASM, CP to be set\n' \
+			'\n' \
+			'# Macro expansion is on page 93 of the C//C++ Tools User\'s Guide\n' \
+			'# $^* = C:\\dir\\target (No extension)\n' \
+			'# $[* = C:\\dir\\dep (No extension)\n' \
+			'# $^@ = C:\\dir\\target.ext\n' \
+			'# $^: = C:\\dir\\\n' \
+			'\n' \
+			'.i86.obj : .AUTODEPEND\n' \
+			'\t@echo $[&.i86 / $(%config) / $(%target)\n' \
+			'\t@$(ASM) -0 -w4 -zq -d__WATCOM__=1 $(AFlags$(%config)) ' \
+			'$(AFlags$(%target)) $[*.i86 -fo=$^@ -fr=$^*.err\n' \
+			'\n' \
+			'.x86.obj : .AUTODEPEND\n' \
+			'\t@echo $[&.x86 / $(%config) / $(%target)\n' \
+			'\t@$(ASM) $(AFlags$(%config)) $(AFlags$(%target)) ' \
+			'$[*.x86 -fo=$^@ -fr=$^*.err\n' \
+			'\n' \
+			'.c.obj : .AUTODEPEND\n' \
+			'\t@echo $[&.c / $(%config) / $(%target)\n' \
+			'\t@$(CP) $(CFlags$(%config)) $(CFlags$(%target)) $[*.c ' \
+			'-fo=$^@ -fr=$^*.err\n' \
+			'\n' \
+			'.cpp.obj : .AUTODEPEND\n' \
+			'\t@echo $[&.cpp / $(%config) / $(%target)\n' \
+			'\t@$(CP) $(CFlags$(%config)) $(CFlags$(%target)) $[*.cpp ' \
+			'-fo=$^@ -fr=$^*.err\n')
+
+	def write_files(self, filep):
+		"""
+		Output the list of object files to create
+		"""
+		filep.write( \
+			'\n' \
+			'#\n' \
+			'# Object files to work with for the library\n' \
+			'#\n\n')
+
+		obj_list = []
+		for item in self.code_files:
+			if item.type == FileTypes.c or \
+				item.type == FileTypes.cpp or \
+				item.type == FileTypes.x86:
+
+				tempfile = burger.convert_to_linux_slashes(item.filename)
+				index = tempfile.rfind('.')
+				if index == -1:
+					entry = tempfile
+				else:
+					entry = tempfile[:index]
+
+				index = entry.rfind('/')
+				if index == -1:
+					entry = entry
+				else:
+					entry = entry[index + 1:]
+
+				obj_list.append(entry)
+
+		if obj_list:
+			obj_list = sorted(obj_list)
+			colon = 'objs= '
+			for item in obj_list:
+				filep.write(colon + '$(A)/' + item + '.obj')
+				colon = ' &\n\t'
+			filep.write('\n')
+
+		else:
+			filep.write('objs=\n')
+
+	def write_all_target(self, filep):
+		"""
+		Output the "all" rule
+		"""
+		filep.write('\n' \
+			'#\n' \
+			'# List the names of all of the final binaries to build\n' \
+			'#\n\n' \
+			'all : .SYMBOLIC\n')
+
+		if self.projecttype == ProjectTypes.library:
+			suffix = 'lib'
+		else:
+			suffix = 'exe'
+
+		for platform in self.platforms:
+			for configuration in self.configurations:
+				filep.write('\t@set config=' + str(configuration) + '\n')
+				filep.write('\t@set target=' + platform.getshortcode() + '\n')
+				filep.write('\t@%make $(destdir)\\$(projectname)wat' + \
+					platform.getshortcode()[-3:] + \
+					configuration.getshortcode() + '.' + suffix + '\n')
+
+		filep.write('\n' \
+			'#\n' \
+			'# Disable building this make file\n' \
+			'\n' + \
+			self.projectname_code + '.wmk :\n' \
+			'\t@%null\n')
+
+	def write_builds(self, filep):
+		"""
+		Output the rule to build the exes/libs
+		"""
+
+		filep.write('\n' \
+			'#\n' \
+			'# A = The object file temp folder\n' \
+			'#\n' \
+			'\n')
+
+		if self.projecttype == ProjectTypes.library:
+			suffix = 'lib'
+		else:
+			suffix = 'exe'
+
+		for theplatform in self.platforms:
+			for target in self.configurations:
+				filep.write('A = $(basetempdir)wat' + theplatform.getshortcode()[-3:] + \
+					target.getshortcode() + '\n' \
+					'$(destdir)\\$(projectname)wat' + theplatform.getshortcode()[-3:] + \
+					target.getshortcode() + '.' + \
+					suffix + ' : $+$(OBJS)$- ' + self.projectname_code + '.wmk\n')
+				if self.projecttype == ProjectTypes.library:
+
+					filep.write('\t@SET WOW=$+$(OBJS)$-\n' \
+						'\t@WLIB -q -b -c -n $^@ @WOW\n')
+
+					if self.final_folder:
+						filep.write('\t@"$(%perforce)\\p4" edit "$(finalfolder)\\$^."\n' \
+							'\t@copy /y "$^@" "$(finalfolder)\\$^."\n' \
+							'\t@"$(%perforce)\\p4" revert -a "$(finalfolder)\\$^."\n\n')
+				else:
+					filep.write('\t@SET WOW={$+$(OBJS)$-}\n' \
+						'\t@$(LINK) $(LFlagsw32) $(LFlags' + str(target) + \
+						') LIBRARY burgerlibwat' + \
+						theplatform.getshortcode()[-3:] + target.getshortcode() + \
+						'.lib NAME $^@ FILE @wow\n\n')
+
+	def write(self, filep):
+		"""
+		Dump out the entire file
+		"""
+
+		self.write_header(filep)
+		self.write_source_dir(filep)
+		self.write_rules(filep)
+		self.write_files(filep)
+		self.write_all_target(filep)
+		self.write_builds(filep)
+
 
 def generate(solution, perforce=False, verbose=False):
+	"""
+	Create an OpenWatcom makefile
+	"""
+
+	# Validate the requests target(s)
+	platforms = solution.platform.getexpanded()
+
+	# Special case, discard any attempt to build 64 bit windows
+	try:
+		platforms.remove(PlatformTypes.win64)
+	except ValueError:
+		pass
+
+	for item in platforms:
+		if item not in VALID_TARGETS:
+			print('Error: Platform {} not supported by OpenWatcom'.format(str(item)))
+			return 10
 
 	#
-	# Now, let's create the project file
+	# Find the files to put into the project
 	#
 
-	codefiles, includedirectories = solution.getfilelist(
+	codefiles, _ = solution.getfilelist( \
 		[FileTypes.h, FileTypes.cpp, FileTypes.x86])
-	platformcode = solution.platform.getshortcode()
+
+	#
+	# Determine the ide and target type for the final file name
+	#
+
 	idecode = solution.ide.getshortcode()
-	projectfilename = str(solution.projectname + idecode + platformcode)
-	projectpathname = os.path.join(
-		solution.workingDir, projectfilename + '.wmk')
+	platformcode = solution.platform.getshortcode()
+	watcom_projectfile = Project(solution.projectname, idecode, platformcode)
+	project_filename = solution.projectname + idecode + platformcode + '.wmk'
+	project_pathname = os.path.join( \
+		solution.workingDir, project_filename)
+
+	# Send the file list to the project
+	for item in codefiles:
+		watcom_projectfile.add_source_file(item)
+
+	# Sent the include folder list to the project
+	for item in solution.includefolders:
+		watcom_projectfile.add_include_folder(item)
+
+	watcom_projectfile.final_folder = solution.finalfolder
+	watcom_projectfile.platforms = platforms
+	watcom_projectfile.configurations = solution.configurations
+	watcom_projectfile.projecttype = solution.projecttype
 
 	#
-	# Save out the filenames
+	# Serialize the Watcom file
 	#
 
-	listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
-	listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
-	listx86 = makeprojects.core.pickfromfilelist(codefiles, FileTypes.x86)
-	listwindowsresource = []
-	# if platformcode=='win':
-	#	listwindowsresource = makeprojects.core.pickfromfilelist(codefiles, makeprojects.coreFileTypes.rc)
+	filep = StringIO()
+	watcom_projectfile.write(filep)
 
-	alllists = listh + listcpp + listx86 + listwindowsresource
+	#
+	# Did it change?
+	#
 
-	burger.perforce_edit(projectpathname)
-	fp = open(projectpathname, 'w')
-	fp.write(
-		'#\n'
-		'# Build ' + solution.projectname + ' for ' + solution.platform.name + '\n'
-		'#\n\n'
-		'#\n'
-		'# sourcedir = Set the work directories for the source\n'
-		'#\n\n')
-
-	filelist = []
-	for item in alllists:
-		filelist.append(burger.convert_to_windows_slashes(item.filename))
-
-	filelist = sorted(filelist, cmp=lambda x, y: cmp(x, y))
-
-	sourcedir = []
-	for item in filelist:
-		#
-		# Remove the filename
-		#
-		index = item.rfind('\\')
-		if index == -1:
-			entry = item
-		else:
-			entry = item[0:index]
-		if not entry in sourcedir:
-			sourcedir.append(entry)
-
-	fp.write("sourcedir = ")
-	string = ''
-	for item in sourcedir:
-		string = string + item + ';'
-
-	if string:
-		# Get rid of the trailing semi colon
-		string = string[0:len(string)-1]
-		fp.write(string)
-
-	fp.write(
-        '\n\n'
-		'#\n'
-		'# Name of the output library\n'
-		'#\n\n'
-		'projectname = ' + solution.projectname + '\n\n'
-		'#\n'
-		'# includedir = Header includes\n'
-		'#\n\n'
-		'includedir = $(sourcedir)')
-
-	if solution.includefolders:
-		string = ''
-		for item in solution.includefolders:
-			string = string + ';' + burger.convert_to_windows_slashes(item)
-		fp.write(string)
-
-	fp.write(
-        '\n\n'
-		'#\n'
-		'# Object files to work with for the library\n'
-		'#\n\n')
-
-	string = 'objs= &'
-	for item in filelist:
-		if not item.endswith('.h'):
-			index = item.rfind('.')
-			if index == -1:
-				entry = item
-			else:
-				entry = item[0:index]
-
-			index = entry.rfind('\\')
-			if index == -1:
-				entry = entry
-			else:
-				entry = entry[index+1:len(entry)]
-
-			string = string + '\n\t$(A)\\' + entry + '.obj &'
-
-	# Get rid of the trailing ampersand and space
-	string = string[0:len(string)-2]
-	fp.write(string + '\n\n')
-
-	if solution.finalfolder != None:
-		final = burger.convert_to_windows_slashes(solution.finalfolder)
-		if final.endswith('\\'):
-			final = final[0:len(final)-1]
-
-		fp.write('#\n'
-				 '# Final location folder\n'
-				 '#\n\n'
-				 'finalfolder = ' + final + '\n\n')
-
-	fp.write(
-		'#\n'
-		'# Create the build environment\n'
-		'#\n\n'
-		'!include $(%sdks)\\watcom\\burger.mif\n\n'
-		'#\n'
-		'# List the names of all of the final binaries to build\n'
-		'#\n\n'
-		'all : .SYMBOLIC\n')
-
-	platforms = []
-	if solution.platform == PlatformTypes.msdos:
-		platforms = ['x32', 'dos4gw']
-	elif solution.platform == PlatformTypes.windows:
-		platforms = ['w32']
-
-	if solution.projecttype == ProjectTypes.library:
-		suffix = 'lib'
+	if burger.compare_file_to_string(project_pathname, filep):
+		if solution.verbose is True:
+			print(project_pathname + ' was not changed')
 	else:
-		suffix = 'exe'
-
-	for theplatform in platforms:
-		if theplatform == 'dos4gw':
-			shortplatform = '4gw'
-		else:
-			shortplatform = theplatform
-
-		for target in solution.configurations:
-			fp.write('\t@set config=' + str(target) + '\n')
-			fp.write('\t@set target=' + theplatform + '\n')
-			fp.write('\t@%make $(destdir)\\$(projectname)wat' + shortplatform + target.getshortcode() +
-					 '.' + suffix + '\n')
-
-	fp.write('\n' +
-			 projectfilename + '.wmk :\n'
-			 '\t@%null\n'
-			 '\n'
-			 '#\n'
-			 '# A = The object file temp folder\n'
-			 '#\n'
-			 '\n')
-
-	for theplatform in platforms:
-		for target in solution.configurations:
-			if theplatform == 'dos4gw':
-				theplatform = '4gw'
-			fp.write('A = $(basetempdir)wat' + theplatform + target.getshortcode() + '\n'
-					 '$(destdir)\\$(projectname)wat' + theplatform + target.getshortcode() + '.' +
-					 suffix + ' : $+$(OBJS)$- ' + projectfilename + '.wmk\n'
-					 '\t@if not exist $(destdir) @!mkdir $(destdir)\n')
-			if solution.projecttype == ProjectTypes.library:
-
-				fp.write('\t@SET WOW=$+$(OBJS)$-\n'
-						 '\t@WLIB -q -b -c -n $^@ @WOW\n')
-
-				if solution.finalfolder != None:
-					fp.write('\t@"$(%perforce)\\p4" edit "$(finalfolder)\\$^."\n'
-							 '\t@copy /y "$^@" "$(finalfolder)\\$^."\n'
-							 '\t@"$(%perforce)\\p4" revert -a "$(finalfolder)\\$^."\n\n')
-			else:
-				fp.write('\t@SET WOW={$+$(OBJS)$-}\n'
-						 '\t@$(LINK) $(LFlagsw32) $(LFlags' + str(target) + ') LIBRARY burgerlibwat' +
-						 theplatform + target.getshortcode() + '.lib NAME $^@ FILE @wow\n\n')
-
-	fp.close()
+		if perforce:
+			burger.perforce_edit(project_pathname)
+		filep2 = open(project_pathname, 'w')
+		filep2.write(filep.getvalue())
+		filep2.close()
+	filep.close()
 	return 0

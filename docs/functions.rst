@@ -26,3 +26,8 @@ Build
 .. doxygenfunction:: makeprojects::buildme::build_slicer_script
 .. doxygenfunction:: makeprojects::buildme::build_doxygen
 .. doxygenfunction:: makeprojects::buildme::build_watcom_makefile
+.. doxygenfunction:: makeprojects::buildme::main
+
+Rebuild
+^^^^^^^
+.. doxygenfunction:: makeprojects::rebuildme::main

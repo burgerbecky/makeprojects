@@ -36,6 +36,9 @@ from .core import Solution
 
 
 def main(working_dir=None):
+	"""
+	Main entry point when invoked as a tool
+	"""
 
 	if working_dir is None:
 		working_dir = os.getcwd()

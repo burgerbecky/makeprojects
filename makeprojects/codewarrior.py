@@ -36,11 +36,6 @@ TAB = '\t'
 # Freescale Codewarrior
 #
 
-def truefalse(flag):
-	if flag is False:
-		return 'false'
-	return 'true'
-
 #
 # Class to hold the defaults and settings to output a Codewarrior
 # compatible project file.
@@ -250,7 +245,7 @@ class SearchPathAndFlags(object):
 	def __init__(self, platform, path, root=None, recursive=False):
 		self.settings = [ \
 			SearchPath(platform, path, root, 'SearchPath'), \
-			SETTING('Recursive', truefalse(recursive)), \
+			SETTING('Recursive', burger.truefalse(recursive)), \
 			SETTING('FrameworkPath', 'false'), \
 			SETTING('HostFlags', 'All') \
 		]
@@ -1017,7 +1012,7 @@ def generate(solution):
 				target.linkorder.append(FILEREF(solution.platform, None, item))
 
 			# Sort case insensitive
-			liblist = sorted(liblist, key=str.lower)
+			liblist = sorted(liblist, key=unicode.lower)
 			for item in liblist:
 				target.filelist.append(FILE(solution.platform, configuration, item))
 				target.linkorder.append(FILEREF(solution.platform, None, item))

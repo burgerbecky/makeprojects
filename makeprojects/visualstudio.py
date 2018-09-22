@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Sub file for makeprojects.
-# Handler for Microsoft Visual Studio projects
-#
+"""
+Sub file for makeprojects.
+Handler for Microsoft Visual Studio projects
+"""
 
 # Copyright 1995-8 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -17,6 +17,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import uuid
 import io
+from io import StringIO
 from enum import Enum
 import makeprojects.core
 import burger
@@ -35,9 +36,7 @@ from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
 # from the command line
 #
 
-defaultfinalfolder = '$(BURGER_SDKS)/windows/bin/'
-
-
+DEFAULT_FINAL_FOLDER = '$(BURGER_SDKS)/windows/bin/'
 
 #
 ## Convert a string to a UUUD
@@ -62,7 +61,9 @@ def calcuuid(input_str):
 #
 
 class SemicolonArray(object):
-	def __init__(self, entries=[]):
+	def __init__(self, entries=None):
+		if entries is None:
+			entries = []
 		self.entries = entries
 
 	#
@@ -112,7 +113,9 @@ class Tool2003(object):
 	# /param tabs Number of tabs printed before each line
 	#
 
-	def __init__(self, name, entries=[], tabs=3):
+	def __init__(self, name, entries=None, tabs=3):
+		if entries is None:
+			entries = []
 		self.name = name
 		self.entries = entries
 		self.tabstring = u'\t' * tabs
@@ -191,7 +194,7 @@ class Tool2003(object):
 
 class VCCLCompilerTool(Tool2003):
 	def __init__(self):
-		entries = [ """ General menu """ \
+		entries = [""" General menu """ \
 			['AdditionalIncludeDirectories', SemicolonArray()], \
 			['AdditionalUsingDirectories', None], \
 			['SuppressStartupBanner', 'TRUE'], \
@@ -1836,7 +1839,7 @@ def generate(solution, ide, perforce=False, verbose=False):
 		item.visualstudio.uuid = calcuuid(item.visualstudio.outputfilename)
 
 	# Write to memory for file comparison
-	fileref = io.StringIO()
+	fileref = StringIO()
 	error = generatesolutionfile(fileref, solution, ide)
 	if error != 0:
 		fileref.close()
@@ -1861,7 +1864,7 @@ def generate(solution, ide, perforce=False, verbose=False):
 	if ide == IDETypes.vs2003:
 		for item in solution.projects:
 			exporter = VS2003vcproj(item)
-			fileref = io.StringIO()
+			fileref = StringIO()
 			exporter.write(fileref)
 
 			filename = os.path.join(solution.workingDir, item.visualstudio.outputfilename)
@@ -1907,7 +1910,7 @@ def generateold(solution, ide):
 	# Serialize the solution file and write if changed
 	#
 
-	fileref = io.StringIO()
+	fileref = StringIO()
 	project.writesln(fileref)
 	filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + '.sln')
 	if comparefiletostring(filename, fileref):
@@ -1924,7 +1927,7 @@ def generateold(solution, ide):
 	# Create the project file
 	#
 
-	fileref = io.StringIO()
+	fileref = StringIO()
 	if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
 		project.writeproject2010(fileref, solution)
 		filename = os.path.join(solution.workingDir, solution.visualstudio.outputfilename + projectsuffix[solution.visualstudio.fileversion.value])
@@ -1945,7 +1948,7 @@ def generateold(solution, ide):
 
 	if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
 
-		fileref = io.StringIO()
+		fileref = StringIO()
 		count = project.writefilter(fileref)
 		filename = os.path.join(solution.workingDir, \
 			solution.visualstudio.outputfilename + '.vcxproj.filters')

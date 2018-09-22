@@ -50,7 +50,7 @@ class Project(object):
 			raise TypeError("parameter 'projecttype' must be of type ProjectTypes")
 
 		## Root directory (Default None)
-		self.workingDir = None
+		self.working_dir = None
 
 		## Type of project, tool is default ('tool', 'app', 'library')
 		self.projecttype = projecttype
@@ -173,7 +173,7 @@ class Solution(object):
 		self.verbose = False
 
 		## Root directory (Default None)
-		self.workingDir = os.getcwd()
+		self.working_dir = os.getcwd()
 
 		## Type of project, tool is default ('tool', 'app', 'library')
 		self.projecttype = projecttype
@@ -332,7 +332,7 @@ class Solution(object):
 			elif key == 'defines':
 				definelist = burger.convert_to_array(myjson[key])
 				for item in definelist:
-					self.properties.append(Property(name="DEFINE",data=item))
+					self.properties.append(Property(name="DEFINE", data=item))
 				self.defines = definelist
 			elif key == 'includefolders':
 				self.includefolders = burger.convert_to_array(myjson[key])
@@ -423,11 +423,11 @@ class Solution(object):
 				error = makeprojects.codeblocks.generate(self)
 			elif item == 'watcom':
 				self.ide = IDETypes.watcom
-				error = makeprojects.watcom.generate(self)
+				error = makeprojects.watcom.generate(self, perforce=True)
 			else:
 				print('Saving ' + item + ' not implemented yet')
 				error = 0
-			if error != 0:
+			if error:
 				break
 		return error
 
@@ -449,7 +449,7 @@ class Solution(object):
 		# Use the work folder name as the project name
 		#
 
-		dictrecord['projectname'] = os.path.basename(self.workingDir)
+		dictrecord['projectname'] = os.path.basename(self.working_dir)
 
 		configurations = []
 		if args.debug is True:
@@ -504,7 +504,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode3')
 
@@ -512,7 +512,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode4')
 
@@ -520,7 +520,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode5')
 
@@ -528,7 +528,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode6')
 
@@ -536,7 +536,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode7')
 
@@ -544,7 +544,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode8')
 
@@ -552,7 +552,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'macosx'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.xcode.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.xcode.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('xcode9')
 
@@ -576,7 +576,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.visualstudio.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('vs2010')
 
@@ -584,7 +584,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.visualstudio.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('vs2012')
 
@@ -592,7 +592,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.visualstudio.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('vs2013')
 
@@ -600,7 +600,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.visualstudio.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('vs2015')
 
@@ -608,7 +608,7 @@ class Solution(object):
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
 			if args.finalfolder is True:
-				initializationrecord['finalfolder'] = makeprojects.visualstudio.defaultfinalfolder
+				initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('vs2017')
 
@@ -627,6 +627,8 @@ class Solution(object):
 		if args.watcom is True:
 			initializationrecord = dict()
 			initializationrecord['platform'] = 'windows'
+			if args.finalfolder is True:
+				initializationrecord['finalfolder'] = makeprojects.watcom.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('watcom')
 
@@ -685,9 +687,9 @@ class Solution(object):
 		#
 
 		if directory == '.':
-			search_dir = self.workingDir
+			search_dir = self.working_dir
 		else:
-			search_dir = os.path.join(self.workingDir, directory)
+			search_dir = os.path.join(self.working_dir, directory)
 
 		#
 		# Is this a valid directory?
@@ -814,6 +816,25 @@ class Solution(object):
 		codefiles = sorted(codefiles, cmp=lambda x, y: cmp(x.filename, y.filename))
 		return codefiles, includedirectories
 
+	def __repr__(self):
+		"""
+		Convert the solultion record into a human readable description
+
+		Returns:
+			Human readable string or None if the solution is invalid
+		"""
+
+		return 'Working Directory: {}, Project Type: {}, Name: {}, IDE: {}, ' \
+			'Platform: {}, Verbose {}, Configurations {}, Final folder {}, ' \
+			'Exclude {}, Defines {}, Properties {}, Source Folders {}, Include Folders {}, ' \
+			'Codefiles {}, Projects {}'.format( \
+			self.working_dir, \
+			str(self.projecttype), self.projectname, str(self.ide), str(self.platform), str(self.verbose),
+			str(self.configurations), self.finalfolder, self.exclude, self.defines, str(self.properties),
+			self.sourcefolders, self.includefolders, str(self.codefiles), str(self.projects))
+
+	__str__ = __repr__
+
 #
 # Prune the file list for a specific type
 #
@@ -854,8 +875,8 @@ def dumptreevs2005(indent, string, entry, fp, groups):
 			else:
 				tabs = '\t'*indent
 			sortlist = sorted(groups[merged], cmp=lambda x, y: cmp(x, y))
-			for file in sortlist:
-				fp.write(tabs + '<File RelativePath="' + file + '" />\n')
+			for fileitem in sortlist:
+				fp.write(tabs + '<File RelativePath="' + fileitem + '" />\n')
 		key = entry[item]
 		# Recurse down the tree
 		if isinstance(key, dict):
@@ -885,7 +906,7 @@ def createvs2005solution(solution):
 	platformcode = solution.platform.getshortcode()
 	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS, \
 		str(solution.visualstudio.outputfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir, \
+	projectpathname = os.path.join(solution.working_dir, \
 		solution.visualstudio.outputfilename + '.vcproj')
 	burger.perforce_edit(projectpathname)
 	fp = open(projectpathname, 'w')
@@ -1150,7 +1171,7 @@ def createvs2008solution(solution):
 	platformcode = solution.platform.getshortcode()
 	solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS, \
 		str(solution.visualstudio.outputfilename))).upper()
-	projectpathname = os.path.join(solution.workingDir, \
+	projectpathname = os.path.join(solution.working_dir, \
 		solution.visualstudio.outputfilename + '.vcproj')
 	burger.perforce_edit(projectpathname)
 	fp = open(projectpathname, 'w')

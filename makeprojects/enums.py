@@ -672,8 +672,14 @@ class PlatformTypes(AutoIntEnum):
 	ouya = ()
 	## Generic Linux
 	linux = ()
+
 	## MSDOS
 	msdos = ()
+	## MSDOS Dos4GW
+	msdos4gw = ()
+	## MSDOS DosX32
+	msdosx32 = ()
+
 	## BeOS
 	beos = ()
 	## Apple IIgs
@@ -748,6 +754,16 @@ class PlatformTypes(AutoIntEnum):
 		return self == self.macos9 or self == self.macos968k or \
 			self == self.macos9ppc
 
+	def ismsdos(self):
+		"""
+		Determine if the platform is MSDos
+
+		Returns:
+			True if the platform is MSDos
+		"""
+		return self == self.msdos or self == self.msdos4gw or \
+			self == self.msdosx32
+
 	@staticmethod
 	def match(first, second):
 		"""
@@ -785,6 +801,27 @@ class PlatformTypes(AutoIntEnum):
 
 		return _PLATFORMTYPES_VS.get(self, [])
 
+	def getexpanded(self):
+		"""
+		Return a list of platforms from a platform that's a group
+		"""
+
+		if self == self.windows:
+			return [self.win32, self.win64]
+		if self == self.msdos:
+			return [self.msdosx32, self.msdos4gw]
+		if self == self.macosx:
+			return [self.macosxppc32, self.macosxppc64, self.macosxintel32, self.macosxintel64]
+		if self == self.macos9:
+			return [self.macos968k, self.macos9ppc]
+		if self == self.maccarbon:
+			return [self.maccarbon68k, self.maccarbonppc]
+		if self == self.ios:
+			return [self.ios32, self.ios64]
+		if self == self.iosemu:
+			return [self.iosemu32, self.iosemu64]
+		return [self]
+
 	def __repr__(self):
 		"""
 		Convert the enumeration into a human readable file description
@@ -809,8 +846,8 @@ class PlatformTypes(AutoIntEnum):
 
 _PLATFORMTYPES_CODES = {
 	PlatformTypes.windows: 'win',		# Windows targets
-	PlatformTypes.win32: 'winx86',
-	PlatformTypes.win64: 'winx64',
+	PlatformTypes.win32: 'w32',
+	PlatformTypes.win64: 'w64',
 	PlatformTypes.macosx: 'osx',		# Mac OSX targets
 	PlatformTypes.macosxppc32: 'osxp32',
 	PlatformTypes.macosxppc64: 'osxp64',
@@ -843,6 +880,8 @@ _PLATFORMTYPES_CODES = {
 	PlatformTypes.ouya: 'oya',
 	PlatformTypes.linux: 'lnx',			# Linux platforms
 	PlatformTypes.msdos: 'dos',			# MSDOS (Watcom or Codeblocks)
+	PlatformTypes.msdos4gw: 'dos4gw',
+	PlatformTypes.msdosx32: 'dosx32',
 	PlatformTypes.beos: 'bos',			# BeOS
 	PlatformTypes.iigs: '2gs'			# Apple IIgs
 }
@@ -913,7 +952,9 @@ _PLATFORMTYPES_READABLE = {
 	PlatformTypes.shield: 'nVidia Shield',
 	PlatformTypes.ouya: 'Ouya',
 	PlatformTypes.linux: 'Linux',					# Linux platforms
-	PlatformTypes.msdos: 'MSDos',					# MSDOS (Watcom or Codeblocks)
+	PlatformTypes.msdos: 'MSDos DOS4GW and X32',	# MSDOS (Watcom or Codeblocks)
+	PlatformTypes.msdos4gw: 'MSDos DOS4GW',
+	PlatformTypes.msdosx32: 'MSDos X32',
 	PlatformTypes.beos: 'BeOS',						# BeOS
 	PlatformTypes.iigs: 'Apple IIgs'				# Apple IIgs
 }

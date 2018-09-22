@@ -57,6 +57,7 @@ Root namespace for the makeprojects tool
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import os
 import burger
 
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, \
@@ -159,19 +160,21 @@ def clean(working_dir=None, args=None):
 ########################################
 
 
-def rebuild(working_dir=None):
+def rebuild(working_dir=None, args=None):
 	"""
 	Invoke the rebuildme command line from within Python
 
 	Args:
-		working_dir: Directory to process, ``None`` for current working directory
+		working_dir: Directory to rebuild
+		args: Command line to use instead of sys.argv
 	Returns:
-		Zero on success, system error code on failure
+		Zero on no error, non-zero on error
 	See:
-		makeprojects.rebuildme
+		makeprojects.rebuildme and makeprojects.rebuildme.main()
 	"""
+
 	from .rebuildme import main
-	return main(working_dir)
+	return main(working_dir, args)
 
 ########################################
 
@@ -187,7 +190,7 @@ class Property(object):
 
 	def __init__(self, configuration=None, platform=None, name=None, data=None):
 		# Sanity check
-		if configuration is None or \
+		if configuration is not None and \
 			not isinstance(configuration, ConfigurationTypes):
 			raise TypeError( \
 				"parameter 'configuration' must be of type ConfigurationTypes")
@@ -232,6 +235,20 @@ class Property(object):
 					if name is None or item.name == name:
 						result.append(item.data)
 		return result
+
+	def __repr__(self):
+		"""
+		Convert the property record into a human readable file description
+
+		Returns:
+			Human readable string or None if the record is invalid
+		"""
+
+		return 'Configuration: {}, Platform: {}, Name: {}, Data: {}'.format( \
+			str(self.configuration), \
+			str(self.platform), self.name, self.data)
+
+	__str__ = __repr__
 
 
 class SourceFile(object):
@@ -315,6 +332,35 @@ class SourceFile(object):
 			newname = newname[2:len(newname)]
 
 		return newname
+
+	def getabspath(self):
+		"""
+		Return the full pathname of the file entry
+
+		Returns:
+			Absolute pathname for the file
+		"""
+
+		if burger.get_windows_host_type():
+			filename = self.filename
+		else:
+			filename = burger.convert_to_linux_slashes(self.filename)
+		return os.path.abspath(os.path.join(self.directory, filename))
+
+	def __repr__(self):
+		"""
+		Convert the file record into a human readable file description
+
+		Returns:
+			Human readable string or None if the enumeration is invalid
+		See:
+			makeprojects.enums._PROJECTTYPES_READABLE
+		"""
+
+		return 'Type: {} Name: "{}"'.format(str(self.type), \
+			self.getabspath())
+
+	__str__ = __repr__
 
 ########################################
 
