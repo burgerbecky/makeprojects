@@ -491,6 +491,9 @@ class IDETypes(AutoIntEnum):
 	## nmake
 	nmake = ()
 
+	## make
+	make = ()
+
 	## bazel
 	bazel = ()
 
@@ -553,6 +556,7 @@ _IDETYPES_CODES = {
 	IDETypes.xcode9: 'xc9',
 	IDETypes.codeblocks: 'cdb',			# Codeblocks
 	IDETypes.nmake: 'nmk',				# nmake
+	IDETypes.make: 'mak',				# make
 	IDETypes.bazel: 'bzl'				# Bazel
 }
 
@@ -584,6 +588,7 @@ _IDETYPES_READABLE = {
 	IDETypes.xcode9: 'XCode 9',
 	IDETypes.codeblocks: 'CodeBlocks 13.12',
 	IDETypes.nmake: 'GNU make',
+	IDETypes.make: 'Linux make',
 	IDETypes.bazel: 'Bazel build'
 }
 

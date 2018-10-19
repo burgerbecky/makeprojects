@@ -88,6 +88,8 @@ def main(working_dir=None):
 		default=False, help='Build for Metrowerks / Freescale CodeWarrior')
 	parser.add_argument('-watcom', dest='watcom', action='store_true', \
 		default=False, help='Build for Watcom WMAKE')
+	parser.add_argument('-linux', dest='linux', action='store_true', \
+		default=False, help='Build for Linux make')
 	parser.add_argument('-ios', dest='ios', action='store_true', \
 		default=False, help='Build for iOS with XCode 5 or higher.')
 	parser.add_argument('-vita', dest='vita', action='store_true', \

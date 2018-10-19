@@ -117,7 +117,8 @@ __all__ = [
 	'watcom',
 	'codeblocks',
 	'codewarrior',
-	'xcode'
+	'xcode',
+	'makefile'
 ]
 
 ########################################

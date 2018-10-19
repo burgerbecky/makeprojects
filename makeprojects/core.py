@@ -22,6 +22,7 @@ import makeprojects.xcode
 import makeprojects.codewarrior
 import makeprojects.watcom
 import makeprojects.codeblocks
+import makeprojects.makefile
 from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
 	ConfigurationTypes, IDETypes, PlatformTypes, \
 	SourceFile, Property
@@ -424,6 +425,9 @@ class Solution(object):
 			elif item == 'watcom':
 				self.ide = IDETypes.watcom
 				error = makeprojects.watcom.generate(self, perforce=True)
+			elif item == 'makefile':
+				self.ide = IDETypes.make
+				error = makeprojects.makefile.generate(self, perforce=True)
 			else:
 				print('Saving ' + item + ' not implemented yet')
 				error = 0
@@ -631,6 +635,14 @@ class Solution(object):
 				initializationrecord['finalfolder'] = makeprojects.watcom.DEFAULT_FINAL_FOLDER
 			myjson.append(initializationrecord)
 			myjson.append('watcom')
+
+		if args.linux is True:
+			initializationrecord = dict()
+			initializationrecord['platform'] = 'linux'
+			if args.finalfolder is True:
+				initializationrecord['finalfolder'] = makeprojects.makefile.DEFAULT_FINAL_FOLDER
+			myjson.append(initializationrecord)
+			myjson.append('makefile')
 
 		#
 		# These are platform specific, and as such are

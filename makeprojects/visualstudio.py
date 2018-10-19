@@ -857,6 +857,11 @@ def generatesolutionfile(fp, solution, ide):
 		fp.write(u'\t\tHideSolutionNode = FALSE\n')
 		fp.write(u'\tEndGlobalSection\n')
 
+		if ide == IDETypes.vs2017:
+			fp.write(u'\tGlobalSection(ExtensibilityGlobals) = postSolution\n')
+			fp.write(u'\t\tSolutionGuid = {7DEC4DAA-9DC0-4A41-B9C7-01CC0179FDCB}\n')
+			fp.write(u'\tEndGlobalSection\n')
+
 	#
 	# Close it up!
 	#
@@ -1304,6 +1309,12 @@ class SolutionFile(object):
 			fp.write(u'\tGlobalSection(NestedProjects) = preSolution\n')
 			for item in self.nestedprojects:
 				item.writeGlobalSection(fp)
+			fp.write(u'\tEndGlobalSection\n')
+
+		# Added for 3rd party extensions after 2017 version 3
+		if self.fileversion == FileVersions.vs2017:
+			fp.write(u'\tGlobalSection(ExtensibilityGlobals) = postSolution\n')
+			fp.write(u'\t\tSolutionGuid = {7DEC4DAA-9DC0-4A41-B9C7-01CC0179FDCB}\n')
 			fp.write(u'\tEndGlobalSection\n')
 
 		#

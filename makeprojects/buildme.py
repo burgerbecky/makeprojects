@@ -254,7 +254,7 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
 	# Is Watcom installed?
 	watcom_path = burger.where_is_watcom(verbose=verbose)
 	if watcom_path is None:
-		return BuildError(10, full_pathname, \
+		return BuildError(0, full_pathname, \
 				msg=full_pathname + ' requires Watcom to be installed to build!')
 
 	# Watcom requires the path set up so it can access link files
@@ -302,6 +302,60 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
 
 	# Restore the path variable
 	os.environ['PATH'] = saved_path
+
+	# Return the error code
+	return results
+
+########################################
+
+
+def build_makefile(full_pathname, verbose=False, fatal=False):
+	"""
+	Build MakeFile
+
+	Args:
+		full_pathname: Pathname to the makefile
+		verbose: True for verbose output
+		fatal: If True, abort on the first failed build
+	Returns:
+		List of BuildError objects
+	"""
+
+	# Running under Linux?
+	if burger.host_machine() != 'linux':
+		return BuildError(0, full_pathname, \
+				msg=full_pathname + ' can only build on Linux!')
+
+	commands = []
+	# New format has an 'all' target
+	if full_pathname.lower().endswith('.mak'):
+		commands.append((['make', '-s', \
+			'-f', burger.encapsulate_path(full_pathname), 'all'], \
+			'all'))
+	else:
+		for target in DEFAULT_CONFIGURATION_LIST:
+			commands.append((['make', '-s', \
+				'-f', burger.encapsulate_path(full_pathname), \
+				target], target))
+
+	# Iterate over the commands
+	results = []
+	for cmd in commands:
+		if verbose:
+			print(' '.join(cmd[0]))
+		# Perform the command
+		try:
+			error_code = subprocess.call(cmd[0], cwd=os.path.dirname(full_pathname), \
+				shell=False)
+			msg = None
+		except OSError as error:
+			error_code = getattr(error, 'winerror', error.errno)
+			msg = str(error)
+			print(msg, file=sys.stderr)
+		results.append(BuildError(error_code, full_pathname, configuration=cmd[1], \
+			msg=msg))
+		if error_code and fatal:
+			break
 
 	# Return the error code
 	return results
@@ -948,8 +1002,10 @@ def addproject(projects, file_name):
 		priority = 45
 	elif base_name_lower.endswith('.mcp'):
 		projecttype = 'codewarrior'
-	elif base_name_lower == 'makefile' or base_name_lower.endswith('.wmk'):
+	elif base_name_lower.endswith('.wmk'):
 		projecttype = 'watcommakefile'
+	elif base_name_lower == 'makefile' or base_name_lower.endswith('.mak'):
+		projecttype = 'makefile'
 	elif base_name_lower.endswith('.xcodeproj'):
 		projecttype = 'xcode'
 	elif base_name_lower.endswith('.cbp'):
@@ -1164,6 +1220,11 @@ def main(working_dir=None, args=None):
 		# Is this a Watcom Makefile?
 		elif projecttype == 'watcommakefile':
 			berror = build_watcom_makefile(fullpathname, verbose=verbose, \
+				fatal=args.fatal)
+
+		# Is this a Linux Makefile?
+		elif projecttype == 'makefile':
+			berror = build_makefile(fullpathname, verbose=verbose, \
 				fatal=args.fatal)
 
 		# Visual studio solution files?
