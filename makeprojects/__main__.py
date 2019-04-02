@@ -36,190 +36,190 @@ from .core import Solution
 
 
 def main(working_dir=None):
-	"""
-	Main entry point when invoked as a tool
-	"""
+    """
+    Main entry point when invoked as a tool
+    """
 
-	if working_dir is None:
-		working_dir = os.getcwd()
+    if working_dir is None:
+        working_dir = os.getcwd()
 
-	#
-	# Create the parseable arguments
-	#
+    #
+    # Create the parseable arguments
+    #
 
-	parser = argparse.ArgumentParser(prog='makeprojects', \
-		description='Version ' + makeprojects.__version__ + \
-		'. ' + makeprojects.__copyright__ + '. ' \
-		'Given a .py input file, create project files for most of the popular IDEs.')
+    parser = argparse.ArgumentParser(prog='makeprojects', \
+        description='Version ' + makeprojects.__version__ + \
+        '. ' + makeprojects.__copyright__ + '. ' \
+        'Given a .py input file, create project files for most of the popular IDEs.')
 
-	parser.add_argument('-xcode3', dest='xcode3', action='store_true', \
-		default=False, help='Build for Xcode 3.')
-	parser.add_argument('-xcode4', dest='xcode4', action='store_true', \
-		default=False, help='Build for Xcode 4.')
-	parser.add_argument('-xcode5', dest='xcode5', action='store_true', \
-		default=False, help='Build for Xcode 5.')
-	parser.add_argument('-xcode6', dest='xcode6', action='store_true', \
-		default=False, help='Build for Xcode 6.')
-	parser.add_argument('-xcode7', dest='xcode7', action='store_true', \
-		default=False, help='Build for Xcode 7.')
-	parser.add_argument('-xcode8', dest='xcode8', action='store_true', \
-		default=False, help='Build for Xcode 8.')
-	parser.add_argument('-xcode9', dest='xcode9', action='store_true', \
-		default=False, help='Build for Xcode 9.')
+    parser.add_argument('-xcode3', dest='xcode3', action='store_true', \
+        default=False, help='Build for Xcode 3.')
+    parser.add_argument('-xcode4', dest='xcode4', action='store_true', \
+        default=False, help='Build for Xcode 4.')
+    parser.add_argument('-xcode5', dest='xcode5', action='store_true', \
+        default=False, help='Build for Xcode 5.')
+    parser.add_argument('-xcode6', dest='xcode6', action='store_true', \
+        default=False, help='Build for Xcode 6.')
+    parser.add_argument('-xcode7', dest='xcode7', action='store_true', \
+        default=False, help='Build for Xcode 7.')
+    parser.add_argument('-xcode8', dest='xcode8', action='store_true', \
+        default=False, help='Build for Xcode 8.')
+    parser.add_argument('-xcode9', dest='xcode9', action='store_true', \
+        default=False, help='Build for Xcode 9.')
 
-	parser.add_argument('-vs2005', dest='vs2005', action='store_true', \
-		default=False, help='Build for Visual Studio 2005.')
-	parser.add_argument('-vs2008', dest='vs2008', action='store_true', \
-		default=False, help='Build for Visual Studio 2008.')
-	parser.add_argument('-vs2010', dest='vs2010', action='store_true', \
-		default=False, help='Build for Visual Studio 2010.')
-	parser.add_argument('-vs2012', dest='vs2012', action='store_true', \
-		default=False, help='Build for Visual Studio 2012.')
-	parser.add_argument('-vs2013', dest='vs2013', action='store_true', \
-		default=False, help='Build for Visual Studio 2013.')
-	parser.add_argument('-vs2015', dest='vs2015', action='store_true', \
-		default=False, help='Build for Visual Studio 2015.')
-	parser.add_argument('-vs2017', dest='vs2017', action='store_true', \
-		default=False, help='Build for Visual Studio 2017.')
+    parser.add_argument('-vs2005', dest='vs2005', action='store_true', \
+        default=False, help='Build for Visual Studio 2005.')
+    parser.add_argument('-vs2008', dest='vs2008', action='store_true', \
+        default=False, help='Build for Visual Studio 2008.')
+    parser.add_argument('-vs2010', dest='vs2010', action='store_true', \
+        default=False, help='Build for Visual Studio 2010.')
+    parser.add_argument('-vs2012', dest='vs2012', action='store_true', \
+        default=False, help='Build for Visual Studio 2012.')
+    parser.add_argument('-vs2013', dest='vs2013', action='store_true', \
+        default=False, help='Build for Visual Studio 2013.')
+    parser.add_argument('-vs2015', dest='vs2015', action='store_true', \
+        default=False, help='Build for Visual Studio 2015.')
+    parser.add_argument('-vs2017', dest='vs2017', action='store_true', \
+        default=False, help='Build for Visual Studio 2017.')
 
-	parser.add_argument('-codeblocks', dest='codeblocks', action='store_true', \
-		default=False, help='Build for CodeBlocks 16.01')
-	parser.add_argument('-codewarrior', dest='codewarrior', action='store_true', \
-		default=False, help='Build for Metrowerks / Freescale CodeWarrior')
-	parser.add_argument('-watcom', dest='watcom', action='store_true', \
-		default=False, help='Build for Watcom WMAKE')
-	parser.add_argument('-linux', dest='linux', action='store_true', \
-		default=False, help='Build for Linux make')
-	parser.add_argument('-ios', dest='ios', action='store_true', \
-		default=False, help='Build for iOS with XCode 5 or higher.')
-	parser.add_argument('-vita', dest='vita', action='store_true', \
-		default=False, help='Build for PS Vita with Visual Studio 2010.')
-	parser.add_argument('-360', dest='xbox360', action='store_true', \
-		default=False, help='Build for XBox 360 with Visual Studio 2010.')
-	parser.add_argument('-wiiu', dest='wiiu', action='store_true', \
-		default=False, help='Build for WiiU with Visual Studio 2013.')
-	parser.add_argument('-dsi', dest='dsi', action='store_true', \
-		default=False, help='Build for Nintendo DSI with Visual Studio 2015.')
+    parser.add_argument('-codeblocks', dest='codeblocks', action='store_true', \
+        default=False, help='Build for CodeBlocks 16.01')
+    parser.add_argument('-codewarrior', dest='codewarrior', action='store_true', \
+        default=False, help='Build for Metrowerks / Freescale CodeWarrior')
+    parser.add_argument('-watcom', dest='watcom', action='store_true', \
+        default=False, help='Build for Watcom WMAKE')
+    parser.add_argument('-linux', dest='linux', action='store_true', \
+        default=False, help='Build for Linux make')
+    parser.add_argument('-ios', dest='ios', action='store_true', \
+        default=False, help='Build for iOS with XCode 5 or higher.')
+    parser.add_argument('-vita', dest='vita', action='store_true', \
+        default=False, help='Build for PS Vita with Visual Studio 2010.')
+    parser.add_argument('-360', dest='xbox360', action='store_true', \
+        default=False, help='Build for XBox 360 with Visual Studio 2010.')
+    parser.add_argument('-wiiu', dest='wiiu', action='store_true', \
+        default=False, help='Build for WiiU with Visual Studio 2013.')
+    parser.add_argument('-dsi', dest='dsi', action='store_true', \
+        default=False, help='Build for Nintendo DSI with Visual Studio 2015.')
 
-	parser.add_argument('-release', dest='release', action='store_true', \
-		default=False, \
-		help='Create a release target (Default is release/debug/internal)')
-	parser.add_argument('-debug', dest='debug', action='store_true', \
-		default=False, help='Create a debug target')
-	parser.add_argument('-internal', dest='internal', action='store_true', \
-		default=False, help='Create an internal target')
-	parser.add_argument('-finalfolder', dest='finalfolder', action='store_true', \
-		default=False, \
-		help='Add a script to copy a release build to a ' \
-			'folder and check in with Perforce')
-	parser.add_argument('-app', dest='app', action='store_true', \
-		default=False, help='Build an application instead of a tool')
-	parser.add_argument('-lib', dest='library', action='store_true', \
-		default=False, help='Build a library instead of a tool')
+    parser.add_argument('-release', dest='release', action='store_true', \
+        default=False, \
+        help='Create a release target (Default is release/debug/internal)')
+    parser.add_argument('-debug', dest='debug', action='store_true', \
+        default=False, help='Create a debug target')
+    parser.add_argument('-internal', dest='internal', action='store_true', \
+        default=False, help='Create an internal target')
+    parser.add_argument('-finalfolder', dest='finalfolder', action='store_true', \
+        default=False, \
+        help='Add a script to copy a release build to a ' \
+            'folder and check in with Perforce')
+    parser.add_argument('-app', dest='app', action='store_true', \
+        default=False, help='Build an application instead of a tool')
+    parser.add_argument('-lib', dest='library', action='store_true', \
+        default=False, help='Build a library instead of a tool')
 
-	parser.add_argument('-f', dest='jsonfiles', \
-		action='append', help='Input file to process')
-	parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
-		default=False, help='Verbose output.')
-	parser.add_argument('-default', dest='default', action='store_true', \
-		default=False, help='Create a default projects.py file')
+    parser.add_argument('-f', dest='jsonfiles', \
+        action='append', help='Input file to process')
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
+        default=False, help='Verbose output.')
+    parser.add_argument('-default', dest='default', action='store_true', \
+        default=False, help='Create a default projects.py file')
 
-	parser.add_argument('args', nargs=argparse.REMAINDER, \
-		help='project filenames')
+    parser.add_argument('args', nargs=argparse.REMAINDER, \
+        help='project filenames')
 
-	#
-	# Parse the command line
-	#
-	args = parser.parse_args()
+    #
+    # Parse the command line
+    #
+    args = parser.parse_args()
 
-	#
-	# Shall a default file be generated?
-	#
+    #
+    # Shall a default file be generated?
+    #
 
-	if args.default is True:
-		from .config import savedefault
-		savedefault(working_dir)
-		return 0
+    if args.default is True:
+        from .config import savedefault
+        savedefault(working_dir)
+        return 0
 
-	#
-	# Process defaults first
-	#
+    #
+    # Process defaults first
+    #
 
-	solution = Solution()
-	solution.verbose = args.verbose
-	solution.workingDir = working_dir
+    solution = Solution()
+    solution.verbose = args.verbose
+    solution.workingDir = working_dir
 
-	#
-	# No input file?
-	#
+    #
+    # No input file?
+    #
 
-	if args.jsonfiles is None:
-		if args.args:
-			args.jsonfiles = args.args
-		else:
-			projectpathname = os.path.join(working_dir, 'projects.json')
-			if os.path.isfile(projectpathname) is True:
-				args.jsonfiles = ['projects.json']
-			else:
-				return solution.processcommandline(args)
+    if args.jsonfiles is None:
+        if args.args:
+            args.jsonfiles = args.args
+        else:
+            projectpathname = os.path.join(working_dir, 'projects.json')
+            if os.path.isfile(projectpathname) is True:
+                args.jsonfiles = ['projects.json']
+            else:
+                return solution.processcommandline(args)
 
-	#
-	# Read in the json file
-	#
+    #
+    # Read in the json file
+    #
 
-	for jsonarg in args.jsonfiles:
-		projectpathname = os.path.join(working_dir, jsonarg)
-		if not os.path.isfile(projectpathname):
-			print(jsonarg + ' was not found')
-			return 2
+    for jsonarg in args.jsonfiles:
+        projectpathname = os.path.join(working_dir, jsonarg)
+        if not os.path.isfile(projectpathname):
+            print(jsonarg + ' was not found')
+            return 2
 
-		#
-		# To allow '#' and '//' comments, the file has to be pre-processed
-		#
+        #
+        # To allow '#' and '//' comments, the file has to be pre-processed
+        #
 
-		fileref = open(projectpathname, 'r')
-		jsonlines = fileref.readlines()
-		fileref.close()
+        fileref = open(projectpathname, 'r')
+        jsonlines = fileref.readlines()
+        fileref.close()
 
-		#
-		# Remove all lines that have a leading '#' or '//'
-		#
+        #
+        # Remove all lines that have a leading '#' or '//'
+        #
 
-		pure = ''
-		for item in jsonlines:
-			cleanitem = item.lstrip()
-			if cleanitem.startswith('#') or cleanitem.startswith('//'):
-				# Insert an empty line so that line numbers still match on error
-				pure = pure + '\n'
-			else:
-				pure = pure + item
+        pure = ''
+        for item in jsonlines:
+            cleanitem = item.lstrip()
+            if cleanitem.startswith('#') or cleanitem.startswith('//'):
+                # Insert an empty line so that line numbers still match on error
+                pure = pure + '\n'
+            else:
+                pure = pure + item
 
-		#
-		# Parse the json file (Handle errors)
-		#
+        #
+        # Parse the json file (Handle errors)
+        #
 
-		try:
-			myjson = json.loads(pure)
-		except (ValueError, TypeError) as error:
-			print('{} in parsing {}'.format(error, projectpathname))
-			return 2
+        try:
+            myjson = json.loads(pure)
+        except (ValueError, TypeError) as error:
+            print('{} in parsing {}'.format(error, projectpathname))
+            return 2
 
-		#
-		# Process the list of commands
-		#
+        #
+        # Process the list of commands
+        #
 
-		if isinstance(myjson, list):
-			error = solution.process(myjson)
-		else:
-			print('Invalid json input file!')
-			error = 2
-		if error != 0:
-			break
+        if isinstance(myjson, list):
+            error = solution.process(myjson)
+        else:
+            print('Invalid json input file!')
+            error = 2
+        if error != 0:
+            break
 
-	return error
+    return error
 
 # If invoked as a tool, call the main with the current working directory
 
 
 if __name__ == '__main__':
-	sys.exit(main(os.getcwd()))
+    sys.exit(main(os.getcwd()))
