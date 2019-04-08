@@ -1,45 +1,155 @@
 # https://travis-ci.org/burgerbecky/makeprojects
-sudo: false
-language: python
-cache: pip
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
-  - "3.6"
-  - "pypy"
-  - "pypy3"
-  - "3.7-dev"
+# Docs for Travis https://docs.travis-ci.com/
 
-# Log these
+# Python testing
+language: python
+
+# Cache the python pip and environment folders
+cache:
+  directories:
+  - "$HOME/.cache/pip"
+  - "$HOME/.pyenv"
+
+# Only track the master branch, don't process pull requests
+branches:
+  only:
+    - master
+
+# Allow apt-update
+addons:
+  apt:
+    update: true
+
+# Test on Linux and MacOS versions of Python
+# Windows is tested at Olde Skuul
+
+matrix:
+  include:
+  # Windows builds (Not supported for python on 3/19/2019)
+  #- os: windows
+  #  dist: 1803-containers
+  #  python: '2.7'
+  #  env: TOXENV=py27
+
+  # Linux builds
+  # Linux versions
+  # precise = 12.04
+  # trusty = 14.04
+  # xenial = 16.04
+  # bionic = 18.04
+  - os: linux
+    dist: xenial
+    sudo: false
+    python: '2.7'
+    env: TOXENV=py27
+
+  - os: linux
+    dist: xenial
+    sudo: false
+    python: '3.4'
+    env: TOXENV=py34
+
+  - os: linux
+    dist: xenial
+    sudo: false
+    python: '3.5'
+    env: TOXENV=py35
+
+  - os: linux
+    dist: xenial
+    sudo: false
+    python: '3.6'
+    env: TOXENV=py36
+
+  - os: linux
+    dist: xenial
+    sudo: false
+    python: '3.7-dev'
+    env: TOXENV=py37
+
+  - os: linux
+    dist: trusty
+    sudo: false
+    python: 'pypy'
+    env: TOXENV=pypy
+
+  - os: linux
+    dist: trusty
+    sudo: false
+    python: 'pypy3'
+    env: TOXENV=pypy3
+
+  - os: linux
+    dist: trusty
+    sudo: false
+    python: 'pypy-5.4'
+    env: TOXENV=pypy
+
+  # macOS builds
+  - os: osx
+    language: objective-c
+    env:
+      - TOXENV=py27 
+      - PYENV_VERSION=2.7.15
+  - os: osx
+    language: objective-c
+    env: 
+      - TOXENV=py34
+      - PYENV_VERSION=3.4.8
+  - os: osx
+    language: objective-c
+    env: 
+      - TOXENV=py35
+      - PYENV_VERSION=3.5.5
+  - os: osx
+    language: objective-c
+    env: 
+      - TOXENV=py36
+      - PYENV_VERSION=3.6.5
+  - os: osx
+    language: objective-c
+    env: 
+      - TOXENV=py37
+      - PYENV_VERSION=3.7-dev
+
+# Before installing python packages, make sure python is present
 before_install:
+  # macOS needs some pyenv love.
+  - pyenv versions
+  - pyenv install --list
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then eval "$(pyenv init -)"; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then pyenv install -s $PYENV_VERSION; fi
   - python --version
   - uname -a
-  - pyenv versions
-  - readlink -f `which python`
   - echo $PATH
-  - ls $(dirname $(readlink -f `which python`))
+  # Debug spew for linux
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then lsb_release -a; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then readlink -f `which python`; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then ls $(dirname $(readlink -f `which python`)); fi
   
-# Install tox-travis for seamless tox integration
+# Install python packages needed for this test and get versions for log
 install:
+  - pip install .
   - pip install tox-travis wheel codecov coverage
   - virtualenv --version
   - easy_install --version
   - pip --version
   - tox --version
 
+# Tox does all the work
 script:
   - tox
 
+# Output the errors, if any
 after_failure:
   - more temp/tox/log/* | cat
   - more temp/tox/*/log/* | cat
 
+# Send a pass/fail to us
 notifications:
+  slack:
+    on_success: always
+    on_failure: always
   email:
     on_success: change
     on_failure: always
-
-addons:
-  apt:
-    update: true
