@@ -8,10 +8,17 @@ Describe how to handle building this folder
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+import re
 import burger
 
 ## Top-most build_rules.py
 ROOT = True
+
+## Match *.cbp
+_CODEBLOCKS_MATCH = re.compile('.*\\.cbp\\Z(?ms)')
+
+## Match *.py
+_PYTHON_MATCH = re.compile('.*\\.py\\Z(?ms)')
 
 
 def clean_rules(working_directory):
@@ -45,10 +52,7 @@ def clean_rules(working_directory):
         burger.delete_file(os.path.expandvars(
             "${LOCALAPPDATA}\\Metrowerks\\default.cww"))
 
-    # Allow purging user data in XCode projects
-    # clean_dict['purge_xcode'] = True
-
-    # Add other files if Doxygen was found using this directory
+    # If Doxygen was found using this directory, clean up
     if os.path.isfile(os.path.join(working_directory, 'Doxyfile')):
         burger.clean_files(
             working_directory,
@@ -62,20 +66,33 @@ def clean_rules(working_directory):
     # codeblocks extra files
     list_dir = os.listdir(working_directory)
     for item in list_dir:
-        if item.lower().endswith('.cbp'):
+        if _CODEBLOCKS_MATCH.match(item):
             file_name = os.path.join(working_directory, item)
             if os.path.isfile(file_name):
                 burger.clean_files(working_directory, ('*.depend', '*.layout'))
                 break
 
+    # Allow purging user data in XCode projects
+    for item in list_dir:
+        if item.endswith('.xcodeproj'):
+            file_name = os.path.join(working_directory, item)
+            if os.path.isdir(file_name):
+                burger.clean_files(file_name, ('*.mode1v3', '*.pbxuser'))
+                burger.clean_directories(file_name, ('xcuserdata', 'project.xcworkspace'))
+
     # Purge python folders
     for item in list_dir:
-        if item.lower().endswith('.py'):
+        if _PYTHON_MATCH.match(item):
             file_name = os.path.join(working_directory, item)
             if os.path.isfile(file_name):
                 burger.clean_directories(working_directory, ('dist', 'build', '_build',
                                                              '.tox', '.pytestcache', '*.egg-info'))
                 break
+
+    # Return error code or zero if no errors
+    return 0
+
+
 
 
 # Files to build
