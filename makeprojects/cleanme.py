@@ -77,17 +77,17 @@ class CleanFileLists(object):
 
         # Convert directory names to regex.match
         if config.has_option(section, 'directories'):
-            self.directory_list.extend(burger.translate_to_regex_match( \
+            self.directory_list.extend(burger.translate_to_regex_match(
                 burger.parse_csv(config.get(section, 'directories'))))
 
         # Convert file names to regex.match
         if config.has_option(section, 'files'):
-            self.file_list.extend(burger.translate_to_regex_match( \
+            self.file_list.extend(burger.translate_to_regex_match(
                 burger.parse_csv(config.get(section, 'files'))))
 
         # Handle the global file names
         if config.has_option(section, 'global_files'):
-            self.global_file_list.extend(burger.parse_csv( \
+            self.global_file_list.extend(burger.parse_csv(
                 config.get(section, 'global_files')))
 
 ########################################
@@ -303,14 +303,14 @@ class Clean(object):
 
         # Initial message
         if first and verbose:
-            print('Cleaning {}{}...'.format(working_dir, \
-                ' recursively' if recursive else ''))
+            print('Cleaning {}{}...'.format(working_dir,
+                                            ' recursively' if recursive else ''))
 
         objectsremoved = 0
         # Only process global files once
         if first:
-            objectsremoved = remove_global_files(working_dir, \
-                self.root.global_file_list, verbose=verbose)
+            objectsremoved = remove_global_files(working_dir,
+                                                 self.root.global_file_list, verbose=verbose)
 
         # Scan the directory for specific files to determine behavior
         # Detect python, codeblocks, doxygen and handle the xcode prefs
@@ -349,8 +349,8 @@ class Clean(object):
                 if os.path.isdir(file_name):
 
                     # Remove a user's pref files
-                    objectsremoved += remove_by_file_extension(file_name, \
-                        ('.mode1v3', '.pbxuser'), verbose)
+                    objectsremoved += remove_by_file_extension(file_name,
+                                                               ('.mode1v3', '.pbxuser'), verbose)
 
                     # Remove special folders, if found inside the xcode folder
                     for item in ('xcuserdata', 'project.xcworkspace'):
@@ -429,22 +429,22 @@ def main(working_dir=None, args=None):
         working_dir = os.getcwd()
 
     # Parse the command line
-    parser = argparse.ArgumentParser( \
-        description='Remove project output files. ' \
+    parser = argparse.ArgumentParser(
+        description='Remove project output files. '
         'Copyright by Rebecca Ann Heineman',
         add_help=True)
 
-    parser.add_argument('--version', action='version', \
-        version='%(prog)s ' + VERSION)
-    parser.add_argument('-r', '-all', dest='recursive', action='store_true', \
-        default=False, help='Perform a recursive clean')
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
-        default=False, help='Verbose output.')
-    parser.add_argument('--generate-rcfile', dest='generate_rc', \
-        action='store_true', default=False, \
-        help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rcfile', dest='rcfile', \
-        metavar='<file>', default=None, help='Specify a configuration file.')
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + VERSION)
+    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
+                        default=False, help='Perform a recursive clean')
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
+                        default=False, help='Verbose output.')
+    parser.add_argument('--generate-rcfile', dest='generate_rc',
+                        action='store_true', default=False,
+                        help='Generate a sample configuration file and exit.')
+    parser.add_argument('--rcfile', dest='rcfile',
+                        metavar='<file>', default=None, help='Specify a configuration file.')
 
     # Parse everything
     args = parser.parse_args(args=args)
@@ -466,8 +466,8 @@ def main(working_dir=None, args=None):
     # Load in the configuration
     cleaner.load_config(config=config)
     # Remove the data
-    objectsremoved = cleaner.process(working_dir, verbose=verbose, \
-        recursive=args.recursive)
+    objectsremoved = cleaner.process(working_dir, verbose=verbose,
+                                     recursive=args.recursive)
 
     # Wrap up!
     if verbose:

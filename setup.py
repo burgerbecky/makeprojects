@@ -60,7 +60,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
     'setuptools >= 17.1',
     'enum34 >= 1.0.0',
-    'burger >= 1.1.15',
+    'burger >= 1.1.16',
     'argparse >= 1.0',
     'glob2 >= 0.6'
 ]
@@ -130,29 +130,27 @@ SETUP_ARGS = dict(
 
 ########################################
 
+CLEAN_DIR_LIST = [
+    PROJECT_NAME + '.egg-info',
+    PROJECT_NAME + '-' + PROJECT_MODULE.__version__,
+    'dist',
+    'build',
+    'temp',
+    '.pytest_cache',
+    '.tox',
+    '.vscode'
+]
 
-def cleanpycfiles(working_dir):
-    """
-    Delete all *.pyc and *.pyo files (Recursively)
-    """
+CLEAN_DIR_RECURSE_LIST = [
+    'temp',
+    '__pycache__',
+    '_build'
+]
 
-    for item in os.listdir(working_dir):
-        file_name = os.path.join(working_dir, item)
-
-        # Is it a file?
-        if os.path.isfile(file_name):
-
-            # Only dispose of the pyo and pyc files
-            if item.endswith('.pyc') or item.endswith('.pyo'):
-                os.remove(file_name)
-
-        # A directory?
-        elif os.path.isdir(file_name):
-
-            # Recurse
-            cleanpycfiles(file_name)
-
-########################################
+CLEAN_EXTENSION_LIST = [
+    '*.pyc',
+    '*.pyo'
+]
 
 
 def clean(working_dir):
@@ -163,44 +161,24 @@ def clean(working_dir):
     temp files
     """
 
-    #
-    # Specific folders to wipe
-    #
-
-    # pylint: disable=C0330
-    dirlist = [
-        PROJECT_NAME + '.egg-info',
-        PROJECT_NAME + '-' + PROJECT_MODULE.__version__,
-        'dist',
-        'build',
-        'temp',
-        '_build',
-        '__pycache__',
-        '.pytest_cache',
-        '.tox']
-
-    # Delete all specific folders, including read only files
-
+    # Delete all folders, including read only files
     import burger
-    for item in dirlist:
+    for item in CLEAN_DIR_LIST:
         burger.delete_directory(os.path.join(working_dir, item))
 
-    #
-    # Delete all versioned folders
-    #
-
-    for item in os.listdir(working_dir):
-        if item.startswith(PROJECT_NAME + '-'):
-            burger.delete_directory(os.path.join(working_dir, item))
+    burger.clean_directories(working_dir, CLEAN_DIR_RECURSE_LIST, recursive=True)
 
     #
-    # Delete all *.pyc and *.pyo files (Recursively
+    # Delete all *.pyc and *.pyo files
     #
 
-    cleanpycfiles(working_dir)
+    burger.clean_files(working_dir, name_list=CLEAN_EXTENSION_LIST, recursive=True)
 
 
 def myunlock(working_dir, recursive):
+    """
+    Unlock files locked by Perforce
+    """
     result = []
     try:
         import burger
@@ -211,6 +189,9 @@ def myunlock(working_dir, recursive):
 
 
 def mylock(lock_list):
+    """
+    Restore the perforce locks
+    """
     try:
         import burger
         burger.lock_files(lock_list)

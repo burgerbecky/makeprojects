@@ -492,47 +492,14 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         return BuildError(10, full_pathname, msg=full_pathname + ' is corrupt!')
 
     # Locate the proper version of Visual Studio for this .sln file
-    vstudioenv = None
-    if vs_version == 2003:
-        # Is Visual studio 2003 installed?
-        vstudioenv = 'VS71COMNTOOLS'
-    elif vs_version == 2005:
-        # Is Visual studio 2005 installed?
-        vstudioenv = 'VS80COMNTOOLS'
-    elif vs_version == 2008:
-        # Is Visual studio 2008 installed?
-        vstudioenv = 'VS90COMNTOOLS'
-    elif vs_version == 2010:
-        # Is Visual studio 2010 installed?
-        vstudioenv = 'VS100COMNTOOLS'
-    elif vs_version == 2012:
-        # Is Visual studio 2012 installed?
-        vstudioenv = 'VS110COMNTOOLS'
-    elif vs_version == 2013:
-        # Is Visual studio 2013 installed?
-        vstudioenv = 'VS120COMNTOOLS'
-    elif vs_version == 2015:
-        # Is Visual studio 2015 installed?
-        vstudioenv = 'VS140COMNTOOLS'
-    elif vs_version == 2017:
-        # Is Visual studio 2017 installed?
-        vstudioenv = 'VS150COMNTOOLS'
-    else:
-        msg = '{} requires Visual Studio version {} which is unsupported!'.format(
-            full_pathname, vs_version)
-        print(msg, file=sys.stderr)
-        return BuildError(0, full_pathname, msg=msg)
+    vstudiopath = burger.where_is_visual_studio(vs_version)
 
     # Is Visual studio installed?
-    vstudiopath = os.getenv(vstudioenv, default=None)
     if vstudiopath is None:
         msg = '{} requires Visual Studio version {} to be installed ' \
             'to build!'.format(full_pathname, vs_version)
         print(msg, file=sys.stderr)
         return BuildError(0, full_pathname, msg=msg)
-
-    # Locate the launcher
-    vstudiopath = os.path.abspath(vstudiopath + r'\..\ide\devenv.com')
 
     # Build each and every target
     xboxfail = False

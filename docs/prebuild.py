@@ -41,6 +41,7 @@ def main(working_dir):
 
         # Load pandoc if needed to do the conversion
         if hasattr(pypandoc, 'ensure_pandoc_installed'):
+            # pylint: disable=E1101
             pypandoc.ensure_pandoc_installed(quiet=True, delete_installer=True)
         else:
             try:

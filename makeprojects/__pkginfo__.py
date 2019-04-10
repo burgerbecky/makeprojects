@@ -12,7 +12,7 @@ Package that contains version specific information for makeprojects
 from __future__ import unicode_literals
 
 ## Numeric version
-NUMVERSION = (0, 9, 0)
+NUMVERSION = (0, 9, 1)
 
 ## String version
 VERSION = '.'.join([str(num) for num in NUMVERSION])
@@ -36,4 +36,4 @@ EMAIL = 'becky@burgerbecky.com'
 LICENSE = 'MIT License'
 
 ## Copyright owner
-COPYRIGHT = 'Copyright 2013-2018 Rebecca Ann Heineman'
+COPYRIGHT = 'Copyright 2013-2019 Rebecca Ann Heineman'
