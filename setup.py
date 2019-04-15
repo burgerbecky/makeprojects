@@ -8,7 +8,7 @@ setup.py clean
 setup.py build sdist bdist_wheel upload
 setup.py flake8
 
-Copyright 2013-2018 by Rebecca Ann Heineman becky@burgerbecky.com
+Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
@@ -60,7 +60,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
     'setuptools >= 17.1',
     'enum34 >= 1.0.0',
-    'burger >= 1.1.16',
+    'burger >= 1.1.17',
     'argparse >= 1.0',
     'glob2 >= 0.6'
 ]

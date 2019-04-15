@@ -10,7 +10,7 @@
 # Version 5.9 is Freescale Codewarrior for Nintendo
 #
 
-# Copyright 2018 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2019 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
