@@ -16,7 +16,7 @@ import subprocess
 import struct
 from operator import itemgetter
 import burger
-
+from .config import import_configuration
 from .__pkginfo__ import VERSION
 
 ## List of watcom platforms to build
@@ -864,8 +864,8 @@ def buildxcode(file_name, verbose, ignoreerrors):
 
     # Is this version of XCode installed?
     if os.path.isfile(xcodebuild) is not True:
-        print('Can\'t build ' + file_name
-              + ', the proper version of XCode is not installed')
+        print('Can\'t build ' + file_name +
+              ', the proper version of XCode is not installed')
         return BuildError(0, file_name, msg='Proper version of XCode not found')
 
     # Build each and every target
@@ -1073,10 +1073,10 @@ def main(working_dir=None, args=None):
                         default=False, help='Perform a recursive build')
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
                         default=False, help='Verbose output.')
-    parser.add_argument('--generate-rcfile', dest='generate_rc',
+    parser.add_argument('--generate-rules', dest='generate_build_rules',
                         action='store_true', default=False,
                         help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rcfile', dest='rcfile',
+    parser.add_argument('--rules-file', dest='rules_file',
                         metavar='<file>', default=None, help='Specify a configuration file.')
 
     parser.add_argument('-f', dest='fatal', action='store_true',
@@ -1092,33 +1092,31 @@ def main(working_dir=None, args=None):
     args = parser.parse_args(args=args)
 
     # Output default configuration
-    if args.generate_rc:
+    if args.generate_build_rules:
         from .config import savedefault
         savedefault(working_dir)
         return 0
 
     verbose = args.verbose
 
-    #
-    # List of files to build
-    #
+    # Load the configuration file
+    build_rules = import_configuration(file_name=args.rules_file, verbose=verbose)
+    if build_rules is None:
+        if verbose:
+            print('build_rules.py was corrupt.')
+        return 1
 
+    # List of files to build
     projects = []
 
-    #
     # Get the list of directories to process
-    #
-
     directories = args.directories
     if not directories:
         # Use the current working directory instead
         directories = [working_dir]
         if not args.recursive:
 
-            #
             # If any filenames were passed, add them to the possible projects list
-            #
-
             if args.args:
                 for file_name in args.args:
                     projectname = os.path.join(working_dir, file_name)
@@ -1126,10 +1124,7 @@ def main(working_dir=None, args=None):
                         print('Error: ' + projectname + ' is not a known project file')
                         return 10
 
-    #
     # Create the list of projects that need to be built
-    #
-
     if not projects:
         for my_dir_name in directories:
             if not args.recursive:
@@ -1137,27 +1132,25 @@ def main(working_dir=None, args=None):
             else:
                 recursivegetprojects(projects, my_dir_name)
 
-    #
-    # If the list is empty, just exit now
-    #
+    if hasattr(build_rules, 'prebuild'):
+        projects.append(([build_rules, 'prebuild'], 'python', 1))
+    if hasattr(build_rules, 'custom_build'):
+        projects.append(([build_rules, 'custom_build'], 'python', 40))
+    if hasattr(build_rules, 'post_build'):
+        projects.append(([build_rules, 'post_build'], 'python', 99))
 
+    # If the list is empty, just exit now
     if not projects:
         print('Nothing to build')
         return 0
 
-    #
     # Sort the list by priority (The third parameter is priority from 1-99
-    #
     projects = sorted(projects, key=itemgetter(2))
 
-    #
     # Let's process each and every file
-    #
 
-    #
     # args.documentation exists because building Doxygen files
     # are very time consuming
-    #
 
     results = []
     for project in projects:
@@ -1167,10 +1160,15 @@ def main(working_dir=None, args=None):
 
         # Is it a python script?
         if projecttype == 'python':
-            if verbose:
-                print('Invoking ' + fullpathname)
-            error = burger.run_py_script(fullpathname, 'main',
-                                         os.path.dirname(fullpathname))
+            if burger.is_string(fullpathname):
+                if verbose:
+                    print('Invoking ' + fullpathname)
+                error = burger.run_py_script(fullpathname, 'main', os.path.dirname(fullpathname))
+            else:
+                if verbose:
+                    print('Calling ' + fullpathname[1] + ' in ' + fullpathname[0].__file__)
+                error = getattr(fullpathname[0], fullpathname[1])()
+                fullpathname = fullpathname[0].__file__
             berror = BuildError(error, fullpathname)
 
         # Is it a slicer script?

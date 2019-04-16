@@ -7,7 +7,7 @@ Describe how to handle building this folder
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import burger
+# import burger
 
 ## Top-most build_rules.py
 ROOT = True
