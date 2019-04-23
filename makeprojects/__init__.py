@@ -38,6 +38,12 @@ Root namespace for the makeprojects tool
 # \li \ref makeprojects.codeblocks
 # \li \ref makeprojects.watcom
 #
+# \par List of tool modules
+#
+# \li \ref makeprojects.buildme
+# \li \ref makeprojects.cleanme
+# \li \ref makeprojects.rebuildme
+#
 # To use in your own script:
 #
 # \code

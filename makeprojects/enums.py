@@ -459,6 +459,8 @@ class IDETypes(AutoIntEnum):
     vs2015 = ()
     ## Visual studio 2017
     vs2017 = ()
+    ## Visual studio 2019
+    vs2019 = ()
 
     ## Open Watcom 1.9 or later
     watcom = ()
@@ -543,6 +545,7 @@ _IDETYPES_CODES = {
     IDETypes.vs2013: 'v13',
     IDETypes.vs2015: 'v15',
     IDETypes.vs2017: 'v17',
+    IDETypes.vs2019: 'v19',
     IDETypes.watcom: 'wat',                # Watcom MAKEFILE
     IDETypes.codewarrior50: 'c50',        # Metrowerks / Freescale CodeWarrior
     IDETypes.codewarrior58: 'c58',
@@ -575,6 +578,7 @@ _IDETYPES_READABLE = {
     IDETypes.vs2013: 'Visual Studio 2013',
     IDETypes.vs2015: 'Visual Studio 2015',
     IDETypes.vs2017: 'Visual Studio 2017',
+    IDETypes.vs2019: 'Visual Studio 2019',
     IDETypes.watcom: 'Open Watcom 1.9 wmake',
     IDETypes.codewarrior50: 'CodeWarrior 9',
     IDETypes.codewarrior58: 'CodeWarrior 10',

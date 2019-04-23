@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 
 """
-Rebuild a project
+Rebuild a project.
 
-Package that handles the command line program 'rebuildme'.
+Package that handles the command line program ``rebuildme``.
+
+The command ``rebuildme`` calls ``cleanme`` and then ``buildme`` in that order.
 
 See:
-    main()
+    main(), makeprojects.buildme, makeprojects.cleanme
 """
 
 ## \package makeprojects.rebuildme
@@ -26,24 +28,24 @@ from .__pkginfo__ import VERSION
 
 def main(working_dir=None, args=None):
     """
-    Invoke the command line 'rebuildme'
+    Invoke the command line ``rebuildme``.
 
-    Entry point for the program 'rebuildme', this function
-    will either get the parameters from sys.argv or the paramater 'args'.
+    Entry point for the program ``rebuildme``, this function
+    will either get the parameters from ``sys.argv`` or the paramater ``args``.
 
-    - '--version', show version
-    - '-r', Perform a recursive rebuild
-    - '-v', Verbose output
-    - '--generate-rcfile', Create .projectsrc in the working directory
-    - '--rcfile', Override the configruration file
-    - '-f', Stop building on the first build failure
-    - '-d', Directory to build
-    - '-docs', Build documentation
-    - Additional terms are considered specific files to build
+    - ``--version``, show version.
+    - ``-r``, Perform a recursive rebuild.
+    - ``-v``, Verbose output.
+    - ``--generate-rules``, Create build_rules.py in the working directory and exit.
+    - ``--rules-file``, Override the configruration file.
+    - ``-f``, Stop building on the first build failure.
+    - ``-d``, List of directories to rebuild.
+    - ``-docs``, Compile Doxyfile files.
+    - Additional terms are considered specific files to build.
 
     Args:
-        working_dir: Directory to rebuild
-        args: Command line to use instead of sys.argv
+        working_dir: Directory to rebuild, or ``None`` for ``os.getcwd()``
+        args: Command line to use instead of ``sys.argv``
     Returns:
         Zero on no error, non-zero on error
     """
@@ -53,37 +55,38 @@ def main(working_dir=None, args=None):
         working_dir = os.getcwd()
 
     # Parse the command line
-    parser = argparse.ArgumentParser( \
-        description='Rebuild project files. Copyright by Rebecca Ann Heineman. ' \
-        'Invokes cleanme and then buildme')
+    parser = argparse.ArgumentParser(
+        description='Rebuild project files. Copyright by Rebecca Ann Heineman. '
+        'Invokes cleanme and then buildme.')
 
-    parser.add_argument('--version', action='version', \
-        version='%(prog)s ' + VERSION)
-    parser.add_argument('-r', '-all', dest='recursive', action='store_true', \
-        default=False, help='Perform a recursive rebuild')
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true', \
-        default=False, help='Verbose output.')
-    parser.add_argument('--generate-rcfile', dest='generate_rc', \
-        action='store_true', default=False, \
-        help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rcfile', dest='rcfile', \
-        metavar='<file>', default=None, help='Specify a configuration file.')
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + VERSION)
+    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
+                        default=False, help='Perform a recursive rebuild')
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
+                        default=False, help='Verbose output.')
+    parser.add_argument('--generate-rules', dest='generate_build_rules',
+                        action='store_true', default=False,
+                        help='Generate a sample configuration file and exit.')
+    parser.add_argument('--rules-file', dest='rules_file',
+                        metavar='<file>', default=None, help='Specify a configuration file.')
 
-    parser.add_argument('-f', dest='fatal', action='store_true', \
-        default=False, help='Quit immediately on any error.')
-    parser.add_argument('-d', dest='directories', action='append', \
-        help='List of directories to build in.')
-    parser.add_argument('-docs', dest='documentation', action='store_true', \
-        default=False, help='Compile Doxyfile files.')
-    parser.add_argument('args', nargs=argparse.REMAINDER, \
-        help='project filenames')
+    parser.add_argument('-f', dest='fatal', action='store_true',
+                        default=False, help='Quit immediately on any error.')
+    parser.add_argument('-d', dest='directories', action='append',
+                        metavar='<directory>', default=[],
+                        help='List of directories to build in.')
+    parser.add_argument('-docs', dest='documentation', action='store_true',
+                        default=False, help='Compile Doxyfile files.')
 
     # Parse everything
-    args = parser.parse_args(args=args)
+    args, project_files = parser.parse_known_args(args=args)
 
     # Output default configuration
-    if args.generate_rc:
+    if args.generate_build_rules:
         from .config import savedefault
+        if args.verbose:
+            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
         savedefault(working_dir)
         return 0
 
@@ -102,9 +105,9 @@ def main(working_dir=None, args=None):
         buildargs.append('-v')
 
     # Config file
-    if args.rcfile:
-        cleanargs.extend(['--rcfile', args.rcfile])
-        buildargs.extend(['--rcfile', args.rcfile])
+    if args.rules_file:
+        cleanargs.extend(['--rules-file', args.rules_file])
+        buildargs.extend(['--rules-file', args.rules_file])
 
     # Fatal
     if args.fatal:
@@ -115,23 +118,25 @@ def main(working_dir=None, args=None):
         buildargs.append('-docs')
 
     # Directories to build
-    if args.directories:
-        for item in args.directories:
-            buildargs.extend(['-d', item])
+    for item in args.directories:
+        cleanargs.extend(['-d', item])
+        buildargs.extend(['-d', item])
 
     # Excess entries
-    if args.args:
-        for item in args.args:
-            buildargs.append(item)
+    for item in project_files:
+        buildargs.append(item)
 
     # Clean and then build, couldn't be simpler!
+    if args.verbose:
+        print('cleanme ' + ' '.join(cleanargs))
     error = cleanme.main(working_dir, args=cleanargs)
     if not error:
+        if args.verbose:
+            print('buildme ' + ' '.join(buildargs))
         error = buildme.main(working_dir, args=buildargs)
     return error
 
+
 # If called as a function and not a class, call my main
-
-
 if __name__ == "__main__":
     sys.exit(main())

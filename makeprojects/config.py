@@ -14,7 +14,7 @@ import shutil
 import burger
 
 ## build_rules.py file to detect secondly
-_BUILD_RULES = 'build_rules.py'
+BUILD_RULES = 'build_rules.py'
 
 ## BUILD_RULES location environment variable
 _BUILD_RULES_VAR = 'BUILD_RULES'
@@ -31,7 +31,7 @@ else:
 ########################################
 
 
-def savedefault(working_dir=None, destinationfile='build_rules.py'):
+def savedefault(working_dir=None, destinationfile=BUILD_RULES):
     """
     Calls the internal function to save a default .projectsrc file
 
@@ -52,7 +52,7 @@ def savedefault(working_dir=None, destinationfile='build_rules.py'):
         destinationfile = os.path.join(working_dir, destinationfile)
 
     # Get the source file path
-    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'build_rules.py')
+    src = os.path.join(os.path.dirname(os.path.abspath(__file__)), BUILD_RULES)
 
     # Copy the file
     try:
@@ -63,7 +63,7 @@ def savedefault(working_dir=None, destinationfile='build_rules.py'):
 ########################################
 
 
-def find_build_rules(working_dir=None):
+def find_default_build_rules():
     """
     Search for the build_rules.py file.
 
@@ -71,54 +71,45 @@ def find_build_rules(working_dir=None):
     and search downwards until the root directoy is it. If not found, search in
     the user's home directory or for linux/macOS, in /etc
 
-    Args:
-        working_dir: Directory to scan first for the preferences file, None to
-            use the current working directory
     Returns:
         Pathname of the configuration file, or None if no file was found.
     """
 
-    # Is there a makeprojects rc file in the current directory or
-    # any directory in the chain?
-
-    if working_dir is None:
-        working_dir = os.getcwd()
-
-    result = burger.traverse_directory(working_dir, _BUILD_RULES, True)
-    if result:
-        return result[0]
-
     # See if there's an environment variable pointing to a file
-    if _BUILD_RULES_VAR in os.environ and \
-            os.path.exists(os.environ[_BUILD_RULES_VAR]):
-        result = os.environ[_BUILD_RULES_VAR]
-    else:
+    while True:
+        if _BUILD_RULES_VAR in os.environ and os.path.exists(os.environ[_BUILD_RULES_VAR]):
+            result = os.environ[_BUILD_RULES_VAR]
+            if os.path.isfile(result):
+                break
+
         # Scan the usual suspects for a global instance
 
         # If '~' doesn't expand or /root, use the current folder
-        if USER_HOME == '~' or USER_HOME == '/root':
-            result = _BUILD_RULES
-        else:
+        if USER_HOME not in ('~', '/root'):
             # Check the user's home folder
-            result = os.path.join(USER_HOME, _BUILD_RULES)
+            result = os.path.join(USER_HOME, BUILD_RULES)
             if os.path.isfile(result):
-                return result
-            result = os.path.join(USER_HOME, '.config', _BUILD_RULES)
+                break
 
-    if not os.path.isfile(result):
+            result = os.path.join(USER_HOME, '.config', BUILD_RULES)
+            if os.path.isfile(result):
+                break
 
         # If not found, use /etc/projectsrc for system globals on non
         # windows platforms
-        if not burger.get_windows_host_type() and \
-                os.path.isfile('/etc/' + _BUILD_RULES):
-            result = '/etc/' + _BUILD_RULES
-        else:
-            result = None
+        if not burger.get_windows_host_type():
+            result = '/etc/' + BUILD_RULES
+            if os.path.isfile(result):
+                break
+
+        result = os.path.join(os.path.dirname(os.path.abspath(__file__)), BUILD_RULES)
+        break
+
     return result
 
 
 ## Full pathname of the configuration file
-BUILD_RULES = find_build_rules()
+DEFAULT_BUILD_RULES = find_default_build_rules()
 
 ########################################
 
@@ -139,18 +130,22 @@ def import_configuration(file_name=None, verbose=True):
     """
 
     if file_name is None:
-        file_name = BUILD_RULES
+        file_name = DEFAULT_BUILD_RULES
 
     build_rules = None
     if file_name and os.path.exists(file_name):
         build_rules = burger.import_py_script(file_name)
         if verbose:
-            print('Using configuration file {}'.format(file_name))
-    elif verbose:
-        print('No configuration file found, using defaults')
+            if build_rules:
+                print('Using configuration file {}'.format(file_name))
+            else:
+                print('build_rules.py was corrupt.')
+    else:
+        if verbose:
+            print('No configuration file found, using defaults')
         build_rules = burger.import_py_script(
             os.path.join(
                 os.path.dirname(
                     os.path.abspath(__file__)),
-                'build_rules.py'))
+                BUILD_RULES))
     return build_rules

@@ -2,28 +2,59 @@
 # -*- coding: utf-8 -*-
 
 """
-Describe how to handle building this folder
+Configuration file on how to build and clean projects in a specific folder.
+
+This file is parsed by the cleanme, buildme, rebuildme and makeprojects
+command line tools to clean, build and generate project files.
+
 """
+
+## \package makeprojects.build_rules
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-# import burger
+## Default build function list, priority / entrypoint
+BUILD_LIST = (
+    #(1, 'prebuild'),
+    (40, 'build_rules'),
+    #(99, 'post_build')
+)
 
-## Top-most build_rules.py
-ROOT = True
+########################################
 
-def clean_rules(working_directory):
+
+def clean_rules(working_directory, root=True):
     """
-    When the command 'cleanme' is executed, it will call this
-    function for all behavior for cleaning the work folder
+    Called by ``cleanme``.
+
+    When the command ``cleanme`` is executed, it will call this
+    function for all behavior for cleaning the work folder.
+
+    The parameter working_directory is required, and if it has no default
+    parameter, this function will only be called with the folder that this
+    file resides in. If there is a default parameter of ``None``, it will be called with
+    any folder that cleanme is invoked on. If the default parameter is a directory, this
+    function will only be called if that directory is desired for cleaning.
+
+    The optional parameter of root alerts cleanme if subsequent processing of other
+    build_rules files is needed or if set to have a default parameter of True, processing
+    will end once the call to clean_rules() is completed.
+
+    Arg:
+        working_directory: Directory for this function to clean
+        root: If set to True, exit cleaning upon completion of this function
+    Returns:
+        Zero on no error, non-zero on error
+
     """
 
+    # Call functions to delete files and / or folders
     # Examples are as follows
 
     # Remove these directories
     # burger.clean_directories(
     #    working_directory,
-    #    ('temp', '*_Data', '* Data', '__pycache__'),
+    #    ('Release', 'Debug', 'temp', '*_Data', '* Data', '__pycache__'),
     #    recursive=False)
 
     # Recursively remove files
@@ -37,7 +68,7 @@ def clean_rules(working_directory):
     # codeblocks extra files
     # burger.clean_codeblocks(working_directory)
 
-    # Allow purging user data in XCode projects
+    # Allow purging user data in XCode project directories
     # burger.clean_xcode(working_directory)
 
     # Purge data for setup.py
@@ -46,16 +77,27 @@ def clean_rules(working_directory):
     # Return error code or zero if no errors
     return 0
 
+########################################
 
-# Files to build
-# [build]
-# norecurse = temp, bin, appfolder, *.xcodeproj, *_Data, '* Data'
-# watcom = makefile, *.wmk
-# doxygen = doxyfile
-# makerez = *.rezscript
-# slicer = *.slicerscript
-# codeblocks = *.cbp
-# codewarrior = *.mcp
+
+def build_rules(working_directory):
+    """
+    Called by ``buildme``.
+
+    When the command ``buildme`` is executed, it will call this
+    function for building the code / data in this working_directory.
+
+    The parameter working_directory is required, and if it has no default
+    parameter, this function will only be called with the folder that this
+    file resides in. If there is a default parameter of ``None``, it will be called with
+    any folder that buildme is invoked on.
+
+    Arg:
+        working_directory: Directory for this function to build.
+    Returns:
+        Zero on no error, non-zero on error.
+    """
+    return 0
 
 # Defaults for generating projects
 # [project]

@@ -130,7 +130,7 @@ before_install:
 # Install python packages needed for this test and get versions for log
 install:
   - pip install burger
-  - pip install tox-travis wheel codecov coverage
+  - pip install tox-travis wheel codecov coverage funcsigs
   - virtualenv --version
   - easy_install --version
   - pip --version

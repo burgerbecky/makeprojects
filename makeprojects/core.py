@@ -186,7 +186,7 @@ class Solution(object):
         self.projectname = name
 
         ## Type of ide
-        # 'vs2017', 'vs2015', 'vs2013', 'vs2012', 'vs2010', 'vs2008', 'vs2005',
+        # 'vs2019', vs2017', 'vs2015', 'vs2013', 'vs2012', 'vs2010', 'vs2008', 'vs2005',
         # 'xcode3', 'xcode4', 'xcode5', 'codewarrior', 'codeblocks',
         # 'watcom'
         self.ide = IDETypes.vs2010
@@ -277,7 +277,8 @@ class Solution(object):
                 ide == IDETypes.vs2012 or \
                 ide == IDETypes.vs2013 or \
                 ide == IDETypes.vs2015 or \
-                ide == IDETypes.vs2017:
+                ide == IDETypes.vs2017 or \
+                ide == IDETypes.vs2019:
             return makeprojects.visualstudio.generate(self, ide)
         return 10
 
@@ -374,6 +375,9 @@ class Solution(object):
         for item in myjson:
             if isinstance(item, dict):
                 error = self.processjson(item)
+            elif item == 'vs2019':
+                self.ide = IDETypes.vs2019
+                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2019)
             elif item == 'vs2017':
                 self.ide = IDETypes.vs2017
                 error = makeprojects.visualstudio.generateold(self, IDETypes.vs2017)
@@ -624,6 +628,14 @@ class Solution(object):
                 initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2017')
+
+        if args.vs2019 is True:
+            initializationrecord = dict()
+            initializationrecord['platform'] = 'windows'
+            if args.finalfolder is True:
+                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+            myjson.append(initializationrecord)
+            myjson.append('vs2019')
 
         if args.codeblocks is True:
             initializationrecord = dict()

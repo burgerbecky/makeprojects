@@ -60,9 +60,10 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
     'setuptools >= 17.1',
     'enum34 >= 1.0.0',
-    'burger >= 1.1.17',
+    'burger >= 1.1.18',
     'argparse >= 1.0',
-    'glob2 >= 0.6'
+    'glob2 >= 0.6',
+    'funcsigs >= 1.0'
 ]
 
 # Project classifiers
@@ -79,7 +80,6 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 2',
     'Programming Language :: Python :: 2.7',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.3',
     'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
@@ -118,12 +118,12 @@ SETUP_ARGS = dict(
     platforms=['Any'],
     install_requires=INSTALL_REQUIRES,
     zip_safe=False,
-    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*',
+    python_requires='>=2.7,!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*',
 
     classifiers=CLASSIFIERS,
     packages=[PROJECT_NAME],
     package_dir={PROJECT_NAME: PROJECT_NAME},
-    package_data={str(PROJECT_NAME): ['.projectsrc']},
+    include_package_data=True,
 
     entry_points=ENTRY_POINTS
 )

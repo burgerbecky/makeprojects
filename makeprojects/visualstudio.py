@@ -697,9 +697,13 @@ def generatesolutionfile(fp, solution, ide):
             # Visual studio 2015
             fp.write(u'14\nVisualStudioVersion = 14.0.25123.0\n')
             fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
-        else:
-            # Visual studio 2017 or later
+        elif ide == IDETypes.vs2017:
+            # Visual studio 2017
             fp.write(u'15\nVisualStudioVersion = 15.0.26430.15\n')
+            fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
+        else:
+            # Visual studio 2019 or later
+            fp.write(u'Version 16\nVisualStudioVersion = 16.0.28803.202\n')
             fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
 
     #
@@ -862,6 +866,11 @@ def generatesolutionfile(fp, solution, ide):
             fp.write(u'\t\tSolutionGuid = {7DEC4DAA-9DC0-4A41-B9C7-01CC0179FDCB}\n')
             fp.write(u'\tEndGlobalSection\n')
 
+        if ide == IDETypes.vs2019:
+            fp.write(u'\tGlobalSection(ExtensibilityGlobals) = postSolution\n')
+            fp.write(u'\t\tSolutionGuid = {4E9AC1D3-6227-410D-87DF-35A3C19B79ED}\n')
+            fp.write(u'\tEndGlobalSection\n')
+
     #
     # Close it up!
     #
@@ -895,20 +904,23 @@ class FileVersions(Enum):
     vs2015 = 6
     ## Visual Studio 2017
     vs2017 = 7
+    ## Visual Studio 2019
+    vs2019 = 8
 
 #
 ## Solution (.sln) file version number to encode
 #
 
 formatversion = [
-    '8.00',            # 2003
-    '9.00',            # 2005
+    '8.00',         # 2003
+    '9.00',         # 2005
     '10.00',        # 2008
     '11.00',        # 2010
     '12.00',        # 2012
     '12.00',        # 2013
     '12.00',        # 2015
-    '12.00'            # 2017
+    '12.00',        # 2017
+    '12.00'         # 2019
 ]
 
 #
@@ -916,14 +928,15 @@ formatversion = [
 #
 
 yearversion = [
-    '2003',            # 2003
-    '2005',            # 2005
-    '2008',            # 2008
-    '2010',            # 2010
-    '2012',            # 2012
-    '2013',            # 2013
-    '14',            # 2015
-    '15'            # 2017
+    '2003',         # 2003
+    '2005',         # 2005
+    '2008',         # 2008
+    '2010',         # 2010
+    '2012',         # 2012
+    '2013',         # 2013
+    '14',           # 2015
+    '15',           # 2017
+    'Version 16'    # 2019
 ]
 
 #
@@ -931,14 +944,15 @@ yearversion = [
 #
 
 projectsuffix = [
-    '.vcproj',        # 2003
-    '.vcproj',        # 2005
-    '.vcproj',        # 2008
-    '.vcxproj',        # 2010
-    '.vcxproj',        # 2012
-    '.vcxproj',        # 2013
-    '.vcxproj',        # 2015
-    '.vcxproj'        # 2017
+    '.vcproj',      # 2003
+    '.vcproj',      # 2005
+    '.vcproj',      # 2008
+    '.vcxproj',     # 2010
+    '.vcxproj',     # 2012
+    '.vcxproj',     # 2013
+    '.vcxproj',     # 2015
+    '.vcxproj',     # 2017
+    '.vcxproj'      # 2019
 ]
 
 #
@@ -946,14 +960,15 @@ projectsuffix = [
 #
 
 platformtoolsets = [
-    'v70',            # 2003
-    'v80',            # 2005
-    'v90',            # 2008
-    'v100',            # 2010
-    'v110_xp',        # 2012
-    'v120_xp',        # 2013
-    'v140_xp',        # 2015
-    'v141_xp'        # 2017
+    'v70',          # 2003
+    'v80',          # 2005
+    'v90',          # 2008
+    'v100',         # 2010
+    'v110_xp',      # 2012
+    'v120_xp',      # 2013
+    'v140_xp',      # 2015
+    'v141_xp',      # 2017
+    'v142'          # 2019
 ]
 
 #
@@ -1096,6 +1111,8 @@ class Defaults(object):
         elif solution.ide == IDETypes.vs2017:
             self.fileversion = FileVersions.vs2017
 
+        elif solution.ide == IDETypes.vs2019:
+            self.fileversion = FileVersions.vs2019
         else:
             # Not supported yet
             return 10
@@ -1236,6 +1253,10 @@ class SolutionFile(object):
         # New lines added for Visual Studio 2013 and 2015 for file versioning
         #
 
+        if self.fileversion == FileVersions.vs2019:
+            fp.write(u'VisualStudioVersion = 16.0.28803.202\n')
+            fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
+
         if self.fileversion == FileVersions.vs2017:
             fp.write(u'VisualStudioVersion = 15.0.26430.15\n')
             fp.write(u'MinimumVisualStudioVersion = 10.0.40219.1\n')
@@ -1314,6 +1335,11 @@ class SolutionFile(object):
         if self.fileversion == FileVersions.vs2017:
             fp.write(u'\tGlobalSection(ExtensibilityGlobals) = postSolution\n')
             fp.write(u'\t\tSolutionGuid = {7DEC4DAA-9DC0-4A41-B9C7-01CC0179FDCB}\n')
+            fp.write(u'\tEndGlobalSection\n')
+
+        if self.fileversion == FileVersions.vs2019:
+            fp.write(u'\tGlobalSection(ExtensibilityGlobals) = postSolution\n')
+            fp.write(u'\t\tSolutionGuid = {4E9AC1D3-6227-410D-87DF-35A3C19B79ED}\n')
             fp.write(u'\tEndGlobalSection\n')
 
         #
