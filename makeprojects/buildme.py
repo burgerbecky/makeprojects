@@ -28,6 +28,7 @@ import subprocess
 import struct
 from operator import itemgetter
 import re
+import xml.etree.ElementTree as ET
 import burger
 from .__pkginfo__ import VERSION
 
@@ -60,10 +61,11 @@ CODEWARRIOR_ERRORS = (
 
 ## List of supported Codewarrior Linkers
 _CW_SUPPORTED_LINKERS = (
-    'MW ARM Linker Panel',
-    'x86 Linker',
-    'PPC Linker',
-    '68K Linker'
+    'MW ARM Linker Panel',      # ARM for Nintendo DSI
+    'x86 Linker',               # Windows
+    'PPC Linker',               # macOS PowerPC
+    '68K Linker',               # macOS 68k
+    'PPC EABI Linker'           # PowerPC for Nintendo Wii
 )
 
 ## Lookup for Visual Studio year in SLN file.
@@ -453,6 +455,8 @@ def parse_sln_file(full_pathname):
         full_pathname: Pathname to the .sln file
     Returns:
         tuple(list of configuration strings, integer Visual Studio version year)
+    See:
+        build_visual_studio()
     """
 
     # Load in the .sln file, it's a text file
@@ -539,6 +543,8 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         fatal: If True, abort on the first failed build
     Returns:
         List of BuildError objects
+    See:
+        parse_sln_file()
     """
 
     # Get the list of build targets
@@ -569,9 +575,10 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
         if test_env:
             if os.getenv(test_env, default=None) is None:
-                print(
-                    'Target {} was detected but the environment variable {} was not found.'.format(
-                        targettypes[1], test_env), file=sys.stderr)
+                msg = 'Target {} was detected but the environment variable {} was not found.'
+                msg = msg.format(targettypes[1], test_env)
+                print(msg, file=sys.stderr)
+                results.append(BuildError(0, full_pathname, configuration=target, msg=msg))
                 continue
 
         # Create the build command
@@ -596,7 +603,7 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
 
 def parse_mcp_file(full_pathname):
     """
-    Detect Codewarrior version.
+    Extract configurations from a Metrowerks CodeWarrior project file.
 
     Given an .mcp file for Metrowerks Codewarrior, determine
     which version of Codewarrrior was used to build it.
@@ -609,6 +616,8 @@ def parse_mcp_file(full_pathname):
         full_pathname: Pathname to the .mcp file
     Returns:
         tuple(list of configuration strings, integer CodeWarrior Version)
+    See:
+        build_codewarrior()
     """
 
     # Handle ../../
@@ -684,10 +693,18 @@ def parse_mcp_file(full_pathname):
 
 def build_codewarrior(full_pathname, verbose=False, fatal=False):
     """
-    Build a Metrowerks Codewarrior file
+    Build a Metrowerks Codewarrior file.
 
-    Return 0 if no error, 1 if an error, 2 if
-    Code Warrior was not found
+    Supports .mcp files for Windows, Mac, Wii and DSI.
+
+    Args:
+        full_pathname: Pathname to the Visual Studio .sln file
+        verbose: True for verbose output
+        fatal: If True, abort on the first failed build
+    Returns:
+        List of BuildError objects
+    See:
+        parse_mcp_file()
     """
 
     # Test for older macOS or Windows
@@ -701,11 +718,18 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
 
     # Handle ../../
     full_pathname = os.path.abspath(full_pathname)
+
+    # Parse the MCP file to get the build targets and detected linkers
     targets, linkers, _ = parse_mcp_file(full_pathname)
     if targets is None:
         return BuildError(0, full_pathname, msg='File corrupt')
 
+    # Test which version of the CodeWarrior IDE that should be launched to
+    # build a project with specific linkers.
+
+    cw_path = None
     if burger.get_windows_host_type():
+        # Test for linkers that are not available on Windows
         if '68K Linker' in linkers:
             return BuildError(0, full_pathname,
                               msg="Requires a 68k linker which Windows doesn't support.")
@@ -713,54 +737,71 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
             return BuildError(0, full_pathname,
                               msg="Requires a PowerPC linker which Windows doesn't support.")
 
-        cw_path = None
+        # Determine which version of CodeWarrior to run.
+
+        # Test for 3DS or DSI
         if 'MW ARM Linker Panel' in linkers:
             cw_path = os.getenv('CWFOLDER_NITRO', default=None)
             if cw_path is None:
                 cw_path = os.getenv('CWFOLDER_TWL', default=None)
+
+        # Test for Nintendo Wii
+        elif 'PPC EABI Linker' in linkers:
+            cw_path = os.getenv('CWFOLDER_RVL', default=None)
+
+        # Test for Windows
         elif 'x86 Linker' in linkers:
             cw_path = os.getenv('CWFolder', default=None)
 
         if cw_path is None:
             return BuildError(0, full_pathname,
-                              msg="CodeWarrior is not installed.")
+                              msg="CodeWarrior with propler linker is not installed.")
 
         # Note: CmdIDE is preferred, however, Codewarrior 9.4 has a bug
         # that it will die horribly if the pathname to it
         # has a space, so ide is used instead.
         cwfile = os.path.join(cw_path, 'Bin', 'IDE.exe')
     else:
+
         # Handle mac version
-        cwfile = None
+
+        # Only CodeWarrior 9 has the Windows linker
         if 'x86 Linker' in linkers:
             cwfile = (
                 '/Applications/Metrowerks CodeWarrior 9.0'
                 '/Metrowerks CodeWarrior/CodeWarrior IDE')
             if not os.path.isfile(cwfile):
+                # Try an alternate path
                 cwfile = (
                     '/Applications/Metrowerks CodeWarrior 9.0'
                     '/Metrowerks CodeWarrior/CodeWarrior IDE 9.6')
+
+        # Build with CodeWarrior 10
         elif any(i in ('68K Linker', 'PPC Linker') for i in linkers):
             cwfile = (
                 '/Applications/Metrowerks CodeWarrior 10.0'
                 '/Metrowerks CodeWarrior/CodeWarrior IDE')
             if not os.path.isfile(cwfile):
+                # Alternate path
                 cwfile = (
                     '/Applications/Metrowerks CodeWarrior 10.0'
                     '/Metrowerks CodeWarrior/CodeWarrior IDE 10')
         if cwfile is None:
             return BuildError(0, full_pathname,
-                              "CodeWarrior with proper linker is not installed.")
+                              msg="CodeWarrior with proper linker is not installed.")
 
     # If there's an "Uber" target, just use that
     if 'Everything' in targets:
         targets = ['Everything']
 
+    # Create the temp folder in case there's an error file generated
     mytempdir = os.path.join(os.path.dirname(full_pathname), 'temp')
     burger.create_folder_if_needed(mytempdir)
 
     results = []
     for target in targets:
+
+        # Use the proper dispatcher
         if burger.get_windows_host_type():
             # Create the build command
             # /s New instance
@@ -771,10 +812,8 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
             cmd = [cwfile, full_pathname, '/t', target, '/s', '/c', '/q', '/b']
         else:
             # Create the folder for the error log
-            error_file = os.path.basename(full_pathname)
-            error_list = os.path.splitext(error_file)
             error_file = os.path.join(mytempdir, '{}-{}.err'.format(
-                error_list[0], target))
+                os.path.splitext(os.path.basename(full_pathname))[0], target))
             cmd = ['cmdide', '-proj', '-bcwef', error_file,
                    '-y', cwfile, '-z', target, full_pathname]
 
@@ -795,19 +834,33 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
 ########################################
 
 
-def parsexcodeprojdir(file_name):
+def parse_xcodeproj_dir(full_pathname):
     """
-    Given a .xcodeproj directory for XCode for MacOSX
+    Extract configurations from an XCode project file.
+
+    Given a .xcodeproj directory for XCode for macOS
     locate and extract all of the build targets
-    available and return the list
+    available and return the list.
+
+    Args:
+        full_pathname: Pathname to the .xcodeproj folder
+    Returns:
+        list of configuration strings
+    See:
+        build_xcode()
     """
 
     # Start with an empty list
 
     targetlist = []
-    filep = open(os.path.join(file_name, 'project.pbxproj'))
-    projectfile = filep.read().splitlines()
-    filep.close()
+    try:
+        with open(os.path.join(full_pathname, 'project.pbxproj'), 'r') as filep:
+            projectfile = filep.read().splitlines()
+
+    except IOError as error:
+        print(str(error), file=sys.stderr)
+        return targetlist
+
     configurationfound = False
     for line in projectfile:
         # Look for this section. Immediately after it
@@ -829,16 +882,26 @@ def parsexcodeprojdir(file_name):
 ########################################
 
 
-def buildxcode(file_name, verbose, ignoreerrors):
+def build_xcode(full_pathname, verbose=False, fatal=False):
     """
-    Build a Mac OS X XCode file
-    Return 0 if no error, 1 if an error, 2 if
-    XCode was not found
+    Build a macOS XCode file.
+
+    Supports .xcodeproj files from Xcode 3 and later.
+
+    Args:
+        full_pathname: Pathname to the Visual Studio .sln file
+        verbose: True for verbose output
+        fatal: If True, abort on the first failed build
+    Returns:
+        List of BuildError objects
+    See:
+        parse_xcodeproj_dir()
     """
 
     # Get the list of build targets
-    targetlist = parsexcodeprojdir(file_name)
-    file_name_lower = file_name.lower()
+    targetlist = parse_xcodeproj_dir(full_pathname)
+
+    file_name_lower = full_pathname.lower()
     # Use XCode 3 off the root
     if 'xc3' in file_name_lower:
         # On OSX Lion and higher, XCode 3.1.4 is a separate folder
@@ -846,93 +909,165 @@ def buildxcode(file_name, verbose, ignoreerrors):
         if not os.path.isfile(xcodebuild):
             # Use the pre-Lion folder
             xcodebuild = '/Developer/usr/bin/xcodebuild'
+
     # Invoke XCode 4 or higher from the app store
     else:
         xcodebuild = '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild'
 
     # Is this version of XCode installed?
     if os.path.isfile(xcodebuild) is not True:
-        print('Can\'t build ' + file_name +
-              ', the proper version of XCode is not installed')
-        return BuildError(0, file_name, msg='Proper version of XCode not found')
+        print('Can\'t build {} the proper version of XCode is not installed'.format(full_pathname))
+        return BuildError(0, full_pathname, msg='Proper version of XCode not found')
 
     # Build each and every target
     results = []
     for target in targetlist:
         # Create the build command
-        cmd = xcodebuild + ' -project "' + os.path.basename(
-            file_name) + '" -alltargets -parallelizeTargets -configuration "' + target + '"'
+        cmd = '{} -project "{}" -alltargets -parallelizeTargets -configuration "{}"'.format(
+            xcodebuild, os.path.basename(full_pathname), target)
         if verbose:
             print(cmd)
         sys.stdout.flush()
-        error = subprocess.call(cmd, cwd=os.path.dirname(file_name), shell=True)
-        results.append(BuildError(error, file_name, configuration=target))
-        if error:
-            if not ignoreerrors:
-                break
+        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
+        results.append(BuildError(error, full_pathname, configuration=target))
+        if error and fatal:
+            break
 
     return results
 
 ########################################
 
 
-def buildcodeblocks(fullpathname, verbose):
+def parse_codeblocks_file(full_pathname):
     """
-    Build a Codeblocks project
+    Extract configurations from a Codeblocks project file.
 
-    Commands available as of 13.12
-    --safe-mode
-    --no-check-associations
-    --no-dde
-    --no-splash-screen
-    --multiple-instance
-    --debug-log
-    --no-crash-handler
-    --verbose
-    --no-log
-    --log-to-file
-    --debug-log-to-file
-    --rebuild
-    --build
-    --clean
-    --target=
-    --no-batch-window-close
-    --batch-build-notify
-    --script=
-    --file=
+    Given a .cbp file for Codeblocks
+    locate and extract all of the build targets
+    available and return the list.
+
+    Args:
+        full_pathname: Pathname to the .cdp file
+    Returns:
+        list of configuration strings
+    See:
+        build_codeblocks()
     """
+
+    # Start with an empty list
+
+    # Parse the XML file
+    targetlist = []
+    try:
+        tree = ET.parse(full_pathname)
+
+    except IOError as error:
+        print(str(error), file=sys.stderr)
+        return targetlist
+
+    # Traverse the tree and extract the targets
+    root = tree.getroot()
+    for child in root:
+        if child.tag == 'Project':
+            for item in child:
+                if item.tag == 'Build':
+                    for item2 in item:
+                        if item2.tag == 'Target':
+                            target = item2.attrib.get('title')
+                            if target:
+                                targetlist.append(target)
+                elif item.tag == 'VirtualTargets':
+                    for item2 in item:
+                        if item2.tag == 'Add':
+                            target = item2.attrib.get('alias')
+                            if target:
+                                targetlist.append(target)
+
+    # Exit with the results
+    return targetlist
+
+########################################
+
+
+def build_codeblocks(full_pathname, verbose=False, fatal=False):
+    """
+    Build a Codeblocks project.
+
+    Support .cbp files for Codeblocks on all host platforms.
+
+    Args:
+        full_pathname: Pathname to the Codeblocks .cbp file
+        verbose: True for verbose output
+        fatal: If True, abort on the first failed build
+    Returns:
+        List of BuildError objects
+    See:
+       parse_codeblocks_file()
+    """
+
+    # Commands available as of 13.12
+    # --safe-mode
+    # --no-check-associations
+    # --no-dde
+    # --no-splash-screen
+    # --multiple-instance
+    # --debug-log
+    # --no-crash-handler
+    # --verbose
+    # --no-log
+    # --log-to-file
+    # --debug-log-to-file
+    # --rebuild
+    # --build
+    # --clean
+    # --target=
+    # --no-batch-window-close
+    # --batch-build-notify
+    # --script=
+    # --file=
 
     if burger.get_windows_host_type():
-        if fullpathname.endswith('osx.cbp'):
-            return BuildError(0, fullpathname, msg="Can only be built on macOS")
+        if full_pathname.endswith('osx.cbp'):
+            return BuildError(0, full_pathname, msg="Can only be built on macOS")
+
         # Is Codeblocks installed?
         codeblockspath = os.getenv('CODEBLOCKS')
         if codeblockspath is None:
-            return BuildError(0, fullpathname,
+            return BuildError(0, full_pathname,
                               msg='Requires Codeblocks to be installed to build!')
-        codeblockspath = os.path.join(codeblockspath, 'codeblocks')
-        codeblocksflags = '--no-check-associations --no-dde --no-batch-window-close'
+        codeblockspath = os.path.join(codeblockspath, 'codeblocks.exe')
+        codeblocksflags = '--no-check-associations --no-dde '
     else:
-        if not fullpathname.endswith('osx.cbp'):
-            return BuildError(0, fullpathname, msg="Can not be built on macOS")
+        if not full_pathname.endswith('osx.cbp'):
+            return BuildError(0, full_pathname, msg="Can not be built on macOS")
 
         codeblockspath = '/Applications/Codeblocks.app/Contents/MacOS/CodeBlocks'
         codeblocksflags = '--no-ipc'
-    # Create the build command
-    cmd = (
-        '"' +
-        codeblockspath +
-        '" ' +
-        codeblocksflags +
-        ' --no-splash-screen --build "' +
-        fullpathname +
-        '" --target=Everything')
-    if verbose:
-        print(cmd)
-    print(cmd)
-    # error = subprocess.call(cmd, cwd=os.path.dirname(fullpathname), shell=True)
-    return BuildError(0, fullpathname,
-                      msg='Codeblocks is currently broken. Disabled for now')
+
+    # Handle ../../
+    full_pathname = os.path.abspath(full_pathname)
+
+    # Parse the CBP file to get the build targets and detected linkers
+    targets = parse_codeblocks_file(full_pathname)
+    if targets is None:
+        return BuildError(0, full_pathname, msg='File corrupt')
+
+    if 'Everything' in targets:
+        targets = ['Everything']
+
+    results = []
+    for target in targets:
+        # Create the build command
+        cmd = '"{}" {} --no-splash-screen --build "{}" --target={}'.format(
+            codeblockspath, codeblocksflags, full_pathname, target)
+
+        if verbose:
+            print(cmd)
+        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
+        results.append(BuildError(error, full_pathname, configuration=target))
+        if error and fatal:
+            break
+    return results
 
 ########################################
 
@@ -1114,11 +1249,11 @@ def process(working_dir, args, results):
         # XCode project file?
         elif projecttype == 'xcode':
             if burger.get_mac_host_type():
-                berror = buildxcode(fullpathname, verbose=args.verbose, ignoreerrors=True)
+                berror = build_xcode(fullpathname, verbose=args.verbose, fatal=args.fatal)
 
         # Codeblocks project file?
         elif projecttype == 'codeblocks':
-            berror = buildcodeblocks(fullpathname, verbose=args.verbose)
+            berror = build_codeblocks(fullpathname, verbose=args.verbose, fatal=args.fatal)
 
         error = 0
         if berror is not None:
