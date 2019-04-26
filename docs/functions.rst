@@ -10,14 +10,13 @@ Dispatchers
 Configuration
 ^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::config::savedefault
-.. doxygenfunction:: makeprojects::config::find_projectsrc
+.. doxygenfunction:: makeprojects::config::find_default_build_rules
 .. doxygenfunction:: makeprojects::config::import_configuration
 
 Clean
 ^^^^^
-.. doxygenfunction:: makeprojects::cleanme::remove_folder
-.. doxygenfunction:: makeprojects::cleanme::remove_by_file_extension
-.. doxygenfunction:: makeprojects::cleanme::remove_global_files
+.. doxygenfunction:: makeprojects::cleanme::dispatch
+.. doxygenfunction:: makeprojects::cleanme::process
 .. doxygenfunction:: makeprojects::cleanme::main
 
 Build
@@ -26,6 +25,15 @@ Build
 .. doxygenfunction:: makeprojects::buildme::build_slicer_script
 .. doxygenfunction:: makeprojects::buildme::build_doxygen
 .. doxygenfunction:: makeprojects::buildme::build_watcom_makefile
+.. doxygenfunction:: makeprojects::buildme::build_makefile
+.. doxygenfunction:: makeprojects::buildme::parse_sln_file
+.. doxygenfunction:: makeprojects::buildme::build_visual_studio
+.. doxygenfunction:: makeprojects::buildme::parse_mcp_file
+.. doxygenfunction:: makeprojects::buildme::build_codewarrior
+.. doxygenfunction:: makeprojects::buildme::parse_xcodeproj_dir
+.. doxygenfunction:: makeprojects::buildme::build_xcode
+.. doxygenfunction:: makeprojects::buildme::parse_codeblocks_file
+.. doxygenfunction:: makeprojects::buildme::build_codeblocks
 .. doxygenfunction:: makeprojects::buildme::main
 
 Rebuild

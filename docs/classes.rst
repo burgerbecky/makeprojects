@@ -22,13 +22,6 @@ Enumerations
 .. doxygenclass:: makeprojects::enums::ProjectTypes
     :members:
 
-Clean Classes
-^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::cleanme::CleanFileLists
-    :members:
-.. doxygenclass:: makeprojects::cleanme::Clean
-    :members:
-
 Build Classes
 ^^^^^^^^^^^^^
 .. doxygenclass:: makeprojects::buildme::BuildError

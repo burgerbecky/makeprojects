@@ -8,5 +8,3 @@
     classes
     functions
     license
-
-.. doxygennamespace:: makeprojects::rebuildme

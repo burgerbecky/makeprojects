@@ -30,15 +30,12 @@ Internal tables
 
 Folder locations
 ^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::config::_DOT_PROJECTSRC
-.. doxygenvariable:: makeprojects::config::_PROJECTSRC
-.. doxygenvariable:: makeprojects::config::_PROJECTSRC_VAR
+.. doxygenvariable:: makeprojects::config::BUILD_RULES
+.. doxygenvariable:: makeprojects::config::_BUILD_RULES_VAR
 .. doxygenvariable:: makeprojects::config::USER_HOME
 .. doxygenvariable:: makeprojects::config::PROJECTS_HOME
-.. doxygenvariable:: makeprojects::config::PROJECTSRC
-.. doxygenvariable:: makeprojects::config::CONFIG_PARSER
+.. doxygenvariable:: makeprojects::config::DEFAULT_BUILD_RULES
 
 Clean Constants
 ^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::cleanme::_CODEBLOCKS_MATCH
-.. doxygenvariable:: makeprojects::cleanme::_PYTHON_MATCH
+.. doxygenvariable:: makeprojects::cleanme::_XCODEPROJ_MATCH
