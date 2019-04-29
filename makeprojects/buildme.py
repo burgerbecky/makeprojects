@@ -1026,22 +1026,18 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
     # --script=
     # --file=
 
+    # Is Codeblocks installed?
+    codeblocks_path = burger.where_is_codeblocks()
+    if codeblocks_path is None:
+        return BuildError(0, full_pathname, msg='Requires Codeblocks to be installed to build!')
+
     if burger.get_windows_host_type():
         if full_pathname.endswith('osx.cbp'):
             return BuildError(0, full_pathname, msg="Can only be built on macOS")
-
-        # Is Codeblocks installed?
-        codeblockspath = os.getenv('CODEBLOCKS')
-        if codeblockspath is None:
-            return BuildError(0, full_pathname,
-                              msg='Requires Codeblocks to be installed to build!')
-        codeblockspath = os.path.join(codeblockspath, 'codeblocks.exe')
         codeblocksflags = '--no-check-associations --no-dde '
     else:
         if not full_pathname.endswith('osx.cbp'):
             return BuildError(0, full_pathname, msg="Can not be built on macOS")
-
-        codeblockspath = '/Applications/Codeblocks.app/Contents/MacOS/CodeBlocks'
         codeblocksflags = '--no-ipc'
 
     # Handle ../../
@@ -1059,7 +1055,7 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
     for target in targets:
         # Create the build command
         cmd = '"{}" {} --no-splash-screen --build "{}" --target={}'.format(
-            codeblockspath, codeblocksflags, full_pathname, target)
+            codeblocks_path, codeblocksflags, full_pathname, target)
 
         if verbose:
             print(cmd)

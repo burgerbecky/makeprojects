@@ -231,9 +231,9 @@ def generate_doxygen_xml(app):
     # Invoke the prebuild python script to create the README.html
     # file if needed using pandoc
     sys.path.append(CWD)
-    prebuild = __import__('prebuild')
+    build_rules = __import__('build_rules')
     sys.path.pop()
-    prebuild.main(CWD)
+    build_rules.prebuild(CWD)
 
     # Call Doxygen to build the documentation
     try:

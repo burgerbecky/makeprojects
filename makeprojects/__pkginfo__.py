@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Makeprojects version data
+Makeprojects version data.
 
 Package that contains version specific information for makeprojects
 """

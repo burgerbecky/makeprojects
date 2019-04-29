@@ -9,7 +9,7 @@
 # Please? It's not like I'm asking you for money!
 
 """
-Module that contains the main() function
+Module that contains the main() function.
 """
 
 ## \package __main__
@@ -25,7 +25,7 @@ import makeprojects
 from .core import Solution
 
 #
-## Main entry point when invoked as a tool
+## Main entry point when invoked as a tool.
 #
 # When makeprojects is invoked as a tool, this main() function
 # is called with the current working directory. Arguments will
@@ -37,7 +37,7 @@ from .core import Solution
 
 def main(working_dir=None):
     """
-    Main entry point when invoked as a tool
+    Main entry point when invoked as a tool.
     """
 
     if working_dir is None:
@@ -47,10 +47,14 @@ def main(working_dir=None):
     # Create the parseable arguments
     #
 
-    parser = argparse.ArgumentParser(prog='makeprojects',
-                                     description='Version ' + makeprojects.__version__ +
-                                     '. ' + makeprojects.__copyright__ + '. '
-                                     'Given a .py input file, create project files for most of the popular IDEs.')
+    parser = argparse.ArgumentParser(
+        prog='makeprojects',
+        description='Version ' +
+        makeprojects.__version__ +
+        '. ' +
+        makeprojects.__copyright__ +
+        '. '
+        'Given a .py input file, create project files for most of the popular IDEs.')
 
     parser.add_argument('-xcode3', dest='xcode3', action='store_true',
                         default=False, help='Build for Xcode 3.')

@@ -2,40 +2,116 @@ Constants
 =========
 
 Setup strings
-^^^^^^^^^^^^^
+-------------
 
-These strings are used for version control and setup.py for distribution
+These strings are used for version control and setup.py for distribution.
 
+NUMVERSION
+^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__numversion__
+
+VERSION
+^^^^^^^
 .. doxygenvariable:: makeprojects::__version__
+
+AUTHOR
+^^^^^^
 .. doxygenvariable:: makeprojects::__author__
+
+TITLE
+^^^^^
 .. doxygenvariable:: makeprojects::__title__
+
+SUMMARY
+^^^^^^^
 .. doxygenvariable:: makeprojects::__summary__
+
+URI
+^^^
 .. doxygenvariable:: makeprojects::__uri__
+
+EMAIL
+^^^^^
 .. doxygenvariable:: makeprojects::__email__
+
+LICENSE
+^^^^^^^
 .. doxygenvariable:: makeprojects::__license__
 
+COPYRIGHT
+^^^^^^^^^
+.. doxygenvariable:: makeprojects::__copyright__
+
 Internal tables
-^^^^^^^^^^^^^^^
+---------------
+
+enums._FILETYPES_LOOKUP
+^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_FILETYPES_LOOKUP
+
+enums._FILETYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_FILETYPES_READABLE
+
+enums._PROJECTTYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PROJECTTYPES_READABLE
+
+enums._CONFIGURATIONTYPES_CODES
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_CONFIGURATIONTYPES_CODES
+
+enums._CONFIGURATIONTYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_CONFIGURATIONTYPES_READABLE
+
+enums._IDETYPES_CODES
+^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_IDETYPES_CODES
+
+enums._IDETYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_IDETYPES_READABLE
+
+enums._PLATFORMTYPES_CODES
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_CODES
+
+enums._PLATFORMTYPES_VS
+^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_VS
+
+enums._PLATFORMTYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_READABLE
 
+
 Folder locations
-^^^^^^^^^^^^^^^^
+----------------
+
+config.BUILD_RULES
+^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::BUILD_RULES
+
+config._BUILD_RULES_VAR
+^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::_BUILD_RULES_VAR
+
+config.USER_HOME
+^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::USER_HOME
+
+config.PROJECTS_HOME
+^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::PROJECTS_HOME
+
+config.DEFAULT_BUILD_RULES
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::DEFAULT_BUILD_RULES
 
 Clean Constants
-^^^^^^^^^^^^^^^
+---------------
+
+cleanme._XCODEPROJ_MATCH
+^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::cleanme::_XCODEPROJ_MATCH
