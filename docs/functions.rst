@@ -103,6 +103,22 @@ buildme.build_codeblocks
 ^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::build_codeblocks
 
+buildme.add_build_rules
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::add_build_rules
+
+buildme.add_project
+^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::add_project
+
+buildme.get_projects
+^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::get_projects
+
+buildme.process
+^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::process
+
 buildme.main
 ^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::main

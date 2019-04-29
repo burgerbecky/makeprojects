@@ -26,7 +26,7 @@ import sys
 import argparse
 import subprocess
 import struct
-from operator import itemgetter
+from operator import attrgetter
 import re
 import xml.etree.ElementTree as ET
 import burger
@@ -167,6 +167,66 @@ class BuildError:
         Return the integer error code.
         """
         return self.error
+
+########################################
+
+
+class BuildObject:
+    """
+    Object describing something to build.
+
+    When the directory is parsed, a list of BuildObjects is
+    generated and then sorted by priority and then built.
+    """
+
+    def __init__(self, file_name, build_type, priority, function_ref=None):
+        """
+        Initializers for an BuildObject.
+
+        Args:
+            file_name: Name of the file to build.
+            build_type: Tool to use to build this file.
+            priority: Integer priority, lower will be built first.
+            function_ref: If python, function to invoke.
+
+        """
+
+        ## Name of file to build.
+        self.file_name = file_name
+
+        ## Tool to invoke.
+        self.build_type = build_type
+
+        ## Numeric priorty in ascending order.
+        self.priority = priority
+
+        ## Function reference for python builds
+        self.function_ref = function_ref
+
+    def __repr__(self):
+        """
+        Convert the object into a string.
+
+        Returns:
+            A full string.
+        """
+
+        result = 'BuildObject for file "{}" using tool "{}" with priority {}'.format(
+            self.file_name, self.build_type, self.priority)
+        if self.function_ref:
+            result += ' calling function "{}"'.format(self.function_ref.__name__)
+        return result
+
+    __str__ = __repr__
+
+    def has_python_function(self):
+        """
+        Return True if there's a callable python function.
+
+        Returns:
+            True if there is a callable python function.
+        """
+        return callable(self.function_ref)
 
 ########################################
 
@@ -1069,27 +1129,60 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
 
 
 def add_build_rules(projects, file_name, args):
+    """
+    Add a build_rules.py to the build list.
+
+    Given a build_rules.py to parse, check it for a BUILD_LIST
+    and use that for scanning for functions to call. If BUILD_LIST
+    doesn't exist, use @ref buildme.BUILD_LIST instead.
+
+    All valid entries will be appended to the projects list.
+
+    Args:
+        projects: List of projects to build.
+        file_name: Pathname to the build_rules.py file.
+        args: Args for determining verbosity for output.
+    See:
+       add_project() or get_projects()
+    """
+
     file_name = os.path.abspath(file_name)
     build_rules = burger.import_py_script(file_name)
     if build_rules:
         if args.verbose:
             print('Using configuration file {}'.format(file_name))
 
+        # Does it have a BUILD_LIST entry?
         build_list = getattr(build_rules, 'BUILD_LIST', None)
         if not build_list:
             build_list = BUILD_LIST
 
+        # Test for functions and append all that are found
         for item in build_list:
-            if hasattr(build_rules, item[1]):
-                projects.append(([build_rules, item[1]], 'python', item[0]))
+            function_ref = getattr(build_rules, item[1], None)
+            # Only add if it's a function
+            if callable(function_ref):
+                projects.append(
+                    BuildObject(
+                        file_name,
+                        'python',
+                        item[0],
+                        function_ref=function_ref))
 
 
 ########################################
 
 
-def addproject(projects, file_name, args):
+def add_project(projects, file_name, args):
     """
     Detect the project type and add it to the list.
+
+    Args:
+        projects: List of projects to build.
+        file_name: Pathname to the build_rules.py file.
+        args: Args for determining verbosity for output.
+    Returns:
+        True if the file was buildable, False if not.
     """
 
     # Only process project files
@@ -1133,23 +1226,28 @@ def addproject(projects, file_name, args):
         priority = 99
 
     if projecttype:
-        projects.append((file_name, projecttype, priority))
+        projects.append(BuildObject(file_name, projecttype, priority))
         return True
     return False
 
 
 ########################################
 
-def getprojects(projects, working_dir, args):
+def get_projects(projects, working_dir, args):
     """
     Scan a folder for files that need to be 'built'.
+
+    Args:
+        projects: List of projects to build.
+        working_dir: Directory to scan.
+        args: Args for determining verbosity for output.
     """
 
     # Get the list of files in this directory
     try:
         for base_name in os.listdir(working_dir):
             file_name = os.path.join(working_dir, base_name)
-            addproject(projects, file_name, args)
+            add_project(projects, file_name, args)
     except OSError as error:
         print(error)
 
@@ -1182,31 +1280,30 @@ def process(working_dir, args, results):
     if args.args:
         for item in args.args:
             projectname = os.path.join(working_dir, item)
-            if addproject(projects, projectname, args) is False:
+            if add_project(projects, projectname, args) is False:
                 print('Error: {} is not a known project file.'.format(projectname))
                 return 10
     else:
-        getprojects(projects, working_dir, args)
+        get_projects(projects, working_dir, args)
 
     # Sort the list by priority (The third parameter is priority from 1-99
     error = 0
-    projects = sorted(projects, key=itemgetter(2))
+    projects = sorted(projects, key=attrgetter('priority'))
     for project in projects:
-        fullpathname = project[0]
-        projecttype = project[1]
+        fullpathname = project.file_name
+        projecttype = project.build_type
         berror = None
 
         # Is it a python script?
         if projecttype == 'python':
-            if burger.is_string(fullpathname):
+            if not project.has_python_function():
                 if args.verbose:
                     print('Invoking ' + fullpathname)
                 error = burger.run_py_script(fullpathname, 'main', os.path.dirname(fullpathname))
             else:
                 if args.verbose:
-                    print('Calling ' + fullpathname[1] + ' in ' + fullpathname[0].__file__)
-                error = getattr(fullpathname[0], fullpathname[1])(working_directory=working_dir)
-                fullpathname = fullpathname[0].__file__
+                    print('Calling ' + project.function_ref.__name__ + ' in ' + fullpathname)
+                error = project.function_ref(working_directory=working_dir)
             berror = BuildError(error, fullpathname)
 
         # Is it a slicer script?
@@ -1384,7 +1481,6 @@ def main(working_dir=None, args=None):
     return error
 
 
-# If called as a function and not a class,
-# call my main
+# If called as a function and not a class, call my main
 if __name__ == "__main__":
     sys.exit(main())

@@ -51,7 +51,7 @@ Root namespace for the makeprojects tool
 #
 # solution = newsolution(name='myproject')
 # project = newproject(name='myproject')
-# solution.addproject(project=project)
+# solution.add_project(project=project)
 #
 # project.setconfigurations(['Debug','Internal','Release'])
 # project.setplatform(project.Windows)

@@ -109,9 +109,41 @@ config.DEFAULT_BUILD_RULES
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::config::DEFAULT_BUILD_RULES
 
+Build Constants
+---------------
+
+buildme._XCODEPROJ_MATCH
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::_XCODEPROJ_MATCH
+
+buildme.BUILD_LIST
+^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::BUILD_LIST
+
+buildme.CODEWARRIOR_ERRORS
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::CODEWARRIOR_ERRORS
+
+buildme._CW_SUPPORTED_LINKERS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::_CW_SUPPORTED_LINKERS
+
+buildme._VS_VERSION_YEARS
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::_VS_VERSION_YEARS
+
+buildme._VS_OLD_VERSION_YEARS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::_VS_OLD_VERSION_YEARS
+
+buildme._VS_SDK_ENV_VARIABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::buildme::_VS_SDK_ENV_VARIABLE
+
+
 Clean Constants
 ---------------
 
 cleanme._XCODEPROJ_MATCH
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::cleanme::_XCODEPROJ_MATCH

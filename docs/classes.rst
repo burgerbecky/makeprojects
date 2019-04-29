@@ -48,3 +48,8 @@ buildme.BuildError
 ^^^^^^^^^^^^^^^^^^
 .. doxygenclass:: makeprojects::buildme::BuildError
     :members:
+
+buildme.BuildObject
+^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::buildme::BuildObject
+    :members:

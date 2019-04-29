@@ -251,7 +251,7 @@ class Solution(object):
     # \param project Reference to an instance of a Project
     #
 
-    def addproject(self, project):
+    def add_project(self, project):
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError("parameter 'project' must be of type Project")
