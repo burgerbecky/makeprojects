@@ -70,7 +70,7 @@ class Defaults(object):
         self.libraries = []
 
         # In windows, set BURGER_SDKS as an environment variable
-        if solution.platform.iswindows():
+        if solution.platform.is_windows():
             self.environmentvariables = ['BURGER_SDKS']
 
             # Add the default system directories
@@ -97,7 +97,7 @@ class Defaults(object):
                 'winmm.lib'
             ]
 
-        elif solution.platform.ismacos():
+        elif solution.platform.is_macos():
             if solution.projecttype != ProjectTypes.library or \
                     solution.projectname != 'burgerlib':
                 self.burgersdkspaths.append('mac/burgerlib')
@@ -105,7 +105,7 @@ class Defaults(object):
             self.burgersdkspaths.append('mac/opengl')
             self.burgersdkspaths.append('codewarrior')
 
-            if solution.platform.ismacoscarbon():
+            if solution.platform.is_macos_carbon():
                 self.systemsearchpaths = ['MSL', 'MacOS Support']
                 self.libraries = [
                     'CarbonLib',
@@ -113,7 +113,7 @@ class Defaults(object):
                     'InputSprocketStubLib'
                 ]
 
-            elif solution.platform.ismacosclassic():
+            elif solution.platform.is_macos_classic():
                 self.systemsearchpaths = ['MSL', 'MacOS Support']
 
                 self.libraries = [
@@ -227,7 +227,7 @@ class UserSourceTree(object):
 class SearchPath(object):
     def __init__(self, platform, path, root=None, title='SearchPath'):
         self.settings = SETTING(title)
-        if platform.iswindows():
+        if platform.is_windows():
             self.settings.addsetting('Path', burger.convert_to_windows_slashes(path))
             pathformat = 'Windows'
         else:
@@ -493,7 +493,7 @@ class MWLinker_X86(object):
 
 class FILE(object):
     def __init__(self, platform, configuration, filename):
-        if platform.iswindows():
+        if platform.is_windows():
             self.filename = burger.convert_to_windows_slashes(filename)
             self.format = 'Windows'
         else:
@@ -524,7 +524,7 @@ class FILE(object):
 class FILEREF(object):
     def __init__(self, platform, configuration, filename):
         self.configuration = configuration
-        if platform.iswindows():
+        if platform.is_windows():
             self.filename = burger.convert_to_windows_slashes(filename)
             self.format = 'Windows'
         else:
@@ -872,8 +872,8 @@ def generate(solution):
     # Determine the ide and target type for the final file name
     #
 
-    idecode = solution.ide.getshortcode()
-    platformcode = solution.platform.getshortcode()
+    idecode = solution.ide.get_short_code()
+    platformcode = solution.platform.get_short_code()
     codewarriorprojectfile = Project(solution.projectname, idecode, platformcode)
 
     #
@@ -890,7 +890,7 @@ def generate(solution):
     listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
     listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
     listwindowsresource = []
-    if solution.platform.iswindows():
+    if solution.platform.is_windows():
         listwindowsresource = makeprojects.core.pickfromfilelist(codefiles,
                                                                  FileTypes.rc)
 
@@ -900,7 +900,7 @@ def generate(solution):
     # Select the project linker for the platform
     #
 
-    if solution.platform.iswindows():
+    if solution.platform.is_windows():
         linker = 'Win32 x86 Linker'
     else:
         linker = 'MacOS PPC Linker'
@@ -984,7 +984,7 @@ def generate(solution):
         target.settinglist.append(MWFrontEnd_C())
 
         platform = solution.platform
-        if platform.iswindows():
+        if platform.is_windows():
             platform = PlatformTypes.win32
         definelist = Property.getdata(
             solution.properties,
@@ -1000,14 +1000,14 @@ def generate(solution):
         # Windows settings
         #
 
-        if solution.platform.iswindows():
+        if solution.platform.is_windows():
 
             # x86 Target
             target.settinglist.append(
                 MWProject_X86(
                     solution.projecttype,
                     solution.projectname + idecode + 'w32'
-                    + configuration.getshortcode()))
+                    + configuration.get_short_code()))
 
             # x86 CodeGen
             target.settinglist.append(MWCodeGen_X86(configuration))
@@ -1094,7 +1094,7 @@ def generate(solution):
     #
 
     cwfile = os.getenv('CWFolder')
-    if cwfile is not None and solution.platform.iswindows():
+    if cwfile is not None and solution.platform.is_windows():
         mcppathname = os.path.join(solution.workingDir,
                                    codewarriorprojectfile.projectnamecode + '.mcp')
         burger.perforce_edit(mcppathname)

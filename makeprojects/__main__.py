@@ -1,18 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
-
 """
-Module that contains the main() function.
+Module that contains the code for the command line "makeprojects".
+
+Scan the current directory and generate one or more project files
+based on the source code found.
+
+If build_rules.py is found, it will be scanned for information on how
+to generate the IDE for different platforms and configurations if needed.
+
+See Also:
+    makeprojects.cleanme, makeprojects.buildme, makeprojects.rebuildme
 """
 
-## \package __main__
+## \package makeprojects.__main__
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -20,41 +22,164 @@ import sys
 import os
 import argparse
 import json
-import makeprojects
+from funcsigs import signature
+import burger
 
 from .core import Solution
-
-#
-## Main entry point when invoked as a tool.
-#
-# When makeprojects is invoked as a tool, this main() function
-# is called with the current working directory. Arguments will
-# be obtained using the argparse class.
-#
-# \param working_dir String containing the current working directory
-# \return Zero if no error, non-zero on error
+from .config import BUILD_RULES, DEFAULT_BUILD_RULES
+from .__pkginfo__ import VERSION
 
 
-def main(working_dir=None):
+########################################
+
+
+def add_build_rules(build_rules_list, file_name, args):
+    """
+    Load in the file build_rules.py
+
+    Load the build_rules.py file. If the parameter ``root`` was found in the
+    parameter list of the function project_rules, check if the default argument
+    is ``True`` to abort after execution.
+
+    Args:
+        build_rules_list: List to append a valid build_rules file instance.
+        file_name: Full path name of the build_rules.py to load.
+        args: Args for determining verbosity for output.
+    Returns:
+        Zero on no error, non zero integer on error
+    """
+
+    # Test if there is a specific build rule
+    file_name = os.path.abspath(file_name)
+    build_rules = burger.import_py_script(file_name)
+    if not build_rules:
+        return False
+
+    if args.verbose:
+        print('Using configuration file {}'.format(file_name))
+
+    # Perform the clean on this folder, if there's a clean function
+    project_rules = getattr(build_rules, 'project_rules', None)
+    if project_rules:
+
+        # Get the function signature
+        sig = signature(project_rules)
+
+        parm_root = sig.parameters.get('root')
+        if parm_root:
+            if parm_root.default is True:
+                args.version = True
+    build_rules_list.append(build_rules)
+    return True
+
+########################################
+
+
+def get_build_rules(solution, args):
+    """
+    Process a solution.
+
+    Args:
+        solution: Solution instance to build from.
+        args: Args for determining verbosity for output
+    Returns:
+        List of loaded build_rules.py files.
+    """
+
+    # Test if there is a specific build rule
+    build_rules_list = []
+    if args.rules_file:
+        add_build_rules(build_rules_list, args.rules_file, args)
+    else:
+        working_dir = solution.working_dir
+        # No files aborted
+        args.version = False
+        # Load the configuration file at the current directory
+        temp_dir = working_dir
+        while True:
+            add_build_rules(build_rules_list, os.path.join(temp_dir, BUILD_RULES), args)
+            # Abort on ROOT = True
+            if args.version:
+                break
+
+            # Pop a folder to check for higher level build_rules.py
+            temp_dir2 = os.path.dirname(temp_dir)
+            # Already at the top of the directory?
+            if temp_dir2 is None or temp_dir2 == temp_dir:
+                add_build_rules(build_rules_list, DEFAULT_BUILD_RULES, args)
+                break
+            # Use the new folder
+            temp_dir = temp_dir2
+    return build_rules_list
+
+
+########################################
+
+
+def process(solution, args):
+    """
+    Process a solution.
+
+    Args:
+        solution: Solution instance to build from.
+        args: Args for determining verbosity for output
+    Returns:
+        Zero on no error, non zero integer on error
+    """
+
+    if args.verbose:
+        print('Building "{}".'.format(solution.working_dir))
+
+    build_rules = get_build_rules(solution, args)
+    if not build_rules:
+        print('Fatal error, no build_rules.py exists anywhere.')
+        return 10
+
+    # Build rules was found.
+    for item in build_rules:
+        print(item.__file__)
+        print(str(dir(item)))
+
+    return 0
+
+########################################
+
+
+def main(working_dir=None, args=None):
     """
     Main entry point when invoked as a tool.
+
+    When makeprojects is invoked as a tool, this main() function
+    is called with the current working directory. Arguments will
+    be obtained using the argparse class.
+
+    Args:
+        working_dir: Directory to operate on, or ``None`` for ``os.getcwd()``.
+        args: Command line to use instead of ``sys.argv``.
+    Returns:
+        Zero if no error, non-zero on error
+
     """
 
+    # Make sure working_dir is properly set
     if working_dir is None:
         working_dir = os.getcwd()
 
-    #
-    # Create the parseable arguments
-    #
-
+    # Parse the command line
     parser = argparse.ArgumentParser(
         prog='makeprojects',
-        description='Version ' +
-        makeprojects.__version__ +
-        '. ' +
-        makeprojects.__copyright__ +
-        '. '
-        'Given a .py input file, create project files for most of the popular IDEs.')
+        description='Make project files. Copyright by Rebecca Ann Heineman. '
+        'Creates files for XCode, Visual Studio, CodeBlocks, Watcom, make, Codewarrior...')
+
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + VERSION)
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
+                        default=False, help='Verbose output.')
+    parser.add_argument('--generate-rules', dest='generate_build_rules',
+                        action='store_true', default=False,
+                        help='Generate a sample configuration file and exit.')
+    parser.add_argument('--rules-file', dest='rules_file',
+                        metavar='<file>', default=None, help='Specify a configuration file.')
 
     parser.add_argument('-xcode3', dest='xcode3', action='store_true',
                         default=False, help='Build for Xcode 3.')
@@ -125,36 +250,33 @@ def main(working_dir=None):
 
     parser.add_argument('-f', dest='jsonfiles',
                         action='append', help='Input file to process')
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
-                        default=False, help='Verbose output.')
-    parser.add_argument('-default', dest='default', action='store_true',
-                        default=False, help='Create a default projects.py file')
 
+    parser.add_argument('-t', dest='test', action='store_true',
+                        default=False,
+                        help='Run new code')
     parser.add_argument('args', nargs=argparse.REMAINDER,
                         help='project filenames')
 
-    #
-    # Parse the command line
-    #
+    # Parse everything
     args = parser.parse_args()
 
-    #
-    # Shall a default file be generated?
-    #
-
-    if args.default is True:
+    # Output default configuration
+    if args.generate_build_rules:
         from .config import savedefault
+        if args.verbose:
+            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
         savedefault(working_dir)
         return 0
 
-    #
-    # Process defaults first
-    #
-
+    # Create a blank solution
     solution = Solution()
     solution.verbose = args.verbose
     solution.workingDir = working_dir
 
+    # Process it
+    #if args.test:
+    #    return process(solution, args)
+    #return process(solution, args)
     #
     # No input file?
     #
@@ -224,8 +346,7 @@ def main(working_dir=None):
 
     return error
 
-# If invoked as a tool, call the main with the current working directory
 
-
+# If called as a function and not a class, call my main
 if __name__ == '__main__':
-    sys.exit(main(os.getcwd()))
+    sys.exit(main())

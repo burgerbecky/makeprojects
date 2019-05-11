@@ -139,7 +139,7 @@ def build(working_dir=None, args=None):
         args: Argument list to pass to the command, None uses sys.argv
     Returns:
         Zero on success, system error code on failure
-    See:
+    See Also:
         makeprojects.buildme
     """
     from .buildme import main
@@ -157,7 +157,7 @@ def clean(working_dir=None, args=None):
         args: Argument list to pass to the command, None uses sys.argv
     Returns:
         Zero on success, system error code on failure
-    See:
+    See Also:
         makeprojects.cleanme
     """
 
@@ -176,8 +176,8 @@ def rebuild(working_dir=None, args=None):
         args: Command line to use instead of sys.argv
     Returns:
         Zero on no error, non-zero on error
-    See:
-        makeprojects.rebuildme and makeprojects.rebuildme.main()
+    See Also:
+        makeprojects.rebuildme, makeprojects.rebuildme.main
     """
 
     from .rebuildme import main
@@ -223,7 +223,7 @@ class Property(object):
             if configuration is None or item.configuration is None or \
                 item.configuration == configuration:
                 if platform is None or item.platform is None or \
-                    PlatformTypes.match(item.platform, platform):
+                    item.platform.match(platform):
                     if name is None or item.name == name:
                         result.append(item)
         return result
@@ -238,7 +238,7 @@ class Property(object):
             if configuration is None or item.configuration is None or \
                 item.configuration == configuration:
                 if platform is None or item.platform is None or \
-                    PlatformTypes.match(item.platform, platform):
+                    item.platform.match(platform):
                     if name is None or item.name == name:
                         result.append(item.data)
         return result
@@ -280,7 +280,7 @@ class SourceFile(object):
             relativepathname: Filename of the input file (relative to the root)
             directory: Pathname of the root directory
             filetype: Compiler to apply
-        See:
+        See Also:
             _FILETYPES_LOOKUP
         """
         # Sanity check
@@ -360,7 +360,7 @@ class SourceFile(object):
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._PROJECTTYPES_READABLE
         """
 
@@ -382,7 +382,7 @@ def newsolution(name='project', suffixenable=False):
         name: Name of the solution
         suffixenable: True if suffixes are added to project names to denote
             project type and compiler
-    See:
+    See Also:
         core.Solution
     """
 
@@ -405,7 +405,7 @@ def newproject(name='project', projecttype=ProjectTypes.tool, \
             'sharedlibrary' \ref enums.ProjectTypes
         suffixenable: True if suffixes are added to project names to denote
             project type and compiler
-    See:
+    See Also:
         core.Project
     """
 

@@ -37,8 +37,8 @@ def clean_rules(working_directory, root=True):
     return 0
 @endcode
 
-See:
-    main(), makeprojects.buildme, makeprojects.rebuildme
+See Also:
+    main, makeprojects.buildme, makeprojects.rebuildme
 
 """
 

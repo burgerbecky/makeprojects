@@ -1,17 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-#
-# Create projects from a json description file
-# for XCode, Visual Studio, CodeBlocks and
-# other IDEs
-#
 
-# Copyright 1995-2019 by Rebecca Ann Heineman becky@burgerbecky.com
+"""
+Module contains the core classes for makeproject.
+"""
 
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
+## \package makeprojects.core
 
 from __future__ import absolute_import, print_function, unicode_literals
 import os
@@ -28,24 +22,67 @@ from makeprojects import FileTypes, ProjectTypes, \
     ConfigurationTypes, IDETypes, PlatformTypes, \
     SourceFile, Property
 
-#
-## \package makeprojects.core
-# Core contains the master dispatchers to generate
-# a project file for many popular IDEs
-#
+
+########################################
+
+class Configuration:
+    """
+    Object for containing attributes specific to a build configuration.
+
+    This object contains all of the items needed to create a specific configuration of
+    a project.
+
+    See Also:
+        Project, Solution
+    """
+
+    def __init__(self, configuration=None, platform=None, **kargs):
+
+        if configuration is None:
+            configuration = 'Debug'
+        ## Name of the configuration.
+        self.configuration = configuration
+
+        ## Platform used for the configuration.
+        if platform:
+            self.platform = PlatformTypes.lookup(platform)
+        else:
+            self.platform = PlatformTypes.default()
+
+        # Sanity check
+        if not isinstance(self.platform, PlatformTypes):
+            raise TypeError("parameter 'platform' must be of type PlatformTypes")
+
+        ## Dictionary of attributes describing how to build this configuration.
+        self.attributes = kargs
+
+    def __repr__(self):
+        """
+        Convert the solultion record into a human readable description
+
+        Returns:
+            Human readable string or None if the solution is invalid
+        """
+
+        return 'Configuration: {}, Platform: {}, Attributes: {}'.format(
+            self.configuration, str(self.platform), str(self.attributes))
+
+    __str__ = __repr__
 
 
-#
-## Object for processing a project file
-#
-# This object contains all of the items needed to
-# create a project
-# \note On most IDEs, this is merged into
-# one file, but Visual Studio 2010 and higher
-# generates a project file for each project
-#
+########################################
 
-class Project(object):
+
+class Project:
+    """
+    Object for processing a project file.
+
+    This object contains all of the items needed to create a project
+
+    @note On most IDEs, this is merged into one file, but Visual Studio
+    2010 and higher generates a project file for each project.
+    """
+
     def __init__(self, name='project', projecttype=ProjectTypes.tool, suffixenable=False):
         # Sanity check
         if not isinstance(projecttype, ProjectTypes):
@@ -120,54 +157,58 @@ class Project(object):
         ## Create default Visual Studio object
         self.visualstudio = makeprojects.visualstudio.Defaults()
 
-    #
-    ## Set the names of the configurations this project will support
-    #
-    # Given a string or an array of strings, replace the
-    # configurations with the new list.
-    #
-    # \param self The 'this' reference
-    # \param configurations String or an array of strings for the new configuration list
-    #
-
     def setconfigurations(self, configurations):
+        """
+        Set the names of the configurations this project will support.
+
+        Given a string or an array of strings, replace the
+        configurations with the new list.
+
+        Args:
+            self: The 'this' reference.
+            configurations: String or an array of strings for the new configuration list.
+        """
+
         # Force to a list
         self.configurations = burger.convert_to_array(configurations)
         for item in self.configurations:
             if not isinstance(item, ConfigurationTypes):
                 raise TypeError("parameter 'configurations' must be of type ConfigurationTypes")
 
-    #
-    ## Set the names of the configurations this project will support
-    #
-    # Given a string or an array of strings, replace the
-    # configurations with the new list.
-    #
-    # \param self The 'this' reference
-    # \param platform Enumeration of PlatformTypes
-    #
-
     def setplatform(self, platform):
+        """
+        Set the names of the configurations this project will support.
+
+        Given a string or an array of strings, replace the
+        configurations with the new list.
+
+        Args:
+            self: The 'this' reference.
+            platform: Enumeration of PlatformTypes.
+        """
+
         # Sanity check
         if not isinstance(platform, PlatformTypes):
             raise TypeError("parameter 'platform' must be of type PlatformTypes")
         self.platform = platform
 
     def adddependency(self, project):
+        """
+        Add a dependent project.
+        """
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError("parameter 'project' must be of type Project")
         self.dependentprojects.append(project)
 
-#
-## Object for processing a solution file
-#
-# This object contains all of the items needed to
-# create a solution
-#
 
+class Solution:
+    """
+    Object for processing a solution file.
 
-class Solution(object):
+    This object contains all of the items needed to create a solution.
+    """
+
     def __init__(self, name='project', projecttype=ProjectTypes.tool, suffixenable=False):
         # Sanity check
         if not isinstance(projecttype, ProjectTypes):
@@ -240,18 +281,16 @@ class Solution(object):
         ## Create default Visual Studio object
         self.visualstudio = makeprojects.visualstudio.Defaults()
 
-    #
-    ## Add a project to the list of projects found in this solution
-    #
-    # Given a new Project class instance, append it
-    # to the list of projects that this solution is
-    # managing.
-    #
-    # \param self The 'this' reference
-    # \param project Reference to an instance of a Project
-    #
-
     def add_project(self, project):
+        """
+        Add a project to the list of projects found in this solution.
+
+        Given a new Project class instance, append it to the list of projects that this solution is managing.
+
+        Args:
+            self: The 'this' reference.
+            project: Reference to an instance of a Project.
+        """
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError("parameter 'project' must be of type Project")
@@ -259,11 +298,10 @@ class Solution(object):
         project.solution = self
         self.projects.append(project)
 
-    #
-    ## Generate a project file and write it out to disk
-    #
-
     def generate(self, ide, platform):
+        """
+        Generate a project file and write it out to disk.
+        """
         # Sanity check
         if not isinstance(ide, IDETypes):
             raise TypeError("parameter 'ide' must be of type IDETypes")
@@ -282,34 +320,33 @@ class Solution(object):
             return makeprojects.visualstudio.generate(self, ide)
         return 10
 
-    #
-    ## Given a json record, process all the sub sections
-    #
-    # Given a dictionary created by a json file or
-    # manually, update the solution to the new data
-    #
-    # \param self The 'this' reference
-    # \param myjson Dictionary with key value pairs
-    #
-    # Acceptable keys
-    # \li 'finalfolder' = pathname to store final release binary
-    # \li 'kind' = 'tool', 'library', 'app'
-    # \li 'projectname' = Name of the project's filename (basename only)
-    # \li 'platform' = 'windows', 'macosx', 'linux', 'ps3', 'ps4', 'vita',
-    # 'xbox', 'xbox360', 'xboxone', 'shield', 'ios', 'mac', 'msdos',
-    # 'beos', 'ouya', 'wiiu', 'dsi'
-    # \li 'configurations' = ['Debug', 'Release', 'Internal']
-    # \li 'sourcefolders' = ['.','source']
-    # \li 'exclude' = [] (List of files to exclude from processing)
-    # \li 'defines' = [] (List of \#define to add to the project)
-    # \li 'includefolders' = [] (List of folders to add for \#include )
-    # \li 'xcode' = dir() (Keys and values for special cases for xcode projects)
-    # \li 'visualstudio' = dir() (Keys and values for special cases for visual studio projects)
-    #
-    # \sa makeprojects.xcode or makeprojects.visualstudio
-    #
-
     def processjson(self, myjson):
+        r"""
+        Given a json record process, all the sub sections.
+        @details
+        Given a dictionary created by a json file or manually update the solution to the new data.
+
+        Acceptable keys
+        * finalfolder = pathname to store final release binary.
+        * 'kind' = 'tool', 'library', 'app'.
+        * 'projectname' = Name of the project's filename (basename only)
+        * 'platform' = 'windows', 'macosx', 'linux', 'ps3', 'ps4', 'vita', 'xbox', 'xbox360', 'xboxone', 'shield', 'ios', 'mac', 'msdos', 'beos', 'ouya', 'wiiu', 'dsi'
+        * 'configurations' = ['Debug', 'Release', 'Internal']
+        * 'sourcefolders' = ['.','source']
+        * 'exclude' = [] (List of files to exclude from processing)
+        * 'defines' = [] (List of \#define to add to the project)
+        * 'includefolders' = [] (List of folders to add for \#include )
+        * 'xcode' = dir (Keys and values for special cases for xcode projects)
+        * 'visualstudio' = dir (Keys and values for special cases for visual studio projects)
+
+        Args:
+            self: The 'this' reference.
+            myjson: Dictionary with key value pairs.
+
+        See Also:
+            makeprojects.xcode, makeprojects.visualstudio
+        """
+
         error = 0
         for key in myjson.keys():
             if key == 'finalfolder':
@@ -868,12 +905,11 @@ class Solution(object):
 
     __str__ = __repr__
 
-#
-# Prune the file list for a specific type
-#
-
 
 def pickfromfilelist(codefiles, itemtype):
+    """
+    Prune the file list for a specific type.
+    """
     filelist = []
     for item in codefiles:
         if item.type == itemtype:
@@ -937,7 +973,7 @@ def createvs2005solution(solution):
     listcpp = pickfromfilelist(codefiles, FileTypes.cpp)
     listwindowsresource = pickfromfilelist(codefiles, FileTypes.rc)
 
-    platformcode = solution.platform.getshortcode()
+    platformcode = solution.platform.get_short_code()
     solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,
                                   str(solution.visualstudio.outputfilename))).upper()
     projectpathname = os.path.join(solution.working_dir,
@@ -962,7 +998,7 @@ def createvs2005solution(solution):
     #
 
     fp.write('\t<Platforms>\n')
-    for vsplatform in solution.platform.getvsplatform():
+    for vsplatform in solution.platform.get_vs_platform():
         fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
     fp.write('\t</Platforms>\n')
 
@@ -972,7 +1008,7 @@ def createvs2005solution(solution):
 
     fp.write('\t<Configurations>\n')
     for target in solution.configurations:
-        for vsplatform in solution.platform.getvsplatform():
+        for vsplatform in solution.platform.get_vs_platform():
             token = str(target) + '|' + vsplatform
             fp.write('\t\t<Configuration\n')
             fp.write('\t\t\tName="' + token + '"\n')
@@ -983,8 +1019,8 @@ def createvs2005solution(solution):
                 platformcode2 = 'w32'
             else:
                 platformcode2 = platformcode
-            intdirectory = solution.projectname + solution.ide.getshortcode() + platformcode2 + \
-                target.getshortcode()
+            intdirectory = solution.projectname + solution.ide.get_short_code() + platformcode2 + \
+                target.get_short_code()
             fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '"\n')
             if solution.projecttype == ProjectTypes.library:
                 # Library
@@ -1105,8 +1141,8 @@ def createvs2005solution(solution):
             else:
                 fp.write('\t\t\t<Tool\n')
                 fp.write('\t\t\t\tName="VCLinkerTool"\n')
-                fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.getshortcode()
-                         + platformcode2 + target.getshortcode() + '.lib"\n')
+                fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.get_short_code()
+                         + platformcode2 + target.get_short_code() + '.lib"\n')
                 fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.exe&quot;"\n')
                 fp.write('\t\t\t\tAdditionalLibraryDirectories="')
                 addcolon = False
@@ -1205,7 +1241,7 @@ def createvs2008solution(solution):
     listcpp = pickfromfilelist(codefiles, FileTypes.cpp)
     listwindowsresource = pickfromfilelist(codefiles, FileTypes.rc)
 
-    platformcode = solution.platform.getshortcode()
+    platformcode = solution.platform.get_short_code()
     solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,
                                   str(solution.visualstudio.outputfilename))).upper()
     projectpathname = os.path.join(solution.working_dir,
@@ -1230,7 +1266,7 @@ def createvs2008solution(solution):
     #
 
     fp.write('\t<Platforms>\n')
-    for vsplatform in solution.platform.getvsplatform():
+    for vsplatform in solution.platform.get_vs_platform():
         fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
     fp.write('\t</Platforms>\n')
 
@@ -1240,7 +1276,7 @@ def createvs2008solution(solution):
 
     fp.write('\t<Configurations>\n')
     for target in solution.configurations:
-        for vsplatform in solution.platform.getvsplatform():
+        for vsplatform in solution.platform.get_vs_platform():
             token = str(target) + '|' + vsplatform
             fp.write('\t\t<Configuration\n')
             fp.write('\t\t\tName="' + token + '"\n')
@@ -1251,8 +1287,8 @@ def createvs2008solution(solution):
                 platformcode2 = 'w32'
             else:
                 platformcode2 = platformcode
-            intdirectory = solution.projectname + solution.ide.getshortcode() + platformcode2 + \
-                target.getshortcode()
+            intdirectory = solution.projectname + solution.ide.get_short_code() + platformcode2 + \
+                target.get_short_code()
             fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '\\"\n')
             if solution.projecttype == ProjectTypes.library:
                 # Library
@@ -1375,8 +1411,8 @@ def createvs2008solution(solution):
             else:
                 fp.write('\t\t\t<Tool\n')
                 fp.write('\t\t\t\tName="VCLinkerTool"\n')
-                fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.getshortcode()
-                         + platformcode2 + target.getshortcode() + '.lib"\n')
+                fp.write('\t\t\t\tAdditionalDependencies="burgerlib' + solution.ide.get_short_code()
+                         + platformcode2 + target.get_short_code() + '.lib"\n')
                 fp.write('\t\t\t\tOutputFile="&quot;$(OutDir)' + intdirectory + '.exe&quot;"\n')
                 fp.write('\t\t\t\tAdditionalLibraryDirectories="')
                 addcolon = False

@@ -98,9 +98,9 @@ class Project(object):
         target = None
         for item in self.platforms:
             if item == PlatformTypes.msdos4gw:
-                target = item.getshortcode()
+                target = item.get_short_code()
             elif target is None:
-                target = item.getshortcode()
+                target = item.get_short_code()
 
         filep.write( \
             '\n' \
@@ -124,11 +124,11 @@ class Project(object):
             '#\n\n')
 
         for item in self.platforms:
-            filep.write('TARGET_SUFFIX_{0} = {1}\n'.format(item.getshortcode(), item.getshortcode()[-3:]))
+            filep.write('TARGET_SUFFIX_{0} = {1}\n'.format(item.get_short_code(), item.get_short_code()[-3:]))
         filep.write('\n')
 
         for item in self.configurations:
-            filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item), item.getshortcode()))
+            filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item), item.get_short_code()))
 
         filep.write('\n' \
             '#\n' \
@@ -383,15 +383,15 @@ class Project(object):
             filep.write('.PHONY: {0}\n'.format(str(configuration)))
             filep.write('{0}:'.format(str(configuration)))
             for platform in self.platforms:
-                filep.write(' ' + str(configuration) + platform.getshortcode())
+                filep.write(' ' + str(configuration) + platform.get_short_code())
             filep.write('\n' \
                 '\t@\n\n')
 
         for platform in self.platforms:
-            filep.write('.PHONY: {0}\n'.format(platform.getshortcode()))
-            filep.write('{0}:'.format(platform.getshortcode()))
+            filep.write('.PHONY: {0}\n'.format(platform.get_short_code()))
+            filep.write('{0}:'.format(platform.get_short_code()))
             for configuration in self.configurations:
-                filep.write(' ' + str(configuration) + platform.getshortcode())
+                filep.write(' ' + str(configuration) + platform.get_short_code())
             filep.write('\n' \
                 '\t@\n\n')
 
@@ -409,17 +409,17 @@ class Project(object):
 
         for configuration in self.configurations:
             for platform in self.platforms:
-                filep.write('.PHONY: {0}{1}\n'.format(str(configuration), platform.getshortcode()))
-                filep.write('{0}{1}:\n'.format(str(configuration), platform.getshortcode()))
+                filep.write('.PHONY: {0}{1}\n'.format(str(configuration), platform.get_short_code()))
+                filep.write('{0}{1}:\n'.format(str(configuration), platform.get_short_code()))
                 filep.write('\t@-mkdir -p "$(DESTINATION_DIR)"\n')
-                name = 'mak' + platform.getshortcode()[-3:] + configuration.getshortcode()
+                name = 'mak' + platform.get_short_code()[-3:] + configuration.get_short_code()
                 filep.write('\t@-mkdir -p "$(BASE_TEMP_DIR){0}"\n'.format(name))
                 filep.write('\t@$(MAKE) -e CONFIG='+ str(configuration) + \
-                    ' TARGET=' + platform.getshortcode() + \
+                    ' TARGET=' + platform.get_short_code() + \
                     ' -f ' + self.projectname_code + '.mak' \
                     ' $(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' + \
-                    platform.getshortcode()[-3:] + \
-                    configuration.getshortcode() + suffix + '\n')
+                    platform.get_short_code()[-3:] + \
+                    configuration.get_short_code() + suffix + '\n')
                 filep.write('\n')
 
         filep.write( \
@@ -451,8 +451,8 @@ class Project(object):
         for theplatform in self.platforms:
             for target in self.configurations:
                 filep.write('$(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' + \
-                    theplatform.getshortcode()[-3:] + \
-                    target.getshortcode() + \
+                    theplatform.get_short_code()[-3:] + \
+                    target.get_short_code() + \
                     suffix + ': $(OBJS) ' + self.projectname_code + '.mak\n')
                 if self.projecttype == ProjectTypes.library:
                     filep.write('\t@ar -rcs $@ $(TRUE_OBJS)\n')
@@ -501,7 +501,7 @@ def generate(solution, perforce=False, verbose=False):
     """
 
     # Validate the requests target(s)
-    platforms = solution.platform.getexpanded()
+    platforms = solution.platform.get_expanded()
 
     # Special case, discard any attempt to build 64 bit windows
     try:
@@ -525,8 +525,8 @@ def generate(solution, perforce=False, verbose=False):
     # Determine the ide and target type for the final file name
     #
 
-    idecode = solution.ide.getshortcode()
-    platformcode = solution.platform.getshortcode()
+    idecode = solution.ide.get_short_code()
+    platformcode = solution.platform.get_short_code()
     make_projectfile = Project(solution.projectname, idecode, platformcode)
     project_filename = solution.projectname + idecode + platformcode + '.mak'
     project_pathname = os.path.join( \

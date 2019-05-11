@@ -8,8 +8,8 @@ Package that handles the command line program ``rebuildme``.
 
 The command ``rebuildme`` calls ``cleanme`` and then ``buildme`` in that order.
 
-See:
-    main(), makeprojects.buildme, makeprojects.cleanme
+See Also:
+    main, makeprojects.buildme, makeprojects.cleanme
 """
 
 ## \package makeprojects.rebuildme

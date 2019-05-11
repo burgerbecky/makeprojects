@@ -20,6 +20,7 @@ All enumerations are stored in this package
 from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum, EnumMeta, _EnumDict
 import os
+from burger import get_mac_host_type, get_windows_host_type
 
 ########################################
 
@@ -31,7 +32,7 @@ class AutoEnum(EnumMeta):
     Using an empty tuple as a value stepper, create the equivalent of a
     C++ enum type. It is derived from enum.EnumMeta.
 
-    See:
+    See Also:
         makeprojects.enums.AutoIntEnum
 
     """
@@ -189,11 +190,11 @@ class FileTypes(AutoIntEnum):
             test_name: Filename to test
         Returns:
             A @ref FileTypes member or None on failure
-        See:
+        See Also:
             makeprojects.enums._FILETYPES_LOOKUP
         """
 
-        return _FILETYPES_LOOKUP.get( \
+        return _FILETYPES_LOOKUP.get(
             os.path.splitext(test_name)[1][1:].strip().lower(), None)
 
     def __repr__(self):
@@ -202,7 +203,7 @@ class FileTypes(AutoIntEnum):
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._FILETYPES_READABLE
         """
 
@@ -320,7 +321,7 @@ class ProjectTypes(AutoIntEnum):
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._PROJECTTYPES_READABLE
         """
 
@@ -371,13 +372,13 @@ class ConfigurationTypes(AutoIntEnum):
     ## Fast cap
     fastcap = ()
 
-    def getshortcode(self):
+    def get_short_code(self):
         """
         Create the platform codes from the platform type for Visual Studio
 
         Returns:
             A three character platform code or None if not supported.
-        See:
+        See Also:
             makeprojects.enums._CONFIGURATIONTYPES_CODES
         """
 
@@ -389,7 +390,7 @@ class ConfigurationTypes(AutoIntEnum):
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._CONFIGURATIONTYPES_READABLE
         """
 
@@ -402,7 +403,7 @@ class ConfigurationTypes(AutoIntEnum):
 # Dictionary to map ConfigurationTypes enumerations into an
 # three letter code to append to a project filename
 #
-# @sa makeprojects.enums.ConfigurationTypes.getshortcode()
+# @sa makeprojects.enums.ConfigurationTypes.get_short_code()
 
 
 _CONFIGURATIONTYPES_CODES = {
@@ -486,6 +487,8 @@ class IDETypes(AutoIntEnum):
     xcode8 = ()
     ## XCode 9
     xcode9 = ()
+    ## XCode 10
+    xcode10 = ()
 
     ## Codeblocks
     codeblocks = ()
@@ -499,7 +502,7 @@ class IDETypes(AutoIntEnum):
     ## bazel
     bazel = ()
 
-    def getshortcode(self):
+    def get_short_code(self):
         """
         Create the ide code from the ide type
 
@@ -508,7 +511,7 @@ class IDETypes(AutoIntEnum):
 
         Returns:
             Three letter code specific to the IDE version or None if not supported.
-        See:
+        See Also:
             makeprojects.enums._IDETYPES_CODES
         """
 
@@ -520,7 +523,7 @@ class IDETypes(AutoIntEnum):
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._IDETYPES_READABLE
         """
 
@@ -534,7 +537,7 @@ class IDETypes(AutoIntEnum):
 # Dictionary to map IDETypes enumerations into a
 # three letter code to append to a project filename
 #
-# @sa makeprojects.enums.IDETypes.getshortcode()
+# @sa makeprojects.enums.IDETypes.get_short_code()
 
 _IDETYPES_CODES = {
     IDETypes.vs2003: 'vc7',                # Microsoft Visual Studio
@@ -546,21 +549,22 @@ _IDETYPES_CODES = {
     IDETypes.vs2015: 'v15',
     IDETypes.vs2017: 'v17',
     IDETypes.vs2019: 'v19',
-    IDETypes.watcom: 'wat',                # Watcom MAKEFILE
-    IDETypes.codewarrior50: 'c50',        # Metrowerks / Freescale CodeWarrior
+    IDETypes.watcom: 'wat',                 # Watcom MAKEFILE
+    IDETypes.codewarrior50: 'c50',          # Metrowerks / Freescale CodeWarrior
     IDETypes.codewarrior58: 'c58',
     IDETypes.codewarrior59: 'c59',
-    IDETypes.xcode3: 'xc3',                # Apple XCode
+    IDETypes.xcode3: 'xc3',                 # Apple XCode
     IDETypes.xcode4: 'xc4',
     IDETypes.xcode5: 'xc5',
     IDETypes.xcode6: 'xc6',
     IDETypes.xcode7: 'xc7',
     IDETypes.xcode8: 'xc8',
     IDETypes.xcode9: 'xc9',
+    IDETypes.xcode10: 'x10',
     IDETypes.codeblocks: 'cdb',            # Codeblocks
-    IDETypes.nmake: 'nmk',                # nmake
-    IDETypes.make: 'mak',                # make
-    IDETypes.bazel: 'bzl'                # Bazel
+    IDETypes.nmake: 'nmk',                  # nmake
+    IDETypes.make: 'mak',                   # make
+    IDETypes.bazel: 'bzl'                   # Bazel
 }
 
 ## List of human readable strings
@@ -590,6 +594,7 @@ _IDETYPES_READABLE = {
     IDETypes.xcode7: 'XCode 7',
     IDETypes.xcode8: 'XCode 8',
     IDETypes.xcode9: 'XCode 9',
+    IDETypes.xcode10: 'XCode 10',
     IDETypes.codeblocks: 'CodeBlocks 13.12',
     IDETypes.nmake: 'GNU make',
     IDETypes.make: 'Linux make',
@@ -601,7 +606,7 @@ _IDETYPES_READABLE = {
 
 class PlatformTypes(AutoIntEnum):
     """
-    Enumeration of supported target platforms
+    Enumeration of supported target platforms.
 
     All supported tool chains for specific platforms are enumerated here.
     """
@@ -677,8 +682,19 @@ class PlatformTypes(AutoIntEnum):
     android = ()
     ## nVidia SHIELD
     shield = ()
+    ## Intellivision Amico
+    amico = ()
     ## Ouya (Now Razor)
     ouya = ()
+    ## Android Arm32
+    androidarm32 = ()
+    ## Android Arm64
+    androidarm64 = ()
+    ## Android Intel x32
+    androidintel32 = ()
+    ## Android Intel / AMD 64
+    androidintel64 = ()
+
     ## Generic Linux
     linux = ()
 
@@ -694,10 +710,10 @@ class PlatformTypes(AutoIntEnum):
     ## Apple IIgs
     iigs = ()
 
-    def getshortcode(self):
+    def get_short_code(self):
         """
-        Convert the enumeration to a 3 letter code for filename suffix
-
+        Convert the enumeration to a 3 letter code for filename suffix.
+        @details
         Create a three letter code for the target platform for the final
         filename for the project. For platforms that support multiple
         CPU architectures, the code will be six letters long with the CPU
@@ -705,35 +721,46 @@ class PlatformTypes(AutoIntEnum):
 
         Returns:
             A three or six letter code for the platform.
-        See:
+
+        See Also:
             makeprojects.enums._PLATFORMTYPES_CODES
         """
 
         return _PLATFORMTYPES_CODES.get(self, None)
 
-    def iswindows(self):
+    def is_windows(self):
         """
         Determine if the platform is windows.
 
         Returns:
-            True if the platform is for Microsoft windows
+            True if the platform is for Microsoft windows.
         """
 
-        return self == self.windows or self == self.win32 or self == self.win64
+        return self in (self.windows, self.win32, self.win64)
 
-    def ismacosx(self):
+    def is_macosx(self):
         """
         Determine if the platform is macOS.
 
         Returns:
-            True if the platform is Apple macOS
+            True if the platform is Apple macOS.
         """
 
-        return self == self.macosx or self == self.macosxppc32 or \
-            self == self.macosxppc64 or \
-            self == self.macosxintel32 or self == self.macosxintel64
+        return self in (self.macosx, self.macosxppc32, self.macosxppc64,
+                        self.macosxintel32, self.macosxintel64)
 
-    def ismacos(self):
+    def is_ios(self):
+        """
+        Determine if the platform is iOS.
+
+        Returns:
+            True if the platform is Apple iOS.
+        """
+
+        return self in (self.ios, self.ios32, self.ios64,
+                        self.iosemu, self.iosemu32, self.iosemu64)
+
+    def is_macos(self):
         """
         Determine if the platform is MacOS classic or Carbon.
 
@@ -741,43 +768,49 @@ class PlatformTypes(AutoIntEnum):
             True if the platform is Apple MacOS 1.0 through 9.2.2 or the Carbon API.
         """
 
-        return self.ismacosclassic() or self.ismacoscarbon()
+        return self.is_macos_classic() or self.is_macos_carbon()
 
-    def ismacoscarbon(self):
+    def is_macos_carbon(self):
         """
         Determine if the platform is MacOS Carbon.
 
         Returns:
             True if the platform is Apple MacOS Carbon API.
         """
-        return self == self.maccarbon or self == self.maccarbon68k or \
-            self == self.maccarbonppc
+        return self in (self.maccarbon, self.maccarbon68k, self.maccarbonppc)
 
-    def ismacosclassic(self):
+    def is_macos_classic(self):
         """
-        Determine if the platform is MacOS classic (MacOS 1.0 to 9.2.2)
+        Determine if the platform is MacOS classic (MacOS 1.0 to 9.2.2).
 
         Returns:
             True if the platform is Apple MacOS 1.0 through 9.2.2.
         """
-        return self == self.macos9 or self == self.macos968k or \
-            self == self.macos9ppc
+        return self in (self.macos9, self.macos968k, self.macos9ppc)
 
-    def ismsdos(self):
+    def is_msdos(self):
         """
-        Determine if the platform is MSDos
+        Determine if the platform is MSDos.
 
         Returns:
             True if the platform is MSDos
         """
-        return self == self.msdos or self == self.msdos4gw or \
-            self == self.msdosx32
+        return self in (self.msdos, self.msdos4gw, self.msdosx32)
 
-    @staticmethod
-    def match(first, second):
+    def is_android(self):
         """
-        Test if two platform types are a match
+        Determine if the platform is Android.
 
+        Returns:
+            True if the platform is Android
+        """
+        return self in (self.android, self.shield, self.ouya, self.amico, self.androidarm32,
+                        self.androidarm64, self.androidintel32, self.androidintel64)
+
+    def match(self, second):
+        """
+        Test if two platform types are a match.
+        @details
         If two platform types are similar, this function will return True. An
         example would be a windows 32 bit and a windows 64 bit platform would match.
 
@@ -785,114 +818,202 @@ class PlatformTypes(AutoIntEnum):
             True if the types are compatible.
         """
 
-        if first == second:
+        # pylint: disable=R0911, R0912
+        if self == second:
             return True
 
         # Test using the windows wildcard
-        if first == PlatformTypes.windows or second == PlatformTypes.windows:
-            if first.iswindows() == second.iswindows():
-                return True
+        if self == PlatformTypes.windows or second == PlatformTypes.windows:
+            return self.is_windows() == second.is_windows()
+
+        # Test macosx
+        if self == PlatformTypes.macosx or second == PlatformTypes.macosx:
+            return self.is_macosx() == second.is_macosx()
+
+        # Test macos 1.0 - 9.2.2
+        if self == PlatformTypes.macos9 or second == PlatformTypes.macos9:
+            return self.is_macos_classic() == second.is_macos_classic()
+
+        # Test macos Carbon
+        if self == PlatformTypes.maccarbon or second == PlatformTypes.maccarbon:
+            return self.is_macos_carbon() == second.is_macos_carbon()
+
+        # Test iOS
+        if self == PlatformTypes.ios or second == PlatformTypes.ios:
+            return self.is_ios() == second.is_ios()
+
+        # Test MSDos
+        if self == PlatformTypes.msdos or second == PlatformTypes.msdos:
+            return self.is_msdos() == second.is_msdos()
+
+        # Test Android
+        if self == PlatformTypes.android or second == PlatformTypes.android:
+            return self.is_android() == second.is_android()
         return False
 
-    def getvsplatform(self):
+    def get_vs_platform(self):
         """
-        Create the platform codes from the platform type for Visual Studio
-
+        Create the platform codes from the platform type for Visual Studio.
+        @details
         Visual Studio uses specific codes for tool chains used for
         video game consoles or CPUs. This function returns a list of
         codes needed to support the requested platform.
 
         Returns:
             A list of Visual Studio platforms for target.
-        See:
+        See Also:
             makeprojects.enums._PLATFORMTYPES_VS
         """
 
         return _PLATFORMTYPES_VS.get(self, [])
 
-    def getexpanded(self):
+    def get_expanded(self):
         """
-        Return a list of platforms from a platform that's a group
+        Return a list of platforms from a platform that is a group.
         """
 
-        if self == self.windows:
-            return [self.win32, self.win64]
-        if self == self.msdos:
-            return [self.msdosx32, self.msdos4gw]
-        if self == self.macosx:
-            return [self.macosxppc32, self.macosxppc64, self.macosxintel32, self.macosxintel64]
-        if self == self.macos9:
-            return [self.macos968k, self.macos9ppc]
-        if self == self.maccarbon:
-            return [self.maccarbon68k, self.maccarbonppc]
-        if self == self.ios:
-            return [self.ios32, self.ios64]
-        if self == self.iosemu:
-            return [self.iosemu32, self.iosemu64]
-        return [self]
+        return _PLATFORMTYPES_EXPANDED.get(self, [self])
+
+    def is_expandable(self):
+        """
+        Return True if the platform defines other platforms.
+        """
+
+        return self in _PLATFORMTYPES_EXPANDED
+
+    @staticmethod
+    def lookup(platform_name):
+        """
+        Look up a PlatformType based on name.
+        @details
+        For maximum compatiblity, the name will be scanned from several
+        look up tables to attempt to cover all premutations of an input string.
+
+        Note:
+            String comparisons are case insensitive.
+
+        Args:
+            platform_name: Platform string to test.
+        Returns:
+            A @ref PlatformTypes member or None on failure.
+        See Also:
+            makeprojects.enums._PLATFORMTYPES_READABLE
+        """
+
+        # Already a PlatformTypes?
+        if platform_name:
+
+            if isinstance(platform_name, PlatformTypes):
+                return platform_name
+
+            # Try the member name as is.
+            test_name = platform_name.lower()
+            if hasattr(PlatformTypes, test_name):
+                return PlatformTypes[test_name]
+
+            # Try a number of ways to find a match
+            for item in _PLATFORMTYPES_READABLE:
+                # Verbose name? File name short code?
+                if test_name == str(item).lower() or test_name == _PLATFORMTYPES_CODES[item]:
+                    return item
+
+                # Visual studio target type?
+                if not item.is_expandable():
+                    for vs_name in _PLATFORMTYPES_VS.get(item, ()):
+                        if test_name == vs_name.lower():
+                            return item
+        return None
+
+    @staticmethod
+    def default():
+        """
+        Determine the PlatformTypes from the currently running platform.
+        """
+
+        # Windows host?
+        temp = get_windows_host_type()
+        if temp:
+            return PlatformTypes.win64 if temp == 'x64' else PlatformTypes.win32
+
+        # Mac host?
+        temp = get_mac_host_type()
+        if temp:
+            mac_table = {
+                'ppc': PlatformTypes.macosxppc32, 'ppc64': PlatformTypes.macosxppc64,
+                'x32': PlatformTypes.macosxintel32, 'x64': PlatformTypes.macosxintel64}
+            mac_table.get(temp, PlatformTypes.macosxintel64)
+
+        # Unknown platforms default to Linux
+        return PlatformTypes.linux
 
     def __repr__(self):
         """
-        Convert the enumeration into a human readable file description
+        Convert the enumeration into a human readable file description.
 
         Returns:
             Human readable string or None if the enumeration is invalid
-        See:
+        See Also:
             makeprojects.enums._PLATFORMTYPES_READABLE
         """
 
         return _PLATFORMTYPES_READABLE.get(self, None)
 
+    ## Allow str() to work.
     __str__ = __repr__
 
 
-## List of platform short codes
+## List of platform short codes.
 #
 # Dictionary to map PlatformTypes enumerations into a
 # three or six letter code to append to a project filename
 #
-# @sa makeprojects.enums.PlatformTypes.getshortcode()
+# @sa makeprojects.enums.PlatformTypes.get_short_code
 
 _PLATFORMTYPES_CODES = {
-    PlatformTypes.windows: 'win',        # Windows targets
+    PlatformTypes.windows: 'win',           # Windows targets
     PlatformTypes.win32: 'w32',
     PlatformTypes.win64: 'w64',
-    PlatformTypes.macosx: 'osx',        # Mac OSX targets
+    PlatformTypes.macosx: 'osx',            # Mac OSX targets
     PlatformTypes.macosxppc32: 'osxp32',
     PlatformTypes.macosxppc64: 'osxp64',
     PlatformTypes.macosxintel32: 'osxx86',
     PlatformTypes.macosxintel64: 'osxx64',
-    PlatformTypes.macos9: 'mac',        # Mac OS targets (Pre-OSX)
+    PlatformTypes.macos9: 'mac',            # Mac OS targets (Pre-OSX)
     PlatformTypes.macos968k: 'mac68k',
     PlatformTypes.macos9ppc: 'macppc',
     PlatformTypes.maccarbon: 'car',
     PlatformTypes.maccarbon68k: 'car68k',
     PlatformTypes.maccarbonppc: 'carppc',
-    PlatformTypes.ios: 'ios',            # iOS targets
+    PlatformTypes.ios: 'ios',               # iOS targets
     PlatformTypes.ios32: 'iosa32',
     PlatformTypes.ios64: 'iosa64',
     PlatformTypes.iosemu: 'ioe',
     PlatformTypes.iosemu32: 'ioex86',
     PlatformTypes.iosemu64: 'ioex64',
-    PlatformTypes.xbox: 'xbx',            # Microsoft Xbox versions
+    PlatformTypes.xbox: 'xbx',              # Microsoft Xbox versions
     PlatformTypes.xbox360: 'x36',
     PlatformTypes.xboxone: 'one',
-    PlatformTypes.ps3: 'ps3',            # Sony platforms
+    PlatformTypes.ps3: 'ps3',               # Sony platforms
     PlatformTypes.ps4: 'ps4',
     PlatformTypes.vita: 'vit',
-    PlatformTypes.wiiu: 'wiu',            # Nintendo platforms
+    PlatformTypes.wiiu: 'wiu',              # Nintendo platforms
     PlatformTypes.switch: 'swi',
     PlatformTypes.dsi: 'dsi',
     PlatformTypes.ds: '2ds',
-    PlatformTypes.android: 'and',        # Google platforms
+    PlatformTypes.android: 'and',           # Google platforms
     PlatformTypes.shield: 'shi',
+    PlatformTypes.amico: 'ami',
     PlatformTypes.ouya: 'oya',
-    PlatformTypes.linux: 'lnx',            # Linux platforms
-    PlatformTypes.msdos: 'dos',            # MSDOS (Watcom or Codeblocks)
+    PlatformTypes.androidarm32: 'anda32',
+    PlatformTypes.androidarm64: 'anda64',
+    PlatformTypes.androidintel32: 'andx32',
+    PlatformTypes.androidintel64: 'andx64',
+    PlatformTypes.linux: 'lnx',             # Linux platforms
+    PlatformTypes.msdos: 'dos',             # MSDOS (Watcom or Codeblocks)
     PlatformTypes.msdos4gw: 'dos4gw',
     PlatformTypes.msdosx32: 'dosx32',
-    PlatformTypes.beos: 'bos',            # BeOS
-    PlatformTypes.iigs: '2gs'            # Apple IIgs
+    PlatformTypes.beos: 'beo',              # BeOS
+    PlatformTypes.iigs: '2gs'               # Apple IIgs
 }
 
 ## List of Visual Studio platform codes
@@ -900,70 +1021,119 @@ _PLATFORMTYPES_CODES = {
 # Visual Studio uses specific codes for tool chains used for
 # video game consoles or CPUs
 #
-# @sa makeprojects.enums.PlatformTypes.getvsplatform()
+# @sa makeprojects.enums.PlatformTypes.get_vs_platform
 
 _PLATFORMTYPES_VS = {
-    PlatformTypes.windows: ['Win32', 'x64'],        # Windows targets
-    PlatformTypes.win32: ['Win32'],
-    PlatformTypes.win64: ['x64'],
-    PlatformTypes.xbox: ['Xbox'],                    # Microsoft Xbox versions
-    PlatformTypes.xbox360: ['Xbox 360'],
-    PlatformTypes.xboxone: ['Xbox ONE'],
-    PlatformTypes.ps3: ['PS3'],                        # Sony platforms
-    PlatformTypes.ps4: ['ORBIS'],
-    PlatformTypes.vita: ['PSVita'],
-    PlatformTypes.wiiu: ['Cafe'],                    # Nintendo platforms
-    PlatformTypes.dsi: ['CTR'],
-    PlatformTypes.switch: ['Switch'],
-    PlatformTypes.android: ['Android'],                # Google platforms
-    PlatformTypes.shield: ['Tegra-Android', 'ARM-Android-NVIDIA', \
-        'AArch64-Android-NVIDIA', 'x86-Android-NVIDIA', 'x64-Android-NVIDIA']
+    PlatformTypes.windows: ('Win32', 'x64'),        # Windows targets
+    PlatformTypes.win32: ('Win32',),
+    PlatformTypes.win64: ('x64',),
+    PlatformTypes.xbox: ('Xbox',),                  # Microsoft Xbox versions
+    PlatformTypes.xbox360: ('Xbox 360',),
+    PlatformTypes.xboxone: ('Xbox ONE',),
+    PlatformTypes.ps3: ('PS3',),                    # Sony platforms
+    PlatformTypes.ps4: ('ORBIS',),
+    PlatformTypes.vita: ('PSVita',),
+    PlatformTypes.wiiu: ('Cafe',),                  # Nintendo platforms
+    PlatformTypes.dsi: ('CTR',),
+    PlatformTypes.switch: ('Switch',),
+    PlatformTypes.android: ('Android',),            # Google platforms
+    PlatformTypes.shield: (
+        'Tegra-Android',
+        'ARM-Android-NVIDIA',
+        'AArch64-Android-NVIDIA',
+        'x86-Android-NVIDIA',
+        'x64-Android-NVIDIA'),
+    PlatformTypes.androidarm32: ('ARM-Android-NVIDIA',),
+    PlatformTypes.androidarm64: ('AArch64-Android-NVIDIA',),
+    PlatformTypes.androidintel32: ('x86-Android-NVIDIA',),
+    PlatformTypes.androidintel64: ('x64-Android-NVIDIA',)
 }
 
 ## List of human readable strings
 #
 # Dictionary to map PlatformTypes enumerations into an human readable string
 #
-# @sa makeprojects.enums.PlatformTypes.__repr__()
+# @sa makeprojects.enums.PlatformTypes.__repr__
 
 _PLATFORMTYPES_READABLE = {
-    PlatformTypes.windows: 'Microsoft Windows x86 and x64',        # Windows targets
+    PlatformTypes.windows: 'Microsoft Windows x86 and x64',  # Windows targets
     PlatformTypes.win32: 'Microsoft Windows x86',
     PlatformTypes.win64: 'Microsoft Windows x64',
-    PlatformTypes.macosx: 'Apple macOS all CPUs',        # Mac OSX targets
+    PlatformTypes.macosx: 'Apple macOS all CPUs',           # Mac OSX targets
     PlatformTypes.macosxppc32: 'Apple macOS PowerPC 32',
     PlatformTypes.macosxppc64: 'Apple macOS PowerPC 64',
     PlatformTypes.macosxintel32: 'Apple macOS x86',
     PlatformTypes.macosxintel64: 'Apple macOS x64',
-    PlatformTypes.macos9: 'Apple MacOS 9 PPC and 68k',        # Mac OS targets (Pre-OSX)
+    PlatformTypes.macos9: 'Apple MacOS 9 PPC and 68k',      # Mac OS targets (Pre-OSX)
     PlatformTypes.macos968k: 'Apple MacOS 9 68k',
     PlatformTypes.macos9ppc: 'Apple MacOS 9 PowerPC 32',
     PlatformTypes.maccarbon: 'Apple MacOS Carbon',
     PlatformTypes.maccarbon68k: 'Apple MacOS Carbon 68k',
     PlatformTypes.maccarbonppc: 'Apple MacOS Carbon PowerPC 32',
-    PlatformTypes.ios: 'Apple iOS',                    # iOS targets
+    PlatformTypes.ios: 'Apple iOS',                         # iOS targets
     PlatformTypes.ios32: 'Apple iOS ARM 32',
     PlatformTypes.ios64: 'Apple iOS ARM 64',
     PlatformTypes.iosemu: 'Apple iOS Emulator',
     PlatformTypes.iosemu32: 'Apple iOS Emulator x86',
     PlatformTypes.iosemu64: 'Apple iOS Emulator x64',
-    PlatformTypes.xbox: 'Microsoft Xbox',            # Microsoft Xbox versions
+    PlatformTypes.xbox: 'Microsoft Xbox',                   # Microsoft Xbox versions
     PlatformTypes.xbox360: 'Microsoft Xbox 360',
     PlatformTypes.xboxone: 'Microsoft Xbox ONE',
-    PlatformTypes.ps3: 'Sony PS3',                    # Sony platforms
+    PlatformTypes.ps3: 'Sony PS3',                          # Sony platforms
     PlatformTypes.ps4: 'Sony PS4',
     PlatformTypes.vita: 'Sony Playstation Vita',
-    PlatformTypes.wiiu: 'Nintendo WiiU',            # Nintendo platforms
+    PlatformTypes.wiiu: 'Nintendo WiiU',                    # Nintendo platforms
     PlatformTypes.switch: 'Nintendo Switch',
     PlatformTypes.dsi: 'Nintendo DSI',
     PlatformTypes.ds: 'Nintendo 2DS',
-    PlatformTypes.android: 'Google Android',        # Google platforms
+    PlatformTypes.android: 'Google Android',                # Google platforms
     PlatformTypes.shield: 'nVidia Shield',
+    PlatformTypes.amico: 'Intellivision Amico',
     PlatformTypes.ouya: 'Ouya',
-    PlatformTypes.linux: 'Linux',                    # Linux platforms
-    PlatformTypes.msdos: 'MSDos DOS4GW and X32',    # MSDOS (Watcom or Codeblocks)
+    PlatformTypes.androidarm32: 'Android ARM 32',
+    PlatformTypes.androidarm64: 'Android ARM 64',
+    PlatformTypes.androidintel32: 'Android x86',
+    PlatformTypes.androidintel64: 'Android x64',
+    PlatformTypes.linux: 'Linux',                           # Linux platforms
+    PlatformTypes.msdos: 'MSDos DOS4GW and X32',            # MSDOS (Watcom or Codeblocks)
     PlatformTypes.msdos4gw: 'MSDos DOS4GW',
     PlatformTypes.msdosx32: 'MSDos X32',
-    PlatformTypes.beos: 'BeOS',                        # BeOS
-    PlatformTypes.iigs: 'Apple IIgs'                # Apple IIgs
+    PlatformTypes.beos: 'BeOS',                             # BeOS
+    PlatformTypes.iigs: 'Apple IIgs'                        # Apple IIgs
 }
+
+## List of platforms that expand to multiple targets.
+#
+# Dictionary to map generic PlatformTypes enumerations into lists.
+#
+# @sa makeprojects.enums.PlatformTypes.get_expanded
+
+_PLATFORMTYPES_EXPANDED = {
+    PlatformTypes.windows: (
+        PlatformTypes.win32,
+        PlatformTypes.win64),
+    PlatformTypes.msdos: (
+        PlatformTypes.msdosx32,
+        PlatformTypes.msdos4gw),
+    PlatformTypes.macosx: (
+        PlatformTypes.macosxppc32,
+        PlatformTypes.macosxppc64,
+        PlatformTypes.macosxintel32,
+        PlatformTypes.macosxintel64),
+    PlatformTypes.macos9: (
+        PlatformTypes.macos968k,
+        PlatformTypes.macos9ppc),
+    PlatformTypes.maccarbon: (
+        PlatformTypes.maccarbon68k,
+        PlatformTypes.maccarbonppc),
+    PlatformTypes.ios: (
+        PlatformTypes.ios32,
+        PlatformTypes.ios64),
+    PlatformTypes.iosemu: (
+        PlatformTypes.iosemu32,
+        PlatformTypes.iosemu64),
+    PlatformTypes.android: (
+        PlatformTypes.androidarm32,
+        PlatformTypes.androidarm64,
+        PlatformTypes.androidintel32,
+        PlatformTypes.androidintel64)}

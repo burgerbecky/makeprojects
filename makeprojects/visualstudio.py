@@ -540,7 +540,7 @@ class VS2003vcproj(object):
         self.Keyword = 'Win32Proj'
         self.configurations = []
 
-        for vsplatform in project.platform.getvsplatform():
+        for vsplatform in project.platform.get_vs_platform():
 
             #
             # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
@@ -595,7 +595,7 @@ class VS2003vcproj(object):
         #
 
         fp.write(u'\t<Platforms>\n')
-        for vsplatform in self.project.platform.getvsplatform():
+        for vsplatform in self.project.platform.get_vs_platform():
 
             # Ignore x64 platforms on Visual Studio 2003
             if vsplatform == 'x64':
@@ -753,7 +753,7 @@ def generatesolutionfile(fp, solution, ide):
         #
 
         if solution.projects:
-            for platform in solution.platform.getvsplatform():
+            for platform in solution.platform.get_vs_platform():
 
                 #
                 # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
@@ -781,7 +781,7 @@ def generatesolutionfile(fp, solution, ide):
         fp.write(u'\tGlobalSection(ProjectConfiguration) = postSolution\n')
 
         for project in solution.projects:
-            for platform in solution.platform.getvsplatform():
+            for platform in solution.platform.get_vs_platform():
 
                 #
                 # Visual Studio 2003 doesn't support 64 bit compilers
@@ -831,7 +831,7 @@ def generatesolutionfile(fp, solution, ide):
             fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
 
             for configuration in solution.configurations:
-                for platform in solution.platform.getvsplatform():
+                for platform in solution.platform.get_vs_platform():
                     token = configuration + '|' + platform
                     fp.write(u'\t\t' + token + ' = ' + token + '\n')
 
@@ -845,7 +845,7 @@ def generatesolutionfile(fp, solution, ide):
 
             for project in solution.projects:
                 for configuration in solution.configurations:
-                    for platform in solution.platform.getvsplatform():
+                    for platform in solution.platform.get_vs_platform():
                         token = configuration + '|' + platform
                         fp.write(u'\t\t{' + project.visualstudio.uuid + '}.' + token + '.ActiveCfg = ' + token + '\n')
                         fp.write(u'\t\t{' + project.visualstudio.uuid + '}.' + token + '.Build.0 = ' + token + '\n')
@@ -1121,8 +1121,8 @@ class Defaults(object):
         # Get the config file name and default frameworks
         #
 
-        self.idecode = solution.ide.getshortcode()
-        self.platformcode = solution.platform.getshortcode()
+        self.idecode = solution.ide.get_short_code()
+        self.platformcode = solution.platform.get_short_code()
         self.outputfilename = str(solution.projectname + self.idecode + self.platformcode)
         self.uuid = calcuuid(self.outputfilename)
 
@@ -1296,7 +1296,7 @@ class SolutionFile(object):
         #
 
         fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
-        vsplatforms = self.solution.platform.getvsplatform()
+        vsplatforms = self.solution.platform.get_vs_platform()
         for target in self.solution.configurations:
             for item in vsplatforms:
                 token = str(target) + '|' + item
@@ -1406,7 +1406,7 @@ class vsProject(object):
 
         fp.write(u'\t<ItemGroup Label="ProjectConfigurations">\n')
         for target in solution.configurations:
-            for vsplatform in solution.platform.getvsplatform():
+            for vsplatform in solution.platform.get_vs_platform():
                 token = str(target) + '|' + vsplatform
                 fp.write(u'\t\t<ProjectConfiguration Include="' + token + '">\n')
                 fp.write(u'\t\t\t<Configuration>' + str(target) + '</Configuration>\n')
@@ -1847,7 +1847,7 @@ def generate(solution, ide, perforce=False, verbose=False):
     if solution.visualstudio.idecode is not None:
         idecode = solution.visualstudio.idecode
     else:
-        idecode = ide.getshortcode()
+        idecode = ide.get_short_code()
 
     #
     # Set the visual studio platform code
@@ -1856,7 +1856,7 @@ def generate(solution, ide, perforce=False, verbose=False):
     if solution.visualstudio.platformcode is not None:
         platformcode = solution.visualstudio.platformcode
     else:
-        platformcode = solution.platform.getshortcode()
+        platformcode = solution.platform.get_short_code()
 
     #
     # Save the final filename for the Visual Studio Solution file

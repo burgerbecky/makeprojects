@@ -12,8 +12,8 @@ buildme.BUILD_LIST exist, they will be called in priority order.
 
 Build commands are performed from lowest priority value to highest value.
 
-See:
-    main(), makeprojects.cleanme, makeprojects.rebuildme
+See Also:
+    main, makeprojects.cleanme, makeprojects.rebuildme
 
 """
 
@@ -515,8 +515,8 @@ def parse_sln_file(full_pathname):
         full_pathname: Pathname to the .sln file
     Returns:
         tuple(list of configuration strings, integer Visual Studio version year)
-    See:
-        build_visual_studio()
+    See Also:
+        build_visual_studio
     """
 
     # Load in the .sln file, it's a text file
@@ -603,8 +603,8 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         fatal: If True, abort on the first failed build
     Returns:
         List of BuildError objects
-    See:
-        parse_sln_file()
+    See Also:
+        parse_sln_file
     """
 
     # Get the list of build targets
@@ -676,8 +676,8 @@ def parse_mcp_file(full_pathname):
         full_pathname: Pathname to the .mcp file
     Returns:
         tuple(list of configuration strings, integer CodeWarrior Version)
-    See:
-        build_codewarrior()
+    See Also:
+        build_codewarrior
     """
 
     # Handle ../../
@@ -763,8 +763,8 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
         fatal: If True, abort on the first failed build
     Returns:
         List of BuildError objects
-    See:
-        parse_mcp_file()
+    See Also:
+        parse_mcp_file
     """
 
     # Test for older macOS or Windows
@@ -906,8 +906,8 @@ def parse_xcodeproj_dir(full_pathname):
         full_pathname: Pathname to the .xcodeproj folder
     Returns:
         list of configuration strings
-    See:
-        build_xcode()
+    See Also:
+        build_xcode
     """
 
     # Start with an empty list
@@ -954,8 +954,8 @@ def build_xcode(full_pathname, verbose=False, fatal=False):
         fatal: If True, abort on the first failed build
     Returns:
         List of BuildError objects
-    See:
-        parse_xcodeproj_dir()
+    See Also:
+        parse_xcodeproj_dir
     """
 
     # Get the list of build targets
@@ -1010,8 +1010,8 @@ def parse_codeblocks_file(full_pathname):
         full_pathname: Pathname to the .cdp file
     Returns:
         list of configuration strings
-    See:
-        build_codeblocks()
+    See Also:
+        build_codeblocks
     """
 
     # Start with an empty list
@@ -1061,8 +1061,8 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
         fatal: If True, abort on the first failed build
     Returns:
         List of BuildError objects
-    See:
-       parse_codeblocks_file()
+    See Also:
+       parse_codeblocks_file
     """
 
     # Commands available as of 13.12
@@ -1142,8 +1142,8 @@ def add_build_rules(projects, file_name, args):
         projects: List of projects to build.
         file_name: Pathname to the build_rules.py file.
         args: Args for determining verbosity for output.
-    See:
-       add_project() or get_projects()
+    See Also:
+       add_project, get_projects
     """
 
     file_name = os.path.abspath(file_name)

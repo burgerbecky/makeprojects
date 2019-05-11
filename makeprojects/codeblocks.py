@@ -38,8 +38,8 @@ def generate(solution, perforce=False, verbose=False):
 
     codefiles, includedirectories = solution.getfilelist(
         [FileTypes.h, FileTypes.cpp, FileTypes.rc, FileTypes.hlsl, FileTypes.glsl])
-    platformcode = solution.platform.getshortcode()
-    idecode = solution.ide.getshortcode()
+    platformcode = solution.platform.get_short_code()
+    idecode = solution.ide.get_short_code()
     projectfilename = str(solution.projectname + idecode + platformcode)
     projectpathname = os.path.join(
         solution.workingDir, projectfilename + '.cbp')

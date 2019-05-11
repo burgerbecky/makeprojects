@@ -939,8 +939,8 @@ def generate(solution):
     # Determine the ide and target type for the final file name
     #
 
-    idecode = solution.ide.getshortcode()
-    platformcode = solution.platform.getshortcode()
+    idecode = solution.ide.get_short_code()
+    platformcode = solution.platform.get_short_code()
     xcodeprojectfile = Project(solution.projectname, idecode, platformcode)
     rootproject = xcodeprojectfile.pbxprojects[0]
 

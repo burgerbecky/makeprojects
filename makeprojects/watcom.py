@@ -124,9 +124,9 @@ class Project(object):
         target = None
         for item in self.platforms:
             if item == PlatformTypes.msdos4gw:
-                target = item.getshortcode()
+                target = item.get_short_code()
             elif target is None:
-                target = item.getshortcode()
+                target = item.get_short_code()
 
         filep.write( \
             '\n' \
@@ -150,13 +150,13 @@ class Project(object):
             '#\n\n')
 
         for item in self.platforms:
-            filep.write('TARGET_SUFFIX_{0} = {1}\n'.format(item.getshortcode(), \
-                item.getshortcode()[-3:]))
+            filep.write('TARGET_SUFFIX_{0} = {1}\n'.format(item.get_short_code(), \
+                item.get_short_code()[-3:]))
         filep.write('\n')
 
         for item in self.configurations:
             filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item), \
-                item.getshortcode()))
+                item.get_short_code()))
 
         filep.write( \
             '\n' \
@@ -436,14 +436,14 @@ class Project(object):
         for configuration in self.configurations:
             filep.write('{0}: '.format(str(configuration)))
             for platform in self.platforms:
-                filep.write(str(configuration) + platform.getshortcode() + ' ')
+                filep.write(str(configuration) + platform.get_short_code() + ' ')
             filep.write('.SYMBOLIC\n' \
                 '\t@%null\n\n')
 
         for platform in self.platforms:
-            filep.write('{0}: '.format(platform.getshortcode()))
+            filep.write('{0}: '.format(platform.get_short_code()))
             for configuration in self.configurations:
-                filep.write(str(configuration) + platform.getshortcode() + ' ')
+                filep.write(str(configuration) + platform.get_short_code() + ' ')
             filep.write('.SYMBOLIC\n' \
                 '\t@%null\n\n')
 
@@ -455,18 +455,18 @@ class Project(object):
         for configuration in self.configurations:
             for platform in self.platforms:
                 filep.write('{0}{1}: .SYMBOLIC\n'.format(str(configuration), \
-                    platform.getshortcode()))
+                    platform.get_short_code()))
                 filep.write('\t@if not exist "$(DESTINATION_DIR)" ' \
                     '@mkdir "$(DESTINATION_DIR)"\n')
-                name = 'wat' + platform.getshortcode()[-3:] + \
-                    configuration.getshortcode()
+                name = 'wat' + platform.get_short_code()[-3:] + \
+                    configuration.get_short_code()
                 filep.write('\t@if not exist "$(BASE_TEMP_DIR){0}" ' \
                     '@mkdir "$(BASE_TEMP_DIR){0}"\n'.format(name))
                 filep.write('\t@set CONFIG=' + str(configuration) + '\n')
-                filep.write('\t@set TARGET=' + platform.getshortcode() + '\n')
+                filep.write('\t@set TARGET=' + platform.get_short_code() + '\n')
                 filep.write('\t@%make $(DESTINATION_DIR)\\$(PROJECT_NAME)wat' + \
-                    platform.getshortcode()[-3:] + \
-                    configuration.getshortcode() + '.' + suffix + '\n')
+                    platform.get_short_code()[-3:] + \
+                    configuration.get_short_code() + '.' + suffix + '\n')
                 filep.write('\n')
 
         filep.write( \
@@ -494,10 +494,10 @@ class Project(object):
 
         for target in self.platforms:
             for config in self.configurations:
-                filep.write('A = $(BASE_TEMP_DIR)wat' + target.getshortcode()[-3:] + \
-                    config.getshortcode() + '\n' \
-                    '$(DESTINATION_DIR)\\$(PROJECT_NAME)wat' + target.getshortcode()[-3:] + \
-                    config.getshortcode() + \
+                filep.write('A = $(BASE_TEMP_DIR)wat' + target.get_short_code()[-3:] + \
+                    config.get_short_code() + '\n' \
+                    '$(DESTINATION_DIR)\\$(PROJECT_NAME)wat' + target.get_short_code()[-3:] + \
+                    config.get_short_code() + \
                     suffix + ': $+$(OBJS)$- ' + self.projectname_code + '.wmk\n')
                 if self.projecttype == ProjectTypes.library:
 
@@ -532,7 +532,7 @@ def generate(solution, perforce=False, verbose=False):
     """
 
     # Validate the requests target(s)
-    platforms = solution.platform.getexpanded()
+    platforms = solution.platform.get_expanded()
 
     # Special case, discard any attempt to build 64 bit windows
     try:
@@ -556,8 +556,8 @@ def generate(solution, perforce=False, verbose=False):
     # Determine the ide and target type for the final file name
     #
 
-    idecode = solution.ide.getshortcode()
-    platformcode = solution.platform.getshortcode()
+    idecode = solution.ide.get_short_code()
+    platformcode = solution.platform.get_short_code()
     watcom_projectfile = Project(solution.projectname, idecode, platformcode)
     project_filename = solution.projectname + idecode + platformcode + '.wmk'
     project_pathname = os.path.join( \
