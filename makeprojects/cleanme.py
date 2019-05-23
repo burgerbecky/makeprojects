@@ -61,18 +61,18 @@ _XCODEPROJ_MATCH = re.compile('(?ms).*\\.xcodeproj\\Z')
 ########################################
 
 
-def dispatch(file_name, working_dir, args):
+def dispatch(file_name, working_directory, args):
     """
-    Dispatch to ``clean_rules``.
+    Dispatch to ``rules('clean')``.
 
     Dispatch to the build_rules.py file to the cleanme
-    function of ``clean_rules`` and return the error code
+    function of ``rules('clean')`` and return the error code
     if found. If the parameter ``root`` was found in the
     parameter list, check if the default argument is ``True`` to abort after execution.
 
     Args:
         file_name: full path of the build_rules.py file
-        working_dir: path of the directory to pass to the ``clean_rules`` function
+        working_directory: path of the directory to pass to the ``rules('clean')`` function
         args: Args for determining verbosity for output
 
     Returns:
@@ -88,11 +88,11 @@ def dispatch(file_name, working_dir, args):
             print('Using configuration file {}'.format(file_name))
 
         # Perform the clean on this folder, if there's a clean function
-        clean_rules = getattr(build_rules, 'clean_rules', None)
-        if clean_rules:
+        rules = getattr(build_rules, 'rules', None)
+        if rules:
 
             # Get the function signature
-            sig = signature(clean_rules)
+            sig = signature(rules)
 
             parm_root = sig.parameters.get('root')
             if parm_root:
@@ -103,7 +103,7 @@ def dispatch(file_name, working_dir, args):
             parm_working_directory = sig.parameters.get('working_directory')
             if not parm_working_directory:
                 if args.verbose:
-                    print('function clean_rules() doesn\'t have a parameter for '
+                    print('function rules() doesn\'t have a parameter for '
                           'working_directory ')
                 return 10
 
@@ -112,27 +112,27 @@ def dispatch(file_name, working_dir, args):
             else:
                 temp_dir = parm_working_directory.default
             if temp_dir:
-                if working_dir != temp_dir:
+                if working_directory != temp_dir:
                     if args.verbose:
                         print(
-                            'function clean_rules() not called due to directory mismatch. '
+                            'function rules() not called due to directory mismatch. '
                             'Expected {}, found {}'.format(
-                                temp_dir, working_dir))
+                                temp_dir, working_directory))
                     return 0
 
             # pylint: disable=E1102
-            return clean_rules(working_directory=working_dir)
+            return rules(command='clean', working_directory=working_directory)
     return 0
 
 ########################################
 
 
-def process(working_dir, args):
+def process(working_directory, args):
     """
     Clean a specific directory.
 
     Args:
-        working_dir: path of the directory to pass to the ``clean_rules`` function
+        working_directory: path of the directory to pass to the ``clean_rules`` function
         args: Args for determining verbosity for output
     Returns:
         Zero on no error, non zero integer on error
@@ -141,19 +141,19 @@ def process(working_dir, args):
     # pylint: disable=R0912
 
     if args.verbose:
-        print('Cleaning "{}".'.format(working_dir))
+        print('Cleaning "{}".'.format(working_directory))
 
     # Simplest method, a hard coded rules file
     if args.rules_file:
-        error = dispatch(os.path.abspath(args.rules_file), working_dir, args)
+        error = dispatch(os.path.abspath(args.rules_file), working_directory, args)
     else:
 
         # No files aborted
         args.version = False
         # Load the configuration file at the current directory
-        temp_dir = working_dir
+        temp_dir = working_directory
         while True:
-            error = dispatch(os.path.join(temp_dir, BUILD_RULES), working_dir, args)
+            error = dispatch(os.path.join(temp_dir, BUILD_RULES), working_directory, args)
             # Abort on error
             if error:
                 break
@@ -165,7 +165,7 @@ def process(working_dir, args):
             temp_dir2 = os.path.dirname(temp_dir)
             # Already at the top of the directory?
             if temp_dir2 is None or temp_dir2 == temp_dir:
-                error = dispatch(DEFAULT_BUILD_RULES, working_dir, args)
+                error = dispatch(DEFAULT_BUILD_RULES, working_directory, args)
                 if error:
                     return error
                 break
@@ -175,13 +175,13 @@ def process(working_dir, args):
     # If recursive, process all the sub folders
     if args.recursive and not error:
         # Iterate over the directory
-        for item in os.listdir(working_dir):
+        for item in os.listdir(working_directory):
 
             # Ignore xcode project directories
             if _XCODEPROJ_MATCH.match(item):
                 continue
 
-            path_name = os.path.join(working_dir, item)
+            path_name = os.path.join(working_directory, item)
             if os.path.isdir(path_name):
                 error = process(path_name, args)
                 if error:
@@ -192,7 +192,7 @@ def process(working_dir, args):
 ########################################
 
 
-def main(working_dir=None, args=None):
+def main(working_directory=None, args=None):
     """
     Command line shell for ``cleanme``.
 
@@ -207,15 +207,15 @@ def main(working_dir=None, args=None):
     - ``-d``, List of directories to clean.
 
     Args:
-        working_dir: Directory to operate on, or None for os.getcwd()
+        working_directory: Directory to operate on, or None for os.getcwd()
         args: Command line to use instead of sys.argv
     Returns:
         Zero on no error, non-zero on error
     """
 
-    # Make sure working_dir is properly set
-    if working_dir is None:
-        working_dir = os.getcwd()
+    # Make sure working_directory is properly set
+    if working_directory is None:
+        working_directory = os.getcwd()
 
     # Parse the command line
     parser = argparse.ArgumentParser(
@@ -244,13 +244,13 @@ def main(working_dir=None, args=None):
     if args.generate_build_rules:
         from .config import savedefault
         if args.verbose:
-            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
-        savedefault(working_dir)
+            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
+        savedefault(working_directory)
         return 0
 
     # Make a list of directories to process
     if not args.directories:
-        args.directories = [working_dir]
+        args.directories = [working_directory]
 
     # Clean the directories
     for item in args.directories:

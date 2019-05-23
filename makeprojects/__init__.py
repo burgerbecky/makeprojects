@@ -68,8 +68,7 @@ import burger
 
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, \
     EMAIL, LICENSE, COPYRIGHT
-from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, \
-    ConfigurationTypes, ProjectTypes
+from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, ProjectTypes
 
 ########################################
 
@@ -108,12 +107,12 @@ __all__ = [
     'build',
     'clean',
     'rebuild',
-    'newsolution',
-    'newproject',
+    'new_solution',
+    'new_project',
+    'new_configuration',
 
     'FileTypes',
     'ProjectTypes',
-    'ConfigurationTypes',
     'IDETypes',
     'PlatformTypes',
 
@@ -130,12 +129,12 @@ __all__ = [
 ########################################
 
 
-def build(working_dir=None, args=None):
+def build(working_directory=None, args=None):
     """
     Invoke the buildme command line from within Python
 
     Args:
-        working_dir: Directory to process, ``None`` for current working directory
+        working_directory: Directory to process, ``None`` for current working directory
         args: Argument list to pass to the command, None uses sys.argv
     Returns:
         Zero on success, system error code on failure
@@ -143,17 +142,17 @@ def build(working_dir=None, args=None):
         makeprojects.buildme
     """
     from .buildme import main
-    return main(working_dir, args)
+    return main(working_directory, args)
 
 ########################################
 
 
-def clean(working_dir=None, args=None):
+def clean(working_directory=None, args=None):
     """
     Invoke the cleanme command line from within Python
 
     Args:
-        working_dir: Directory to process, ``None`` for current working directory
+        working_directory: Directory to process, ``None`` for current working directory
         args: Argument list to pass to the command, None uses sys.argv
     Returns:
         Zero on success, system error code on failure
@@ -162,17 +161,17 @@ def clean(working_dir=None, args=None):
     """
 
     from .cleanme import main
-    return main(working_dir, args)
+    return main(working_directory, args)
 
 ########################################
 
 
-def rebuild(working_dir=None, args=None):
+def rebuild(working_directory=None, args=None):
     """
     Invoke the rebuildme command line from within Python
 
     Args:
-        working_dir: Directory to rebuild
+        working_directory: Directory to rebuild
         args: Command line to use instead of sys.argv
     Returns:
         Zero on no error, non-zero on error
@@ -181,7 +180,7 @@ def rebuild(working_dir=None, args=None):
     """
 
     from .rebuildme import main
-    return main(working_dir, args)
+    return main(working_directory, args)
 
 ########################################
 
@@ -197,10 +196,6 @@ class Property(object):
 
     def __init__(self, configuration=None, platform=None, name=None, data=None):
         # Sanity check
-        if configuration is not None and \
-            not isinstance(configuration, ConfigurationTypes):
-            raise TypeError( \
-                "parameter 'configuration' must be of type ConfigurationTypes")
         if name is None:
             raise TypeError("Property is missing a name")
 
@@ -221,9 +216,9 @@ class Property(object):
         result = []
         for item in entries:
             if configuration is None or item.configuration is None or \
-                item.configuration == configuration:
+                    item.configuration == configuration:
                 if platform is None or item.platform is None or \
-                    item.platform.match(platform):
+                        item.platform.match(platform):
                     if name is None or item.name == name:
                         result.append(item)
         return result
@@ -236,9 +231,9 @@ class Property(object):
         result = []
         for item in entries:
             if configuration is None or item.configuration is None or \
-                item.configuration == configuration:
+                    item.configuration == configuration:
                 if platform is None or item.platform is None or \
-                    item.platform.match(platform):
+                        item.platform.match(platform):
                     if name is None or item.name == name:
                         result.append(item.data)
         return result
@@ -251,8 +246,8 @@ class Property(object):
             Human readable string or None if the record is invalid
         """
 
-        return 'Configuration: {}, Platform: {}, Name: {}, Data: {}'.format( \
-            str(self.configuration), \
+        return 'Configuration: {}, Platform: {}, Name: {}, Data: {}'.format(
+            str(self.configuration),
             str(self.platform), self.name, self.data)
 
     __str__ = __repr__
@@ -364,50 +359,61 @@ class SourceFile(object):
             makeprojects.enums._PROJECTTYPES_READABLE
         """
 
-        return 'Type: {} Name: "{}"'.format(str(self.type), \
-            self.getabspath())
+        return 'Type: {} Name: "{}"'.format(str(self.type),
+                                            self.getabspath())
 
     __str__ = __repr__
 
 ########################################
 
 
-def newsolution(name='project', suffixenable=False):
+def new_solution(**kargs):
     """
     Create a new instance of a core.Solution
 
     Convenience routine to create a core.Solution instance.
 
     Args:
-        name: Name of the solution
-        suffixenable: True if suffixes are added to project names to denote
-            project type and compiler
+        kargs: Keyword args
     See Also:
         core.Solution
     """
 
     from .core import Solution
-    return Solution(name=name, suffixenable=suffixenable)
+    return Solution(**kargs)
 
 ########################################
 
 
-def newproject(name='project', projecttype=ProjectTypes.tool, \
-    suffixenable=False):
+def new_project(**kargs):
     """
     Create a new instance of a core.Project
 
     Convenience routine to create a core.Project instance.
 
     Args:
-        name: Name of the project
-        projecttype: Kind of project to make 'tool', 'app', 'library',
-            'sharedlibrary' \ref enums.ProjectTypes
-        suffixenable: True if suffixes are added to project names to denote
-            project type and compiler
+        kargs: Keyword args
     See Also:
         core.Project
     """
 
     from .core import Project
-    return Project(name=name, projecttype=projecttype, suffixenable=suffixenable)
+    return Project(**kargs)
+
+########################################
+
+
+def new_configuration(**kargs):
+    """
+    Create a new instance of a core.Configuration
+
+    Convenience routine to create a core.Configuration instance.
+
+    Args:
+        kargs: Keyword args
+    See Also:
+        core.Configuration
+    """
+
+    from .core import Configuration
+    return Configuration(**kargs)

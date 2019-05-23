@@ -23,7 +23,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 from io import StringIO
 import burger
-from makeprojects import FileTypes, ProjectTypes, PlatformTypes, ConfigurationTypes
+from makeprojects import FileTypes, ProjectTypes, PlatformTypes
+from .enums import configuration_short_code
 
 # pylint: disable=C0302
 
@@ -88,7 +89,7 @@ class Project(object):
 
         config = None
         for item in self.configurations:
-            if item == ConfigurationTypes.release:
+            if item == 'Release':
                 config = 'Release'
             elif config is None:
                 config = str(item)
@@ -128,7 +129,7 @@ class Project(object):
         filep.write('\n')
 
         for item in self.configurations:
-            filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item), item.get_short_code()))
+            filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item), configuration_short_code(item)))
 
         filep.write('\n' \
             '#\n' \
@@ -412,14 +413,14 @@ class Project(object):
                 filep.write('.PHONY: {0}{1}\n'.format(str(configuration), platform.get_short_code()))
                 filep.write('{0}{1}:\n'.format(str(configuration), platform.get_short_code()))
                 filep.write('\t@-mkdir -p "$(DESTINATION_DIR)"\n')
-                name = 'mak' + platform.get_short_code()[-3:] + configuration.get_short_code()
+                name = 'mak' + platform.get_short_code()[-3:] + configuration_short_code(configuration)
                 filep.write('\t@-mkdir -p "$(BASE_TEMP_DIR){0}"\n'.format(name))
                 filep.write('\t@$(MAKE) -e CONFIG='+ str(configuration) + \
                     ' TARGET=' + platform.get_short_code() + \
                     ' -f ' + self.projectname_code + '.mak' \
                     ' $(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' + \
                     platform.get_short_code()[-3:] + \
-                    configuration.get_short_code() + suffix + '\n')
+                    configuration_short_code(configuration) + suffix + '\n')
                 filep.write('\n')
 
         filep.write( \
@@ -452,7 +453,7 @@ class Project(object):
             for target in self.configurations:
                 filep.write('$(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' + \
                     theplatform.get_short_code()[-3:] + \
-                    target.get_short_code() + \
+                    configuration_short_code(target) + \
                     suffix + ': $(OBJS) ' + self.projectname_code + '.mak\n')
                 if self.projecttype == ProjectTypes.library:
                     filep.write('\t@ar -rcs $@ $(TRUE_OBJS)\n')
@@ -463,7 +464,7 @@ class Project(object):
                 else:
                     filep.write('\t@$(LINK) -o $@ $(TRUE_OBJS) $(LFlags$(TARGET)) $(LFlags$(CONFIG))\n')
                     if self.final_folder:
-                        if target == ConfigurationTypes.release:
+                        if target == 'Release':
                             filep.write('\t@-p4 edit "$(FINAL_FOLDER)/$(PROJECT_NAME)"\n' \
                                 '\t@-cp -T "$@" "$(FINAL_FOLDER)/$(PROJECT_NAME)"\n' \
                                 '\t@-p4 revert -a "$(FINAL_FOLDER)/$(PROJECT_NAME)"\n')
@@ -501,7 +502,7 @@ def generate(solution, perforce=False, verbose=False):
     """
 
     # Validate the requests target(s)
-    platforms = solution.platform.get_expanded()
+    platforms = solution.projects[0].platform.get_expanded()
 
     # Special case, discard any attempt to build 64 bit windows
     try:
@@ -526,24 +527,27 @@ def generate(solution, perforce=False, verbose=False):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.platform.get_short_code()
-    make_projectfile = Project(solution.projectname, idecode, platformcode)
-    project_filename = solution.projectname + idecode + platformcode + '.mak'
+    platformcode = solution.projects[0].platform.get_short_code()
+    make_projectfile = Project(solution.name, idecode, platformcode)
+    project_filename = solution.name + idecode + platformcode + '.mak'
     project_pathname = os.path.join( \
-        solution.workingDir, project_filename)
+        solution.working_directory, project_filename)
 
     # Send the file list to the project
     for item in codefiles:
         make_projectfile.add_source_file(item)
 
     # Sent the include folder list to the project
-    for item in solution.includefolders:
+    for item in solution.projects[0].includefolders:
         make_projectfile.add_include_folder(item)
 
-    make_projectfile.final_folder = solution.finalfolder
     make_projectfile.platforms = platforms
-    make_projectfile.configurations = solution.configurations
-    make_projectfile.projecttype = solution.projecttype
+    make_projectfile.configurations = []
+    for configuration in solution.projects[0].configurations:
+        if configuration.attributes.get('deploy_folder'):
+            make_projectfile.final_folder = configuration.attributes.get('deploy_folder')
+        make_projectfile.configurations.append(configuration.name)
+    make_projectfile.projecttype = solution.projects[0].projecttype
 
     #
     # Serialize the Watcom file

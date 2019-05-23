@@ -31,7 +31,7 @@ else:
 ########################################
 
 
-def savedefault(working_dir=None, destinationfile=BUILD_RULES):
+def savedefault(working_directory=None, destinationfile=BUILD_RULES):
     """
     Calls the internal function to save a default .projectsrc file
 
@@ -39,17 +39,17 @@ def savedefault(working_dir=None, destinationfile=BUILD_RULES):
     that can be used as input to makeprojects to generate project files.
 
     Args:
-        working_dir: Directory to save the destination file if it's not a full pathname
+        working_directory: Directory to save the destination file if it's not a full pathname
         destinationfile: Pathname of where to save the default configuation file
     """
 
     # If the destination is not an absolute path...
     if not os.path.isabs(destinationfile):
         # Prepend the working directory
-        if not working_dir:
-            working_dir = os.getcwd()
+        if not working_directory:
+            working_directory = os.getcwd()
         # Create the path to store the configuration file
-        destinationfile = os.path.join(working_dir, destinationfile)
+        destinationfile = os.path.join(working_directory, destinationfile)
 
     # Get the source file path
     src = os.path.join(os.path.dirname(os.path.abspath(__file__)), BUILD_RULES)

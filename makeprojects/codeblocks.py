@@ -38,11 +38,11 @@ def generate(solution, perforce=False, verbose=False):
 
     codefiles, includedirectories = solution.getfilelist(
         [FileTypes.h, FileTypes.cpp, FileTypes.rc, FileTypes.hlsl, FileTypes.glsl])
-    platformcode = solution.platform.get_short_code()
+    platformcode = solution.projects[0].platform.get_short_code()
     idecode = solution.ide.get_short_code()
-    projectfilename = str(solution.projectname + idecode + platformcode)
+    projectfilename = str(solution.name + idecode + platformcode)
     projectpathname = os.path.join(
-        solution.workingDir, projectfilename + '.cbp')
+        solution.working_directory, projectfilename + '.cbp')
 
     #
     # Save out the filenames
@@ -88,7 +88,7 @@ def generate(solution, perforce=False, verbose=False):
     fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32dbg.lib" prefix_auto="0" extension_auto="0" />\n')
     fp.write('\t\t\t\t<Option working_dir="" />\n')
     fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32dbg/" />\n')
-    if solution.projecttype == ProjectTypes.tool:
+    if solution.projects[0].projecttype == ProjectTypes.tool:
         fp.write('\t\t\t\t<Option type="1" />\n')
     else:
         fp.write('\t\t\t\t<Option type="2" />\n')
@@ -108,7 +108,7 @@ def generate(solution, perforce=False, verbose=False):
     fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32int.lib" prefix_auto="0" extension_auto="0" />\n')
     fp.write('\t\t\t\t<Option working_dir="" />\n')
     fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32int/" />\n')
-    if solution.projecttype == ProjectTypes.tool:
+    if solution.projects[0].projecttype == ProjectTypes.tool:
         fp.write('\t\t\t\t<Option type="1" />\n')
     else:
         fp.write('\t\t\t\t<Option type="2" />\n')
@@ -129,7 +129,7 @@ def generate(solution, perforce=False, verbose=False):
     fp.write('\t\t\t\t<Option output="bin/burgerlibcdbwatw32rel.lib" prefix_auto="0" extension_auto="0" />\n')
     fp.write('\t\t\t\t<Option working_dir="" />\n')
     fp.write('\t\t\t\t<Option object_output="temp/burgerlibcbpwatw32rel/" />\n')
-    if solution.projecttype == ProjectTypes.tool:
+    if solution.projects[0].projecttype == ProjectTypes.tool:
         fp.write('\t\t\t\t<Option type="1" />\n')
     else:
         fp.write('\t\t\t\t<Option type="2" />\n')
@@ -158,8 +158,8 @@ def generate(solution, perforce=False, verbose=False):
 
     fp.write('\t\t<VirtualTargets>\n')
     fp.write('\t\t\t<Add alias="Everything" targets="')
-    for target in solution.configurations:
-        fp.write(str(target) + ';')
+    for target in solution.projects[0].configurations:
+        fp.write(target.name + ';')
     fp.write('" />\n')
     fp.write('\t\t</VirtualTargets>\n')
 
@@ -181,7 +181,7 @@ def generate(solution, perforce=False, verbose=False):
         fp.write('\t\t\t<Add directory=\'&quot;' + burger.convert_to_linux_slashes(dirnameentry) +
                  '&quot;\' />\n')
 
-    if solution.projecttype != ProjectTypes.library or solution.projectname != 'burgerlib':
+    if solution.projects[0].projecttype != ProjectTypes.library or solution.name != 'burgerlib':
         fp.write(
             '\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/burgerlib&quot;\' />\n')
     fp.write(

@@ -25,10 +25,11 @@ import json
 from funcsigs import signature
 import burger
 
-from .core import Solution
+from .core import Solution, Project, Configuration
 from .config import BUILD_RULES, DEFAULT_BUILD_RULES
 from .__pkginfo__ import VERSION
-
+from .defaults import get_project_name, get_ide_list, get_platform_list, fixup_ide_platform
+from. defaults import get_project_type, get_configuration_list
 
 ########################################
 
@@ -58,24 +59,24 @@ def add_build_rules(build_rules_list, file_name, args):
     if args.verbose:
         print('Using configuration file {}'.format(file_name))
 
-    # Perform the clean on this folder, if there's a clean function
-    project_rules = getattr(build_rules, 'project_rules', None)
-    if project_rules:
+    # Find the entry point
+    rules = getattr(build_rules, 'rules', None)
+    if rules:
 
         # Get the function signature
-        sig = signature(project_rules)
+        sig = signature(rules)
 
         parm_root = sig.parameters.get('root')
         if parm_root:
             if parm_root.default is True:
                 args.version = True
-    build_rules_list.append(build_rules)
+    build_rules_list.append(rules)
     return True
 
 ########################################
 
 
-def get_build_rules(solution, args):
+def get_build_rules(working_directory, args):
     """
     Process a solution.
 
@@ -91,11 +92,10 @@ def get_build_rules(solution, args):
     if args.rules_file:
         add_build_rules(build_rules_list, args.rules_file, args)
     else:
-        working_dir = solution.working_dir
         # No files aborted
         args.version = False
         # Load the configuration file at the current directory
-        temp_dir = working_dir
+        temp_dir = working_directory
         while True:
             add_build_rules(build_rules_list, os.path.join(temp_dir, BUILD_RULES), args)
             # Abort on ROOT = True
@@ -115,8 +115,62 @@ def get_build_rules(solution, args):
 
 ########################################
 
+def get_project_list(args, build_rules_list, working_directory):
+    """
+    From the command line or the build rules, determine the project target list.
+    """
 
-def process(solution, args):
+    # Start with determining the project name
+    project_name = get_project_name(build_rules_list, working_directory, args)
+
+    # Determine the project type
+    project_type = get_project_type(build_rules_list, working_directory, args)
+
+    # Determine the list of IDEs to generate projects for.
+    ide_list = get_ide_list(build_rules_list, working_directory, args)
+
+    # Determine the list of platforms to generate projects for.
+    platform_list = get_platform_list(build_rules_list, working_directory, args)
+
+    fixup_ide_platform(ide_list, platform_list)
+
+    # For every IDE, generate the requested project.
+    for ide in ide_list:
+
+        # Start with the solution
+        solution = Solution(
+            name=project_name,
+            verbose=args.verbose,
+            working_directory=working_directory,
+            ide=ide)
+
+        for platform in platform_list:
+
+            project = Project(
+                name=project_name,
+                project_type=project_type,
+                working_directory=working_directory,
+                platform=platform)
+            solution.add_project(project)
+
+            # Create the configurations for this platform
+            configuration_list = get_configuration_list(
+                build_rules_list, working_directory, args, platform, ide)
+            for item in platform.get_expanded():
+                for config_name in configuration_list:
+                    configuration = Configuration(name=config_name, platform=item)
+                    project.add_configuration(configuration)
+                    configuration.get_attributes(build_rules_list, working_directory, args)
+
+        print(solution)
+
+
+
+
+########################################
+
+
+def process(working_directory, args):
     """
     Process a solution.
 
@@ -128,151 +182,26 @@ def process(solution, args):
     """
 
     if args.verbose:
-        print('Building "{}".'.format(solution.working_dir))
+        print('Making "{}".'.format(working_directory))
 
-    build_rules = get_build_rules(solution, args)
-    if not build_rules:
-        print('Fatal error, no build_rules.py exists anywhere.')
+    # Find the build_rules.py file
+    build_rules_list = get_build_rules(working_directory, args)
+    if not build_rules_list:
+        print('Fatal error, no build_rules.py exist anywhere.')
         return 10
 
-    # Build rules was found.
-    for item in build_rules:
-        print(item.__file__)
-        print(str(dir(item)))
-
-    return 0
-
-########################################
-
-
-def main(working_dir=None, args=None):
-    """
-    Main entry point when invoked as a tool.
-
-    When makeprojects is invoked as a tool, this main() function
-    is called with the current working directory. Arguments will
-    be obtained using the argparse class.
-
-    Args:
-        working_dir: Directory to operate on, or ``None`` for ``os.getcwd()``.
-        args: Command line to use instead of ``sys.argv``.
-    Returns:
-        Zero if no error, non-zero on error
-
-    """
-
-    # Make sure working_dir is properly set
-    if working_dir is None:
-        working_dir = os.getcwd()
-
-    # Parse the command line
-    parser = argparse.ArgumentParser(
-        prog='makeprojects',
-        description='Make project files. Copyright by Rebecca Ann Heineman. '
-        'Creates files for XCode, Visual Studio, CodeBlocks, Watcom, make, Codewarrior...')
-
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + VERSION)
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
-                        default=False, help='Verbose output.')
-    parser.add_argument('--generate-rules', dest='generate_build_rules',
-                        action='store_true', default=False,
-                        help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rules-file', dest='rules_file',
-                        metavar='<file>', default=None, help='Specify a configuration file.')
-
-    parser.add_argument('-xcode3', dest='xcode3', action='store_true',
-                        default=False, help='Build for Xcode 3.')
-    parser.add_argument('-xcode4', dest='xcode4', action='store_true',
-                        default=False, help='Build for Xcode 4.')
-    parser.add_argument('-xcode5', dest='xcode5', action='store_true',
-                        default=False, help='Build for Xcode 5.')
-    parser.add_argument('-xcode6', dest='xcode6', action='store_true',
-                        default=False, help='Build for Xcode 6.')
-    parser.add_argument('-xcode7', dest='xcode7', action='store_true',
-                        default=False, help='Build for Xcode 7.')
-    parser.add_argument('-xcode8', dest='xcode8', action='store_true',
-                        default=False, help='Build for Xcode 8.')
-    parser.add_argument('-xcode9', dest='xcode9', action='store_true',
-                        default=False, help='Build for Xcode 9.')
-
-    parser.add_argument('-vs2005', dest='vs2005', action='store_true',
-                        default=False, help='Build for Visual Studio 2005.')
-    parser.add_argument('-vs2008', dest='vs2008', action='store_true',
-                        default=False, help='Build for Visual Studio 2008.')
-    parser.add_argument('-vs2010', dest='vs2010', action='store_true',
-                        default=False, help='Build for Visual Studio 2010.')
-    parser.add_argument('-vs2012', dest='vs2012', action='store_true',
-                        default=False, help='Build for Visual Studio 2012.')
-    parser.add_argument('-vs2013', dest='vs2013', action='store_true',
-                        default=False, help='Build for Visual Studio 2013.')
-    parser.add_argument('-vs2015', dest='vs2015', action='store_true',
-                        default=False, help='Build for Visual Studio 2015.')
-    parser.add_argument('-vs2017', dest='vs2017', action='store_true',
-                        default=False, help='Build for Visual Studio 2017.')
-    parser.add_argument('-vs2019', dest='vs2019', action='store_true',
-                        default=False, help='Build for Visual Studio 2019.')
-
-    parser.add_argument('-codeblocks', dest='codeblocks', action='store_true',
-                        default=False, help='Build for CodeBlocks 16.01')
-    parser.add_argument('-codewarrior', dest='codewarrior', action='store_true',
-                        default=False, help='Build for Metrowerks / Freescale CodeWarrior')
-    parser.add_argument('-watcom', dest='watcom', action='store_true',
-                        default=False, help='Build for Watcom WMAKE')
-    parser.add_argument('-linux', dest='linux', action='store_true',
-                        default=False, help='Build for Linux make')
-    parser.add_argument('-ios', dest='ios', action='store_true',
-                        default=False, help='Build for iOS with XCode 5 or higher.')
-    parser.add_argument('-vita', dest='vita', action='store_true',
-                        default=False, help='Build for PS Vita with Visual Studio 2010.')
-    parser.add_argument('-360', dest='xbox360', action='store_true',
-                        default=False, help='Build for XBox 360 with Visual Studio 2010.')
-    parser.add_argument('-wiiu', dest='wiiu', action='store_true',
-                        default=False, help='Build for WiiU with Visual Studio 2013.')
-    parser.add_argument('-dsi', dest='dsi', action='store_true',
-                        default=False, help='Build for Nintendo DSI with Visual Studio 2015.')
-
-    parser.add_argument('-release', dest='release', action='store_true',
-                        default=False,
-                        help='Create a release target (Default is release/debug/internal)')
-    parser.add_argument('-debug', dest='debug', action='store_true',
-                        default=False, help='Create a debug target')
-    parser.add_argument('-internal', dest='internal', action='store_true',
-                        default=False, help='Create an internal target')
-    parser.add_argument('-finalfolder', dest='finalfolder', action='store_true',
-                        default=False,
-                        help='Add a script to copy a release build to a '
-                        'folder and check in with Perforce')
-    parser.add_argument('-app', dest='app', action='store_true',
-                        default=False, help='Build an application instead of a tool')
-    parser.add_argument('-lib', dest='library', action='store_true',
-                        default=False, help='Build a library instead of a tool')
-
-    parser.add_argument('-f', dest='jsonfiles',
-                        action='append', help='Input file to process')
-
-    parser.add_argument('-t', dest='test', action='store_true',
-                        default=False,
-                        help='Run new code')
-    parser.add_argument('args', nargs=argparse.REMAINDER,
-                        help='project filenames')
-
-    # Parse everything
-    args = parser.parse_args()
-
-    # Output default configuration
-    if args.generate_build_rules:
-        from .config import savedefault
-        if args.verbose:
-            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
-        savedefault(working_dir)
-        return 0
-
+    #get_project_list(args, build_rules_list, working_directory)
+    #return 0
     # Create a blank solution
-    solution = Solution()
-    solution.verbose = args.verbose
-    solution.workingDir = working_dir
 
+    solution = Solution(name=os.path.basename(working_directory))
+    solution.verbose = args.verbose
+    solution.working_directory = working_directory
+    project = Project()
+    solution.add_project(project)
+    #print(str(solution))
+
+    #return 0
     # Process it
     #if args.test:
     #    return process(solution, args)
@@ -285,7 +214,7 @@ def main(working_dir=None, args=None):
         if args.args:
             args.jsonfiles = args.args
         else:
-            projectpathname = os.path.join(working_dir, 'projects.json')
+            projectpathname = os.path.join(working_directory, 'projects.json')
             if os.path.isfile(projectpathname) is True:
                 args.jsonfiles = ['projects.json']
             else:
@@ -296,7 +225,7 @@ def main(working_dir=None, args=None):
     #
 
     for jsonarg in args.jsonfiles:
-        projectpathname = os.path.join(working_dir, jsonarg)
+        projectpathname = os.path.join(working_directory, jsonarg)
         if not os.path.isfile(projectpathname):
             print(jsonarg + ' was not found')
             return 2
@@ -343,6 +272,150 @@ def main(working_dir=None, args=None):
             error = 2
         if error != 0:
             break
+    return error
+
+########################################
+
+
+def main(working_directory=None, args=None):
+    """
+    Main entry point when invoked as a tool.
+
+    When makeprojects is invoked as a tool, this main() function
+    is called with the current working directory. Arguments will
+    be obtained using the argparse class.
+
+    Args:
+        working_directory: Directory to operate on, or ``None`` for ``os.getcwd()``.
+        args: Command line to use instead of ``sys.argv``.
+    Returns:
+        Zero if no error, non-zero on error
+
+    """
+
+    # Make sure working_directory is properly set
+    if working_directory is None:
+        working_directory = os.getcwd()
+
+    # Parse the command line
+    parser = argparse.ArgumentParser(
+        prog='makeprojects',
+        description='Make project files. Copyright by Rebecca Ann Heineman. '
+        'Creates files for XCode, Visual Studio, CodeBlocks, Watcom, make, Codewarrior...')
+
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + VERSION)
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
+                        default=False, help='Verbose output.')
+    parser.add_argument('--generate-rules', dest='generate_build_rules',
+                        action='store_true', default=False,
+                        help='Generate a sample configuration file and exit.')
+    parser.add_argument('--rules-file', dest='rules_file',
+                        metavar='<file>', default=None, help='Specify a configuration file.')
+    parser.add_argument('-d', dest='directories', action='append',
+                        metavar='<directory>',
+                        help='Directorie(s) to create projects in.')
+    parser.add_argument('-c', dest='configurations', action='append',
+                        metavar='<configuration>',
+                        help='Configuration(s) to create.')
+    parser.add_argument('-i', dest='ides', action='append',
+                        metavar='<IDE>', default=[],
+                        help='IDE(s) to generate for.')
+    parser.add_argument('-p', dest='platforms', action='append',
+                        metavar='<platform>', default=[],
+                        help='Platform(s) to create.')
+
+    parser.add_argument('-xcode3', dest='xcode3', action='store_true',
+                        default=False, help='Build for Xcode 3.')
+    parser.add_argument('-xcode4', dest='xcode4', action='store_true',
+                        default=False, help='Build for Xcode 4.')
+    parser.add_argument('-xcode5', dest='xcode5', action='store_true',
+                        default=False, help='Build for Xcode 5.')
+    parser.add_argument('-xcode6', dest='xcode6', action='store_true',
+                        default=False, help='Build for Xcode 6.')
+    parser.add_argument('-xcode7', dest='xcode7', action='store_true',
+                        default=False, help='Build for Xcode 7.')
+    parser.add_argument('-xcode8', dest='xcode8', action='store_true',
+                        default=False, help='Build for Xcode 8.')
+    parser.add_argument('-xcode9', dest='xcode9', action='store_true',
+                        default=False, help='Build for Xcode 9.')
+    parser.add_argument('-xcode10', dest='xcode10', action='store_true',
+                        default=False, help='Build for Xcode 10.')
+
+    parser.add_argument('-vs2005', dest='vs2005', action='store_true',
+                        default=False, help='Build for Visual Studio 2005.')
+    parser.add_argument('-vs2008', dest='vs2008', action='store_true',
+                        default=False, help='Build for Visual Studio 2008.')
+    parser.add_argument('-vs2010', dest='vs2010', action='store_true',
+                        default=False, help='Build for Visual Studio 2010.')
+    parser.add_argument('-vs2012', dest='vs2012', action='store_true',
+                        default=False, help='Build for Visual Studio 2012.')
+    parser.add_argument('-vs2013', dest='vs2013', action='store_true',
+                        default=False, help='Build for Visual Studio 2013.')
+    parser.add_argument('-vs2015', dest='vs2015', action='store_true',
+                        default=False, help='Build for Visual Studio 2015.')
+    parser.add_argument('-vs2017', dest='vs2017', action='store_true',
+                        default=False, help='Build for Visual Studio 2017.')
+    parser.add_argument('-vs2019', dest='vs2019', action='store_true',
+                        default=False, help='Build for Visual Studio 2019.')
+
+    parser.add_argument('-codeblocks', dest='codeblocks', action='store_true',
+                        default=False, help='Build for CodeBlocks 16.01')
+    parser.add_argument('-codewarrior', dest='codewarrior', action='store_true',
+                        default=False, help='Build for Metrowerks / Freescale CodeWarrior')
+    parser.add_argument('-watcom', dest='watcom', action='store_true',
+                        default=False, help='Build for Watcom WMAKE')
+    parser.add_argument('-linux', dest='linux', action='store_true',
+                        default=False, help='Build for Linux make')
+    parser.add_argument('-ios', dest='ios', action='store_true',
+                        default=False, help='Build for iOS with XCode 5 or higher.')
+    parser.add_argument('-vita', dest='vita', action='store_true',
+                        default=False, help='Build for PS Vita with Visual Studio 2010.')
+    parser.add_argument('-360', dest='xbox360', action='store_true',
+                        default=False, help='Build for XBox 360 with Visual Studio 2010.')
+    parser.add_argument('-wiiu', dest='wiiu', action='store_true',
+                        default=False, help='Build for WiiU with Visual Studio 2013.')
+    parser.add_argument('-dsi', dest='dsi', action='store_true',
+                        default=False, help='Build for Nintendo DSI with Visual Studio 2015.')
+
+    parser.add_argument('-finalfolder', dest='deploy_folder', action='store_true',
+                        default=False,
+                        help='Add a script to copy a release build to a '
+                        'folder and check in with Perforce')
+    parser.add_argument('-app', dest='app', action='store_true',
+                        default=False, help='Build an application instead of a tool')
+    parser.add_argument('-lib', dest='library', action='store_true',
+                        default=False, help='Build a library instead of a tool')
+
+    parser.add_argument('-f', dest='jsonfiles',
+                        action='append', help='Input file to process')
+    parser.add_argument('args', nargs=argparse.REMAINDER,
+                        help='project filenames')
+
+    # Parse everything
+    args = parser.parse_args()
+
+    # Output default configuration
+    if args.generate_build_rules:
+        from .config import savedefault
+        if args.verbose:
+            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
+        savedefault(working_directory)
+        return 0
+
+    # Make a list of directories to process
+    if not args.directories:
+        args.directories = (working_directory,)
+
+    # Process the directories
+    for item in args.directories:
+        error = process(os.path.abspath(item), args)
+        if error:
+            break
+    else:
+        if args.verbose:
+            print('Makeprojects successful!')
+        error = 0
 
     return error
 

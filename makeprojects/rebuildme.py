@@ -26,7 +26,7 @@ from .__pkginfo__ import VERSION
 ########################################
 
 
-def main(working_dir=None, args=None):
+def main(working_directory=None, args=None):
     """
     Invoke the command line ``rebuildme``.
 
@@ -44,15 +44,15 @@ def main(working_dir=None, args=None):
     - Additional terms are considered specific files to build.
 
     Args:
-        working_dir: Directory to rebuild, or ``None`` for ``os.getcwd()``
+        working_directory: Directory to rebuild, or ``None`` for ``os.getcwd()``
         args: Command line to use instead of ``sys.argv``
     Returns:
         Zero on no error, non-zero on error
     """
 
     # Make sure the working directory is set
-    if working_dir is None:
-        working_dir = os.getcwd()
+    if working_directory is None:
+        working_directory = os.getcwd()
 
     # Parse the command line
     parser = argparse.ArgumentParser(
@@ -86,8 +86,8 @@ def main(working_dir=None, args=None):
     if args.generate_build_rules:
         from .config import savedefault
         if args.verbose:
-            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
-        savedefault(working_dir)
+            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
+        savedefault(working_directory)
         return 0
 
     # Generate command lines for the tools
@@ -129,11 +129,11 @@ def main(working_dir=None, args=None):
     # Clean and then build, couldn't be simpler!
     if args.verbose:
         print('cleanme ' + ' '.join(cleanargs))
-    error = cleanme.main(working_dir, args=cleanargs)
+    error = cleanme.main(working_directory, args=cleanargs)
     if not error:
         if args.verbose:
             print('buildme ' + ' '.join(buildargs))
-        error = buildme.main(working_dir, args=buildargs)
+        error = buildme.main(working_directory, args=buildargs)
     return error
 
 

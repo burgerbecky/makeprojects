@@ -60,7 +60,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
     'setuptools >= 17.1',
     'enum34 >= 1.0.0',
-    'burger >= 1.1.19',
+    'burger >= 1.1.22',
     'argparse >= 1.0',
     'glob2 >= 0.6',
     'funcsigs >= 1.0'
@@ -153,7 +153,7 @@ CLEAN_EXTENSION_LIST = [
 ]
 
 
-def clean(working_dir):
+def clean(working_directory):
     """
     Clean up all the temp files after uploading
 
@@ -164,25 +164,25 @@ def clean(working_dir):
     # Delete all folders, including read only files
     import burger
     for item in CLEAN_DIR_LIST:
-        burger.delete_directory(os.path.join(working_dir, item))
+        burger.delete_directory(os.path.join(working_directory, item))
 
-    burger.clean_directories(working_dir, CLEAN_DIR_RECURSE_LIST, recursive=True)
+    burger.clean_directories(working_directory, CLEAN_DIR_RECURSE_LIST, recursive=True)
 
     #
     # Delete all *.pyc and *.pyo files
     #
 
-    burger.clean_files(working_dir, name_list=CLEAN_EXTENSION_LIST, recursive=True)
+    burger.clean_files(working_directory, name_list=CLEAN_EXTENSION_LIST, recursive=True)
 
 
-def myunlock(working_dir, recursive):
+def myunlock(working_directory, recursive):
     """
     Unlock files locked by Perforce
     """
     result = []
     try:
         import burger
-        result = burger.unlock_files(working_dir, recursive)
+        result = burger.unlock_files(working_directory, recursive)
     except ImportError:
         pass
     return result

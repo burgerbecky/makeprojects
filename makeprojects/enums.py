@@ -20,7 +20,8 @@ All enumerations are stored in this package
 from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum, EnumMeta, _EnumDict
 import os
-from burger import get_mac_host_type, get_windows_host_type
+from burger import get_mac_host_type, get_windows_host_type, where_is_visual_studio
+from burger import where_is_codeblocks, where_is_watcom, where_is_xcode
 
 ########################################
 
@@ -37,6 +38,7 @@ class AutoEnum(EnumMeta):
 
     """
 
+    # pylint: disable=C0204
     def __new__(mcs, cls, bases, classdict):
         """
         Create a new instance of this class
@@ -209,6 +211,7 @@ class FileTypes(AutoIntEnum):
 
         return _FILETYPES_READABLE.get(self, None)
 
+    ## Allow str() to work.
     __str__ = __repr__
 
 
@@ -224,37 +227,45 @@ class FileTypes(AutoIntEnum):
 # @sa makeprojects.enums.FileTypes.lookup()
 
 _FILETYPES_LOOKUP = {
-    'c': FileTypes.c,                # C/C++ source code
+    'c': FileTypes.c,                   # C/C++ source code
     'cc': FileTypes.cpp,
     'cpp': FileTypes.cpp,
     'c++': FileTypes.cpp,
-    'hpp': FileTypes.h,                # C/C++ header files
+    'hpp': FileTypes.h,                 # C/C++ header files
     'h': FileTypes.h,
     'hh': FileTypes.h,
     'i': FileTypes.h,
     'inc': FileTypes.h,
-    'm': FileTypes.m,                # MacOSX / iOS Objective-C
-    'plist': FileTypes.xml,            # MacOSX / iOS plist files
-    'rc': FileTypes.rc,                # Windows resources
-    'r': FileTypes.r,                # MacOS classic resources
+    'm': FileTypes.m,                   # MacOSX / iOS Objective-C
+    'plist': FileTypes.xml,             # MacOSX / iOS plist files
+    'rc': FileTypes.rc,                 # Windows resources
+    'r': FileTypes.r,                   # MacOS classic resources
     'rsrc': FileTypes.r,
-    'hlsl': FileTypes.hlsl,            # DirectX shader files
-    'vsh': FileTypes.glsl,            # OpenGL shader files
+    'hlsl': FileTypes.hlsl,             # DirectX shader files
+    'vsh': FileTypes.glsl,              # OpenGL shader files
     'fsh': FileTypes.glsl,
     'glsl': FileTypes.glsl,
-    'x360sl': FileTypes.x360sl,        # Xbox 360 shader files
-    'vitacg': FileTypes.vitacg,        # PS Vita shader files
-    'xml': FileTypes.xml,            # XML data files
-    'x86': FileTypes.x86,            # Intel ASM 80x86 source code
-    'x64': FileTypes.x64,            # AMD 64 bit source code
-    'a65': FileTypes.a65,            # 6502/65816 source code
-    'ppc': FileTypes.ppc,            # PowerPC source code
-    'a68': FileTypes.a68,            # 680x0 source code
-    'ico': FileTypes.ico,            # Windows icon file
-    'icns': FileTypes.icns,            # Mac OSX Icon file
-    'png': FileTypes.image,            # Art files
+    'x360sl': FileTypes.x360sl,         # Xbox 360 shader files
+    'vitacg': FileTypes.vitacg,         # PS Vita shader files
+    'xml': FileTypes.xml,               # XML data files
+    'x86': FileTypes.x86,               # Intel ASM 80x86 source code
+    'x64': FileTypes.x64,               # AMD 64 bit source code
+    'a65': FileTypes.a65,               # 6502/65816 source code
+    'ppc': FileTypes.ppc,               # PowerPC source code
+    'a68': FileTypes.a68,               # 680x0 source code
+    'ico': FileTypes.ico,               # Windows icon file
+    'icns': FileTypes.icns,             # Mac OSX Icon file
+    'png': FileTypes.image,             # Art files
     'jpg': FileTypes.image,
-    'bmp': FileTypes.image
+    'bmp': FileTypes.image,
+    'txt': FileTypes.generic,           # Text files
+    'rtf': FileTypes.generic,
+    'rst': FileTypes.generic,
+    'md': FileTypes.generic,
+    'pdf': FileTypes.generic,
+    'sh': FileTypes.generic,
+    'cmd': FileTypes.generic,
+    'bat': FileTypes.generic
 }
 
 ## List of human readable strings
@@ -315,6 +326,58 @@ class ProjectTypes(AutoIntEnum):
     ## Empty project
     empty = ()
 
+    @staticmethod
+    def lookup(project_type_name):
+        """
+        Look up a ProjectTypes based on name.
+        @details
+        For maximum compatiblity, the name will be scanned from several
+        look up tables to attempt to cover all premutations of an input string.
+
+        Note:
+            String comparisons are case insensitive.
+
+        Args:
+            project_type_name: Project type string to test.
+        Returns:
+            A @ref ProjectTypes member or None on failure.
+        """
+
+        # Already a ProjectTypes?
+        if project_type_name:
+
+            if isinstance(project_type_name, ProjectTypes):
+                return project_type_name
+
+            # Try the member name as is.
+            test_name = project_type_name.lower()
+            if hasattr(ProjectTypes, project_type_name):
+                return ProjectTypes[project_type_name]
+
+            # Try a number of ways to find a match
+            for item in _PROJECTTYPES_READABLE:
+                # Verbose name?
+                if test_name == str(item).lower():
+                    return item
+
+            if test_name in ('lib',):
+                return ProjectTypes.library
+
+            if test_name in ('game',):
+                return ProjectTypes.app
+
+            if test_name in ('dll',):
+                return ProjectTypes.sharedlibrary
+
+        return None
+
+    @staticmethod
+    def default():
+        """
+        Determine the ProjectTypes default.
+        """
+        return ProjectTypes.tool
+
     def __repr__(self):
         """
         Convert the enumeration into a human readable file description
@@ -327,6 +390,7 @@ class ProjectTypes(AutoIntEnum):
 
         return _PROJECTTYPES_READABLE.get(self, None)
 
+    ## Allow str() to work.
     __str__ = __repr__
 
 ## List of human readable strings
@@ -345,94 +409,21 @@ _PROJECTTYPES_READABLE = {
     ProjectTypes.empty: 'Empty'
 }
 
-########################################
 
-
-class ConfigurationTypes(AutoIntEnum):
-
+def configuration_short_code(configuration_name):
     """
-    Enumeration of supported configuration types
-
-    This is the list of supported default configuration types. All
-    custom configurations must derive from these types.
+    Convert configuration name to a 3 letter code.
     """
-
-    ## Debug
-    debug = ()
-    ## Release builds
-    release = ()
-    ## Internal builds (Debug enabled, full optimizations)
-    internal = ()
-    ## Profile builds
-    profile = ()
-    ## Release Link Time Code Generation
-    ltcg = ()
-    ## Code Analysis
-    codeanalysis = ()
-    ## Fast cap
-    fastcap = ()
-
-    def get_short_code(self):
-        """
-        Create the platform codes from the platform type for Visual Studio
-
-        Returns:
-            A three character platform code or None if not supported.
-        See Also:
-            makeprojects.enums._CONFIGURATIONTYPES_CODES
-        """
-
-        return _CONFIGURATIONTYPES_CODES.get(self, None)
-
-    def __repr__(self):
-        """
-        Convert the enumeration into a human readable file description
-
-        Returns:
-            Human readable string or None if the enumeration is invalid
-        See Also:
-            makeprojects.enums._CONFIGURATIONTYPES_READABLE
-        """
-
-        return _CONFIGURATIONTYPES_READABLE.get(self, None)
-
-    __str__ = __repr__
-
-## List of project filename short codes
-#
-# Dictionary to map ConfigurationTypes enumerations into an
-# three letter code to append to a project filename
-#
-# @sa makeprojects.enums.ConfigurationTypes.get_short_code()
-
-
-_CONFIGURATIONTYPES_CODES = {
-    ConfigurationTypes.debug: 'dbg',
-    ConfigurationTypes.release: 'rel',
-    ConfigurationTypes.internal: 'int',
-    ConfigurationTypes.profile: 'pro',
-    ConfigurationTypes.ltcg: 'ltc',
-    ConfigurationTypes.codeanalysis: 'cod',
-    ConfigurationTypes.fastcap: 'fas'
-}
-
-
-## List of human readable strings
-#
-# Dictionary to map ConfigurationTypes enumerations into an human readable
-# string
-#
-# @sa makeprojects.enums.ConfigurationTypes.__repr__()
-
-_CONFIGURATIONTYPES_READABLE = {
-    ConfigurationTypes.debug: 'Debug',
-    ConfigurationTypes.release: 'Release',
-    ConfigurationTypes.internal: 'Internal',
-    ConfigurationTypes.profile: 'Profile',
-    ConfigurationTypes.ltcg: 'Release_LTCG',
-    ConfigurationTypes.codeanalysis: 'CodeAnalysis',
-    ConfigurationTypes.fastcap: 'Profile_FastCap'
-}
+    codes = {
+        'Debug': 'dbg',
+        'Release': 'rel',
+        'Internal': 'int',
+        'Profile': 'pro',
+        'Release_LTCG': 'ltc',
+        'CodeAnalysis': 'cod',
+        'Profile_FastCap': 'fas'
+    }
+    return codes.get(configuration_name, None)
 
 ########################################
 
@@ -517,9 +508,113 @@ class IDETypes(AutoIntEnum):
 
         return _IDETYPES_CODES.get(self, None)
 
+    def is_visual_studio(self):
+        """
+        Determine if the IDE is Microsoft Visual Studio.
+
+        Returns:
+            True if the platform is Microsoft Visual Studio.
+        """
+
+        return self in (self.vs2003, self.vs2005, self.vs2005, self.vs2008, self.vs2010,
+                        self.vs2012, self.vs2013, self.vs2015, self.vs2017, self.vs2019)
+
+    def is_xcode(self):
+        """
+        Determine if the IDE is Apple XCode.
+
+        Returns:
+            True if the platform is Apple XCode.
+        """
+
+        return self in (self.xcode3, self.xcode4, self.xcode5, self.xcode6, self.xcode7,
+                        self.xcode8, self.xcode9, self.xcode10)
+
+    def is_codewarrior(self):
+        """
+        Determine if the IDE is Metrowerks / Freescale Codewarrior.
+
+        Returns:
+            True if the platform is Metrowerks / Freescale Codewarrior.
+        """
+
+        return self in (self.codewarrior50, self.codewarrior58, self.codewarrior59)
+
+    @staticmethod
+    def lookup(ide_name):
+        """
+        Look up a IDETypes based on name.
+        @details
+        For maximum compatiblity, the name will be scanned from several
+        look up tables to attempt to cover all premutations of an input string.
+
+        Note:
+            String comparisons are case insensitive.
+
+        Args:
+            ide_name: Platform string to test.
+        Returns:
+            A @ref IDETypes member or None on failure.
+        """
+
+        # Already a IDETypes?
+        if ide_name:
+
+            if isinstance(ide_name, IDETypes):
+                return ide_name
+
+            # Try the member name as is.
+            test_name = ide_name.lower()
+            if hasattr(IDETypes, test_name):
+                return IDETypes[test_name]
+
+            # Try a number of ways to find a match
+            for item in _IDETYPES_READABLE:
+                # Verbose name? File name short code?
+                if test_name == str(item).lower() or test_name == _IDETYPES_CODES[item]:
+                    return item
+
+            # Try some generic names and perform magic to figure out the IDE
+            if ide_name in ('vs', 'visualstudio', 'visual_studio', 'visual studio'):
+                return get_installed_visual_studio()
+
+            if ide_name in ('xcode',):
+                return get_installed_xcode()
+
+            if ide_name in ('codewarrior', 'metrowerks', 'cw', 'freescale'):
+                return IDETypes.codewarrior50
+
+        return None
+
+    @staticmethod
+    def default():
+        """
+        Determine the default IDETypes from the currently running platform.
+        """
+
+        # Windows host?
+        if get_windows_host_type():
+            result = get_installed_visual_studio()
+            if result is not None:
+                return result
+
+        # Mac host?
+        elif get_mac_host_type():
+            result = get_installed_xcode()
+            if result is not None:
+                return result
+
+        # Unknown platforms default to Linux
+        if where_is_codeblocks():
+            return IDETypes.codeblocks
+
+        if where_is_watcom():
+            return IDETypes.watcom
+        return IDETypes.make
+
     def __repr__(self):
         """
-        Convert the enumeration into a human readable file description
+        Convert the enumeration into a human readable file description.
 
         Returns:
             Human readable string or None if the enumeration is invalid
@@ -529,6 +624,7 @@ class IDETypes(AutoIntEnum):
 
         return _IDETYPES_READABLE.get(self, None)
 
+    ## Allow str() to work.
     __str__ = __repr__
 
 
@@ -540,7 +636,7 @@ class IDETypes(AutoIntEnum):
 # @sa makeprojects.enums.IDETypes.get_short_code()
 
 _IDETYPES_CODES = {
-    IDETypes.vs2003: 'vc7',                # Microsoft Visual Studio
+    IDETypes.vs2003: 'vc7',                 # Microsoft Visual Studio
     IDETypes.vs2005: 'vc8',
     IDETypes.vs2008: 'vc9',
     IDETypes.vs2010: 'v10',
@@ -561,7 +657,7 @@ _IDETYPES_CODES = {
     IDETypes.xcode8: 'xc8',
     IDETypes.xcode9: 'xc9',
     IDETypes.xcode10: 'x10',
-    IDETypes.codeblocks: 'cdb',            # Codeblocks
+    IDETypes.codeblocks: 'cdb',             # Codeblocks
     IDETypes.nmake: 'nmk',                  # nmake
     IDETypes.make: 'mak',                   # make
     IDETypes.bazel: 'bzl'                   # Bazel
@@ -600,6 +696,60 @@ _IDETYPES_READABLE = {
     IDETypes.make: 'Linux make',
     IDETypes.bazel: 'Bazel build'
 }
+
+########################################
+
+
+def get_installed_visual_studio():
+    """
+    Find installed Visual Studio version.
+
+    Scan the host computer and return the IDETypes for the most
+    recent version of Visual Studio that's installed.
+    """
+
+    vs_studio_table = (
+        (2019, IDETypes.vs2019),
+        (2017, IDETypes.vs2017),
+        (2015, IDETypes.vs2015),
+        (2013, IDETypes.vs2013),
+        (2012, IDETypes.vs2012),
+        (2010, IDETypes.vs2010),
+        (2008, IDETypes.vs2008),
+        (2005, IDETypes.vs2005),
+        (2003, IDETypes.vs2003)
+    )
+    for item in vs_studio_table:
+        if where_is_visual_studio(item[0]):
+            return item[1]
+    return None
+
+
+########################################
+
+
+def get_installed_xcode():
+    """
+    Find installed Xcode version.
+
+    Scan the host computer and return the IDETypes for the most
+    recent version of XCode that's installed.
+    """
+
+    xcode_table = {
+        (10, IDETypes.xcode10),
+        (9, IDETypes.xcode9),
+        (8, IDETypes.xcode8),
+        (7, IDETypes.xcode7),
+        (6, IDETypes.xcode6),
+        (5, IDETypes.xcode5),
+        (4, IDETypes.xcode4),
+        (3, IDETypes.xcode3),
+    }
+    for item in xcode_table:
+        if where_is_xcode(item[0]):
+            return item[1]
+    return None
 
 ########################################
 

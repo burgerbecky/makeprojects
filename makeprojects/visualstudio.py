@@ -22,7 +22,7 @@ from enum import Enum
 import makeprojects.core
 import burger
 from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
-    ConfigurationTypes, IDETypes
+    IDETypes
 
 #
 ## \package makeprojects.visualstudio
@@ -554,8 +554,8 @@ class VS2003vcproj(object):
             # Create the configuration records
             #
 
-            for configuration in project.solution.configurations:
-                self.configurations.append(VS2003Configuration(project, configuration, vsplatform))
+            for configuration in project.configurations:
+                self.configurations.append(VS2003Configuration(project, configuration.name, vsplatform))
 
 
     def write(self, fp):
@@ -753,7 +753,7 @@ def generatesolutionfile(fp, solution, ide):
         #
 
         if solution.projects:
-            for platform in solution.platform.get_vs_platform():
+            for platform in solution.projects[0].platform.get_vs_platform():
 
                 #
                 # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
@@ -768,8 +768,8 @@ def generatesolutionfile(fp, solution, ide):
                 # it's faked with a space
                 #
 
-                for configuration in solution.configurations:
-                    fp.write(u'\t\t' + configuration + ' ' + platform + ' = ' + configuration + \
+                for configuration in solution.projects[0].configurations:
+                    fp.write(u'\t\t' + configuration.name + ' ' + platform + ' = ' + configuration.name + \
                         ' ' + platform + '\n')
 
         fp.write(u'\tEndGlobalSection\n')
@@ -781,7 +781,7 @@ def generatesolutionfile(fp, solution, ide):
         fp.write(u'\tGlobalSection(ProjectConfiguration) = postSolution\n')
 
         for project in solution.projects:
-            for platform in solution.platform.get_vs_platform():
+            for platform in solution.projects[0].platform.get_vs_platform():
 
                 #
                 # Visual Studio 2003 doesn't support 64 bit compilers
@@ -795,9 +795,9 @@ def generatesolutionfile(fp, solution, ide):
                 # pairs here and match them up.
                 #
 
-                for configuration in solution.configurations:
-                    tokenwithspace = configuration + ' ' + platform
-                    token = configuration + '|' + platform
+                for configuration in solution.projects[0].configurations:
+                    tokenwithspace = configuration.name + ' ' + platform
+                    token = configuration.name + '|' + platform
                     fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + \
                         '.ActiveCfg = ' + token + '\n')
                     fp.write(u'\t\t\t{' + project.visualstudio.uuid + '}.' + tokenwithspace + \
@@ -830,9 +830,9 @@ def generatesolutionfile(fp, solution, ide):
 
             fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
 
-            for configuration in solution.configurations:
-                for platform in solution.platform.get_vs_platform():
-                    token = configuration + '|' + platform
+            for configuration in solution.projects[0].configurations:
+                for platform in solution.projects[0].platform.get_vs_platform():
+                    token = configuration.name + '|' + platform
                     fp.write(u'\t\t' + token + ' = ' + token + '\n')
 
             fp.write(u'\tEndGlobalSection\n')
@@ -844,9 +844,9 @@ def generatesolutionfile(fp, solution, ide):
             fp.write(u'\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
 
             for project in solution.projects:
-                for configuration in solution.configurations:
-                    for platform in solution.platform.get_vs_platform():
-                        token = configuration + '|' + platform
+                for configuration in solution.projects[0].configurations:
+                    for platform in solution.projects[0].platform.get_vs_platform():
+                        token = configuration.name + '|' + platform
                         fp.write(u'\t\t{' + project.visualstudio.uuid + '}.' + token + '.ActiveCfg = ' + token + '\n')
                         fp.write(u'\t\t{' + project.visualstudio.uuid + '}.' + token + '.Build.0 = ' + token + '\n')
 
@@ -1122,8 +1122,8 @@ class Defaults(object):
         #
 
         self.idecode = solution.ide.get_short_code()
-        self.platformcode = solution.platform.get_short_code()
-        self.outputfilename = str(solution.projectname + self.idecode + self.platformcode)
+        self.platformcode = solution.projects[0].platform.get_short_code()
+        self.outputfilename = str(solution.name + self.idecode + self.platformcode)
         self.uuid = calcuuid(self.outputfilename)
 
         #
@@ -1280,7 +1280,7 @@ class SolutionFile(object):
         # Save off the project record
         #
 
-        fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.projectname + \
+        fp.write(u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.name + \
             '", "' + self.solution.visualstudio.outputfilename + projectsuffix[self.fileversion.value] + \
             '", "{' + self.solution.visualstudio.uuid + '}"\n')
         fp.write(u'EndProject\n')
@@ -1296,10 +1296,10 @@ class SolutionFile(object):
         #
 
         fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
-        vsplatforms = self.solution.platform.get_vs_platform()
-        for target in self.solution.configurations:
+        vsplatforms = self.solution.projects[0].platform.get_vs_platform()
+        for target in self.solution.projects[0].configurations:
             for item in vsplatforms:
-                token = str(target) + '|' + item
+                token = target.name + '|' + item
                 fp.write(u'\t\t' + token + ' = ' + token + '\n')
         fp.write(u'\tEndGlobalSection\n')
 
@@ -1308,9 +1308,9 @@ class SolutionFile(object):
         #
 
         fp.write(u'\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
-        for target in self.solution.configurations:
+        for target in self.solution.projects[0].configurations:
             for item in vsplatforms:
-                token = str(target) + '|' + item
+                token = target.name + '|' + item
                 fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + \
                     '.ActiveCfg = ' + token + '\n')
                 fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token + \
@@ -1405,11 +1405,11 @@ class vsProject(object):
         #
 
         fp.write(u'\t<ItemGroup Label="ProjectConfigurations">\n')
-        for target in solution.configurations:
-            for vsplatform in solution.platform.get_vs_platform():
-                token = str(target) + '|' + vsplatform
+        for target in solution.projects[0].configurations:
+            for vsplatform in solution.projects[0].platform.get_vs_platform():
+                token = target.name + '|' + vsplatform
                 fp.write(u'\t\t<ProjectConfiguration Include="' + token + '">\n')
-                fp.write(u'\t\t\t<Configuration>' + str(target) + '</Configuration>\n')
+                fp.write(u'\t\t\t<Configuration>' + target.name + '</Configuration>\n')
                 fp.write(u'\t\t\t<Platform>' + vsplatform + '</Platform>\n')
                 fp.write(u'\t\t</ProjectConfiguration>\n')
         fp.write(u'\t</ItemGroup>\n')
@@ -1419,9 +1419,14 @@ class vsProject(object):
         #
 
         fp.write(u'\t<PropertyGroup Label="Globals">\n')
-        fp.write(u'\t\t<ProjectName>' + solution.projectname + '</ProjectName>\n')
-        if solution.finalfolder is not None:
-            final = burger.convert_to_windows_slashes(solution.finalfolder, True)
+        fp.write(u'\t\t<ProjectName>' + solution.name + '</ProjectName>\n')
+        deploy_folder = None
+        for configuration in solution.projects[0].configurations:
+            if configuration.attributes.get('deploy_folder'):
+                deploy_folder = configuration.attributes.get('deploy_folder')
+
+        if deploy_folder is not None:
+            final = burger.convert_to_windows_slashes(deploy_folder, True)
             fp.write(u'\t\t<FinalFolder>' + final + '</FinalFolder>\n')
         fp.write(u'\t\t<ProjectGuid>{' + self.defaults.uuid + '}</ProjectGuid>\n')
         if self.defaults.fileversion.value >= FileVersions.vs2015.value:
@@ -1448,9 +1453,9 @@ class vsProject(object):
         # Add in the burgerlib includes
         #
 
-        if solution.projecttype == ProjectTypes.library:
+        if solution.projects[0].projecttype == ProjectTypes.library:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.libv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.libv10.props\')" />\n')
-        elif solution.projecttype == ProjectTypes.tool:
+        elif solution.projects[0].projecttype == ProjectTypes.tool:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props\')" />\n')
         else:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props\')" />\n')
@@ -1474,13 +1479,13 @@ class vsProject(object):
         # Insert compiler settings
         #
 
-        linkerdirectories = list(solution.includefolders)
+        linkerdirectories = list(solution.projects[0].includefolders)
         if self.defaults.platformcode == 'dsi':
             linkerdirectories += [u'$(BURGER_SDKS)\\dsi\\burgerlib']
 
         if self.includedirectories or \
             linkerdirectories or \
-            solution.defines:
+            solution.projects[0].defines:
             fp.write(u'\t<ItemDefinitionGroup>\n')
 
             #
@@ -1489,7 +1494,7 @@ class vsProject(object):
 
             if self.includedirectories or \
                 linkerdirectories or \
-                solution.defines:
+                solution.projects[0].defines:
                 fp.write(u'\t\t<ClCompile>\n')
 
                 # Include directories
@@ -1502,9 +1507,9 @@ class vsProject(object):
                     fp.write(u'%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')
 
                 # Global defines
-                if solution.defines:
+                if solution.projects[0].defines:
                     fp.write(u'\t\t\t<PreprocessorDefinitions>')
-                    for define in solution.defines:
+                    for define in solution.projects[0].defines:
                         fp.write(define + ';')
                     fp.write(u'%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
 
@@ -1856,13 +1861,13 @@ def generate(solution, ide, perforce=False, verbose=False):
     if solution.visualstudio.platformcode is not None:
         platformcode = solution.visualstudio.platformcode
     else:
-        platformcode = solution.platform.get_short_code()
+        platformcode = solution.projects[0].platform.get_short_code()
 
     #
     # Save the final filename for the Visual Studio Solution file
     #
 
-    solution.visualstudio.outputfilename = str(solution.projectname + idecode \
+    solution.visualstudio.outputfilename = str(solution.name + idecode \
         + platformcode + '.sln')
 
     #
@@ -1892,7 +1897,7 @@ def generate(solution, ide, perforce=False, verbose=False):
         fileref.close()
         return error
 
-    filename = os.path.join(solution.workingDir, \
+    filename = os.path.join(solution.working_directory, \
         solution.visualstudio.outputfilename)
     if comparefiletostring(filename, fileref):
         if verbose is True:
@@ -1915,7 +1920,7 @@ def generate(solution, ide, perforce=False, verbose=False):
             fileref = StringIO()
             exporter.write(fileref)
 
-            filename = os.path.join(solution.workingDir, \
+            filename = os.path.join(solution.working_directory, \
                 item.visualstudio.outputfilename)
             if comparefiletostring(filename, fileref):
                 if verbose is True:
@@ -1962,7 +1967,7 @@ def generateold(solution, ide):
 
     fileref = StringIO()
     project.writesln(fileref)
-    filename = os.path.join(solution.workingDir, \
+    filename = os.path.join(solution.working_directory, \
         solution.visualstudio.outputfilename + '.sln')
     if comparefiletostring(filename, fileref):
         if solution.verbose is True:
@@ -1981,7 +1986,7 @@ def generateold(solution, ide):
     fileref = StringIO()
     if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
         project.writeproject2010(fileref, solution)
-        filename = os.path.join(solution.workingDir, \
+        filename = os.path.join(solution.working_directory, \
             solution.visualstudio.outputfilename + \
             projectsuffix[solution.visualstudio.fileversion.value])
         if comparefiletostring(filename, fileref):
@@ -2002,7 +2007,7 @@ def generateold(solution, ide):
 
         fileref = StringIO()
         count = project.writefilter(fileref)
-        filename = os.path.join(solution.workingDir, \
+        filename = os.path.join(solution.working_directory, \
             solution.visualstudio.outputfilename + '.vcxproj.filters')
 
         # No groups found?

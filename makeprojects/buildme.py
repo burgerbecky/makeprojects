@@ -38,8 +38,8 @@ _XCODEPROJ_MATCH = re.compile('(?ms).*\\.xcodeproj\\Z')
 ## Default build function list, priority / entrypoint
 BUILD_LIST = (
     (1, 'prebuild'),
-    (40, 'build_rules'),
-    (99, 'post_build')
+    (40, 'build'),
+    (99, 'postbuild')
 )
 
 ## Error code messages from Codewarrior
@@ -354,7 +354,7 @@ def build_doxygen(full_pathname, verbose=False):
             print(' '.join(cmd))
 
         # Capture the error output
-        stderr = burger.run_command(cmd, working_dir=doxyfile_dir,
+        stderr = burger.run_command(cmd, doxyfile_dir,
                                     quiet=not verbose, capture_stderr=True)[2]
 
         # If there was a temp doxyfile, get rid of it.
@@ -412,15 +412,15 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
     if burger.get_windows_host_type():
         new_path = os.path.join(
             watcom_path, 'binnt') + os.pathsep + os.path.join(watcom_path, 'binw')
-        exe_name = 'binnt\\wmake.exe'
     else:
         new_path = os.path.join(watcom_path, 'binl')
-        exe_name = 'binl/wmake'
+
+    exe_name = burger.where_is_watcom(verbose=verbose, command='wmake')
     os.environ['PATH'] = new_path + os.pathsep + saved_path
 
     commands = []
     # New format has an 'all' target
-    commands.append(([os.path.join(watcom_path, exe_name), '-e', '-h', '-f',
+    commands.append(([exe_name, '-e', '-h', '-f',
                       burger.encapsulate_path(full_pathname), 'all'], 'all'))
 
     # Iterate over the commands
@@ -430,8 +430,9 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
             print(' '.join(cmd[0]))
         # Perform the command
         try:
-            error_code = subprocess.call(cmd[0], cwd=os.path.dirname(full_pathname),
-                                         shell=True)
+            error_code = burger.run_command(
+                cmd[0], os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
             msg = None
         except OSError as error:
             error_code = getattr(error, 'winerror', error.errno)
@@ -1152,22 +1153,16 @@ def add_build_rules(projects, file_name, args):
         if args.verbose:
             print('Using configuration file {}'.format(file_name))
 
-        # Does it have a BUILD_LIST entry?
-        build_list = getattr(build_rules, 'BUILD_LIST', None)
-        if not build_list:
-            build_list = BUILD_LIST
-
         # Test for functions and append all that are found
-        for item in build_list:
-            function_ref = getattr(build_rules, item[1], None)
+        rules = getattr(build_rules, 'rules', None)
+        for item in BUILD_LIST:
             # Only add if it's a function
-            if callable(function_ref):
-                projects.append(
-                    BuildObject(
-                        file_name,
-                        'python',
-                        item[0],
-                        function_ref=function_ref))
+            projects.append(
+                BuildObject(
+                    file_name,
+                    'python:' + item[1],
+                    item[0],
+                    function_ref=rules))
 
 
 ########################################
@@ -1233,20 +1228,20 @@ def add_project(projects, file_name, args):
 
 ########################################
 
-def get_projects(projects, working_dir, args):
+def get_projects(projects, working_directory, args):
     """
     Scan a folder for files that need to be 'built'.
 
     Args:
         projects: List of projects to build.
-        working_dir: Directory to scan.
+        working_directory: Directory to scan.
         args: Args for determining verbosity for output.
     """
 
     # Get the list of files in this directory
     try:
-        for base_name in os.listdir(working_dir):
-            file_name = os.path.join(working_dir, base_name)
+        for base_name in os.listdir(working_directory):
+            file_name = os.path.join(working_directory, base_name)
             add_project(projects, file_name, args)
     except OSError as error:
         print(error)
@@ -1254,12 +1249,12 @@ def get_projects(projects, working_dir, args):
 ########################################
 
 
-def process(working_dir, args, results):
+def process(working_directory, args, results):
     """
     Build a specific directory.
 
     Args:
-        working_dir: path of the directory to pass to the ``clean_rules`` function
+        working_directory: path of the directory to pass to the ``clean_rules`` function
         args: Args for determining verbosity for output
         results: List to append BuildError records to record the state of the build process
     Returns:
@@ -1267,7 +1262,7 @@ def process(working_dir, args, results):
     """
 
     if args.verbose:
-        print('Building "{}".'.format(working_dir))
+        print('Building "{}".'.format(working_directory))
 
     # List of files to build
     projects = []
@@ -1279,12 +1274,12 @@ def process(working_dir, args, results):
 
     if args.args:
         for item in args.args:
-            projectname = os.path.join(working_dir, item)
+            projectname = os.path.join(working_directory, item)
             if add_project(projects, projectname, args) is False:
                 print('Error: {} is not a known project file.'.format(projectname))
                 return 10
     else:
-        get_projects(projects, working_dir, args)
+        get_projects(projects, working_directory, args)
 
     # Sort the list by priority (The third parameter is priority from 1-99
     error = 0
@@ -1295,15 +1290,22 @@ def process(working_dir, args, results):
         berror = None
 
         # Is it a python script?
-        if projecttype == 'python':
+        if projecttype.startswith('python'):
             if not project.has_python_function():
                 if args.verbose:
                     print('Invoking ' + fullpathname)
                 error = burger.run_py_script(fullpathname, 'main', os.path.dirname(fullpathname))
             else:
+                func_name = projecttype.split(':')[1]
                 if args.verbose:
-                    print('Calling ' + project.function_ref.__name__ + ' in ' + fullpathname)
-                error = project.function_ref(working_directory=working_dir)
+                    print(
+                        'Calling ' +
+                        project.function_ref.__name__ +
+                        '(command="' +
+                        func_name +
+                        '") in ' +
+                        fullpathname)
+                error = project.function_ref(func_name, working_directory=working_directory)
             berror = BuildError(error, fullpathname)
 
         # Is it a slicer script?
@@ -1367,13 +1369,13 @@ def process(working_dir, args, results):
     # If recursive, process all the sub folders
     if args.recursive and not error:
         # Iterate over the directory
-        for item in os.listdir(working_dir):
+        for item in os.listdir(working_directory):
 
             # Ignore xcode project directories
             if _XCODEPROJ_MATCH.match(item):
                 continue
 
-            path_name = os.path.join(working_dir, item)
+            path_name = os.path.join(working_directory, item)
             if os.path.isdir(path_name):
                 error = process(path_name, args, results)
                 if error:
@@ -1385,7 +1387,7 @@ def process(working_dir, args, results):
 ########################################
 
 
-def main(working_dir=None, args=None):
+def main(working_directory=None, args=None):
     """
     Command line shell for ``buildme``.
 
@@ -1403,15 +1405,15 @@ def main(working_dir=None, args=None):
     - Additional terms are considered specific files to build.
 
     Args:
-        working_dir: Directory to operate on, or ``None`` for ``os.getcwd()``.
+        working_directory: Directory to operate on, or ``None`` for ``os.getcwd()``.
         args: Command line to use instead of ``sys.argv``.
     Returns:
         Zero on no error, non-zero on error
     """
 
-    # Make sure working_dir is properly set
-    if working_dir is None:
-        working_dir = os.getcwd()
+    # Make sure working_directory is properly set
+    if working_directory is None:
+        working_directory = os.getcwd()
 
     # Parse the command line
     parser = argparse.ArgumentParser(
@@ -1448,13 +1450,13 @@ def main(working_dir=None, args=None):
     if args.generate_build_rules:
         from .config import savedefault
         if args.verbose:
-            print('Saving {}'.format(os.path.join(working_dir, 'build_rules.py')))
-        savedefault(working_dir)
+            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
+        savedefault(working_directory)
         return 0
 
     # Make a list of directories to process
     if not args.directories:
-        args.directories = [working_dir]
+        args.directories = [working_directory]
 
     # Process the directories
     results = []

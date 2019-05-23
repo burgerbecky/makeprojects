@@ -16,11 +16,6 @@ enums.AutoIntEnum
 Enumerations
 ------------
 
-enums.ConfigurationTypes
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::enums::ConfigurationTypes
-    :members:
-
 enums.FileTypes
 ^^^^^^^^^^^^^^^
 .. doxygenclass:: makeprojects::enums::FileTypes
