@@ -516,8 +516,8 @@ class IDETypes(AutoIntEnum):
             True if the platform is Microsoft Visual Studio.
         """
 
-        return self in (self.vs2003, self.vs2005, self.vs2005, self.vs2008, self.vs2010,
-                        self.vs2012, self.vs2013, self.vs2015, self.vs2017, self.vs2019)
+        return self in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010,
+                        IDETypes.vs2012, IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017, IDETypes.vs2019)
 
     def is_xcode(self):
         """
@@ -527,8 +527,8 @@ class IDETypes(AutoIntEnum):
             True if the platform is Apple XCode.
         """
 
-        return self in (self.xcode3, self.xcode4, self.xcode5, self.xcode6, self.xcode7,
-                        self.xcode8, self.xcode9, self.xcode10)
+        return self in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6, IDETypes.xcode7,
+                        IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10)
 
     def is_codewarrior(self):
         """
@@ -538,7 +538,7 @@ class IDETypes(AutoIntEnum):
             True if the platform is Metrowerks / Freescale Codewarrior.
         """
 
-        return self in (self.codewarrior50, self.codewarrior58, self.codewarrior59)
+        return self in (IDETypes.codewarrior50, IDETypes.codewarrior58, IDETypes.codewarrior59)
 
     @staticmethod
     def lookup(ide_name):

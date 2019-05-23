@@ -160,7 +160,7 @@ def get_project_list(args, build_rules_list, working_directory):
                 for config_name in configuration_list:
                     configuration = Configuration(name=config_name, platform=item)
                     project.add_configuration(configuration)
-                    configuration.get_attributes(build_rules_list, working_directory, args)
+                    configuration.get_attributes(build_rules_list, working_directory)
 
         print(solution)
 

@@ -52,6 +52,9 @@ class Configuration:
         self.attributes = kargs
 
     def init_attributes(self):
+        """
+        Initialize the attributes to defaults
+        """
         # Files to include
         self.attributes['files'] = ['*.c', '*.cpp', '*.h', '*.inl']
 
@@ -173,7 +176,10 @@ class Configuration:
         """
         self.init_attributes()
         for rules in build_rules_list:
-            default = rules('configuration_settings', working_directory=working_directory, configuration=self)
+            default = rules(
+                'configuration_settings',
+                working_directory=working_directory,
+                configuration=self)
             if default != 0:
                 break
 
@@ -232,6 +238,9 @@ class Project:
 
         ## No special \#define for C/C++ code
         self.defines = []
+
+        ## Attributes used by generators
+        self.attributes = []
 
         ## Properties used by generators
         self.properties = [
@@ -402,22 +411,22 @@ class Solution:
         project.solution = self
         self.projects.append(project)
 
-    def generate(self, ide=None, platform=None):
+    ########################################
+
+    def generate(self, ide=None, perforce=False, verbose=False):
         """
         Generate a project file and write it out to disk.
         """
 
         # Sanity check
-        if ide:
+        if ide is not None:
             if not isinstance(ide, IDETypes):
                 raise TypeError("parameter 'ide' must be of type IDETypes")
             self.ide = ide
 
-        if platform:
-            self.projects[0].platform = platform
-
-        if ide.is_windows():
-            return makeprojects.visualstudio.generate(self, self.ide)
+        # Create Visual Studio files
+        if ide.is_visual_studio():
+            return makeprojects.visualstudio.generate(self, perforce=perforce, verbose=verbose)
         return 10
 
     def processjson(self, myjson):
