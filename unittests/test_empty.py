@@ -41,11 +41,11 @@ def test_visual_studio(tmpdir):
         solution = makeprojects.new_solution(name='empty', working_directory=str(tmpdir))
         assert not solution.generate(ide=item[0])
 
-        empty_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'tests', item[1])
+        empty_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'assets', 'empty', item[1])
         assert burger.compare_files(empty_file, str(tmpdir.join(item[1])))
 
     # Cleanup
-    #tmpdir.remove()
+    tmpdir.remove()
 
 
 ########################################
