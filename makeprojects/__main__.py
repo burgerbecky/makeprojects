@@ -81,7 +81,7 @@ def get_build_rules(working_directory, args):
     Process a solution.
 
     Args:
-        solution: Solution instance to build from.
+        working_directory: Directory to scan for build_rules.py
         args: Args for determining verbosity for output
     Returns:
         List of loaded build_rules.py files.
@@ -175,7 +175,7 @@ def process(working_directory, args):
     Process a solution.
 
     Args:
-        solution: Solution instance to build from.
+        working_directory: Directory to process.
         args: Args for determining verbosity for output
     Returns:
         Zero on no error, non zero integer on error

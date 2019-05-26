@@ -22,7 +22,7 @@ from io import StringIO
 from enum import Enum
 from hashlib import md5
 from burger import PY2, save_text_file_if_newer, convert_to_windows_slashes, delete_file
-from burger import perforce_edit, escape_xml_cdata, escape_xml_attribute
+from burger import perforce_edit, escape_xml_cdata, escape_xml_attribute, convert_to_array
 import makeprojects.core
 from .enums import platformtype_short_code
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
@@ -50,7 +50,7 @@ DEFAULT_FINAL_FOLDER = '$(BURGER_SDKS)/windows/bin/'
 
 def get_uuid(input_str):
     """
-    Convert a string to a UUUD.
+    Convert a string to a UUID.
 
     Given a project name string, create a 128 bit unique hash for
     Visual Studio.
@@ -65,44 +65,45 @@ def get_uuid(input_str):
     temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode('utf-8')).digest()
     return str(UUID(bytes=temp_md5[:16], version=3)).upper()
 
+########################################
 
-class SemicolonArray(object):
+
+class SemicolonArray():
     """
     Helper class to hold an array of strings that are joined
     by semicolons
     """
 
     def __init__(self, entries=None):
+        """
+        Initialize the array.
+        Args:
+            entries: A string or an array of strings for default.
+        """
+
         if entries is None:
             entries = []
-        self.entries = entries
-
-    #
-    ## Output the string as unicode
-    #
-
-    def __unicode__(self):
-        # Output nothing if there is no data
-        if self.entries is None:
-            return ''
-
-        # Output the entries seperated by semicolons
-        return u';'.join(self.entries)
-
-    def __str__(self):
-        """
-        Output the string with UTF-8 encoding.
-        """
-        return unicode(self).encode('utf-8')
+        self.entries = convert_to_array(entries)
 
     def append(self, entry):
         """
         Add a string to the array.
+        Args:
+            entry: String to add to the list
         """
         self.entries.append(entry)
 
+    def __repr__(self):
+        """
+        Output the string with colons.
+        """
+        return ';'.join(self.entries)
+
+    ## Allow str() to work.
+    __str__ = __repr__
 
 ########################################
+
 
 class VS2003XML():
     """
@@ -187,13 +188,6 @@ class VS2003XML():
 
     ## Allow str() to work.
     __str__ = __repr__
-
-
-
-
-
-
-
 
 
 class Tool2003(object):
@@ -2005,7 +1999,6 @@ class VS2003VisualStudioProject():
         project_lines.extend(VS2003XML('VisualStudioProject'))
 
 
-
 ########################################
 
 
@@ -2071,7 +2064,12 @@ class VS2003vcproj():
 
         # Write the project platforms
         project_lines.append('\t<Platforms>')
-        for vsplatform in self.project.platform.get_vs_platform()[0]:
+
+        platform_array = []
+        for configuration in self.configurations:
+            platform_array.append(configuration.vsplatform)
+
+        for vsplatform in set(platform_array):
 
             # Ignore x64 platforms on Visual Studio 2003
             if vsplatform == 'x64':

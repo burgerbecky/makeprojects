@@ -41,6 +41,7 @@ def rules(command, working_directory, root=True, **kargs):
         command: Command to execute.
         working_directory: Directory for this function to clean
         root: If set to True, exit cleaning upon completion of this function
+        kargs: Extra arguments specific to each command.
     Return:
         Zero on success, non-zero on failure, and a list for 'configurations'
 
