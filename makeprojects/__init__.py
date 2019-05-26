@@ -53,8 +53,6 @@ Root namespace for the makeprojects tool
 # project = newproject(name='myproject')
 # solution.add_project(project=project)
 #
-# project.setconfigurations(['Debug','Internal','Release'])
-# project.setplatform(project.Windows)
 # project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
 # solution.save(solution.xcode3)
 #
@@ -64,6 +62,7 @@ Root namespace for the makeprojects tool
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+from copy import deepcopy
 import burger
 
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, \
@@ -416,4 +415,17 @@ def new_configuration(**kargs):
     """
 
     from .core import Configuration
+
+    # Special case, if the platform is an expandable, convert to an array
+    # of configurations that fit the bill.
+    platform = kargs.get('platform', None)
+    if platform:
+        platform_type = PlatformTypes.lookup(platform)
+        if platform_type is not None:
+            result = []
+            args = deepcopy(kargs)
+            for item in platform_type.get_expanded():
+                args['platform'] = item
+                result.append(Configuration(**args))
+            return result
     return Configuration(**kargs)

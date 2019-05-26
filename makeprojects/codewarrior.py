@@ -26,7 +26,7 @@ import makeprojects.core
 import burger
 from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
     IDETypes, PlatformTypes, Property
-from .enums import configuration_short_code
+from .core import configuration_short_code
 
 if not burger.PY2:
     unicode = str

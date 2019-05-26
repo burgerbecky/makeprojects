@@ -24,7 +24,7 @@ import os
 from io import StringIO
 import burger
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes
-from .enums import configuration_short_code
+from .core import configuration_short_code
 
 # pylint: disable=C0302
 

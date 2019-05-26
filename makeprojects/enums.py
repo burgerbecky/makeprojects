@@ -410,21 +410,6 @@ _PROJECTTYPES_READABLE = {
 }
 
 
-def configuration_short_code(configuration_name):
-    """
-    Convert configuration name to a 3 letter code.
-    """
-    codes = {
-        'Debug': 'dbg',
-        'Release': 'rel',
-        'Internal': 'int',
-        'Profile': 'pro',
-        'Release_LTCG': 'ltc',
-        'CodeAnalysis': 'cod',
-        'Profile_FastCap': 'fas'
-    }
-    return codes.get(configuration_name, None)
-
 ########################################
 
 
@@ -516,8 +501,9 @@ class IDETypes(AutoIntEnum):
             True if the platform is Microsoft Visual Studio.
         """
 
-        return self in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010,
-                        IDETypes.vs2012, IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017, IDETypes.vs2019)
+        return self in (
+            IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010, IDETypes.vs2012,
+            IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017, IDETypes.vs2019)
 
     def is_xcode(self):
         """
@@ -527,8 +513,8 @@ class IDETypes(AutoIntEnum):
             True if the platform is Apple XCode.
         """
 
-        return self in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6, IDETypes.xcode7,
-                        IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10)
+        return self in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
+                        IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10)
 
     def is_codewarrior(self):
         """
@@ -1287,3 +1273,35 @@ _PLATFORMTYPES_EXPANDED = {
         PlatformTypes.androidarm64,
         PlatformTypes.androidintel32,
         PlatformTypes.androidintel64)}
+
+
+########################################
+
+def platformtype_short_code(configurations):
+    """
+    Iterate over a list of Configurations to determine the short code.
+
+    For files that create multiple platforms, determine if it matches
+    a known expandable PlatformType
+
+    Args:
+        configurations: List of configurations to scan
+    Returns:
+        Either '' or the generic short code or the first code in the list.
+    """
+
+    # None?
+    if not configurations:
+        return ''
+
+    # Extract the platform codes from all configurations
+    codes = []
+    for configuration in configurations:
+        codes.append(configuration.platform)
+
+    for item in _PLATFORMTYPES_EXPANDED:
+        if all(x in codes for x in _PLATFORMTYPES_EXPANDED[item]):
+            return item.get_short_code()
+
+    # Return the first entry's short code.
+    return codes[0].platform.get_short_code()

@@ -14,14 +14,10 @@ import operator
 import burger
 import makeprojects.visualstudio
 import makeprojects.xcode
-import makeprojects.codewarrior
-import makeprojects.watcom
 import makeprojects.codeblocks
-import makeprojects.makefile
 from makeprojects import FileTypes, ProjectTypes, \
     IDETypes, PlatformTypes, \
     SourceFile, Property
-from .enums import configuration_short_code
 
 ########################################
 
@@ -200,6 +196,24 @@ class Configuration:
 
 ########################################
 
+def configuration_short_code(configuration_name):
+    """
+    Convert configuration name to a 3 letter code.
+    """
+    codes = {
+        'Debug': 'dbg',
+        'Release': 'rel',
+        'Internal': 'int',
+        'Profile': 'pro',
+        'Release_LTCG': 'ltc',
+        'CodeAnalysis': 'cod',
+        'Profile_FastCap': 'fas'
+    }
+    return codes.get(configuration_name, None)
+
+
+########################################
+
 
 class Project:
     """
@@ -212,6 +226,10 @@ class Project:
     """
 
     def __init__(self, **kargs):
+        """
+        Set defaults.
+        """
+
         ## True if naming suffixes are enabled
         self.suffix_enable = kargs.get('suffix_enable', True)
 
@@ -222,7 +240,10 @@ class Project:
         self.projecttype = ProjectTypes.lookup(kargs.get('project_type', ProjectTypes.default()))
 
         ## Generic name for the project, 'project' is default
-        self.projectname = kargs.get('name', 'project')
+        self.name = kargs.get('name', 'project')
+
+        ## Generic name for the project, 'project' is default
+        self.projectname = self.name
 
         ## No parent solution yet
         self.solution = None
@@ -240,7 +261,7 @@ class Project:
         self.defines = []
 
         ## Attributes used by generators
-        self.attributes = []
+        self.attributes = kargs
 
         ## Properties used by generators
         self.properties = [
@@ -262,13 +283,14 @@ class Project:
         self.codefiles = []
 
         ## Initial array of Project records that need to be built first
-        self.dependentprojects = []
+        self.projects = []
 
         ## Create default XCode object
         self.xcode = makeprojects.xcode.Defaults()
 
+        from .codewarrior import Defaults as cw_defaults
         ## Create default Codewarrior object
-        self.codewarrior = makeprojects.codewarrior.Defaults()
+        self.codewarrior = cw_defaults()
 
         ## Create default Visual Studio object
         self.visualstudio = makeprojects.visualstudio.Defaults()
@@ -283,54 +305,37 @@ class Project:
         Args:
             self: The 'this' reference.
             configuration: Reference to an instance of a Configuration.
+        Exception:
+            TypeError if configuration is not a Configuration
         """
 
-        # Sanity check
-        if not isinstance(configuration, Configuration):
-            raise TypeError("parameter 'configuration' must be of type Configuration")
-        configuration.project = self
-        self.configurations.append(configuration)
+        if configuration:
+            # Singular
+            if isinstance(configuration, Configuration):
+                configuration.project = self
+                self.configurations.append(configuration)
+            else:
+                # Assume iterable
+                for item in configuration:
+                    # Sanity check
+                    if not isinstance(item, Configuration):
+                        raise TypeError("parameter 'configuration' must be of type Configuration")
+                    item.project = self
+                    self.configurations.append(item)
 
-    def setconfigurations(self, configurations):
-        """
-        Set the names of the configurations this project will support.
-
-        Given a string or an array of strings, replace the
-        configurations with the new list.
-
-        Args:
-            self: The 'this' reference.
-            configurations: String or an array of strings for the new configuration list.
-        """
-
-        # Force to a list
-        self.configurations = burger.convert_to_array(configurations)
-
-    def setplatform(self, platform):
-        """
-        Set the names of the configurations this project will support.
-
-        Given a string or an array of strings, replace the
-        configurations with the new list.
-
-        Args:
-            self: The 'this' reference.
-            platform: Enumeration of PlatformTypes.
-        """
-
-        # Sanity check
-        if not isinstance(platform, PlatformTypes):
-            raise TypeError("parameter 'platform' must be of type PlatformTypes")
-        self.platform = platform
-
-    def adddependency(self, project):
+    def add_project(self, project):
         """
         Add a dependent project.
+
+        Args:
+            project: Project to depend on.
+        Exception:
+            TypeError if project is not a Project
         """
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError("parameter 'project' must be of type Project")
-        self.dependentprojects.append(project)
+        self.projects.append(project)
 
     def __repr__(self):
         """
@@ -343,7 +348,7 @@ class Project:
         return 'Project: {}, Working Directory: {}, Project Type: {}, ' \
             'Platform: {}, Exclude: {}, Defines: {}, ' \
             'Source Folders: {}, Include: {}, CodeFiles: {}, Configurations: {}'.format(
-                str(self.projectname),
+                str(self.name),
                 self.working_directory, str(self.projecttype),
                 str(self.platform),
                 str(self.exclude),
@@ -386,8 +391,9 @@ class Solution:
         ## Create default XCode object
         self.xcode = makeprojects.xcode.Defaults()
 
+        from .codewarrior import Defaults as cw_defaults
         ## Create default Codewarrior object
-        self.codewarrior = makeprojects.codewarrior.Defaults()
+        self.codewarrior = cw_defaults()
 
         ## Create default Visual Studio object
         self.visualstudio = makeprojects.visualstudio.Defaults()
@@ -515,6 +521,10 @@ class Solution:
         The script is an array of objects containing solution settings
         and a list of IDEs to output scripts
         """
+
+        from .codewarrior import generate as cw_generate
+        from .watcom import generate as watcom_generate
+        from .makefile import generate as makefile_generate
         error = 0
         for item in myjson:
             if isinstance(item, dict):
@@ -566,22 +576,22 @@ class Solution:
                 error = makeprojects.xcode.generate(self)
             elif item == 'codewarrior9' or item == 'codewarrior50':
                 self.ide = IDETypes.codewarrior50
-                error = makeprojects.codewarrior.generate(self)
+                error = cw_generate(self)
             elif item == 'codewarrior10' or item == 'codewarrior58':
                 self.ide = IDETypes.codewarrior58
-                error = makeprojects.codewarrior.generate(self)
+                error = cw_generate(self)
             elif item == 'codewarrior59':
                 self.ide = IDETypes.codewarrior59
-                error = makeprojects.codewarrior.generate(self)
+                error = cw_generate(self)
             elif item == 'codeblocks':
                 self.ide = IDETypes.codeblocks
                 error = makeprojects.codeblocks.generate(self)
             elif item == 'watcom':
                 self.ide = IDETypes.watcom
-                error = makeprojects.watcom.generate(self, perforce=True)
+                error = watcom_generate(self, perforce=True)
             elif item == 'makefile':
                 self.ide = IDETypes.make
-                error = makeprojects.makefile.generate(self, perforce=True)
+                error = makefile_generate(self, perforce=True)
             else:
                 print('Saving ' + item + ' not implemented yet')
                 error = 0
@@ -806,7 +816,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.watcom.DEFAULT_FINAL_FOLDER
+                from .watcom import DEFAULT_FINAL_FOLDER as watcom_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = watcom_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('watcom')
 
@@ -814,7 +825,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'linux'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.makefile.DEFAULT_FINAL_FOLDER
+                from .makefile import DEFAULT_FINAL_FOLDER as makefile_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = makefile_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('makefile')
 
