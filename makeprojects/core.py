@@ -12,12 +12,9 @@ import os
 import uuid
 import operator
 import burger
-import makeprojects.visualstudio
 import makeprojects.xcode
 import makeprojects.codeblocks
-from makeprojects import FileTypes, ProjectTypes, \
-    IDETypes, PlatformTypes, \
-    SourceFile, Property
+from makeprojects import FileTypes, ProjectTypes, IDETypes, PlatformTypes, SourceFile, Property
 
 ########################################
 
@@ -33,24 +30,47 @@ class Configuration:
         Project, Solution
     """
 
-    def __init__(self, **kargs):
+    def __init__(self, name, platform=None, project_type=None):
+        """
+        Init defaults.
 
-        ## Name of the configuration.
-        self.name = kargs.get('name', 'Debug')
+        Args:
+            name: Name of the configuration
+            platform: Target platform to build
+        """
+        # Use defaults
+        if not name:
+            name = 'Debug'
 
-        ## Platform used for the configuration.
-        self.platform = PlatformTypes.lookup(kargs.get('platform', PlatformTypes.default()))
+        if not platform:
+            platform = PlatformTypes.default()
+        else:
+            platform = PlatformTypes.lookup(platform)
+            if not isinstance(platform, PlatformTypes):
+                raise TypeError("parameter 'platform' must be of type PlatformTypes")
+
+        if not project_type:
+            project_type = ProjectTypes.default()
+        else:
+            project_type = ProjectTypes.lookup(project_type)
+            if not isinstance(project_type, ProjectTypes):
+                raise TypeError("parameter 'project_type' must be of type ProjectTypes")
 
         ## Project this Configuration is attached to.
         self.project = None
 
         ## Dictionary of attributes describing how to build this configuration.
-        self.attributes = kargs
+        self.attributes = {'name': name, 'platform': platform, 'project_type': project_type}
+        self.init_attributes()
 
     def init_attributes(self):
         """
         Initialize the attributes to defaults
         """
+
+        name = self.attributes['name']
+        platform = self.attributes['platform']
+
         # Files to include
         self.attributes['files'] = ['*.c', '*.cpp', '*.h', '*.inl']
 
@@ -64,27 +84,27 @@ class Configuration:
         self.attributes['library_folders'] = []
 
         # Debug/Release
-        if self.name in ('Debug', 'Internal'):
-            self.attributes['defines'] = ['_DEBUG=1']
+        if name in ('Debug', 'Internal'):
+            self.attributes['defines'] = ['_DEBUG']
         else:
-            self.attributes['defines'] = ['NDEBUG=1']
+            self.attributes['defines'] = ['NDEBUG']
 
-        if self.name in ('Release', 'Internal', 'Profile'):
+        if name in ('Release', 'Internal', 'Profile'):
             self.attributes['optimization'] = 4
         else:
             self.attributes['optimization'] = 0
 
-        if self.name in ('Profile', 'Profile_FastCap'):
+        if name in ('Profile', 'Profile_FastCap'):
             self.attributes['profile'] = True
 
-        if self.name == 'Release_LTCG':
+        if name == 'Release_LTCG':
             self.attributes['link_time_code_generation'] = True
 
         # Windows specific defines
-        if self.platform.is_windows():
+        if platform.is_windows():
             self.attributes['defines'].extend(
-                ['_WINDOWS', 'WIN32_LEAN_AND_MEAN', '_CRT_SECURE_NO_WARNINGS'])
-            if self.platform == PlatformTypes.win64:
+                ['_WINDOWS', 'WIN32_LEAN_AND_MEAN', '_CRT_NONSTDC_NO_WARNINGS', '_CRT_SECURE_NO_WARNINGS', 'GLUT_NO_LIB_PRAGMA'])
+            if platform == PlatformTypes.win64:
                 self.attributes['defines'].append('WIN64')
             else:
                 self.attributes['defines'].append('WIN32')
@@ -94,27 +114,27 @@ class Configuration:
             self.attributes['CharacterSet'] = 'Unicode'
 
         # Playstation 4
-        if self.platform == PlatformTypes.ps4:
+        if platform == PlatformTypes.ps4:
             self.attributes['defines'].append('__ORBIS2__')
 
         # Playstation Vita
-        if self.platform == PlatformTypes.vita:
+        if platform == PlatformTypes.vita:
             self.attributes['defines'].append('SN_TARGET_PSP2')
 
         # Android targets
-        if self.platform.is_android():
+        if platform.is_android():
             self.attributes['defines'].append('DISABLE_IMPORTGL')
 
         # Xbox 360
-        if self.platform == PlatformTypes.xbox360:
+        if platform == PlatformTypes.xbox360:
             self.attributes['defines'].extend(['_XBOX', 'XBOX'])
 
         # Mac Carbon
-        if self.platform.is_macos_carbon():
+        if platform.is_macos_carbon():
             self.attributes['defines'].append('TARGET_API_MAC_CARBON=1')
 
         # Nintendo DSI specific defines
-        if self.platform == PlatformTypes.dsi:
+        if platform == PlatformTypes.dsi:
             self.attributes['defines'].extend([
                 'NN_BUILD_DEBUG',
                 'NN_COMPILER_RVCT',
@@ -133,11 +153,11 @@ class Configuration:
                 'NN_DEBUGGER_KMC_PARTNER'])
 
         # Linux platform
-        if self.platform == PlatformTypes.linux:
+        if platform == PlatformTypes.linux:
             self.attributes['defines'].append('__LINUX__')
 
         # macOS X platform
-        if self.platform.is_macosx():
+        if platform.is_macosx():
             self.attributes['frameworks'] = [
                 'AppKit.framework',
                 'AudioToolbox.framework',
@@ -152,7 +172,7 @@ class Configuration:
             ]
 
         # iOS platform
-        if self.platform.is_ios():
+        if platform.is_ios():
             self.attributes['frameworks'] = [
                 'AVFoundation.framework',
                 'CoreGraphics.framework',
@@ -161,6 +181,28 @@ class Configuration:
                 'QuartzCore.framework',
                 'UIKit.framework'
             ]
+
+    ########################################
+
+    def get_attribute(self, name):
+        """
+        Return an attribute by key.
+
+        If the attribute does not exist, it will check
+        the project and then the solution for the key.
+
+        Args:
+            name: Name of the attribute key
+        Return:
+            None if the attribute is not in use, or a value.
+        """
+
+        value = self.attributes.get(name)
+        if value is None:
+            value = self.project.get_attribute(name)
+        return value
+
+    ########################################
 
     def get_attributes(self, build_rules_list, working_directory):
         """
@@ -188,7 +230,7 @@ class Configuration:
         """
 
         return 'Configuration: {}, Platform: {}, Attributes: {}'.format(
-            self.name, str(self.platform), str(self.attributes))
+            self.attributes['name'], str(self.attributes['platform']), str(self.attributes))
 
     ## Allow str() to work.
     __str__ = __repr__
@@ -225,43 +267,54 @@ class Project:
     2010 and higher generates a project file for each project.
     """
 
-    def __init__(self, **kargs):
+    def __init__(self, name=None, working_directory=None, project_type=None, platform=None):
         """
         Set defaults.
         """
 
-        ## True if naming suffixes are enabled
-        self.suffix_enable = kargs.get('suffix_enable', True)
+        if not name:
+            name = 'project'
 
-        ## Root directory (Default None)
-        self.working_directory = kargs.get('working_directory', os.getcwd())
+        if not working_directory:
+            working_directory = os.getcwd()
 
-        ## Type of project, tool is default ('tool', 'app', 'library')
-        self.projecttype = ProjectTypes.lookup(kargs.get('project_type', ProjectTypes.default()))
+        # Type of project, tool is default ('tool', 'app', 'library')
+        if not project_type:
+            project_type = ProjectTypes.default()
+        else:
+            project_type = ProjectTypes.lookup(project_type)
+            if not isinstance(project_type, ProjectTypes):
+                raise TypeError("parameter 'project_type' must be of type ProjectTypes")
 
-        ## Generic name for the project, 'project' is default
-        self.name = kargs.get('name', 'project')
-
-        ## Generic name for the project, 'project' is default
-        self.projectname = self.name
+        # Type of platform
+        if not platform:
+            platform = PlatformTypes.default()
+        else:
+            platform = PlatformTypes.lookup(platform)
+            if not isinstance(platform, PlatformTypes):
+                raise TypeError("parameter 'platform' must be of type PlatformTypes")
 
         ## No parent solution yet
         self.solution = None
 
-        ## Generate a windows project as a default
-        self.platform = kargs.get('platform', PlatformTypes.default())
-
         ## Generate the three default configurations
         self.configurations = []
 
-        ## Don't exclude any files
-        self.exclude = []
+        ## Initial array of Project records that need to be built first
+        self.projects = []
 
-        ## No special \#define for C/C++ code
-        self.defines = []
+        ## Initial array of SourceFile in the solution
+        self.codefiles = []
 
         ## Attributes used by generators
-        self.attributes = kargs
+        self.attributes = {
+            'name': name,
+            'working_directory': working_directory,
+            'project_type': project_type,
+            'platform': platform,
+            'source_folders': ['.', 'source', 'src'],
+            'include_folders': [],
+            'defines': []}
 
         ## Properties used by generators
         self.properties = [
@@ -273,18 +326,6 @@ class Project:
             Property(name="DEFINE", data="WIN64", platform=PlatformTypes.win64)
         ]
 
-        ## Scan at the current folder
-        self.sourcefolders = ['.', 'source', 'src']
-
-        ## No extra folders for include files
-        self.includefolders = []
-
-        ## Initial array of SourceFile in the solution
-        self.codefiles = []
-
-        ## Initial array of Project records that need to be built first
-        self.projects = []
-
         ## Create default XCode object
         self.xcode = makeprojects.xcode.Defaults()
 
@@ -292,8 +333,9 @@ class Project:
         ## Create default Codewarrior object
         self.codewarrior = cw_defaults()
 
+        from .visualstudio import Defaults as vs_defaults
         ## Create default Visual Studio object
-        self.visualstudio = makeprojects.visualstudio.Defaults()
+        self.visualstudio = vs_defaults()
 
     def add_configuration(self, configuration):
         """
@@ -337,6 +379,128 @@ class Project:
             raise TypeError("parameter 'project' must be of type Project")
         self.projects.append(project)
 
+    ########################################
+
+    def get_attribute(self, name):
+        """
+        Return an attribute by key.
+
+        If the attribute does not exist, it will check
+        the solution for the key.
+
+        Args:
+            name: Name of the attribute key
+        Return:
+            None if the attribute is not in use, or a value.
+        """
+
+        value = self.attributes.get(name)
+        if value is None:
+            value = self.solution.get_attribute(name)
+        return value
+
+    ########################################
+
+    def scan_directory(self, working_directory, file_list, include_list, recurse, acceptable):
+        """
+        Given a base directory and a relative directory
+        scan for all the files that are to be included in the project
+
+        Args:
+            working_directory: Directory to scan
+            file_list: list to store SourceFile records
+        """
+
+        # Absolute or relative?
+        if not os.path.isabs(working_directory):
+            working_directory = os.path.abspath(
+                os.path.join(self.get_attribute('working_directory'),
+                             working_directory))
+
+        # Is this a valid directory?
+        if os.path.isdir(working_directory):
+
+            exclude = self.get_attribute('exclude')
+            if not exclude:
+                exclude = []
+
+            # Scan the directory
+            name_list = os.listdir(working_directory)
+
+            # No files added, yet (Flag for adding directory to the search tree)
+            for base_name in name_list:
+
+                # Is this file in the exclusion list?
+                test_name = base_name.lower()
+                for item in exclude:
+                    if test_name == item.lower():
+                        break
+                else:
+
+                    # Is it a file? (Skip links and folders)
+                    file_name = os.path.join(working_directory, base_name)
+                    if os.path.isfile(file_name):
+
+                        # Check against the extension list (Skip if not supported)
+                        file_type = FileTypes.lookup(test_name)
+                        if file_type is None:
+                            continue
+
+                        # Found a match, test if the type is in
+                        # the acceptable list
+
+                        if file_type in acceptable:
+                            # Create a new entry (Using windows style slashes for consistency)
+                            fileentry = SourceFile(
+                                os.path.relpath(
+                                    file_name,
+                                    self.get_attribute('working_directory')),
+                                working_directory,
+                                file_type)
+                            file_list.append(fileentry)
+                            include_list.append(
+                                os.path.relpath(
+                                    working_directory,
+                                    self.get_attribute('working_directory')))
+
+                    # Process folders only if in recursion mode
+                    elif recurse:
+                        if os.path.isdir(file_name):
+                            self.scan_directory(
+                                file_name, file_list, include_list, recurse, acceptable)
+
+    ########################################
+
+    def get_file_list(self, acceptable):
+        """
+        Obtain the list of source files
+        """
+
+        # Get the files that were manually parsed by the json
+        # record
+
+        file_list = []
+        include_list = []
+        for item in self.get_attribute('source_folders'):
+
+            # Is it a recursive test?
+            recurse = False
+            if item.endswith('/*.*'):
+                # Remove the trailing /*.*
+                item = item[0:len(item) - 4]
+                recurse = True
+
+            # Scan the folder for files
+            self.scan_directory(
+                item, file_list, include_list, recurse, acceptable)
+
+        # Since the slashes are all windows (No matter what
+        # host this script is running on, the sort will yield consistent
+        # results so it doesn't matter what platform generated the
+        # file list, it's the same output.
+        self.codefiles = sorted(file_list, key=operator.attrgetter('filename'))
+        self.attributes['extra_include'] = sorted(list(set(include_list)))
+
     def __repr__(self):
         """
         Convert the solultion record into a human readable description
@@ -345,18 +509,11 @@ class Project:
             Human readable string or None if the solution is invalid
         """
 
-        return 'Project: {}, Working Directory: {}, Project Type: {}, ' \
-            'Platform: {}, Exclude: {}, Defines: {}, ' \
-            'Source Folders: {}, Include: {}, CodeFiles: {}, Configurations: {}'.format(
-                str(self.name),
-                self.working_directory, str(self.projecttype),
-                str(self.platform),
-                str(self.exclude),
-                str(self.defines),
-                str(self.sourcefolders),
-                str(self.includefolders),
-                str(self.codefiles),
-                str(self.configurations))
+        return 'Project: {}, CodeFiles: {}, Attributes: {}, Configurations: {}'.format(
+            self.attributes['name'],
+            str(self.codefiles),
+            str(self.attributes),
+            str(self.configurations))
 
     ## Allow str() to work.
     __str__ = __repr__
@@ -369,24 +526,45 @@ class Solution:
     This object contains all of the items needed to create a solution.
     """
 
-    def __init__(self, **kargs):
-        ## Generic name for the project, 'project' is default
-        self.name = kargs.get('name', 'project')
+    def __init__(self, name, working_directory=None, verbose=False, ide=None, perforce=True):
+        """
+        Init defaults.
 
-        ## True if verbose output is requested (Default False)
-        self.verbose = kargs.get('verbose', False)
+        Args:
+            name: Name of the project
+            working_directory: Directory to store the solution.
+            verbose: If True, verbose output.
+            ide: IDE to build for.
+        """
 
-        ## True if naming suffixes are enabled
-        self.suffix_enable = kargs.get('suffix_enable', True)
+        # Name needs a default
+        if not name:
+            name = 'project'
 
-        ## Root directory (Default None)
-        self.working_directory = kargs.get('working_directory', os.getcwd())
+        # Working directory needs a default
+        if not working_directory:
+            working_directory = os.getcwd()
+
+        if not ide:
+            ide = IDETypes.default()
+        else:
+            ide = IDETypes.lookup(ide)
+            if not isinstance(ide, IDETypes):
+                raise TypeError("parameter 'ide' must be of type IDETypes")
 
         ## Type of ide
-        self.ide = kargs.get('ide', IDETypes.default())
+        self.ide = ide
 
         ## Initial array of Project records for projects
         self.projects = []
+
+        ## Dictionary of attributes describing how to build this solution.
+        self.attributes = {
+            'name': name,
+            'working_directory': working_directory,
+            'verbose': verbose,
+            'suffix_enable': True,
+            'perforce': perforce}
 
         ## Create default XCode object
         self.xcode = makeprojects.xcode.Defaults()
@@ -395,8 +573,9 @@ class Solution:
         ## Create default Codewarrior object
         self.codewarrior = cw_defaults()
 
+        from .visualstudio import Defaults as vs_defaults
         ## Create default Visual Studio object
-        self.visualstudio = makeprojects.visualstudio.Defaults()
+        self.visualstudio = vs_defaults()
 
     def add_project(self, project):
         """
@@ -419,7 +598,18 @@ class Solution:
 
     ########################################
 
-    def generate(self, ide=None, perforce=False, verbose=False):
+    def get_attribute(self, name):
+        """
+        Return an attribute by key.
+
+        Args:
+            name: Name of the attribute key
+        """
+        return self.attributes.get(name)
+
+    ########################################
+
+    def generate(self, ide=None):
         """
         Generate a project file and write it out to disk.
         """
@@ -432,7 +622,8 @@ class Solution:
 
         # Create Visual Studio files
         if ide.is_visual_studio():
-            return makeprojects.visualstudio.generate(self, perforce=perforce, verbose=verbose)
+            from .visualstudio import generate as vs_generate
+            return vs_generate(self)
         return 10
 
     def processjson(self, myjson):
@@ -474,27 +665,28 @@ class Solution:
 
             elif key == 'kind':
                 # Convert json token to enumeration (Will assert if not enumerated)
-                self.projects[0].projecttype = ProjectTypes[myjson[key]]
+                self.projects[0].attributes['project_type'] = ProjectTypes[myjson[key]]
             elif key == 'projectname':
-                self.name = myjson[key]
+                self.attributes['name'] = myjson[key]
             elif key == 'platform':
-                self.projects[0].platform = PlatformTypes[myjson[key]]
+                self.projects[0].attributes['platform'] = PlatformTypes[myjson[key]]
 
             elif key == 'configurations':
                 self.projects[0].configurations = []
                 for item in burger.convert_to_array(myjson[key]):
-                    self.projects[0].configurations.append(Configuration(name=item))
+                    self.projects[0].configurations.append(Configuration(item))
             elif key == 'sourcefolders':
-                self.projects[0].sourcefolders = burger.convert_to_array(myjson[key])
+                self.projects[0].attributes['source_folders'] = burger.convert_to_array(myjson[key])
             elif key == 'exclude':
-                self.projects[0].exclude = burger.convert_to_array(myjson[key])
+                self.projects[0].attributes['exclude'] = burger.convert_to_array(myjson[key])
             elif key == 'defines':
                 definelist = burger.convert_to_array(myjson[key])
                 for item in definelist:
                     self.projects[0].properties.append(Property(name="DEFINE", data=item))
-                self.projects[0].defines = definelist
+                self.projects[0].attributes['defines'] = definelist
             elif key == 'includefolders':
-                self.projects[0].includefolders = burger.convert_to_array(myjson[key])
+                self.projects[0].attributes['include_folders'] = burger.convert_to_array(
+                    myjson[key])
 
             #
             # Handle IDE specific data
@@ -526,27 +718,28 @@ class Solution:
         from .watcom import generate as watcom_generate
         from .makefile import generate as makefile_generate
         error = 0
+        from .visualstudio import generateold as vs_generateold
         for item in myjson:
             if isinstance(item, dict):
                 error = self.processjson(item)
             elif item == 'vs2019':
                 self.ide = IDETypes.vs2019
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2019)
+                error = vs_generateold(self)
             elif item == 'vs2017':
                 self.ide = IDETypes.vs2017
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2017)
+                error = vs_generateold(self)
             elif item == 'vs2015':
                 self.ide = IDETypes.vs2015
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2015)
+                error = vs_generateold(self)
             elif item == 'vs2013':
                 self.ide = IDETypes.vs2013
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2013)
+                error = vs_generateold(self)
             elif item == 'vs2012':
                 self.ide = IDETypes.vs2012
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2012)
+                error = vs_generateold(self)
             elif item == 'vs2010':
                 self.ide = IDETypes.vs2010
-                error = makeprojects.visualstudio.generateold(self, IDETypes.vs2010)
+                error = vs_generateold(self)
             elif item == 'vs2008':
                 self.ide = IDETypes.vs2008
                 error = createvs2008solution(self)
@@ -588,10 +781,10 @@ class Solution:
                 error = makeprojects.codeblocks.generate(self)
             elif item == 'watcom':
                 self.ide = IDETypes.watcom
-                error = watcom_generate(self, perforce=True)
+                error = watcom_generate(self)
             elif item == 'makefile':
                 self.ide = IDETypes.make
-                error = makefile_generate(self, perforce=True)
+                error = makefile_generate(self)
             else:
                 print('Saving ' + item + ' not implemented yet')
                 error = 0
@@ -615,7 +808,7 @@ class Solution:
         # Use the work folder name as the project name
         #
 
-        dictrecord['projectname'] = os.path.basename(self.working_directory)
+        dictrecord['projectname'] = os.path.basename(self.attributes['working_directory'])
 
         if args.configurations:
             configurations = args.configurations
@@ -756,7 +949,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2010')
 
@@ -764,7 +958,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2012')
 
@@ -772,7 +967,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2013')
 
@@ -780,7 +976,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2015')
 
@@ -788,7 +985,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2017')
 
@@ -796,7 +994,8 @@ class Solution:
             initializationrecord = dict()
             initializationrecord['platform'] = 'windows'
             if args.deploy_folder:
-                initializationrecord['finalfolder'] = makeprojects.visualstudio.DEFAULT_FINAL_FOLDER
+                from .visualstudio import DEFAULT_FINAL_FOLDER as VS_DEFAULT_FINAL_FOLDER
+                initializationrecord['finalfolder'] = VS_DEFAULT_FINAL_FOLDER
             myjson.append(initializationrecord)
             myjson.append('vs2019')
 
@@ -882,9 +1081,9 @@ class Solution:
         #
 
         if directory == '.':
-            search_dir = self.working_directory
+            search_dir = self.attributes['working_directory']
         else:
-            search_dir = os.path.join(self.working_directory, directory)
+            search_dir = os.path.join(self.attributes['working_directory'], directory)
 
         #
         # Is this a valid directory?
@@ -911,7 +1110,7 @@ class Solution:
 
                 test_name = base_name.lower()
                 skip = False
-                for item in self.projects[0].exclude:
+                for item in self.projects[0].attributes['exclude']:
                     if test_name == item.lower():
                         skip = True
                         break
@@ -981,7 +1180,7 @@ class Solution:
 
         codefiles = list(self.projects[0].codefiles)
         includedirectories = []
-        for item in self.projects[0].sourcefolders:
+        for item in self.projects[0].get_attribute('source_folders'):
 
             #
             # Is it a recursive test?
@@ -1018,12 +1217,10 @@ class Solution:
             Human readable string or None if the solution is invalid
         """
 
-        return 'Solution: {}, Verbose: {}, Suffix Enable: {}, Working Directory: {}, IDE: {}, ' \
+        return 'Solution: {}, Attributes: {}, IDE: {}, ' \
             'Projects: [{}]'.format(
-                self.name,
-                str(self.verbose),
-                str(self.suffix_enable),
-                self.working_directory,
+                self.attributes['name'],
+                str(self.attributes),
                 str(self.ide),
                 '],['.join([str(i) for i in self.projects]))
 
@@ -1084,7 +1281,7 @@ def createvs2005solution(solution):
     """
     Create the solution and project file for visual studio 2005
     """
-    error = makeprojects.visualstudio.generateold(solution, IDETypes.vs2005)
+    error = makeprojects.visualstudio.generateold(solution)
     if error != 0:
         return error
 
@@ -1098,10 +1295,10 @@ def createvs2005solution(solution):
     listcpp = pickfromfilelist(codefiles, FileTypes.cpp)
     listwindowsresource = pickfromfilelist(codefiles, FileTypes.rc)
 
-    platformcode = solution.projects[0].platform.get_short_code()
+    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
     solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,
                                   str(solution.visualstudio.outputfilename))).upper()
-    projectpathname = os.path.join(solution.working_directory,
+    projectpathname = os.path.join(solution.attributes['working_directory'],
                                    solution.visualstudio.outputfilename + '.vcproj')
     burger.perforce_edit(projectpathname)
     file_fp = open(projectpathname, 'w')
@@ -1114,7 +1311,7 @@ def createvs2005solution(solution):
     file_fp.write('<VisualStudioProject\n')
     file_fp.write('\tProjectType="Visual C++"\n')
     file_fp.write('\tVersion="8.00"\n')
-    file_fp.write('\tName="' + solution.name + '"\n')
+    file_fp.write('\tName="' + solution.attributes['name'] + '"\n')
     file_fp.write('\tProjectGUID="{' + solutionuuid + '}"\n')
     file_fp.write('\t>\n')
 
@@ -1123,7 +1320,7 @@ def createvs2005solution(solution):
     #
 
     file_fp.write('\t<Platforms>\n')
-    for vsplatform in solution.projects[0].platform.get_vs_platform():
+    for vsplatform in solution.projects[0].get_attribute('platform').get_vs_platform():
         file_fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
     file_fp.write('\t</Platforms>\n')
 
@@ -1133,8 +1330,8 @@ def createvs2005solution(solution):
 
     file_fp.write('\t<Configurations>\n')
     for configuration in solution.projects[0].configurations:
-        for vsplatform in solution.projects[0].platform.get_vs_platform():
-            token = configuration.name + '|' + vsplatform
+        for vsplatform in solution.projects[0].get_attribute('platform').get_vs_platform():
+            token = configuration.attributes['name'] + '|' + vsplatform
             file_fp.write('\t\t<Configuration\n')
             file_fp.write('\t\t\tName="' + token + '"\n')
             file_fp.write('\t\t\tOutputDirectory="bin\\"\n')
@@ -1144,10 +1341,10 @@ def createvs2005solution(solution):
                 platformcode2 = 'w32'
             else:
                 platformcode2 = platformcode
-            intdirectory = solution.name + solution.ide.get_short_code() + platformcode2 + \
-                configuration_short_code(configuration.name)
+            intdirectory = solution.attributes['name'] + solution.ide.get_short_code(
+            ) + platformcode2 + configuration_short_code(configuration.attributes['name'])
             file_fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '"\n')
-            if solution.projects[0].projecttype == ProjectTypes.library:
+            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
                 # Library
                 file_fp.write('\t\t\tConfigurationType="4"\n')
             else:
@@ -1162,7 +1359,7 @@ def createvs2005solution(solution):
             file_fp.write('\t\t\t<Tool\n')
             file_fp.write('\t\t\t\tName="VCCLCompilerTool"\n')
             file_fp.write('\t\t\t\tPreprocessorDefinitions="')
-            if configuration.name == 'Release':
+            if configuration.attributes['name'] == 'Release':
                 file_fp.write('NDEBUG')
             else:
                 file_fp.write('_DEBUG')
@@ -1170,7 +1367,7 @@ def createvs2005solution(solution):
                 file_fp.write(';WIN64;_WINDOWS')
             elif vsplatform == 'Win32':
                 file_fp.write(';WIN32;_WINDOWS')
-            for item in solution.projects[0].defines:
+            for item in solution.projects[0].get_attribute('defines'):
                 file_fp.write(';' + item)
             file_fp.write('"\n')
 
@@ -1184,7 +1381,8 @@ def createvs2005solution(solution):
             # 8 byte alignment
             file_fp.write('\t\t\t\tWarningLevel="4"\n')
             file_fp.write('\t\t\t\tSuppressStartupBanner="true"\n')
-            if solution.projects[0].projecttype == ProjectTypes.library or configuration.name != 'Release':
+            if solution.projects[0].get_attribute(
+                    'project_type') == ProjectTypes.library or configuration.attributes['name'] != 'Release':
                 file_fp.write('\t\t\t\tDebugInformationFormat="3"\n')
                 file_fp.write('\t\t\t\tProgramDataBaseFileName="$(OutDir)$(TargetName).pdb"\n')
             else:
@@ -1196,14 +1394,14 @@ def createvs2005solution(solution):
             # Disable annoying nameless struct warnings since windows headers trigger this
             file_fp.write('\t\t\t\tDisableSpecificWarnings="4201"\n')
 
-            if configuration.name == 'Debug':
+            if configuration.attributes['name'] == 'Debug':
                 file_fp.write('\t\t\t\tOptimization="0"\n')
             else:
                 file_fp.write('\t\t\t\tOptimization="2"\n')
                 file_fp.write('\t\t\t\tInlineFunctionExpansion="2"\n')
                 file_fp.write('\t\t\t\tEnableIntrinsicFunctions="true"\n')
                 file_fp.write('\t\t\t\tOmitFramePointers="true"\n')
-            if configuration.name == 'Release':
+            if configuration.attributes['name'] == 'Release':
                 file_fp.write('\t\t\t\tBufferSecurityCheck="false"\n')
                 file_fp.write('\t\t\t\tRuntimeLibrary="0"\n')
             else:
@@ -1215,7 +1413,7 @@ def createvs2005solution(solution):
             #
             file_fp.write('\t\t\t\tAdditionalIncludeDirectories="')
             addcolon = False
-            included = includedirectories + solution.projects[0].includefolders
+            included = includedirectories + solution.projects[0].get_attribute('include_folders')
             if included:
                 for item in included:
                     if addcolon is True:
@@ -1225,7 +1423,8 @@ def createvs2005solution(solution):
             if platformcode == 'win':
                 if addcolon is True:
                     file_fp.write(';')
-                if solution.projects[0].projecttype != ProjectTypes.library or solution.name != 'burgerlib':
+                if solution.projects[0].get_attribute(
+                        'project_type') != ProjectTypes.library or solution.attributes['name'] != 'burgerlib':
                     file_fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
                 file_fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
                 addcolon = True
@@ -1237,7 +1436,7 @@ def createvs2005solution(solution):
             file_fp.write('\t\t\t\tCulture="1033"\n')
             file_fp.write('\t\t\t/>\n')
 
-            if solution.projects[0].projecttype == ProjectTypes.library:
+            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
                 file_fp.write('\t\t\t<Tool\n')
                 file_fp.write('\t\t\t\tName="VCLibrarianTool"\n')
                 file_fp.write(
@@ -1277,7 +1476,7 @@ def createvs2005solution(solution):
                     solution.ide.get_short_code() +
                     platformcode2 +
                     configuration_short_code(
-                        configuration.name) +
+                        configuration.attributes['name']) +
                     '.lib"\n')
                 file_fp.write(
                     '\t\t\t\tOutputFile="&quot;$(OutDir)' +
@@ -1285,7 +1484,7 @@ def createvs2005solution(solution):
                     '.exe&quot;"\n')
                 file_fp.write('\t\t\t\tAdditionalLibraryDirectories="')
                 addcolon = False
-                for item in solution.projects[0].includefolders:
+                for item in solution.projects[0].get_attribute('include_folders'):
                     if addcolon is True:
                         file_fp.write(';')
                     file_fp.write(burger.convert_to_windows_slashes(item))
@@ -1293,10 +1492,10 @@ def createvs2005solution(solution):
 
                 if addcolon is True:
                     file_fp.write(';')
-                if solution.projects[0].projecttype != ProjectTypes.library:
+                if solution.projects[0].get_attribute('project_type') != ProjectTypes.library:
                     file_fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
                 file_fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
-                if solution.projects[0].projecttype == ProjectTypes.tool:
+                if solution.projects[0].get_attribute('project_type') == ProjectTypes.tool:
                     # main()
                     file_fp.write('\t\t\t\tSubSystem="1"\n')
                 else:
@@ -1366,7 +1565,7 @@ def createvs2008solution(solution):
     """
     Create the solution and project file for visual studio 2008
     """
-    error = makeprojects.visualstudio.generateold(solution, IDETypes.vs2008)
+    error = makeprojects.visualstudio.generateold(solution)
     if error != 0:
         return error
     #
@@ -1379,10 +1578,10 @@ def createvs2008solution(solution):
     listcpp = pickfromfilelist(codefiles, FileTypes.cpp)
     listwindowsresource = pickfromfilelist(codefiles, FileTypes.rc)
 
-    platformcode = solution.projects[0].platform.get_short_code()
+    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
     solutionuuid = str(uuid.uuid3(uuid.NAMESPACE_DNS,
                                   str(solution.visualstudio.outputfilename))).upper()
-    projectpathname = os.path.join(solution.working_directory,
+    projectpathname = os.path.join(solution.attributes['working_directory'],
                                    solution.visualstudio.outputfilename + '.vcproj')
     burger.perforce_edit(projectpathname)
     file_fp = open(projectpathname, 'w')
@@ -1395,7 +1594,7 @@ def createvs2008solution(solution):
     file_fp.write('<VisualStudioProject\n')
     file_fp.write('\tProjectType="Visual C++"\n')
     file_fp.write('\tVersion="9.00"\n')
-    file_fp.write('\tName="' + solution.name + '"\n')
+    file_fp.write('\tName="' + solution.attributes['name'] + '"\n')
     file_fp.write('\tProjectGUID="{' + solutionuuid + '}"\n')
     file_fp.write('\t>\n')
 
@@ -1404,7 +1603,7 @@ def createvs2008solution(solution):
     #
 
     file_fp.write('\t<Platforms>\n')
-    for vsplatform in solution.projects[0].platform.get_vs_platform():
+    for vsplatform in solution.projects[0].get_attribute('platform').get_vs_platform():
         file_fp.write('\t\t<Platform Name="' + vsplatform + '" />\n')
     file_fp.write('\t</Platforms>\n')
 
@@ -1414,8 +1613,8 @@ def createvs2008solution(solution):
 
     file_fp.write('\t<Configurations>\n')
     for configuration in solution.projects[0].configurations:
-        for vsplatform in solution.projects[0].platform.get_vs_platform():
-            token = configuration.name + '|' + vsplatform
+        for vsplatform in solution.projects[0].get_attribute('platform').get_vs_platform():
+            token = configuration.attributes['name'] + '|' + vsplatform
             file_fp.write('\t\t<Configuration\n')
             file_fp.write('\t\t\tName="' + token + '"\n')
             file_fp.write('\t\t\tOutputDirectory="bin\\"\n')
@@ -1425,10 +1624,10 @@ def createvs2008solution(solution):
                 platformcode2 = 'w32'
             else:
                 platformcode2 = platformcode
-            intdirectory = solution.name + solution.ide.get_short_code() + platformcode2 + \
-                configuration_short_code(configuration.name)
+            intdirectory = solution.attributes['name'] + solution.ide.get_short_code(
+            ) + platformcode2 + configuration_short_code(configuration.attributes['name'])
             file_fp.write('\t\t\tIntermediateDirectory="temp\\' + intdirectory + '\\"\n')
-            if solution.projects[0].projecttype == ProjectTypes.library:
+            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
                 # Library
                 file_fp.write('\t\t\tConfigurationType="4"\n')
             else:
@@ -1443,7 +1642,7 @@ def createvs2008solution(solution):
             file_fp.write('\t\t\t<Tool\n')
             file_fp.write('\t\t\t\tName="VCCLCompilerTool"\n')
             file_fp.write('\t\t\t\tPreprocessorDefinitions="')
-            if configuration.name == 'Release':
+            if configuration.attributes['name'] == 'Release':
                 file_fp.write('NDEBUG')
             else:
                 file_fp.write('_DEBUG')
@@ -1451,7 +1650,7 @@ def createvs2008solution(solution):
                 file_fp.write(';WIN64;_WINDOWS')
             elif vsplatform == 'Win32':
                 file_fp.write(';WIN32;_WINDOWS')
-            for item in solution.projects[0].defines:
+            for item in solution.projects[0].get_attribute('defines'):
                 file_fp.write(';' + item)
             file_fp.write('"\n')
 
@@ -1465,7 +1664,8 @@ def createvs2008solution(solution):
             # 8 byte alignment
             file_fp.write('\t\t\t\tWarningLevel="4"\n')
             file_fp.write('\t\t\t\tSuppressStartupBanner="true"\n')
-            if solution.projects[0].projecttype == ProjectTypes.library or configuration.name != 'Release':
+            if solution.projects[0].get_attribute(
+                    'project_type') == ProjectTypes.library or configuration.attributes['name'] != 'Release':
                 file_fp.write('\t\t\t\tDebugInformationFormat="3"\n')
                 file_fp.write('\t\t\t\tProgramDataBaseFileName="$(OutDir)$(TargetName).pdb"\n')
             else:
@@ -1477,7 +1677,7 @@ def createvs2008solution(solution):
             # Disable annoying nameless struct warnings since windows headers trigger this
             file_fp.write('\t\t\t\tDisableSpecificWarnings="4201"\n')
 
-            if configuration.name == 'Debug':
+            if configuration.attributes['name'] == 'Debug':
                 file_fp.write('\t\t\t\tOptimization="0"\n')
                 # Necessary to quiet Visual Studio 2008 warnings
                 file_fp.write('\t\t\t\tEnableIntrinsicFunctions="true"\n')
@@ -1486,7 +1686,7 @@ def createvs2008solution(solution):
                 file_fp.write('\t\t\t\tInlineFunctionExpansion="2"\n')
                 file_fp.write('\t\t\t\tEnableIntrinsicFunctions="true"\n')
                 file_fp.write('\t\t\t\tOmitFramePointers="true"\n')
-            if configuration.name == 'Release':
+            if configuration.attributes['name'] == 'Release':
                 file_fp.write('\t\t\t\tBufferSecurityCheck="false"\n')
                 file_fp.write('\t\t\t\tRuntimeLibrary="0"\n')
             else:
@@ -1498,7 +1698,7 @@ def createvs2008solution(solution):
             #
             file_fp.write('\t\t\t\tAdditionalIncludeDirectories="')
             addcolon = False
-            included = includedirectories + solution.projects[0].includefolders
+            included = includedirectories + solution.projects[0].get_attribute('include_folders')
             if included:
                 for item in included:
                     if addcolon is True:
@@ -1508,7 +1708,8 @@ def createvs2008solution(solution):
             if platformcode == 'win':
                 if addcolon is True:
                     file_fp.write(';')
-                if solution.projects[0].projecttype != ProjectTypes.library or solution.name != 'burgerlib':
+                if solution.projects[0].get_attribute(
+                        'project_type') != ProjectTypes.library or solution.attributes['name'] != 'burgerlib':
                     file_fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
                 file_fp.write('$(BURGER_SDKS)\\windows\\directx9;$(BURGER_SDKS)\\windows\\opengl')
                 addcolon = True
@@ -1520,7 +1721,7 @@ def createvs2008solution(solution):
             file_fp.write('\t\t\t\tCulture="1033"\n')
             file_fp.write('\t\t\t/>\n')
 
-            if solution.projects[0].projecttype == ProjectTypes.library:
+            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
                 file_fp.write('\t\t\t<Tool\n')
                 file_fp.write('\t\t\t\tName="VCLibrarianTool"\n')
                 file_fp.write(
@@ -1560,7 +1761,7 @@ def createvs2008solution(solution):
                     solution.ide.get_short_code() +
                     platformcode2 +
                     configuration_short_code(
-                        configuration.name) +
+                        configuration.attributes['name']) +
                     '.lib"\n')
                 file_fp.write(
                     '\t\t\t\tOutputFile="&quot;$(OutDir)' +
@@ -1568,7 +1769,7 @@ def createvs2008solution(solution):
                     '.exe&quot;"\n')
                 file_fp.write('\t\t\t\tAdditionalLibraryDirectories="')
                 addcolon = False
-                for item in solution.projects[0].includefolders:
+                for item in solution.projects[0].get_attribute('include_folders'):
                     if addcolon is True:
                         file_fp.write(';')
                     file_fp.write(burger.convert_to_windows_slashes(item))
@@ -1576,10 +1777,10 @@ def createvs2008solution(solution):
 
                 if addcolon is True:
                     file_fp.write(';')
-                if solution.projects[0].projecttype != ProjectTypes.library:
+                if solution.projects[0].get_attribute('project_type') != ProjectTypes.library:
                     file_fp.write('$(BURGER_SDKS)\\windows\\burgerlib;')
                 file_fp.write('$(BURGER_SDKS)\\windows\\opengl"\n')
-                if solution.projects[0].projecttype == ProjectTypes.tool:
+                if solution.projects[0].get_attribute('project_type') == ProjectTypes.tool:
                     # main()
                     file_fp.write('\t\t\t\tSubSystem="1"\n')
                 else:

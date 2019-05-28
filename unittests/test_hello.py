@@ -13,10 +13,10 @@ Please? It's not like I'm asking you for money!
 """
 
 import os
+from shutil import copyfile
 from burger import compare_files
 import makeprojects
 from makeprojects.enums import IDETypes
-
 
 ########################################
 
@@ -27,7 +27,7 @@ def test_visual_studio(tmpdir):
     """
 
     empty_tests = [
-        (IDETypes.vs2003, 'hellovc7win.sln'),
+        (IDETypes.vs2003, 'hellovc7w32.sln'),
         (IDETypes.vs2005, 'hellovc8win.sln'),
         (IDETypes.vs2008, 'hellovc9win.sln'),
         (IDETypes.vs2010, 'hellov10win.sln'),
@@ -37,6 +37,15 @@ def test_visual_studio(tmpdir):
         (IDETypes.vs2017, 'hellov17win.sln'),
         (IDETypes.vs2019, 'hellov19win.sln')
     ]
+
+    # Create a source code folder
+    source_dir = tmpdir.mkdir('source')
+    asset_base = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), 'source')
+    copyfile(
+        os.path.join(
+            asset_base, 'helloworld.cpp'), os.path.join(
+                str(source_dir), 'helloworld.cpp'))
 
     for item in empty_tests:
         solution = makeprojects.new_solution(name='hello', working_directory=str(tmpdir))

@@ -139,7 +139,7 @@ def get_project_list(args, build_rules_list, working_directory):
 
         # Start with the solution
         solution = Solution(
-            name=project_name,
+            project_name,
             verbose=args.verbose,
             working_directory=working_directory,
             ide=ide)
@@ -158,13 +158,11 @@ def get_project_list(args, build_rules_list, working_directory):
                 build_rules_list, working_directory, args, platform, ide)
             for item in platform.get_expanded():
                 for config_name in configuration_list:
-                    configuration = Configuration(name=config_name, platform=item)
+                    configuration = Configuration(config_name, platform=item)
                     project.add_configuration(configuration)
                     configuration.get_attributes(build_rules_list, working_directory)
 
         print(solution)
-
-
 
 
 ########################################
@@ -194,12 +192,12 @@ def process(working_directory, args):
     #return 0
     # Create a blank solution
 
-    solution = Solution(name=os.path.basename(working_directory))
-    solution.verbose = args.verbose
-    solution.working_directory = working_directory
+    solution = Solution(
+        os.path.basename(working_directory),
+        working_directory=working_directory,
+        verbose=args.verbose)
     project = Project()
     solution.add_project(project)
-    #print(str(solution))
 
     #return 0
     # Process it

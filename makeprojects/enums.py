@@ -1297,11 +1297,11 @@ def platformtype_short_code(configurations):
     # Extract the platform codes from all configurations
     codes = []
     for configuration in configurations:
-        codes.append(configuration.platform)
+        codes.append(configuration.attributes['platform'])
 
     for item in _PLATFORMTYPES_EXPANDED:
         if all(x in codes for x in _PLATFORMTYPES_EXPANDED[item]):
             return item.get_short_code()
 
     # Return the first entry's short code.
-    return codes[0].platform.get_short_code()
+    return codes[0].get_short_code()

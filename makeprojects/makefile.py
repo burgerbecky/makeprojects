@@ -496,13 +496,13 @@ class Project(object):
         self.write_builds(filep)
 
 
-def generate(solution, perforce=False, verbose=False):
+def generate(solution):
     """
     Create an OpenWatcom makefile
     """
 
     # Validate the requests target(s)
-    platforms = solution.projects[0].platform.get_expanded()
+    platforms = solution.projects[0].get_attribute('platform').get_expanded()
 
     # Special case, discard any attempt to build 64 bit windows
     try:
@@ -527,18 +527,18 @@ def generate(solution, perforce=False, verbose=False):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.projects[0].platform.get_short_code()
-    make_projectfile = Project(solution.name, idecode, platformcode)
-    project_filename = solution.name + idecode + platformcode + '.mak'
+    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+    make_projectfile = Project(solution.get_attribute('name'), idecode, platformcode)
+    project_filename = solution.attributes['name'] + idecode + platformcode + '.mak'
     project_pathname = os.path.join( \
-        solution.working_directory, project_filename)
+        solution.attributes['working_directory'], project_filename)
 
     # Send the file list to the project
     for item in codefiles:
         make_projectfile.add_source_file(item)
 
     # Sent the include folder list to the project
-    for item in solution.projects[0].includefolders:
+    for item in solution.projects[0].get_attribute('include_folders'):
         make_projectfile.add_include_folder(item)
 
     make_projectfile.platforms = platforms
@@ -546,8 +546,8 @@ def generate(solution, perforce=False, verbose=False):
     for configuration in solution.projects[0].configurations:
         if configuration.attributes.get('deploy_folder'):
             make_projectfile.final_folder = configuration.attributes.get('deploy_folder')
-        make_projectfile.configurations.append(configuration.name)
-    make_projectfile.projecttype = solution.projects[0].projecttype
+        make_projectfile.configurations.append(configuration.attributes['name'])
+    make_projectfile.projecttype = solution.projects[0].get_attribute('project_type')
 
     #
     # Serialize the Watcom file
@@ -561,10 +561,10 @@ def generate(solution, perforce=False, verbose=False):
     #
 
     if burger.compare_file_to_string(project_pathname, filep):
-        if solution.verbose is True:
+        if solution.get_attribute('verbose'):
             print(project_pathname + ' was not changed')
     else:
-        if perforce:
+        if solution.get_attribute('perforce'):
             burger.perforce_edit(project_pathname)
         filep2 = open(project_pathname, 'w')
         filep2.write(filep.getvalue())

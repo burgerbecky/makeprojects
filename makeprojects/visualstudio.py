@@ -21,11 +21,14 @@ import io
 from io import StringIO
 from enum import Enum
 from hashlib import md5
+from copy import deepcopy
 from burger import PY2, save_text_file_if_newer, convert_to_windows_slashes, delete_file
 from burger import perforce_edit, escape_xml_cdata, escape_xml_attribute, convert_to_array
+from burger import packed_paths
 import makeprojects.core
 from .enums import platformtype_short_code
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
+from .core import configuration_short_code
 
 if not PY2:
     # pylint: disable=C0103
@@ -68,39 +71,208 @@ def get_uuid(input_str):
 ########################################
 
 
-class SemicolonArray():
+def generate_solution_file(solution_lines, solution):
     """
-    Helper class to hold an array of strings that are joined
-    by semicolons
+    Serialize the solution file into a string array.
+
+    This function generates SLN files for all versions of Visual Studio.
+    It assumes the text file will be encoded using UTF-8 character encoding
+    so the resulting file will be pre-pended with a UTF-8 Byte Order Mark (BOM)
+    for Visual Studio 2005 or higher.
+
+    Note:
+        Byte Order Marks are not supplied by this function.
+
+    Args:
+        solution_lines: List to insert string lines.
+        solution: Reference to the raw solution record
+    Returns:
+        Zero on success, non-zero on error.
     """
 
-    def __init__(self, entries=None):
-        """
-        Initialize the array.
-        Args:
-            entries: A string or an array of strings for default.
-        """
+    # Save off the format header for the version of Visual Studio being generated
 
-        if entries is None:
-            entries = []
-        self.entries = convert_to_array(entries)
+    headers = {
+        IDETypes.vs2003: (
+            'Microsoft Visual Studio Solution File, Format Version 8.00',
+        ),
+        IDETypes.vs2005: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 9.00',
+            '# Visual Studio 2005'),
+        IDETypes.vs2008: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 10.00',
+            '# Visual Studio 2008'),
+        IDETypes.vs2010: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 11.00',
+            '# Visual Studio 2010'),
+        IDETypes.vs2012: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio 2012'),
+        IDETypes.vs2013: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio 2013',
+            'VisualStudioVersion = 12.0.31101.0',
+            'MinimumVisualStudioVersion = 10.0.40219.1'),
+        IDETypes.vs2015: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio 14',
+            'VisualStudioVersion = 14.0.25123.0',
+            'MinimumVisualStudioVersion = 10.0.40219.1'),
+        IDETypes.vs2017: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio 15',
+            'VisualStudioVersion = 15.0.28307.645',
+            'MinimumVisualStudioVersion = 10.0.40219.1'),
+        IDETypes.vs2019: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio Version 16',
+            'VisualStudioVersion = 16.0.28803.452',
+            'MinimumVisualStudioVersion = 10.0.40219.1'),
+    }
 
-    def append(self, entry):
-        """
-        Add a string to the array.
-        Args:
-            entry: String to add to the list
-        """
-        self.entries.append(entry)
+    # Insert the header to the output stream
+    header = headers.get(solution.ide)
+    solution_lines.extend(header)
 
-    def __repr__(self):
-        """
-        Output the string with colons.
-        """
-        return ';'.join(self.entries)
+    # Output each project file included in the solution
+    # This hasn't changed since Visual Studio 2003
+    for project in solution.projects:
 
-    ## Allow str() to work.
-    __str__ = __repr__
+        # Save off the project record
+        solution_lines.append(
+            'Project("{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}") = "{}", "{}", "{{{}}}"'.format(
+                project.get_attribute('name'),
+                project.attributes['vs_output_filename'],
+                project.attributes['vs_uuid']))
+
+        # Write out the dependencies, if any
+        solution_lines.append('\tProjectSection(ProjectDependencies) = postProject')
+        for dependent in project.projects:
+            solution_lines.append(
+                '\t\t{{{0}}} = {{{0}}}'.format(
+                    dependent.attributes['vs_uuid']))
+        solution_lines.append('\tEndProjectSection')
+        solution_lines.append('EndProject')
+
+    # Begin the Global record
+    solution_lines.append('Global')
+
+    # Visual Studio 2003 format is unique, write it out in its
+    # own exporter
+    if solution.ide == IDETypes.vs2003:
+
+        # Only output if there are attached projects, if there are
+        # no projects, there is no need to output platforms
+        config_list = []
+        for project in solution.projects:
+            for configuration in project.configurations:
+                # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
+                # x64 platforms
+                if configuration.attributes['platform'] == PlatformTypes.win64:
+                    continue
+                entry = configuration.attributes['name']
+                # Ignore duplicates
+                if entry not in config_list:
+                    config_list.append(entry)
+
+        # List the configuration pairs (Like Xbox and Win32)
+        solution_lines.append('\tGlobalSection(SolutionConfiguration) = preSolution')
+        for entry in config_list:
+            # Since Visual Studio 2003 doesn't support Platform/Configuration pairing,
+            # it's faked with a space
+            solution_lines.append('\t\t{0} = {0}'.format(entry))
+        solution_lines.append('\tEndGlobalSection')
+
+        # List all of the projects/configurations
+        solution_lines.append('\tGlobalSection(ProjectConfiguration) = postSolution')
+        for project in solution.projects:
+            for configuration in project.configurations:
+                # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
+                # x64 platforms
+                if configuration.attributes['platform'] == PlatformTypes.win64:
+                    if solution.get_attribute('verbose'):
+                        print('Visual Studio 2003 does not support platform Win64, skipped')
+                    continue
+                # Using the faked Platform/Configuration pair used above, create the appropriate
+                # pairs here and match them up.
+                platform = configuration.attributes['platform'].get_vs_platform()[0]
+                solution_lines.append(
+                    '\t\t{{{0}}}.{1}.ActiveCfg = {1}|{2}'.format(
+                        project.attributes['vs_uuid'],
+                        configuration.attributes['name'], platform))
+                solution_lines.append('\t\t{{{0}}}.{1}.Build.0 = {1}|{2}'.format(
+                    project.attributes['vs_uuid'], configuration.attributes['name'], platform))
+        solution_lines.append('\tEndGlobalSection')
+
+        # Put in stubs for these records.
+        solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
+        solution_lines.append('\tEndGlobalSection')
+
+        solution_lines.append('\tGlobalSection(ExtensibilityAddIns) = postSolution')
+        solution_lines.append('\tEndGlobalSection')
+
+    # All other versions of Visual Studio 2005 and later use this format
+    # for the configurations
+    else:
+
+        if solution.projects:
+            # Write out the SolutionConfigurationPlatforms for all other versions of
+            # Visual Studio
+
+            solution_lines.append('\tGlobalSection(SolutionConfigurationPlatforms) = preSolution')
+            for project in solution.projects:
+                for configuration in project.configurations:
+                    solution_lines.append(
+                        '\t\t{0}|{1} = {0}|{1}'.format(
+                            configuration.attributes['name'],
+                            configuration.attributes['platform'].get_vs_platform()[0]))
+            solution_lines.append('\tEndGlobalSection')
+
+            # Write out the ProjectConfigurationPlatforms
+            solution_lines.append('\tGlobalSection(ProjectConfigurationPlatforms) = postSolution')
+
+            for project in solution.projects:
+                for configuration in project.configurations:
+                    solution_lines.append(
+                        '\t\t{{{0}}}.{1}|{2}.ActiveCfg = {1}|{2}'.format(
+                            project.attributes['vs_uuid'],
+                            configuration.attributes['name'],
+                            configuration.attributes['platform'].get_vs_platform()[0]))
+                    solution_lines.append(
+                        '\t\t{{{0}}}.{1}|{2}.Build.0 = {1}|{2}'.format(
+                            project.attributes['vs_uuid'],
+                            configuration.attributes['name'],
+                            configuration.attributes['platform'].get_vs_platform()[0]))
+
+            solution_lines.append('\tEndGlobalSection')
+
+        # Hide nodes section
+        solution_lines.append('\tGlobalSection(SolutionProperties) = preSolution')
+        solution_lines.append('\t\tHideSolutionNode = FALSE')
+        solution_lines.append('\tEndGlobalSection')
+
+        if solution.ide == IDETypes.vs2017:
+            solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
+            solution_lines.append('\t\tSolutionGuid = {DD9C6A72-2C1C-45F2-9450-8BE7001FEE33}')
+            solution_lines.append('\tEndGlobalSection')
+
+        if solution.ide == IDETypes.vs2019:
+            solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
+            solution_lines.append('\t\tSolutionGuid = {6B996D51-9872-4B32-A08B-EBDBC2A3151F}')
+            solution_lines.append('\tEndGlobalSection')
+
+    # Close it up!
+    solution_lines.append('EndGlobal')
+    return 0
+
 
 ########################################
 
@@ -112,7 +284,7 @@ class VS2003XML():
     Output XML elements in the format of Visual Studio 2003-2008
     """
 
-    def __init__(self, name):
+    def __init__(self, name, attribute_defaults=None, force_pair=False):
         """
         Set the defaults.
         Args:
@@ -122,21 +294,43 @@ class VS2003XML():
         ## Name of this XML chunk.
         self.name = name
 
+        ## Disable <foo/> syntax
+        self.force_pair = force_pair
+
         ## XML attributes.
         self.attributes = []
 
         ## List of elements in this element.
         self.elements = []
 
-    def add_attribute(self, name, data):
+        ## List of valid attributes and defaults
+        self.attribute_defaults = {}
+
+        # Add the defaults, if any
+        self.add_defaults(attribute_defaults)
+
+    def add_defaults(self, attribute_defaults):
+        """
+        Add a dict of attribute defaults.
+
+        Args:
+            attribute_defaults: dict of attribute names and default values.
+        """
+        if attribute_defaults:
+            for attribute in attribute_defaults:
+                self.attribute_defaults[attribute] = attribute_defaults[attribute]
+                if attribute_defaults[attribute] is not None:
+                    self.set_attribute(attribute, attribute_defaults[attribute])
+
+    def add_attribute(self, name, value):
         """
         Add an attribute to this XML element.
 
         Args:
             name: Name of the attribute
-            data: Attribute data
+            value: Attribute data
         """
-        self.attributes.append((name, data))
+        self.attributes.append([name, value])
 
     def add_element(self, element):
         """
@@ -147,6 +341,57 @@ class VS2003XML():
         """
         self.elements.append(element)
 
+    def set_attribute(self, name, value):
+        """
+        Either change existing attribute or create a new one.
+
+        If the attribute was not found, it will be appended to the list
+
+        Args:
+            name: String of the entry to match
+            value: Value to substitute
+        """
+        for attribute in self.attributes:
+            if attribute[0] == name:
+                attribute[1] = value
+                break
+        else:
+            # Not found? Add the entry and then exit
+            self.attributes.append([name, value])
+
+    def remove_attribute(self, name):
+        """
+        Remove an attribute.
+
+        If the value is in the list, remove it.
+
+        Args:
+            name: String of the entry to remove
+        """
+
+        for item in self.attributes:
+            # Match? Kill it.
+            if item[0] == name:
+                self.attributes.remove(item)
+                break
+
+    def reset_attribute(self, name):
+        """
+        Reset an attribute to default.
+
+        If the attribute is in the attribute_defaults list, set
+        it to the default, which can include the attribute removal.
+
+        Args:
+            name: String of the entry to reset
+        """
+
+        value = self.attribute_defaults.get(name)
+        if value is not None:
+            self.set_attribute(name, value)
+        else:
+            self.remove_attribute(name)
+
     def generate(self, line_list, indent=0):
         """
         Generate the text lines for this XML element.
@@ -155,23 +400,32 @@ class VS2003XML():
             indent: number of tabs to insert (For recursion)
         """
 
+        # Determine the indentation
         tabs = '\t' * indent
+
+        # Special case, if no attributes, don't allow <foo/> XML
+        # This is to duplicate the output of Visual Studio 2003-2008
+        line_list.append('{0}<{1}'.format(tabs, escape_xml_cdata(self.name)))
         if self.attributes:
-            line_list.append('{0}<{1}'.format(tabs, escape_xml_cdata(self.name)))
+            # Output tag with attributes and support '/>' closing
+
             for attribute in self.attributes:
                 line_list.append(
                     '\t{0}{1}="{2}"'.format(
                         tabs, escape_xml_cdata(
                             attribute[0]), escape_xml_attribute(attribute[1])))
-            if not self.elements:
-                line_list.append('{0}/>'.format(tabs))
+            if not self.elements and not self.force_pair:
+                line_list.append('{}/>'.format(tabs))
                 return
-            line_list.append('\t{0}>'.format(tabs))
+            # Close the open tag
+            line_list.append('\t{}>'.format(tabs))
         else:
-            line_list.append('{0}<{1}>'.format(tabs, escape_xml_cdata(self.name)))
+            line_list[-1] = line_list[-1] + '>'
 
+        # Output the embedded elements
         for element in self.elements:
             element.generate(line_list, indent=indent + 1)
+        # Close the current element
         line_list.append('{0}</{1}>'.format(tabs, escape_xml_cdata(self.name)))
 
     def __repr__(self):
@@ -190,510 +444,1108 @@ class VS2003XML():
     __str__ = __repr__
 
 
-class Tool2003(object):
+########################################
+
+
+class VS2003Tool(VS2003XML):
     """
     Helper class to output a Tool record for Visual Studio 2003-2008
 
     In Visual Studio project files from version 2003 to 2008, Tool
     XML records were used for settings for each and every compiler tool
     """
-    #
-    ## Initialize the record with the entries and the name of the tool
-    #
-    # /param name A string of the Visual Studio 2003 or later Tool
-    # /param entries Array of string / operands
-    # /param tabs Number of tabs printed before each line
-    #
 
-    def __init__(self, name, entries=None, tabs=3):
-        if entries is None:
-            entries = []
-        self.name = name
-        self.entries = entries
-        self.tabstring = u'\t' * tabs
-
-    #
-    ## Output the string as unicode
-    #
-
-    def __unicode__(self):
-
-        # Save off the opening of the XML
-        output = self.tabstring + '<Tool\n' + self.tabstring + '\tName="' + self.name + '"'
-
-        # Save off the entries, if any
-        for item in self.entries:
-            # Ignore entries without data
-            if item[1] is not None:
-                output += '\n' + self.tabstring + '\t' + item[0] + '="' + unicode(item[1]) + '"'
-
-        # Close off the XML and return the final string
-        return output + '/>\n'
-
-    def __str__(self):
+    def __init__(self, name, force_pair=False):
         """
-        Output the string with UTF-8 encoding
-        """
-        return unicode(self).encode('utf-8')
-
-    def setvalue(self, name, newvalue):
-        """
-        Scan the list of entries and set the value to the new
-        value
-
-        If the value was not found, it will be appended to the list
-
+        Init a tool record with the tool name.
         Args:
-            name: String of the entry to match
-            newvalue: Value to substitute
+            name: Name of the tool.
         """
-        for item in self.entries:
-            if item[0] == name:
-                item[1] = newvalue
-                return
+        VS2003XML.__init__(self, 'Tool', {'Name': name}, force_pair=force_pair)
 
-        # Not found? Add the entry and then exit
-        self.entries.append([name, newvalue])
-
-    def removeentry(self, name):
-        """
-        Remove an entry
-
-        If the value is in the list, remove it.
-
-        Args:
-            name: String of the entry to remove
-        """
-        i = 0
-        while i < len(self.entries):
-            # Match?
-            if self.entries[i][0] == name:
-                # Remove the entry and exit
-                del self.entries[i]
-                return
-
-            # Next entry
-            i += 1
+########################################
 
 
-class VCCLCompilerTool(Tool2003):
+class VCCLCompilerTool(VS2003Tool):
     """
-    Visual Studio 2003 VCCLCompilerTool record
+    Visual Studio 2003-2008 VCCLCompilerTool record
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
+        Init defaults
         """
-        entries = [
-            # General menu
-            ['AdditionalIncludeDirectories', SemicolonArray()],
-            ['AdditionalUsingDirectories', None],
-            ['SuppressStartupBanner', 'TRUE'],
-            ['DebugInformationFormat', '3'],
-            ['WarningLevel', '4'],
-            ['Detect64BitPortabilityProblems', 'TRUE'],
-            ['WarnAsError', None],
 
+        self.configuration = configuration
+        VS2003Tool.__init__(self, name='VCCLCompilerTool')
+        if configuration.attributes['name'] == 'Debug':
+            vs_optimization = '0'
+            vs_inlinefunctionexpansion = None
+            vs_enableintrinsicfunctions = None
+            vs_omitframepointers = None
+        else:
+            vs_optimization = '2'
+            vs_inlinefunctionexpansion = '2'
+            vs_enableintrinsicfunctions = 'true'
+            vs_omitframepointers = 'true'
+
+        if configuration.attributes['name'] == 'Release':
+            vs_buffersecuritychecks = 'false'
+            vs_runtimelibrary = '0'
+        else:
+            vs_buffersecuritychecks = 'true'
+            vs_runtimelibrary = '1'
+
+        if configuration.get_attribute('project_type') == ProjectTypes.library or \
+                configuration.attributes['name'] != 'Release':
+            vs_debuginformationformat = '3'
+            vs_programdatabasefilename = '"$(OutDir)$(TargetName).pdb"'
+        else:
+            vs_debuginformationformat = '0'
+            vs_programdatabasefilename = None
+
+        # Start with a copy (To prevent damaging the original list)
+        include_folders = list(convert_to_array(
+            configuration.project.attributes.get(
+                'extra_include', [])))
+        include_folders.extend(
+            convert_to_array(
+                configuration.attributes.get(
+                    'include_folders', [])))
+        include_folders.extend(
+            convert_to_array(
+                configuration.project.attributes.get(
+                    'include_folders', [])))
+        include_folders.extend(
+            convert_to_array(
+                configuration.project.solution.attributes.get(
+                    'include_folders', [])))
+
+        self.add_defaults({
             # Optimization menu
-            ['Optimization', '2'],
-            ['GlobalOptimizations', None],
-            ['InlineFunctionExpansion', '2'],
-            ['EnableIntrinsicFunctions', 'TRUE'],
-            ['ImproveFloatingPointConsistency', 'TRUE'],
-            ['FavorSizeOrSpeed', '1'],
-            ['OmitFramePointers', 'TRUE'],
-            ['EnableFiberSafeOptimizations', 'TRUE'],
-            ['OptimizeForProcessor', None],
-            ['OptimizeForWindowsApplication', None],
+            'Optimization': vs_optimization,
+            'GlobalOptimizations': None,
+            'InlineFunctionExpansion': vs_inlinefunctionexpansion,
+            'EnableIntrinsicFunctions': vs_enableintrinsicfunctions,
+            'ImproveFloatingPointConsistency': None,
+            'FavorSizeOrSpeed': '1',
+            'OmitFramePointers': vs_omitframepointers,
+            'EnableFiberSafeOptimizations': None,
+            'OptimizeForProcessor': None,
+            'OptimizeForWindowsApplication': None,
+
+            # General menu
+            'AdditionalIncludeDirectories': packed_paths(include_folders, slashes='\\'),
+            'AdditionalUsingDirectories': None,
+            'Detect64BitPortabilityProblems': None,
+            'WarnAsError': None,
 
             # Preprocess menu
-            ['PreprocessorDefinitions', None],
-            ['IgnoreStandardIncludePath', None],
-            ['GeneratePreprocessedFile', None],
-            ['KeepComments', None],
+            'PreprocessorDefinitions': packed_paths(configuration.get_attribute('defines')),
+            'IgnoreStandardIncludePath': None,
+            'GeneratePreprocessedFile': None,
+            'KeepComments': None,
 
             # Code generation menu
-            ['StringPooling', 'TRUE'],
-            ['MinimalRebuild', 'TRUE'],
-            ['ExceptionHandling', '0'],
-            ['SmallerTypeCheck', None],
-            ['BasicRuntimeChecks', None],
-            ['RuntimeLibrary', '1'],
-            ['StructMemberAlignment', '4'],
-            ['BufferSecurityCheck', 'FALSE'],
-            ['EnableFunctionLevelLinking', 'TRUE'],
-            ['EnableEnhancedInstructionSet', None],
+            'StringPooling': 'true',
+            'MinimalRebuild': None,
+            'ExceptionHandling': '0',
+            'SmallerTypeCheck': None,
+            'BasicRuntimeChecks': None,
+            'RuntimeLibrary': vs_runtimelibrary,
+            'StructMemberAlignment': '4',
+            'BufferSecurityCheck': vs_buffersecuritychecks,
+            'EnableFunctionLevelLinking': 'true',
+            'FloatingPointModel': '2',              # 2008
+            'EnableEnhancedInstructionSet': None,
 
             # Language extensions menu
-            ['DisableLanguageExtensions', None],
-            ['DefaultCharIsUnsigned', None],
-            ['TreatWChar_tAsBuiltInType', None],
-            ['ForceConformanceInForLoopScope', None],
-            ['RuntimeTypeInfo', 'FALSE'],
+            'DisableLanguageExtensions': None,
+            'DefaultCharIsUnsigned': None,
+            'TreatWChar_tAsBuiltInType': None,
+            'ForceConformanceInForLoopScope': None,
+            'RuntimeTypeInfo': 'false',
 
             # Precompiled header menu
-            ['UsePrecompiledHeader', None],
-            ['PrecompiledHeaderThrough', None],
-            ['PrecompiledHeaderFile', None],
+            'UsePrecompiledHeader': None,
+            'PrecompiledHeaderThrough': None,
+            'PrecompiledHeaderFile': None,
 
             # Output files menu
-            ['ExpandAttributedSource', None],
-            ['AssemblerOutput', None],
-            ['AssemblerListingLocation', None],
-            ['ObjectFile', None],
-            ['ProgramDataBaseFileName', '$(OutDir)\\$(TargetName).pdb'],
+            'ExpandAttributedSource': None,
+            'AssemblerOutput': None,
+            'AssemblerListingLocation': None,
+            'ObjectFile': None,
+            'ProgramDataBaseFileName': vs_programdatabasefilename,
+            'WarningLevel': '4',
+            'SuppressStartupBanner': 'true',
+            'DebugInformationFormat': vs_debuginformationformat,
 
             # Browse information menu
-            ['BrowseInformation', None],
-            ['BrowseInformationFile', None],
+            'BrowseInformation': None,
+            'BrowseInformationFile': None,
 
             # Advanced menu
-            ['CallingConvention', '1'],
-            ['CompileAs', '2'],
-            ['DisableSpecificWarnings', '4201'],
-            ['ForcedIncludeFile', None],
-            ['ForcedUsingFiles', None],
-            ['ShowIncludes', None],
-            ['UndefinePreprocessorDefinitions', None],
-            ['UndefineAllPreprocessorDefinitions', None],
+            'CallingConvention': '1',
+            'CompileAs': '2',
+            'DisableSpecificWarnings': '4201',
+            'ForcedIncludeFile': None,
+            'ForcedUsingFiles': None,
+            'ShowIncludes': None,
+            'UndefinePreprocessorDefinitions': None,
+            'UndefineAllPreprocessorDefinitions': None,
 
             # Command line menu
-            ['AdditionalOptions', None]
-        ]
-        Tool2003.__init__(self, name='VCCLCompilerTool', entries=entries)
+            'AdditionalOptions': None
+        })
+
+########################################
 
 
-class VCCustomBuildTool(Tool2003):
+class VCCustomBuildTool(VS2003Tool):
     """
-    Visual Studio 2003 VCCustomBuildTool record
+    Visual Studio 2003-2008 VCCustomBuildTool record
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
+        Init defaults.
         """
-        entries = [
+
+        self.configuration = configuration
+        VS2003Tool.__init__(self, name='VCCustomBuildTool')
+        self.add_defaults({
             # General menu
-            ['Description', None],
-            ['CommandLine', None],
-            ['AdditionalDependencies', None],
-            ['Outputs', None]
-        ]
-        Tool2003.__init__(self, name='VCCustomBuildTool', entries=entries)
+            'Description': None,
+            'CommandLine': None,
+            'AdditionalDependencies': None,
+            'Outputs': None
+        })
 
 
-class VCLinkerTool(Tool2003):
+########################################
+
+class VCLinkerTool(VS2003Tool):
     """
-    Visual Studio 2003 VCLinkerTool
+    Visual Studio 2003-2008 VCLinkerTool
     """
 
-    def __init__(self):
-        entries = [
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+
+        self.configuration = configuration
+        ide = configuration.project.solution.ide
+        VS2003Tool.__init__(self, 'VCLinkerTool')
+        vs_output = '"$(OutDir){}{}{}{}.exe"'.format(
+            configuration.project.get_attribute('name'),
+            configuration.project.solution.ide.get_short_code(),
+            configuration.attributes['platform'].get_short_code(),
+            configuration_short_code(configuration.attributes['name']))
+
+        # Start with a copy (To prevent damaging the original list)
+        library_folders = list(
+            convert_to_array(
+                configuration.attributes.get(
+                    'library_folders', [])))
+        library_folders.extend(
+            convert_to_array(
+                configuration.project.attributes.get(
+                    'library_folders', [])))
+        library_folders.extend(
+            convert_to_array(
+                configuration.project.solution.attributes.get(
+                    'library_folders', [])))
+
+        if configuration.get_attribute('project_type') == ProjectTypes.tool:
+            # Console
+            vs_subsystem = '1'
+        else:
+            # Application
+            vs_subsystem = '2'
+
+        if ide == IDETypes.vs2003:
+            vs_linkincremental = 'true'
+        else:
+            vs_linkincremental = None
+
+        self.add_defaults({
             # General menu
-            ['OutputFile', '&quot;$(OutDir)unittestsvc8w32dbg.exe&quot;'],
-            ['ShowProgress', None],
-            ['Version', None],
-            ['LinkIncremental', 'TRUE'],
-            ['SuppressStartupBanner', None],
-            ['IgnoreImportLibrary', None],
-            ['RegisterOutput', None],
-            ['AdditionalLibraryDirectories', SemicolonArray(
-                [
-                    '$(BURGER_SDKS)\\windows\\perforce',
-                    '$(BURGER_SDKS)\\windows\\burgerlib',
-                    '$(BURGER_SDKS)\\windows\\opengl'
-                ]
-            )],
+            'OutputFile': vs_output,
+            'ShowProgress': None,
+            'Version': None,
+            'LinkIncremental': vs_linkincremental,
+            'SuppressStartupBanner': None,
+            'IgnoreImportLibrary': None,
+            'RegisterOutput': None,
+            'AdditionalLibraryDirectories': packed_paths(library_folders, slashes='\\'),
 
             # Input menu
-            ['AdditionalDependencies', 'burgerlibvc8w32dbg.lib'],
-            ['IgnoreAllDefaultLibraries', None],
-            ['IgnoreDefaultLibraryNames', None],
-            ['ModuleDefinitionFile', None],
-            ['AddModuleNamesToAssembly', None],
-            ['EmbedManagedResourceFile', None],
-            ['ForceSymbolReferences', None],
-            ['DelayLoadDLLs', None],
+            'AdditionalDependencies': None,
+            'IgnoreAllDefaultLibraries': None,
+            'IgnoreDefaultLibraryNames': None,
+            'ModuleDefinitionFile': None,
+            'AddModuleNamesToAssembly': None,
+            'EmbedManagedResourceFile': None,
+            'ForceSymbolReferences': None,
+            'DelayLoadDLLs': None,
 
             # Debugging menu
-            ['GenerateDebugInformation', 'TRUE'],
-            ['ProgramDatabaseFile', None],
-            ['StripPrivateSymbols', None],
-            ['GenerateMapFile', None],
-            ['MapFileName', None],
-            ['MapExports', None],
-            ['MapLines', None],
-            ['AssemblyDebug', None],
+            'GenerateDebugInformation': 'true',
+            'ProgramDatabaseFile': None,
+            'StripPrivateSymbols': None,
+            'GenerateMapFile': None,
+            'MapFileName': None,
+            'MapExports': None,
+            'MapLines': None,
+            'AssemblyDebug': None,
 
             # System menu
-            ['SubSystem', '1'],
-            ['HeapReserveSize', None],
-            ['HeapCommitSize', None],
-            ['StackReserveSize', None],
-            ['StackCommitSize', None],
-            ['LargeAddressAware', None],
-            ['TerminalServerAware', None],
-            ['SwapRunFromCD', None],
-            ['SwapRunFromNet', None],
+            'SubSystem': vs_subsystem,
+            'HeapReserveSize': None,
+            'HeapCommitSize': None,
+            'StackReserveSize': None,
+            'StackCommitSize': None,
+            'LargeAddressAware': None,
+            'TerminalServerAware': None,
+            'SwapRunFromCD': None,
+            'SwapRunFromNet': None,
 
             # Optimization
-            ['OptimizeReferences', '2'],
-            ['EnableCOMDATFolding', '2'],
-            ['OptimizeForWindows98', None],
-            ['FunctionOrder', None],
+            'OptimizeReferences': '2',
+            'EnableCOMDATFolding': '2',
+            'OptimizeForWindows98': None,
+            'FunctionOrder': None,
 
             # Embedded MIDL menu
-            ['MidlCommandFile', None],
-            ['IgnoreEmbeddedIDL', None],
-            ['MergedIDLBaseFileName', None],
-            ['TypeLibraryFile', None],
-            ['TypeLibraryResourceID', None],
+            'MidlCommandFile': None,
+            'IgnoreEmbeddedIDL': None,
+            'MergedIDLBaseFileName': None,
+            'TypeLibraryFile': None,
+            'TypeLibraryResourceID': None,
 
             # Advanced menu
-            ['EntryPointSymbol', None],
-            ['ResourceOnlyDLL', None],
-            ['SetChecksum', None],
-            ['BaseAddress', None],
-            ['FixedBaseAddress', None],
-            ['TurnOffAssemblyGeneration', None],
-            ['SupportUnloadOfDelayLoadedDLL', None],
-            ['ImportLibrary', None],
-            ['MergeSections', None],
-            ['TargetMachine', '1'],
+            'EntryPointSymbol': None,
+            'ResourceOnlyDLL': None,
+            'SetChecksum': None,
+            'BaseAddress': None,
+            'FixedBaseAddress': None,
+            'TurnOffAssemblyGeneration': None,
+            'SupportUnloadOfDelayLoadedDLL': None,
+            'ImportLibrary': None,
+            'MergeSections': None,
+            'TargetMachine': None,
 
             # Command line menu
-            ['AdditionalOptions', None]
-        ]
-        Tool2003.__init__(self, name='VCLinkerTool', entries=entries)
+            'AdditionalOptions': None
+        })
+
+########################################
 
 
-class VCMIDLTool(Tool2003):
+class VCLibrarianTool(VS2003Tool):
     """
-    Visual Studio 2003 for the MIDL tool
-    """
-
-    def __init__(self):
-        """
-        """
-        Tool2003.__init__(self, name='VCMIDLTool')
-
-
-class VCPostBuildEventTool(Tool2003):
-    """
-    VCPostBuildEventTool
+    Visual Studio 2003-2008 for VCLibrarianTool.
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
+        Init defaults.
         """
-        entries = [
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCLibrarianTool')
+
+        vs_output = '"$(OutDir){}{}{}{}.lib"'.format(
+            configuration.project.get_attribute('name'),
+            configuration.project.solution.ide.get_short_code(),
+            configuration.attributes['platform'].get_short_code(),
+            configuration_short_code(configuration.attributes['name']))
+
+        self.add_defaults({
             # General menu
-            ['Description', None],
-            ['CommandLine', None],
-            ['ExcludedFromBuild', None]
-        ]
-        Tool2003.__init__(self, name='VCPostBuildEventTool', entries=entries)
+            'OutputFile': vs_output,
+            'SuppressStartupBanner': 'true'
+        })
+
+########################################
 
 
-class VCPreBuildEventTool(Tool2003):
+class VCMIDLTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for the MIDL tool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCMIDLTool')
+
+########################################
+
+
+class VCALinkTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCALinkTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCALinkTool')
+
+
+########################################
+
+
+class VCManifestTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCManifestTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCManifestTool')
+
+
+########################################
+
+
+class VCXDCMakeTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCXDCMakeTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCXDCMakeTool')
+
+########################################
+
+
+class VCBscMakeTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCBscMakeTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCBscMakeTool')
+
+########################################
+
+
+class VCFxCopTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCFxCopTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCFxCopTool')
+
+########################################
+
+
+class VCAppVerifierTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCAppVerifierTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCAppVerifierTool')
+
+########################################
+
+
+class VCManagedResourceCompilerTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCManagedResourceCompilerTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCManagedResourceCompilerTool')
+
+########################################
+
+
+class VCPostBuildEventTool(VS2003Tool):
+    """
+    Visual Studio 2003-2008 for VCPostBuildEventTool.
+    """
+
+    def __init__(self, configuration):
+        """
+        Init defaults.
+        """
+
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCPostBuildEventTool')
+        if configuration.get_attribute('deploy_folder') is not None:
+            deploy_folder = convert_to_windows_slashes(
+                configuration.get_attribute('deploy_folder'), True)
+            vs_description = 'Copying $(TargetName)$(TargetExt) to {}'.format(deploy_folder)
+            vs_cmd = (
+                '"$(perforce)\\p4" edit "{0}$(TargetName)$(TargetExt)"\r\n'
+                '"$(perforce)\\p4" edit "{0}$(TargetName).pdb"\r\n'
+                'copy /Y "$(OutDir)$(TargetName)$(TargetExt)" "{0}$(TargetName)$(TargetExt)"\r\n'
+                'copy /Y "$(OutDir)$(TargetName).pdb" "{0}$(TargetName).pdb"\r\n'
+                '"$(perforce)\\p4" revert -a "{0}$(TargetName)$(TargetExt)"\r\n'
+                '"$(perforce)\\p4" revert -a "{0}$(TargetName).pdb"\r\n').format(deploy_folder)
+        else:
+            vs_description = None
+            vs_cmd = None
+
+        self.add_defaults({
+            # General menu
+            'Description': vs_description,
+            'CommandLine': vs_cmd,
+            'ExcludedFromBuild': None
+        })
+
+
+########################################
+
+
+class VCPreBuildEventTool(VS2003Tool):
     """
     VCPreBuildEventTool
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
-        Init
+        Init defaults.
         """
-        entries = [
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCPreBuildEventTool')
+        self.add_defaults({
             # General menu
-            ['Description', None],
-            ['CommandLine', None],
-            ['ExcludedFromBuild', None]
-        ]
-        Tool2003.__init__(self, name='VCPreBuildEventTool', entries=entries)
+            'Description': None,
+            'CommandLine': None,
+            'ExcludedFromBuild': None
+        })
 
 
-class VCPreLinkEventTool(Tool2003):
+########################################
+
+
+class VCPreLinkEventTool(VS2003Tool):
     """
     VCPreLinkEventTool
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
-        Init
+        Init defaults.
         """
-        entries = [
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCPreLinkEventTool')
+        self.add_defaults({
             # General menu
-            ['Description', None],
-            ['CommandLine', None],
-            ['ExcludedFromBuild', None]
-        ]
-        Tool2003.__init__(self, name='VCPreLinkEventTool', entries=entries)
+            'Description': None,
+            'CommandLine': None,
+            'ExcludedFromBuild': None
+        })
+
+########################################
 
 
-class VCResourceCompilerTool(Tool2003):
+class VCResourceCompilerTool(VS2003Tool):
     """
     VCResourceCompilerTool
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
         Init
         """
-        Tool2003.__init__(self, name='VCResourceCompilerTool')
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCResourceCompilerTool')
+        self.add_defaults({
+            'Culture': '1033'
+        })
+
+########################################
 
 
-class VCWebServiceProxyGeneratorTool(Tool2003):
+class XboxDeploymentTool(VS2003Tool):
     """
-    VCWebServiceProxyGeneratorTool
-    """
-
-    def __init__(self):
-        """
-        Init
-        """
-        Tool2003.__init__(self, name='VCWebServiceProxyGeneratorTool')
-
-
-class VCXMLDataGeneratorTool(Tool2003):
-    """
-    VCXMLDataGeneratorTool
+    XboxDeploymentTool for Xbox Classic
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
-        Init
+        Init defaults
         """
-        Tool2003.__init__(self, name='VCXMLDataGeneratorTool')
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'XboxDeploymentTool')
+
+########################################
 
 
-class VCWebDeploymentTool(Tool2003):
-    """
-    VCWebDeploymentTool
-    """
-
-    def __init__(self):
-        """
-        Init
-        """
-        Tool2003.__init__(self, name='VCWebDeploymentTool')
-
-
-class VCManagedWrapperGeneratorTool(Tool2003):
-    """
-    VCManagedWrapperGeneratorTool
-    """
-
-    def __init__(self):
-        """
-        Init
-        """
-        Tool2003.__init__(self, name='VCManagedWrapperGeneratorTool')
-
-
-class VCAuxiliaryManagedWrapperGeneratorTool(Tool2003):
-    """
-    VCAuxiliaryManagedWrapperGeneratorTool
-    """
-
-    def __init__(self):
-        """
-        Init
-        """
-        Tool2003.__init__(self, name='VCAuxiliaryManagedWrapperGeneratorTool')
-
-
-class XboxDeploymentTool(Tool2003):
-    """
-    XboxDeploymentTool
-    """
-
-    def __init__(self):
-        """
-        Init
-        """
-        Tool2003.__init__(self, name='XboxDeploymentTool')
-
-
-class XboxImageTool(Tool2003):
+class XboxImageTool(VS2003Tool):
     """
     XboxImageTool
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
+        """
+        Init defaults
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'XboxImageTool')
+
+########################################
+
+
+class VCWebServiceProxyGeneratorTool(VS2003Tool):
+    """
+    VCWebServiceProxyGeneratorTool
+    """
+
+    def __init__(self, configuration):
         """
         Init
         """
-        Tool2003.__init__(self, name='XboxImageTool')
-
-
-class VS2003Configuration(object):
-    """
-    Configuration records
-    """
-
-    def __init__(self, project, configuration, vsplatform):
-        """
-        Initialize a Visual Studio 2003 configuration record
-        """
-        self.project = project
         self.configuration = configuration
-        self.vsplatform = vsplatform
+        VS2003Tool.__init__(self, 'VCWebServiceProxyGeneratorTool')
 
-        self.entries = [
-            ['OutputDirectory', 'bin\\'],
-            ['IntermediateDirectory', 'temp\\'],
-            ['ConfigurationType', '1'],
-            ['UseOfMFC', '0'],
-            ['ATLMinimizesCRunTimeLibraryUsage', 'false'],
-            ['CharacterSet', '1'],
-            ['DeleteExtensionsOnClean', None],
-            ['ManagedExtensions', None],
-            ['WholeProgramOptimization', None],
-            ['ReferencesPath', None]
-        ]
+########################################
 
-        self.tools = []
 
-        self.tools.append(VCCLCompilerTool())
-        self.tools.append(VCCustomBuildTool())
-        self.tools.append(VCLinkerTool())
+class VCXMLDataGeneratorTool(VS2003Tool):
+    """
+    VCXMLDataGeneratorTool
+    """
 
-        if vsplatform == 'Win32' or vsplatform == 'x64':
-            self.tools.append(VCMIDLTool())
+    def __init__(self, configuration):
+        """
+        Init
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCXMLDataGeneratorTool')
 
-        self.tools.append(VCPostBuildEventTool())
-        self.tools.append(VCPreBuildEventTool())
-        self.tools.append(VCPreLinkEventTool())
+########################################
 
-        if vsplatform == 'Xbox':
-            self.tools.append(XboxDeploymentTool())
-            self.tools.append(XboxImageTool())
+
+class VCWebDeploymentTool(VS2003Tool):
+    """
+    VCWebDeploymentTool
+    """
+
+    def __init__(self, configuration):
+        """
+        Init
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCWebDeploymentTool')
+
+########################################
+
+
+class VCManagedWrapperGeneratorTool(VS2003Tool):
+    """
+    VCManagedWrapperGeneratorTool
+    """
+
+    def __init__(self, configuration):
+        """
+        Init
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCManagedWrapperGeneratorTool')
+
+########################################
+
+
+class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
+    """
+    VCAuxiliaryManagedWrapperGeneratorTool
+    """
+
+    def __init__(self, configuration):
+        """
+        Init
+        """
+        self.configuration = configuration
+        VS2003Tool.__init__(self, 'VCAuxiliaryManagedWrapperGeneratorTool')
+
+########################################
+
+
+class VS2003Platform(VS2003XML):
+    """
+    Visual Studio 2003-2008 Platform record
+    """
+
+    def __init__(self, platform):
+        """
+        Set the defaults
+        """
+        self.platform = platform
+        VS2003XML.__init__(self, 'Platform', {'Name': platform.get_vs_platform()[0]})
+
+########################################
+
+
+class VS2003Platforms(VS2003XML):
+    """
+    Visual Studio 2003-2008 Platforms record
+    """
+
+    def __init__(self, project):
+        """
+        Set the defaults
+        """
+
+        VS2003XML.__init__(self, 'Platforms')
+        self.project = project
+
+        # Get the list of platforms
+        platforms = []
+        for configuration in project.configurations:
+            platforms.append(configuration.attributes['platform'])
+
+        # Remove duplicates
+        platforms = set(platforms)
+
+        # Add the records
+        for platform in sorted(platforms):
+            self.add_element(VS2003Platform(platform))
+
+
+########################################
+
+
+class VS2003References(VS2003XML):
+    """
+    Visual Studio 2003-2008 References record
+    """
+
+    def __init__(self):
+        """
+        Set the defaults
+        """
+
+        VS2003XML.__init__(self, 'References')
+
+########################################
+
+
+class VS2003ToolFiles(VS2003XML):
+    """
+    Visual Studio 2003-2008 ToolFiles record
+    """
+
+    def __init__(self, platform):
+        """
+        Set the defaults
+        """
+        self.platform = platform
+        VS2003XML.__init__(self, 'ToolFiles')
+
+########################################
+
+
+class VS2003Globals(VS2003XML):
+    """
+    Visual Studio 2003-2008 Globals record
+    """
+
+    def __init__(self):
+        """
+        Set the defaults
+        """
+
+        VS2003XML.__init__(self, 'Globals')
+
+########################################
+
+
+class VS2003Configuration(VS2003XML):
+    """
+    Visual Studio 2003-2008 Configuration record
+    """
+
+    def __init__(self, configuration):
+        """
+        Set the defaults
+        """
+
+        self.configuration = configuration
+        ide = configuration.project.solution.ide
+
+        vs_name = configuration.attributes['name'] + '|' + \
+            configuration.attributes['platform'].get_vs_platform()[0]
+        vs_intdirectory = 'temp\\{}{}{}{}\\'.format(
+            configuration.project.get_attribute('name'),
+            configuration.project.solution.ide.get_short_code(),
+            configuration.attributes['platform'].get_short_code(),
+            configuration_short_code(configuration.attributes['name']))
+
+        if configuration.get_attribute('project_type') == ProjectTypes.library:
+            vs_configuration_type = '4'
         else:
-            self.tools.append(VCResourceCompilerTool())
-            self.tools.append(VCWebServiceProxyGeneratorTool())
-            self.tools.append(VCXMLDataGeneratorTool())
-            self.tools.append(VCWebDeploymentTool())
-            self.tools.append(VCManagedWrapperGeneratorTool())
-            self.tools.append(VCAuxiliaryManagedWrapperGeneratorTool())
+            vs_configuration_type = '1'
+        VS2003XML.__init__(self, 'Configuration', {
+            'Name': vs_name,
+            'OutputDirectory': 'bin\\',
+            'IntermediateDirectory': vs_intdirectory,
+            'ConfigurationType': vs_configuration_type,
+            'UseOfMFC': '0',
+            'ATLMinimizesCRunTimeLibraryUsage': 'false',
+            'CharacterSet': '1',
+            'DeleteExtensionsOnClean': None,
+            'ManagedExtensions': None,
+            'WholeProgramOptimization': None,
+            'ReferencesPath': None
+        })
 
-    def write(self, fileref):
+        self.add_element(VCPreBuildEventTool(configuration))
+        self.add_element(VCCustomBuildTool(configuration))
+
+        if configuration.get_attribute('platform') != PlatformTypes.xbox:
+            self.add_element(VCXMLDataGeneratorTool(configuration))
+            self.add_element(VCWebServiceProxyGeneratorTool(configuration))
+
+        if configuration.get_attribute('platform').is_windows():
+            self.add_element(VCMIDLTool(configuration))
+
+        self.add_element(VCCLCompilerTool(configuration))
+
+        if configuration.get_attribute('platform').is_windows():
+            self.add_element(VCManagedResourceCompilerTool(configuration))
+            self.add_element(VCResourceCompilerTool(configuration))
+
+        self.add_element(VCPreLinkEventTool(configuration))
+
+        if configuration.get_attribute('project_type') in (
+                ProjectTypes.library, ProjectTypes.sharedlibrary):
+            self.add_element(VCLibrarianTool(configuration))
+        else:
+            self.add_element(VCLinkerTool(configuration))
+
+        if configuration.get_attribute('platform') == PlatformTypes.xbox:
+            self.add_element(XboxDeploymentTool(configuration))
+            self.add_element(XboxImageTool(configuration))
+
+        #self.add_element(VCManagedWrapperGeneratorTool(configuration))
+        #self.add_element(VCAuxiliaryManagedWrapperGeneratorTool(configuration))
+
+        self.add_element(VCALinkTool(configuration))
+        self.add_element(VCManifestTool(configuration))
+        self.add_element(VCXDCMakeTool(configuration))
+        self.add_element(VCBscMakeTool(configuration))
+        self.add_element(VCFxCopTool(configuration))
+        self.add_element(VCAppVerifierTool(configuration))
+
+        if ide != IDETypes.vs2008:
+            if configuration.get_attribute('platform') != PlatformTypes.xbox:
+                self.add_element(VCWebDeploymentTool(configuration))
+
+        self.add_element(VCPostBuildEventTool(configuration))
+
+########################################
+
+
+class VS2003Configurations(VS2003XML):
+    """
+    Visual Studio 2003-2008 Configurations record
+    """
+
+    def __init__(self, project):
         """
-        Write
+        Set the defaults
         """
-        return
-        fileref.write(u'\t\t<Configuration')
-        fileref.write(u'\n\t\t\tName="' + self.configuration + '|' + self.vsplatform + '"')
 
-        for item in self.entries:
-            if item[1] is not None:
-                fileref.write(u'\n\t\t\t' + item[0] + '="' + item[1] + '"')
+        VS2003XML.__init__(self, 'Configurations')
+        for configuration in project.configurations:
+            self.add_element(VS2003Configuration(configuration))
 
-        fileref.write(u'>\n')
 
-        for tool in self.tools:
-            fileref.write(unicode(tool))
+########################################
 
-        fileref.write(u'\t\t</Configuration>\n')
+
+class VS2003File(VS2003XML):
+    """
+    Visual Studio 2003-2008 File record
+    """
+
+    def __init__(self, source_file):
+        """
+        Set the defaults
+        """
+
+        self.source_file = source_file
+        VS2003XML.__init__(self, 'File', {'RelativePath': source_file}, force_pair=True)
+
+########################################
+
+
+class VS2003Filter(VS2003XML):
+    """
+    Visual Studio 2003-2008 File record
+    """
+
+    def __init__(self, name):
+        """
+        Set the defaults
+        """
+
+        self.name = name
+        VS2003XML.__init__(self, 'Filter', {'Name': name})
+
+
+########################################
+
+def do_tree(xml_entry, filter_name, tree, groups):
+    """
+    Dump out a recursive tree of files to reconstruct a
+    directory hiearchy for a file list
+    """
+
+    for item in sorted(tree):
+        if filter_name == '':
+            merged = item
+        else:
+            merged = filter_name + '\\' + item
+
+        new_filter = VS2003Filter(item)
+        xml_entry.add_element(new_filter)
+
+        # See if this directory string creates a group?
+        if merged in groups:
+            # Found, add all the elements into this filter
+            for fileitem in sorted(groups[merged]):
+                new_filter.add_element(VS2003File(fileitem))
+
+        tree_key = tree[item]
+        # Recurse down the tree
+        if isinstance(tree_key, dict):
+            do_tree(new_filter, merged, tree_key, groups)
+
+
+class VS2003Files(VS2003XML):
+    """
+    Visual Studio 2003-2008 Files record
+    """
+
+    def __init__(self, project):
+        """
+        Set the defaults
+        """
+
+        self.project = project
+        VS2003XML.__init__(self, 'Files')
+
+        # Create group names and attach all files that belong to that group
+        groups = dict()
+        for item in project.codefiles:
+            groupname = item.extractgroupname()
+            # Put each filename in its proper group
+            name = convert_to_windows_slashes(item.filename)
+            group = groups.get(groupname, None)
+            if group is None:
+                groups[groupname] = [name]
+            else:
+                group.append(name)
+
+        # Convert from a flat tree into a hierarchical tree
+        tree = dict()
+        for group in groups:
+
+            # Get the depth of the tree needed
+            parts = group.split('\\')
+            nexttree = tree
+
+            # Iterate over every part
+            for item, _ in enumerate(parts):
+                # Already declared?
+                if not parts[item] in nexttree:
+                    nexttree[parts[item]] = dict()
+                # Step into the tree
+                nexttree = nexttree[parts[item]]
+
+        # Generate the file tree
+        do_tree(self, '', tree, groups)
+
+########################################
+
+
+class VS2003vcproj(VS2003XML):
+    """
+    Visual Studio 2003-2008 formatter
+    This record instructs how to write a Visual 2003-2008 format vcproj file
+    """
+
+    def __init__(self, project):
+        """
+        Set the defaults
+        """
+
+        self.project = project
+
+        # Which project type?
+        ide = project.solution.ide
+        if ide == IDETypes.vs2003:
+            version = '7.10'
+        elif ide == IDETypes.vs2005:
+            version = '8.00'
+        else:
+            version = '9.00'
+
+        VS2003XML.__init__(self, 'VisualStudioProject',
+                           {'ProjectType': 'Visual C++',
+                            'Version': version,
+                            'Name': project.get_attribute('name'),
+                            'ProjectGUID': '{' + project.attributes['vs_uuid'] + '}'})
+        if ide != IDETypes.vs2003:
+            self.add_defaults({'RootNamespace': project.get_attribute('name')})
+        self.add_defaults({'Keyword': 'Win32Proj'})
+        if ide == IDETypes.vs2008:
+            self.add_defaults({'TargetFrameworkVersion': '196613'})
+
+        # Add all the sub chunks
+        self.platforms = VS2003Platforms(project)
+        self.add_element(self.platforms)
+
+        self.toolfiles = VS2003ToolFiles(project)
+        if ide != IDETypes.vs2003:
+            self.add_element(self.toolfiles)
+
+        self.configurations = VS2003Configurations(project)
+        self.add_element(self.configurations)
+        self.references = VS2003References()
+        self.add_element(self.references)
+        self.files = VS2003Files(project)
+        self.add_element(self.files)
+        self.globals = VS2003Globals()
+        self.add_element(self.globals)
+
+    def generate(self, line_list, indent=0):
+        """
+        Write out the VisualStudioProject record.
+        Args:
+            line_list: string list to save the XML text
+        """
+
+        # XML is utf-8 only
+        line_list.append('<?xml version="1.0" encoding="UTF-8"?>')
+        VS2003XML.generate(self, line_list, indent=indent)
+
+########################################
+
+
+def generate(solution):
+    """
+    Create a solution and project(s) file for Visual Studio.
+
+    Given a Solution object, create an appropriate Visual Studio solution
+    and project files to allow this project to build.
+
+    Args:
+        solution: Solution instance.
+
+    Returns:
+        Zero if no error, non-zero on error.
+    """
+
+    # For starters, generate the UUID and filenames for the solution file
+    # for visual studio, since each solution and project file generate
+    # seperately
+
+    solution = deepcopy(solution)
+
+    # Visual Studio doesn't support x64
+    if solution.ide == IDETypes.vs2003:
+        for project in solution.projects:
+            configs = []
+            for configuration in project.configurations:
+                if configuration.attributes['platform'] != PlatformTypes.win64:
+                    configs.append(configuration)
+            project.configurations = configs
+
+    # Get the IDE name code
+    idecode = solution.ide.get_short_code()
+
+    # Get the platform code
+    temp_list = []
+    for project in solution.projects:
+        temp_list.extend(project.configurations)
+    platformcode = platformtype_short_code(temp_list)
+
+    # Create the final filename for the Visual Studio Solution file
+    solution_filename = ''.join((solution.get_attribute('name'), idecode, platformcode, '.sln'))
+
+    # Older versions of Visual studio use the .vcproj extension
+    # instead of the .vcxproj extension
+
+    project_filename_suffix = '.vcxproj'
+    if solution.ide in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008):
+        project_filename_suffix = '.vcproj'
+
+    # Iterate over the project files and create the filenames
+    for project in solution.projects:
+        platformcode = platformtype_short_code(project.configurations)
+        project.attributes['vs_output_filename'] = ''.join((
+            project.get_attribute('name'), idecode, platformcode, project_filename_suffix))
+        project.attributes['vs_uuid'] = get_uuid(project.attributes['vs_output_filename'])
+
+    # Write to memory for file comparison
+    solution_lines = []
+    error = generate_solution_file(solution_lines, solution)
+    if error:
+        return error
+
+    save_text_file_if_newer(
+        os.path.join(solution.get_attribute('working_directory'), solution_filename),
+        solution_lines,
+        bom=solution.ide != IDETypes.vs2003,
+        perforce=solution.get_attribute('perforce'),
+        verbose=solution.get_attribute('verbose'))
+
+    # Now that the solution file was generated, create the individual project
+    # files using the format appropriate for the selected IDE
+
+    if solution.ide in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008):
+        for item in solution.projects:
+            item.get_file_list([FileTypes.h, FileTypes.cpp, FileTypes.rc, FileTypes.ico])
+            exporter = VS2003vcproj(item)
+            project_lines = []
+            exporter.generate(project_lines)
+            save_text_file_if_newer(
+                os.path.join(
+                    solution.get_attribute('working_directory'),
+                    item.attributes['vs_output_filename']),
+                project_lines,
+                bom=solution.ide != IDETypes.vs2003,
+                perforce=solution.get_attribute('perforce'),
+                verbose=solution.get_attribute('verbose'))
+    return 0
 
 
 class FileVersions(Enum):
@@ -735,6 +1587,8 @@ formatversion = [
     '12.00',        # 2015
     '12.00',        # 2017
     '12.00'         # 2019
+
+
 ]
 
 #
@@ -865,19 +1719,17 @@ def comparefiletostring(filename, string):
     return True
 
 
-#
-# Class to hold the defaults and settings to output a visualstudio
-# compatible project file.
-# json keyword "visualstudio" for dictionary of overrides
-#
-
 class Defaults(object):
-
-    #
-    # Power up defaults
-    #
+    """
+    Class to hold the defaults and settings to output a visualstudio
+    compatible project file.
+    json keyword "visualstudio" for dictionary of overrides
+    """
 
     def __init__(self):
+        """
+        Power up defaults
+        """
         # Visual studio version code
         self.idecode = None
         # Visual studio platform code
@@ -938,8 +1790,8 @@ class Defaults(object):
         #
 
         self.idecode = solution.ide.get_short_code()
-        self.platformcode = solution.projects[0].platform.get_short_code()
-        self.outputfilename = str(solution.name + self.idecode + self.platformcode)
+        self.platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+        self.outputfilename = str(solution.attributes['name'] + self.idecode + self.platformcode)
         self.uuid = get_uuid(self.outputfilename)
 
         #
@@ -1103,9 +1955,9 @@ class SolutionFile(object):
         #
 
         fp.write(
-            u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.name + '", "' +
-            self.solution.visualstudio.outputfilename + projectsuffix[self.fileversion.value] +
-            '", "{' + self.solution.visualstudio.uuid + '}"\n')
+            u'Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "' + self.solution.attributes
+            ['name'] + '", "' + self.solution.visualstudio.outputfilename +
+            projectsuffix[self.fileversion.value] + '", "{' + self.solution.visualstudio.uuid + '}"\n')
         fp.write(u'EndProject\n')
 
         #
@@ -1119,10 +1971,10 @@ class SolutionFile(object):
         #
 
         fp.write(u'\tGlobalSection(SolutionConfigurationPlatforms) = preSolution\n')
-        vsplatforms = self.solution.projects[0].platform.get_vs_platform()
+        vsplatforms = self.solution.projects[0].get_attribute('platform').get_vs_platform()
         for target in self.solution.projects[0].configurations:
             for item in vsplatforms:
-                token = target.name + '|' + item
+                token = target.attributes['name'] + '|' + item
                 fp.write(u'\t\t' + token + ' = ' + token + '\n')
         fp.write(u'\tEndGlobalSection\n')
 
@@ -1133,7 +1985,7 @@ class SolutionFile(object):
         fp.write(u'\tGlobalSection(ProjectConfigurationPlatforms) = postSolution\n')
         for target in self.solution.projects[0].configurations:
             for item in vsplatforms:
-                token = target.name + '|' + item
+                token = target.attributes['name'] + '|' + item
                 fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token +
                          '.ActiveCfg = ' + token + '\n')
                 fp.write(u'\t\t{' + self.solution.visualstudio.uuid + '}.' + token +
@@ -1229,10 +2081,13 @@ class vsProject(object):
 
         fp.write(u'\t<ItemGroup Label="ProjectConfigurations">\n')
         for target in solution.projects[0].configurations:
-            for vsplatform in solution.projects[0].platform.get_vs_platform():
-                token = target.name + '|' + vsplatform
+            for vsplatform in solution.projects[0].get_attribute('platform').get_vs_platform():
+                token = target.attributes['name'] + '|' + vsplatform
                 fp.write(u'\t\t<ProjectConfiguration Include="' + token + '">\n')
-                fp.write(u'\t\t\t<Configuration>' + target.name + '</Configuration>\n')
+                fp.write(
+                    u'\t\t\t<Configuration>' +
+                    target.attributes['name'] +
+                    '</Configuration>\n')
                 fp.write(u'\t\t\t<Platform>' + vsplatform + '</Platform>\n')
                 fp.write(u'\t\t</ProjectConfiguration>\n')
         fp.write(u'\t</ItemGroup>\n')
@@ -1242,7 +2097,7 @@ class vsProject(object):
         #
 
         fp.write(u'\t<PropertyGroup Label="Globals">\n')
-        fp.write(u'\t\t<ProjectName>' + solution.name + '</ProjectName>\n')
+        fp.write(u'\t\t<ProjectName>' + solution.attributes['name'] + '</ProjectName>\n')
         deploy_folder = None
         for configuration in solution.projects[0].configurations:
             if configuration.attributes.get('deploy_folder'):
@@ -1276,9 +2131,9 @@ class vsProject(object):
         # Add in the burgerlib includes
         #
 
-        if solution.projects[0].projecttype == ProjectTypes.library:
+        if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.libv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.libv10.props\')" />\n')
-        elif solution.projects[0].projecttype == ProjectTypes.tool:
+        elif solution.projects[0].get_attribute('project_type') == ProjectTypes.tool:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.toolv10.props\')" />\n')
         else:
             fp.write(u'\t<Import Project="$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props" Condition="exists(\'$(BURGER_SDKS)\\visualstudio\\burger.gamev10.props\')" />\n')
@@ -1302,13 +2157,13 @@ class vsProject(object):
         # Insert compiler settings
         #
 
-        linkerdirectories = list(solution.projects[0].includefolders)
+        linkerdirectories = list(solution.projects[0].get_attribute('include_folders'))
         if self.defaults.platformcode == 'dsi':
             linkerdirectories += [u'$(BURGER_SDKS)\\dsi\\burgerlib']
 
         if self.includedirectories or \
                 linkerdirectories or \
-                solution.projects[0].defines:
+                solution.projects[0].get_attribute('defines'):
             fp.write(u'\t<ItemDefinitionGroup>\n')
 
             #
@@ -1317,7 +2172,7 @@ class vsProject(object):
 
             if self.includedirectories or \
                     linkerdirectories or \
-                    solution.projects[0].defines:
+                    solution.projects[0].get_attribute('defines'):
                 fp.write(u'\t\t<ClCompile>\n')
 
                 # Include directories
@@ -1330,9 +2185,9 @@ class vsProject(object):
                     fp.write(u'%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>\n')
 
                 # Global defines
-                if solution.projects[0].defines:
+                if solution.projects[0].get_attribute('defines'):
                     fp.write(u'\t\t\t<PreprocessorDefinitions>')
-                    for define in solution.projects[0].defines:
+                    for define in solution.projects[0].get_attribute('defines'):
                         fp.write(define + ';')
                     fp.write(u'%(PreprocessorDefinitions)</PreprocessorDefinitions>\n')
 
@@ -1674,7 +2529,7 @@ class Project(object):
         return count
 
 
-def generateold(solution, ide):
+def generateold(solution):
     """
     Old way
     """
@@ -1709,10 +2564,10 @@ def generateold(solution, ide):
 
     fileref = StringIO()
     project.writesln(fileref)
-    filename = os.path.join(solution.working_directory,
+    filename = os.path.join(solution.attributes['working_directory'],
                             solution.visualstudio.outputfilename + '.sln')
     if comparefiletostring(filename, fileref):
-        if solution.verbose is True:
+        if solution.get_attribute('verbose'):
             print(filename + ' was not changed')
     else:
         perforce_edit(filename)
@@ -1728,11 +2583,11 @@ def generateold(solution, ide):
     fileref = StringIO()
     if solution.visualstudio.fileversion.value >= FileVersions.vs2010.value:
         project.writeproject2010(fileref, solution)
-        filename = os.path.join(solution.working_directory,
+        filename = os.path.join(solution.attributes['working_directory'],
                                 solution.visualstudio.outputfilename +
                                 projectsuffix[solution.visualstudio.fileversion.value])
         if comparefiletostring(filename, fileref):
-            if solution.verbose is True:
+            if solution.get_attribute('verbose'):
                 print(filename + ' was not changed')
         else:
             perforce_edit(filename)
@@ -1749,7 +2604,7 @@ def generateold(solution, ide):
 
         fileref = StringIO()
         count = project.writefilter(fileref)
-        filename = os.path.join(solution.working_directory,
+        filename = os.path.join(solution.attributes['working_directory'],
                                 solution.visualstudio.outputfilename + '.vcxproj.filters')
 
         # No groups found?
@@ -1759,7 +2614,7 @@ def generateold(solution, ide):
         else:
             # Did it change?
             if comparefiletostring(filename, fileref):
-                if solution.verbose is True:
+                if solution.get_attribute('verbose'):
                     print(filename + ' was not changed')
             else:
                 # Update the file
@@ -1769,409 +2624,4 @@ def generateold(solution, ide):
                 fp2.close()
         fileref.close()
 
-    return 0
-
-########################################
-
-
-def generate_solution_file(solution_lines, solution):
-    """
-    Serialize the solution file into a string array.
-
-    This function generates SLN files for all versions of Visual Studio.
-    It assumes the text file will be encoded using UTF-8 character encoding
-    so the resulting file will be pre-pended with a UTF-8 Byte Order Mark (BOM)
-    for Visual Studio 2005 or higher.
-
-    Note:
-        Byte Order Marks are not supplied by this function.
-
-    Args:
-        solution_lines: List to insert string lines.
-        solution: Reference to the raw solution record
-    Returns:
-        Zero on success, non-zero on error.
-    """
-
-    # Save off the format header for the version of Visual Studio being generated
-
-    headers = {
-        IDETypes.vs2003: (
-            'Microsoft Visual Studio Solution File, Format Version 8.00',
-        ),
-        IDETypes.vs2005: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 9.00',
-            '# Visual Studio 2005'),
-        IDETypes.vs2008: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 10.00',
-            '# Visual Studio 2008'),
-        IDETypes.vs2010: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 11.00',
-            '# Visual Studio 2010'),
-        IDETypes.vs2012: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 2012'),
-        IDETypes.vs2013: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 2013',
-            'VisualStudioVersion = 12.0.31101.0',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
-        IDETypes.vs2015: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 14',
-            'VisualStudioVersion = 14.0.25123.0',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
-        IDETypes.vs2017: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 15',
-            'VisualStudioVersion = 15.0.28307.645',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
-        IDETypes.vs2019: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio Version 16',
-            'VisualStudioVersion = 16.0.28803.452',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
-    }
-
-    # Insert the header to the output stream
-    header = headers.get(solution.ide)
-    solution_lines.extend(header)
-
-    # Output each project file included in the solution
-    # This hasn't changed since Visual Studio 2003
-    for project in solution.projects:
-
-        # Save off the project record
-        solution_lines.append(
-            'Project("{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}") = "{}", "{}", "{{{}}}"'.format(
-                project.name,
-                project.attributes['vs_output_filename'],
-                project.attributes['vs_uuid']))
-
-        # Write out the dependencies, if any
-        solution_lines.append('\tProjectSection(ProjectDependencies) = postProject')
-        for dependent in project.projects:
-            solution_lines.append('\t\t{{{0}}} = {{{0}}}'.format(dependent.attributes['vs_uuid']))
-        solution_lines.append('\tEndProjectSection')
-        solution_lines.append('EndProject')
-
-    # Begin the Global record
-    solution_lines.append('Global')
-
-    # Visual Studio 2003 format is unique, write it out in its
-    # own exporter
-    if solution.ide == IDETypes.vs2003:
-
-        # Only output if there are attached projects, if there are
-        # no projects, there is no need to output platforms
-        config_list = []
-        for project in solution.projects:
-            for configuration in project.configurations:
-                # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
-                # x64 platforms
-                if configuration.platform == PlatformTypes.win64:
-                    continue
-                entry = configuration.name
-                # Ignore duplicates
-                if entry not in config_list:
-                    config_list.append(entry)
-
-        # List the configuration pairs (Like Xbox and Win32)
-        solution_lines.append('\tGlobalSection(SolutionConfiguration) = preSolution')
-        for entry in config_list:
-            # Since Visual Studio 2003 doesn't support Platform/Configuration pairing,
-            # it's faked with a space
-            solution_lines.append('\t\t{0} = {0}'.format(entry))
-        solution_lines.append('\tEndGlobalSection')
-
-        # List all of the projects/configurations
-        solution_lines.append('\tGlobalSection(ProjectConfiguration) = postSolution')
-        for project in solution.projects:
-            for configuration in project.configurations:
-                # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
-                # x64 platforms
-                if configuration.platform == PlatformTypes.win64:
-                    if solution.verbose:
-                        print('Visual Studio 2003 does not support platform Win64, skipped')
-                    continue
-                # Using the faked Platform/Configuration pair used above, create the appropriate
-                # pairs here and match them up.
-                platform = configuration.platform.get_vs_platform()[0]
-                solution_lines.append(
-                    '\t\t{{{0}}}.{1}.ActiveCfg = {1}|{2}'.format(
-                        project.attributes['vs_uuid'],
-                        configuration.name, platform))
-                solution_lines.append('\t\t{{{0}}}.{1}.Build.0 = {1}|{2}'.format(
-                    project.attributes['vs_uuid'], configuration.name, platform))
-        solution_lines.append('\tEndGlobalSection')
-
-        # Put in stubs for these records.
-        solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
-        solution_lines.append('\tEndGlobalSection')
-
-        solution_lines.append('\tGlobalSection(ExtensibilityAddIns) = postSolution')
-        solution_lines.append('\tEndGlobalSection')
-
-    # All other versions of Visual Studio 2005 and later use this format
-    # for the configurations
-    else:
-
-        if solution.projects:
-            # Write out the SolutionConfigurationPlatforms for all other versions of
-            # Visual Studio
-
-            solution_lines.append('\tGlobalSection(SolutionConfigurationPlatforms) = preSolution')
-            for project in solution.projects:
-                for configuration in project.configurations:
-                    solution_lines.append(
-                        '\t\t{0}|{1} = {0}|{1}'.format(
-                            configuration.name,
-                            configuration.platform.get_vs_platform()[0]))
-            solution_lines.append('\tEndGlobalSection')
-
-            # Write out the ProjectConfigurationPlatforms
-            solution_lines.append('\tGlobalSection(ProjectConfigurationPlatforms) = postSolution')
-
-            for project in solution.projects:
-                for configuration in project.configurations:
-                    solution_lines.append(
-                        '\t\t{{{0}}}.{1}|{2}.ActiveCfg = {1}|{2}'.format(
-                            project.attributes['vs_uuid'],
-                            configuration.name,
-                            configuration.platform.get_vs_platform()[0]))
-                    solution_lines.append(
-                        '\t\t{{{0}}}.{1}|{2}.Build.0 = {1}|{2}'.format(
-                            project.attributes['vs_uuid'],
-                            configuration.name,
-                            configuration.platform.get_vs_platform()[0]))
-
-            solution_lines.append('\tEndGlobalSections')
-
-        # Hide nodes section
-        solution_lines.append('\tGlobalSection(SolutionProperties) = preSolution')
-        solution_lines.append('\t\tHideSolutionNode = FALSE')
-        solution_lines.append('\tEndGlobalSection')
-
-        if solution.ide == IDETypes.vs2017:
-            solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
-            solution_lines.append('\t\tSolutionGuid = {DD9C6A72-2C1C-45F2-9450-8BE7001FEE33}')
-            solution_lines.append('\tEndGlobalSection')
-
-        if solution.ide == IDETypes.vs2019:
-            solution_lines.append('\tGlobalSection(ExtensibilityGlobals) = postSolution')
-            solution_lines.append('\t\tSolutionGuid = {6B996D51-9872-4B32-A08B-EBDBC2A3151F}')
-            solution_lines.append('\tEndGlobalSection')
-
-    # Close it up!
-    solution_lines.append('EndGlobal')
-    return 0
-
-########################################
-
-
-class VS2003VisualStudioProject():
-    def __init__(self, project):
-        """
-        Init
-        """
-
-        self.project_type = 'Visual C++'
-        if project.solution.ide == IDETypes.vs2003:
-            version = '7.10'
-        elif project.solution.ide == IDETypes.vs2005:
-            version = '8.00'
-        else:
-            version = '9.00'
-        self.version = version
-        self.name = project.name
-        self.guid = project.attributes['vs_uuid']
-        self.keyword = 'Win32Proj'
-
-    def generate(self, project_lines):
-        project_lines.extend(VS2003XML('VisualStudioProject'))
-
-
-########################################
-
-
-class VS2003vcproj():
-    """
-    Visual Studio 2003-2008 formatter
-    This record instructs how to write a Visual 2003-2008 format vcproj file
-    """
-
-    def __init__(self, project):
-        """
-        Set the defaults
-        """
-        self.project = project
-        self.project_type = 'Visual C++'
-        self.version = '7.10'
-        self.keyword = 'Win32Proj'
-        self.configurations = []
-        self.references = []
-        self.files = []
-        self.globals = []
-        for vsplatform in project.platform.get_vs_platform():
-
-            #
-            # Visual Studio 2003 doesn't support 64 bit compilers, so ignore
-            # x64 platforms
-            #
-
-            if vsplatform == 'x64':
-                continue
-
-            #
-            # Create the configuration records
-            #
-
-            for configuration in project.configurations:
-                self.configurations.append(
-                    VS2003Configuration(
-                        project,
-                        configuration.name,
-                        vsplatform))
-
-    def generate(self, project_lines):
-        """
-        Write
-        """
-
-        # Save off the UTF-8 header marker (Needed for 2003 only)
-        project_lines.append('<?xml version="1.0" encoding="UTF-8"?>')
-
-        # Write out the enclosing XML for the project
-        project_lines.append('<VisualStudioProject')
-
-        if self.project_type:
-            project_lines.append('\tProjectType="' + self.project_type + '"')
-
-        if self.version:
-            project_lines.append('\tVersion="' + self.version + '"')
-
-        project_lines.append('\tName="' + self.project.name + '"')
-        project_lines.append('\tProjectGUID="{' + self.project.attributes['vs_uuid'] + '}"')
-        project_lines.append('\tKeyword="' + self.keyword + '">')
-
-        # Write the project platforms
-        project_lines.append('\t<Platforms>')
-
-        platform_array = []
-        for configuration in self.configurations:
-            platform_array.append(configuration.vsplatform)
-
-        for vsplatform in set(platform_array):
-
-            # Ignore x64 platforms on Visual Studio 2003
-            if vsplatform == 'x64':
-                continue
-
-            project_lines.append('\t\t<Platform Name="' + vsplatform + '"/>')
-        project_lines.append('\t</Platforms>')
-
-        # Write out the Configuration records
-        project_lines.append('\t<Configurations>')
-        for configuration in self.configurations:
-            configuration.write(project_lines)
-        project_lines.append('\t</Configurations>')
-
-        # Write out the Reference records
-        project_lines.append('\t<References>')
-        project_lines.append('\t</References>')
-
-        # Write out the files references
-        project_lines.append('\t<Files>')
-        project_lines.append('\t</Files>')
-
-        # Write out the Globals records
-        project_lines.append('\t<Globals>')
-        project_lines.append('\t</Globals>')
-
-        # Wrap up with the closing of the XML token
-        project_lines.append('</VisualStudioProject>')
-
-########################################
-
-
-def generate(solution, perforce=False, verbose=False):
-    """
-    Create a solution and project(s) file for Visual Studio.
-
-    Given a Solution object, create an appropriate Visual Studio solution
-    and project files to allow this project to build.
-
-    Args:
-        solution: Solution instance.
-        perforce: True if perforce source control is active
-        verbose: True if verbose output is desired
-
-    Returns:
-        Zero if no error, non-zero on error.
-    """
-
-    # For starters, generate the UUID and filenames for the solution file
-    # for visual studio, since each solution and project file generate
-    # seperately
-
-    # Get the IDE name code
-    idecode = solution.ide.get_short_code()
-
-    # Get the platform code
-    temp_list = []
-    for project in solution.projects:
-        temp_list.extend(project.configurations)
-    platformcode = platformtype_short_code(temp_list)
-
-    # Create the final filename for the Visual Studio Solution file
-    solution_filename = ''.join((solution.name, idecode, platformcode, '.sln'))
-
-    # Older versions of Visual studio use the .vcproj extension
-    # instead of the .vcxproj extension
-
-    project_filename_suffix = '.vcxproj'
-    if solution.ide in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008):
-        project_filename_suffix = '.vcproj'
-
-    # Iterate over the project files and create the filenames
-    for project in solution.projects:
-        platformcode = platformtype_short_code(project.configurations)
-        project.attributes['vs_output_filename'] = ''.join((
-            project.name, idecode, platformcode, project_filename_suffix))
-        project.attributes['vs_uuid'] = get_uuid(project.attributes['vs_output_filename'])
-
-    # Write to memory for file comparison
-    solution_lines = []
-    error = generate_solution_file(solution_lines, solution)
-    if error:
-        return error
-
-    save_text_file_if_newer(
-        os.path.join(solution.working_directory, solution_filename),
-        solution_lines,
-        bom=solution.ide != IDETypes.vs2003,
-        perforce=perforce,
-        verbose=verbose)
-
-    # Now that the solution file was generated, create the individual project
-    # files using the format appropriate for the selected IDE
-
-    if solution.ide == IDETypes.vs2003:
-        for item in solution.projects:
-            exporter = VS2003vcproj(item)
-            project_lines = []
-            exporter.generate(project_lines)
-            save_text_file_if_newer(
-                os.path.join(solution.working_directory, item.attributes['vs_output_filename']),
-                project_lines,
-                perforce=perforce,
-                verbose=verbose)
     return 0

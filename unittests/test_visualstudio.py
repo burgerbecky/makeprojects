@@ -13,14 +13,14 @@ Please? It's not like I'm asking you for money!
 """
 
 from burger import convert_to_array
-from makeprojects.visualstudio import get_uuid, SemicolonArray
+from makeprojects.visualstudio import get_uuid, VS2003XML
 
 ########################################
 
 
 def test_get_uuid():
     """
-    Test to see if empty Visual Studio solution files build.
+    Test makeprojects.visualstudio.get_uuid
     """
 
     tests = (
@@ -35,23 +35,83 @@ def test_get_uuid():
 ########################################
 
 
-def test_semi_colon_array():
+def test_vs2003xml():
     """
-    Test to see if empty Visual Studio solution files build.
+    Test makeprojects.visualstudio.VS2003XML
     """
 
-    tests = (
-        ('test','test'),
-        (('foo','bar'), 'foo;bar'),
-        (['a','b','c'], 'a;b;c')
-    )
+    # Test several combinations for XML for Visual Studio 2003
 
-    for test in tests:
-        array = SemicolonArray(test[0])
-        assert str(array) == test[1]
+    # Empty entry
+    vs_project = VS2003XML('VisualStudioProject')
+    assert str(vs_project) == '<VisualStudioProject>\n</VisualStudioProject>'
 
-    for test in tests:
-        array = SemicolonArray()
-        for item in convert_to_array(test[0]):
-            array.append(item)
-        assert str(array) == test[1]
+    # Entry with only attributes
+    vs_project.add_attribute('ProjectType', 'Visual C++')
+    assert str(vs_project) == '<VisualStudioProject\n\tProjectType="Visual C++"\n/>'
+
+    # Test a second element
+    platform = VS2003XML('Platform')
+    platform.add_attribute('Name', 'Win32')
+    assert str(platform) == '<Platform\n\tName="Win32"\n/>'
+
+    # Test an element in an element
+    vs_project = VS2003XML('VisualStudioProject')
+    vs_project.add_element(platform)
+    assert str(vs_project) == (
+        '<VisualStudioProject>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    # Test with element in an element with attributes
+    vs_project.add_attribute('ProjectType', 'Visual C++')
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectType="Visual C++"\n\t>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    vs_project.set_attribute('ProjectType', 'Visual C')
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectType="Visual C"\n\t>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    vs_project.set_attribute('ProjectGUID', 'GUID')
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectType="Visual C"\n'
+        '\tProjectGUID="GUID"\n\t>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    # Intentionally do nothing
+    vs_project.remove_attribute('foofar')
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectType="Visual C"\n'
+        '\tProjectGUID="GUID"\n\t>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    # Test removal
+    vs_project.remove_attribute('ProjectType')
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectGUID="GUID"\n\t>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')
+
+    vs_project.remove_attribute('ProjectGUID')
+    assert str(vs_project) == (
+        '<VisualStudioProject>\n'
+        '\t<Platform\n'
+        '\t\tName="Win32"\n\t/>\n'
+        '</VisualStudioProject>')

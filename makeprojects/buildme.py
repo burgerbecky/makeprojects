@@ -551,7 +551,9 @@ def parse_sln_file(full_pathname):
                     # The line contains 'Debug|Win32 = Debug|Win32'
                     # Split it in half at the equals sign and then
                     # remove the whitespace and add to the list
-                    target_list.append(line.split('=')[0].strip())
+                    target = line.split('=')[-1].strip()
+                    if target not in target_list:
+                        target_list.append(target)
                 continue
 
             # Scanning for the secondary version number in Visual Studio 2012 or higher
@@ -577,7 +579,7 @@ def parse_sln_file(full_pathname):
                 continue
 
             # Look for this section, it contains the configurations
-            if 'GlobalSection(SolutionConfigurationPlatforms)' in line:
+            if '(SolutionConfigurationPlatforms)' in line or '(ProjectConfiguration)' in line:
                 looking_for_end_global_section = True
 
     # Exit with the results
@@ -646,6 +648,11 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         # Note: Use the single line form, because Windows will not
         # process the target properly due to the presence of the | character
         # which causes piping.
+
+        # Visual Studio 2003 doesn't support setting platforms, just use the configuration name
+        if vs_version == 2003:
+            target = targettypes[0]
+
         cmd = '{} {} /Build {}'.format(burger.encapsulate_path(vstudiopath),
                                        burger.encapsulate_path(full_pathname),
                                        burger.encapsulate_path(target))

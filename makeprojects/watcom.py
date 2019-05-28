@@ -529,7 +529,7 @@ class Project(object):
         self.write_builds(filep)
 
 
-def generate(solution, perforce=False, verbose=False):
+def generate(solution):
     """
     Create an OpenWatcom makefile
     """
@@ -538,7 +538,7 @@ def generate(solution, perforce=False, verbose=False):
     platforms = []
 
     # Special case, discard any attempt to build 64 bit windows
-    for item in solution.projects[0].platform.get_expanded():
+    for item in solution.projects[0].get_attribute('platform').get_expanded():
         if item == PlatformTypes.win64:
             continue
         platforms.append(item)
@@ -560,18 +560,18 @@ def generate(solution, perforce=False, verbose=False):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.projects[0].platform.get_short_code()
-    watcom_projectfile = Project(solution.name, idecode, platformcode)
-    project_filename = solution.name + idecode + platformcode + '.wmk'
+    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+    watcom_projectfile = Project(solution.attributes['name'], idecode, platformcode)
+    project_filename = solution.attributes['name'] + idecode + platformcode + '.wmk'
     project_pathname = os.path.join(
-        solution.working_directory, project_filename)
+        solution.attributes['working_directory'], project_filename)
 
     # Send the file list to the project
     for item in codefiles:
         watcom_projectfile.add_source_file(item)
 
     # Sent the include folder list to the project
-    for item in solution.projects[0].includefolders:
+    for item in solution.projects[0].get_attribute('include_folders'):
         watcom_projectfile.add_include_folder(item)
 
     watcom_projectfile.platforms = platforms
@@ -579,8 +579,8 @@ def generate(solution, perforce=False, verbose=False):
     for configuration in solution.projects[0].configurations:
         if configuration.attributes.get('deploy_folder'):
             watcom_projectfile.final_folder = configuration.attributes.get('deploy_folder')
-        watcom_projectfile.configurations.append(configuration.name)
-    watcom_projectfile.projecttype = solution.projects[0].projecttype
+        watcom_projectfile.configurations.append(configuration.attributes['name'])
+    watcom_projectfile.projecttype = solution.projects[0].get_attribute('project_type')
 
     #
     # Serialize the Watcom file
@@ -594,10 +594,10 @@ def generate(solution, perforce=False, verbose=False):
     #
 
     if burger.compare_file_to_string(project_pathname, filep):
-        if solution.verbose is True:
+        if solution.get_attribute('verbose'):
             print(project_pathname + ' was not changed')
     else:
-        if perforce:
+        if solution.get_attribute('perforce'):
             burger.perforce_edit(project_pathname)
         filep2 = open(project_pathname, 'w')
         filep2.write(filep.getvalue())

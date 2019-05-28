@@ -29,7 +29,7 @@ Global
 		{D2623D76-3AD7-38A2-B0D1-8C4ADCBD669A}.Release|Win32.Build.0 = Release|Win32
 		{D2623D76-3AD7-38A2-B0D1-8C4ADCBD669A}.Release|x64.ActiveCfg = Release|x64
 		{D2623D76-3AD7-38A2-B0D1-8C4ADCBD669A}.Release|x64.Build.0 = Release|x64
-	EndGlobalSections
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection

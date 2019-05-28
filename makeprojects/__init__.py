@@ -63,10 +63,10 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 from copy import deepcopy
-import burger
+from burger import convert_to_array, get_windows_host_type
+from burger import convert_to_windows_slashes, convert_to_linux_slashes
 
-from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, \
-    EMAIL, LICENSE, COPYRIGHT
+from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, EMAIL, LICENSE, COPYRIGHT
 from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, ProjectTypes
 
 ########################################
@@ -252,7 +252,7 @@ class Property(object):
     __str__ = __repr__
 
 
-class SourceFile(object):
+class SourceFile():
 
     """
     Object for each input file to insert to a solution
@@ -282,7 +282,7 @@ class SourceFile(object):
             raise TypeError("parameter 'filetype' must be of type FileTypes")
 
         ## File base name with extension using windows style slashes
-        self.filename = burger.convert_to_windows_slashes(relativepathname)
+        self.filename = convert_to_windows_slashes(relativepathname)
 
         ## Directory the file is found in (Full path)
         self.directory = directory
@@ -342,10 +342,10 @@ class SourceFile(object):
             Absolute pathname for the file
         """
 
-        if burger.get_windows_host_type():
+        if get_windows_host_type():
             filename = self.filename
         else:
-            filename = burger.convert_to_linux_slashes(self.filename)
+            filename = convert_to_linux_slashes(self.filename)
         return os.path.abspath(os.path.join(self.directory, filename))
 
     def __repr__(self):
@@ -366,25 +366,28 @@ class SourceFile(object):
 ########################################
 
 
-def new_solution(**kargs):
+def new_solution(name=None, working_directory=None, verbose=False, ide=None, perforce=True):
     """
     Create a new instance of a core.Solution
 
     Convenience routine to create a core.Solution instance.
 
     Args:
-        kargs: Keyword args
+        name: Name of the project
+        working_directory: Directory to store the solution.
+        verbose: If True, verbose output.
+        ide: IDE to build for.
     See Also:
         core.Solution
     """
 
     from .core import Solution
-    return Solution(**kargs)
+    return Solution(name=name, working_directory=working_directory, verbose=verbose, ide=ide, perforce=True)
 
 ########################################
 
 
-def new_project(**kargs):
+def new_project(name=None, working_directory=None, project_type=None, platform=None):
     """
     Create a new instance of a core.Project
 
@@ -397,12 +400,13 @@ def new_project(**kargs):
     """
 
     from .core import Project
-    return Project(**kargs)
+    return Project(name=name, working_directory=working_directory,
+                   project_type=project_type, platform=platform)
 
 ########################################
 
 
-def new_configuration(**kargs):
+def new_configuration(name, platform=None, project_type=None):
     """
     Create a new instance of a core.Configuration
 
@@ -416,16 +420,22 @@ def new_configuration(**kargs):
 
     from .core import Configuration
 
-    # Special case, if the platform is an expandable, convert to an array
-    # of configurations that fit the bill.
-    platform = kargs.get('platform', None)
-    if platform:
-        platform_type = PlatformTypes.lookup(platform)
-        if platform_type is not None:
-            result = []
-            args = deepcopy(kargs)
+    results = []
+    name_array = convert_to_array(name)
+    for name in name_array:
+
+        # Special case, if the platform is an expandable, convert to an array
+        # of configurations that fit the bill.
+        if platform:
+            platform_type = PlatformTypes.lookup(platform)
+            if platform_type is None:
+                raise TypeError("parameter 'platform_type' must be of type PlatformTypes")
             for item in platform_type.get_expanded():
-                args['platform'] = item
-                result.append(Configuration(**args))
-            return result
-    return Configuration(**kargs)
+                results.append(Configuration(name, item, project_type))
+        else:
+            results.append(Configuration(name, platform, project_type))
+
+    # If a single object, pass back as is.
+    if len(results) == 1:
+        return results[0]
+    return results

@@ -27,7 +27,7 @@ Global
 		{1F7B6418-4C4D-3F61-950B-771D115773A1}.Release|Win32.Build.0 = Release|Win32
 		{1F7B6418-4C4D-3F61-950B-771D115773A1}.Release|x64.ActiveCfg = Release|x64
 		{1F7B6418-4C4D-3F61-950B-771D115773A1}.Release|x64.Build.0 = Release|x64
-	EndGlobalSections
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection

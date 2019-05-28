@@ -29,7 +29,7 @@ Global
 		{47B42459-8866-3364-91A7-FF19A77CEB5E}.Release|Win32.Build.0 = Release|Win32
 		{47B42459-8866-3364-91A7-FF19A77CEB5E}.Release|x64.ActiveCfg = Release|x64
 		{47B42459-8866-3364-91A7-FF19A77CEB5E}.Release|x64.Build.0 = Release|x64
-	EndGlobalSections
+	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
