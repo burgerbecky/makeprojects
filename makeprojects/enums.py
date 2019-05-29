@@ -158,6 +158,8 @@ class FileTypes(AutoIntEnum):
     frameworks = ()
     ## Static libary
     library = ()
+    ## Object code
+    object = ()
     ## Executable file
     exe = ()
     ## XCode configuration file
@@ -182,8 +184,8 @@ class FileTypes(AutoIntEnum):
     @staticmethod
     def lookup(test_name):
         """
-        Look up a file name extension and return the type
-
+        Look up a file name extension and return the type.
+        @details
         Parse the filename extension and match it to a table of known
         extensions and return the enumeration for the file type. The
         test is case insensitive.
@@ -247,6 +249,10 @@ _FILETYPES_LOOKUP = {
     'glsl': FileTypes.glsl,
     'x360sl': FileTypes.x360sl,         # Xbox 360 shader files
     'vitacg': FileTypes.vitacg,         # PS Vita shader files
+    'lib': FileTypes.library,           # Static library
+    'a': FileTypes.library,
+    'obj': FileTypes.object,            # .obj object code
+    'o': FileTypes.object,
     'xml': FileTypes.xml,               # XML data files
     'x86': FileTypes.x86,               # Intel ASM 80x86 source code
     'x64': FileTypes.x64,               # AMD 64 bit source code
@@ -290,6 +296,7 @@ _FILETYPES_READABLE = {
     FileTypes.vitacg: 'Playstation Vita shader file',
     FileTypes.frameworks: 'macOS Framework',
     FileTypes.library: 'Statically linked library',
+    FileTypes.object: 'Object code',
     FileTypes.exe: 'Executable file',
     FileTypes.xcconfig: 'Apple XCode config file',
     FileTypes.x86: 'X86 assembly file',
@@ -326,6 +333,16 @@ class ProjectTypes(AutoIntEnum):
     ## Empty project
     empty = ()
 
+    def is_library(self):
+        """
+        Determine if the project is a library.
+
+        Returns:
+            True if the project is a static or dynamic library.
+        """
+
+        return self in (ProjectTypes.library, ProjectTypes.sharedlibrary)
+
     @staticmethod
     def lookup(project_type_name):
         """
@@ -360,14 +377,14 @@ class ProjectTypes(AutoIntEnum):
                 if test_name == str(item).lower():
                     return item
 
-            if test_name in ('lib',):
-                return ProjectTypes.library
-
-            if test_name in ('game',):
-                return ProjectTypes.app
-
-            if test_name in ('dll',):
-                return ProjectTypes.sharedlibrary
+            specials = {
+                'lib': ProjectTypes.library,
+                'game': ProjectTypes.app,
+                'dll': ProjectTypes.sharedlibrary,
+                'console': ProjectTypes.tool,
+                'scr': ProjectTypes.screensaver
+            }
+            return specials.get(test_name, None)
 
         return None
 
@@ -480,8 +497,8 @@ class IDETypes(AutoIntEnum):
 
     def get_short_code(self):
         """
-        Create the ide code from the ide type
-
+        Create the ide code from the ide type.
+        @details
         Return the three letter code that determines the specfic IDE
         version that the project file is meant for.
 
@@ -872,7 +889,7 @@ class PlatformTypes(AutoIntEnum):
             True if the platform is for Microsoft windows.
         """
 
-        return self in (self.windows, self.win32, self.win64)
+        return self in (PlatformTypes.windows, PlatformTypes.win32, PlatformTypes.win64)
 
     def is_macosx(self):
         """
@@ -882,8 +899,8 @@ class PlatformTypes(AutoIntEnum):
             True if the platform is Apple macOS.
         """
 
-        return self in (self.macosx, self.macosxppc32, self.macosxppc64,
-                        self.macosxintel32, self.macosxintel64)
+        return self in (PlatformTypes.macosx, PlatformTypes.macosxppc32, PlatformTypes.macosxppc64,
+                        PlatformTypes.macosxintel32, PlatformTypes.macosxintel64)
 
     def is_ios(self):
         """
@@ -893,8 +910,8 @@ class PlatformTypes(AutoIntEnum):
             True if the platform is Apple iOS.
         """
 
-        return self in (self.ios, self.ios32, self.ios64,
-                        self.iosemu, self.iosemu32, self.iosemu64)
+        return self in (PlatformTypes.ios, PlatformTypes.ios32, PlatformTypes.ios64,
+                        PlatformTypes.iosemu, PlatformTypes.iosemu32, PlatformTypes.iosemu64)
 
     def is_macos(self):
         """
@@ -913,7 +930,8 @@ class PlatformTypes(AutoIntEnum):
         Returns:
             True if the platform is Apple MacOS Carbon API.
         """
-        return self in (self.maccarbon, self.maccarbon68k, self.maccarbonppc)
+        return self in (PlatformTypes.maccarbon, PlatformTypes.maccarbon68k,
+                        PlatformTypes.maccarbonppc)
 
     def is_macos_classic(self):
         """
@@ -922,7 +940,7 @@ class PlatformTypes(AutoIntEnum):
         Returns:
             True if the platform is Apple MacOS 1.0 through 9.2.2.
         """
-        return self in (self.macos9, self.macos968k, self.macos9ppc)
+        return self in (PlatformTypes.macos9, PlatformTypes.macos968k, PlatformTypes.macos9ppc)
 
     def is_msdos(self):
         """
@@ -931,7 +949,7 @@ class PlatformTypes(AutoIntEnum):
         Returns:
             True if the platform is MSDos
         """
-        return self in (self.msdos, self.msdos4gw, self.msdosx32)
+        return self in (PlatformTypes.msdos, PlatformTypes.msdos4gw, PlatformTypes.msdosx32)
 
     def is_android(self):
         """
@@ -1058,6 +1076,12 @@ class PlatformTypes(AutoIntEnum):
                     for vs_name in _PLATFORMTYPES_VS.get(item, ()):
                         if test_name == vs_name.lower():
                             return item
+
+            specials = {
+                'macos': PlatformTypes.macos9,
+                'carbon': PlatformTypes.maccarbon
+            }
+            return specials.get(test_name, None)
         return None
 
     @staticmethod
