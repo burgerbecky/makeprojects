@@ -958,8 +958,9 @@ class PlatformTypes(AutoIntEnum):
         Returns:
             True if the platform is Android
         """
-        return self in (self.android, self.shield, self.ouya, self.amico, self.androidarm32,
-                        self.androidarm64, self.androidintel32, self.androidintel64)
+        return self in (PlatformTypes.android, PlatformTypes.shield, PlatformTypes.ouya,
+                        PlatformTypes.amico, PlatformTypes.androidarm32, PlatformTypes.androidarm64,
+                        PlatformTypes.androidintel32, PlatformTypes.androidintel64)
 
     def match(self, second):
         """
