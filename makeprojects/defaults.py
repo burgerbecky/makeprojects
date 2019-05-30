@@ -71,7 +71,14 @@ def get_project_type(build_rules_list, working_directory, args):
     # Check build_rules.py
     for rules in build_rules_list:
         item = rules('default_project_type', working_directory=working_directory)
-        if item:
+
+        # Is it a ProjectTypes?
+        if isinstance(item, ProjectTypes):
+            project_type = item
+            break
+
+        # Try string lookup
+        if item != 0:
             project_type = ProjectTypes.lookup(item)
             if project_type is not None:
                 break
@@ -110,14 +117,15 @@ def get_ide_list(build_rules_list, working_directory, args):
     if not temp_list:
         for rules in build_rules_list:
             default = rules('default_ide', working_directory=working_directory)
+            # Check if it's a single IDETypes enum
+            if isinstance(default, IDETypes):
+                # Convert to a list
+                temp_list = [default]
+                break
+
             if default != 0:
-                # Check if it's a single IDETypes enum
-                if isinstance(default, IDETypes):
-                    # Convert to a list
-                    temp_list = [default]
-                else:
-                    # Assume it's a single string or a list of strings.
-                    temp_list = convert_to_array(default)
+                # Assume it's a single string or a list of strings.
+                temp_list = convert_to_array(default)
                 break
 
     # Convert strings to IDETypes.
@@ -131,7 +139,10 @@ def get_ide_list(build_rules_list, working_directory, args):
 
     # Print if needed.
     if args.verbose:
-        print("IDE name {}".format(ide_list))
+        if ide_list:
+            print("IDE name {}".format(ide_list))
+        else:
+            print("Using default IDE")
 
     return ide_list
 
@@ -160,14 +171,15 @@ def get_platform_list(build_rules_list, working_directory, args):
     if not temp_list:
         for rules in build_rules_list:
             default = rules('default_platform', working_directory=working_directory)
+            # Check if it's a single PlatformTypes enum
+            if isinstance(default, PlatformTypes):
+                # Convert to a list
+                temp_list = [default]
+                break
+
             if default != 0:
-                # Check if it's a single IDETypes enum
-                if isinstance(default, PlatformTypes):
-                    # Convert to a list
-                    temp_list = [default]
-                else:
-                    # Assume it's a single string or a list of strings.
-                    temp_list = convert_to_array(default)
+                # Assume it's a single string or a list of strings.
+                temp_list = convert_to_array(default)
                 break
 
     # Convert strings to PlatformTypes.
@@ -181,7 +193,10 @@ def get_platform_list(build_rules_list, working_directory, args):
 
     # Print if needed.
     if args.verbose:
-        print("Platform name {}".format(platform_list))
+        if platform_list:
+            print("Platform name {}".format(platform_list))
+        else:
+            print("Using default platform")
 
     return platform_list
 

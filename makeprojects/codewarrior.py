@@ -24,9 +24,8 @@ import subprocess
 import sys
 import makeprojects.core
 import burger
-from makeprojects import AutoIntEnum, FileTypes, ProjectTypes, \
-    IDETypes, PlatformTypes, Property
-from .core import configuration_short_code
+from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
+from .core import configuration_short_code, source_file_filter
 
 if not burger.PY2:
     unicode = str
@@ -847,6 +846,15 @@ class Project(object):
 
 def generate(solution):
 
+    # Codewarrior doesn't support x64
+    for project in solution.projects:
+        configs = []
+        for configuration in project.configurations:
+            if configuration.attributes['platform'].is_windows():
+                configuration.attributes['platform'] = PlatformTypes.win32
+            configs.append(configuration)
+        project.configurations = configs
+
     #
     # Find the files to put into the project
     #
@@ -867,7 +875,7 @@ def generate(solution):
     #
 
     for item in codefiles:
-        item.filename = burger.convert_to_linux_slashes(item.filename)
+        item.relative_pathname = burger.convert_to_linux_slashes(item.relative_pathname)
 
     #
     # Determine the ide and target type for the final file name
@@ -888,12 +896,11 @@ def generate(solution):
     # Get the source files that are compatible
     #
 
-    listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
-    listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
+    listh = source_file_filter(codefiles, FileTypes.h)
+    listcpp = source_file_filter(codefiles, FileTypes.cpp)
     listwindowsresource = []
     if solution.projects[0].get_attribute('platform').is_windows():
-        listwindowsresource = makeprojects.core.pickfromfilelist(codefiles,
-                                                                 FileTypes.rc)
+        listwindowsresource = source_file_filter(codefiles,FileTypes.rc)
 
     alllists = listh + listcpp + listwindowsresource
 
@@ -985,13 +992,7 @@ def generate(solution):
         target.settinglist.append(MWFrontEnd_C())
 
         platform = solution.projects[0].get_attribute('platform')
-        if platform.is_windows():
-            platform = PlatformTypes.win32
-        definelist = Property.getdata(
-            solution.projects[0].properties,
-            name="DEFINE",
-            configuration=configuration.attributes['name'],
-            platform=platform)
+        definelist = configuration.get_attribute('defines')
         # C/C++ Preprocessor
         target.settinglist.append(C_CPP_Preprocessor(definelist))
         # C/C++ Warnings
@@ -1054,7 +1055,7 @@ def generate(solution):
         if alllists or liblist:
             filelist = []
             for item in alllists:
-                parts = item.filename.split('/')
+                parts = item.relative_pathname.split('/')
                 filelist.append(unicode(parts[len(parts) - 1]))
                 # Add to file group
                 codewarriorprojectfile.addtogroups(solution.projects[0].get_attribute('platform'), configuration.attributes['name'], parts)

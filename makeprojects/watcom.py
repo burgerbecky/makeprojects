@@ -192,7 +192,7 @@ class Project(object):
         # Extract the directories from the files
         source_dir = []
         for item in self.code_files:
-            file_name = burger.convert_to_windows_slashes(item.filename)
+            file_name = burger.convert_to_windows_slashes(item.relative_pathname)
 
             # Remove the filename to get the directory
             index = file_name.rfind('\\')
@@ -389,7 +389,7 @@ class Project(object):
                     item.type == FileTypes.cpp or \
                     item.type == FileTypes.x86:
 
-                tempfile = burger.convert_to_linux_slashes(item.filename)
+                tempfile = burger.convert_to_linux_slashes(item.relative_pathname)
                 index = tempfile.rfind('.')
                 if index == -1:
                     entry = tempfile

@@ -19,32 +19,7 @@ Root namespace for the makeprojects tool
 #
 # \htmlinclude README.html
 #
-# \par List of IDE classes
-#
-# \li \ref makeprojects
-# \li \ref makeprojects.core
-# \li \ref makeprojects.enums.FileTypes
-# \li \ref makeprojects.SourceFile
-# \li \ref makeprojects.core.Solution
-# \li \ref makeprojects.core.Project
-#
-# \par List of sub packages
-#
-# \li \ref makeprojects.__pkginfo__
-# \li \ref makeprojects.enums
-# \li \ref makeprojects.visualstudio
-# \li \ref makeprojects.xcode
-# \li \ref makeprojects.codewarrior
-# \li \ref makeprojects.codeblocks
-# \li \ref makeprojects.watcom
-#
-# \par List of tool modules
-#
-# \li \ref makeprojects.buildme
-# \li \ref makeprojects.cleanme
-# \li \ref makeprojects.rebuildme
-#
-# To use in your own script:
+# \par To use in your own script:
 #
 # \code
 # from makeprojects import *
@@ -61,13 +36,11 @@ Root namespace for the makeprojects tool
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import os
 from copy import deepcopy
-from burger import convert_to_array, get_windows_host_type
-from burger import convert_to_windows_slashes, convert_to_linux_slashes
-
+from burger import convert_to_array
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, URI, EMAIL, LICENSE, COPYRIGHT
-from .enums import AutoIntEnum, IDETypes, PlatformTypes, FileTypes, ProjectTypes
+from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes
+from .core import SourceFile, Configuration, Project, Solution
 
 ########################################
 
@@ -116,13 +89,9 @@ __all__ = [
     'PlatformTypes',
 
     'SourceFile',
-    'Property',
-    'visualstudio',
-    'watcom',
-    'codeblocks',
-    'codewarrior',
-    'xcode',
-    'makefile'
+    'Configuration',
+    'Project',
+    'Solution'
 ]
 
 ########################################
@@ -181,187 +150,6 @@ def rebuild(working_directory=None, args=None):
     from .rebuildme import main
     return main(working_directory, args)
 
-########################################
-
-
-class Property(object):
-    """
-    Object for special properties
-
-    For every configuration or source file, there are none
-    or more properties that affect the generated project
-    files either by object or globally
-    """
-
-    def __init__(self, configuration=None, platform=None, name=None, data=None):
-        # Sanity check
-        if name is None:
-            raise TypeError("Property is missing a name")
-
-        # Save the configuration this matches
-        self.configuration = configuration
-        # Save the platform type this matches
-        self.platform = platform
-        # Save the name of the property
-        self.name = name
-        # Save the data for the property
-        self.data = data
-
-    @staticmethod
-    def find(entries, name=None, configuration=None, platform=None):
-        """
-        find
-        """
-        result = []
-        for item in entries:
-            if configuration is None or item.configuration is None or \
-                    item.configuration == configuration:
-                if platform is None or item.platform is None or \
-                        item.platform.match(platform):
-                    if name is None or item.name == name:
-                        result.append(item)
-        return result
-
-    @staticmethod
-    def getdata(entries, name=None, configuration=None, platform=None):
-        """
-        getdata
-        """
-        result = []
-        for item in entries:
-            if configuration is None or item.configuration is None or \
-                    item.configuration == configuration:
-                if platform is None or item.platform is None or \
-                        item.platform.match(platform):
-                    if name is None or item.name == name:
-                        result.append(item.data)
-        return result
-
-    def __repr__(self):
-        """
-        Convert the property record into a human readable file description
-
-        Returns:
-            Human readable string or None if the record is invalid
-        """
-
-        return 'Configuration: {}, Platform: {}, Name: {}, Data: {}'.format(
-            str(self.configuration),
-            str(self.platform), self.name, self.data)
-
-    __str__ = __repr__
-
-
-class SourceFile():
-
-    """
-    Object for each input file to insert to a solution
-
-    For every file that could be included into a project file
-    one of these objects is created and attached to a solution object
-    for processing
-    """
-    #
-
-    #
-
-    def __init__(self, relativepathname, directory, filetype):
-        """
-        Default constructor
-
-        Args:
-            self: The 'this' reference
-            relativepathname: Filename of the input file (relative to the root)
-            directory: Pathname of the root directory
-            filetype: Compiler to apply
-        See Also:
-            _FILETYPES_LOOKUP
-        """
-        # Sanity check
-        if not isinstance(filetype, FileTypes):
-            raise TypeError("parameter 'filetype' must be of type FileTypes")
-
-        ## File base name with extension using windows style slashes
-        self.filename = convert_to_windows_slashes(relativepathname)
-
-        ## Directory the file is found in (Full path)
-        self.directory = directory
-
-        ## File type enumeration, see: \ref enums.FileTypes
-        self.type = filetype
-
-    def extractgroupname(self):
-        """
-        Given a filename with a directory, remove the filename
-
-        To determine if the file should be in a sub group in the project, scan
-        the filename to find if it's a base filename or part of a directory
-        If it's a basename, return an empty string.
-        If it's in a folder, remove any ..\\ prefixes and .\\ prefixes
-        and return the filename with the basename removed
-
-        Args:
-            self: The 'this' reference
-        """
-
-        slash = '\\'
-        index = self.filename.rfind(slash)
-        if index == -1:
-            slash = '/'
-            index = self.filename.rfind(slash)
-            if index == -1:
-                return ''
-
-        #
-        # Remove the basename
-        #
-
-        newname = self.filename[0:index]
-
-        #
-        # If there are ..\\ at the beginning, remove them
-        #
-
-        while newname.startswith('..' + slash):
-            newname = newname[3:len(newname)]
-
-        #
-        # If there is a .\\, remove the single prefix
-        #
-
-        while newname.startswith('.' + slash):
-            newname = newname[2:len(newname)]
-
-        return newname
-
-    def getabspath(self):
-        """
-        Return the full pathname of the file entry
-
-        Returns:
-            Absolute pathname for the file
-        """
-
-        if get_windows_host_type():
-            filename = self.filename
-        else:
-            filename = convert_to_linux_slashes(self.filename)
-        return os.path.abspath(os.path.join(self.directory, filename))
-
-    def __repr__(self):
-        """
-        Convert the file record into a human readable file description
-
-        Returns:
-            Human readable string or None if the enumeration is invalid
-        See Also:
-            makeprojects.enums._PROJECTTYPES_READABLE
-        """
-
-        return 'Type: {} Name: "{}"'.format(str(self.type),
-                                            self.getabspath())
-
-    __str__ = __repr__
 
 ########################################
 
@@ -377,12 +165,13 @@ def new_solution(name=None, working_directory=None, verbose=False, ide=None, per
         working_directory: Directory to store the solution.
         verbose: If True, verbose output.
         ide: IDE to build for.
+        perforce: True if perforce is present.
     See Also:
         core.Solution
     """
 
-    from .core import Solution
-    return Solution(name=name, working_directory=working_directory, verbose=verbose, ide=ide, perforce=True)
+    return Solution(name=name, working_directory=working_directory,
+                    verbose=verbose, ide=ide, perforce=perforce)
 
 ########################################
 
@@ -394,12 +183,17 @@ def new_project(name=None, working_directory=None, project_type=None, platform=N
     Convenience routine to create a core.Project instance.
 
     Args:
-        kargs: Keyword args
+        name: Name of the project.
+        working_directory: Directory of the root of this project.
+        project_type: ProjectTypes to use if Configuration doesn't specify one.
+        platform: PlatformTypes to use if Configuration doesn't specific one.
+
+    Returns:
+        Project class instance.
     See Also:
         core.Project
     """
 
-    from .core import Project
     return Project(name=name, working_directory=working_directory,
                    project_type=project_type, platform=platform)
 
@@ -413,16 +207,19 @@ def new_configuration(name, platform=None, project_type=None):
     Convenience routine to create a core.Configuration instance.
 
     Args:
-        kargs: Keyword args
+        name: String of the name of the configuration
+        platform: PlatformTypes for this configuration
+        project_type: ProjectTypes for this configuration.
+
+    Returns:
+        None, a single Configuration or a list of valid Configuration records.
     See Also:
         core.Configuration
     """
 
-    from .core import Configuration
-
     results = []
     name_array = convert_to_array(name)
-    for name in name_array:
+    for name_item in name_array:
 
         # Special case, if the platform is an expandable, convert to an array
         # of configurations that fit the bill.
@@ -431,9 +228,9 @@ def new_configuration(name, platform=None, project_type=None):
             if platform_type is None:
                 raise TypeError("parameter 'platform_type' must be of type PlatformTypes")
             for item in platform_type.get_expanded():
-                results.append(Configuration(name, item, project_type))
+                results.append(Configuration(name_item, item, project_type))
         else:
-            results.append(Configuration(name, platform, project_type))
+            results.append(Configuration(name_item, platform, project_type))
 
     # If a single object, pass back as is.
     if len(results) == 1:

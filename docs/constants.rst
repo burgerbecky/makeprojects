@@ -53,18 +53,6 @@ enums._FILETYPES_READABLE
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_FILETYPES_READABLE
 
-enums._PROJECTTYPES_READABLE
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::enums::_PROJECTTYPES_READABLE
-
-enums._CONFIGURATIONTYPES_CODES
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::enums::_CONFIGURATIONTYPES_CODES
-
-enums._CONFIGURATIONTYPES_READABLE
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::enums::_CONFIGURATIONTYPES_READABLE
-
 enums._IDETYPES_CODES
 ^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_IDETYPES_CODES
@@ -77,14 +65,21 @@ enums._PLATFORMTYPES_CODES
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_CODES
 
-enums._PLATFORMTYPES_VS
-^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_VS
+enums._PLATFORMTYPES_EXPANDED
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_EXPANDED
 
 enums._PLATFORMTYPES_READABLE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_READABLE
 
+enums._PLATFORMTYPES_VS
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::enums::_PLATFORMTYPES_VS
+
+enums._PROJECTTYPES_READABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::enums::_PROJECTTYPES_READABLE
 
 Folder locations
 ----------------

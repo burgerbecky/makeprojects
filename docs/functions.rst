@@ -16,6 +16,20 @@ makeprojects.rebuild
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::rebuild
 
+Generators
+----------
+
+makeprojects.new_solution
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::new_solution
+
+makeprojects.new_project
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::new_project
+
+makeprojects.new_configuration
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::new_configuration
 
 Configuration
 -------------
@@ -129,3 +143,29 @@ Rebuild
 rebuild.main
 ^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::rebuildme::main
+
+Enums
+-----
+
+enums.get_installed_visual_studio
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::enums::get_installed_visual_studio
+
+enums.get_installed_xcode
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::enums::get_installed_xcode
+
+enums.platformtype_short_code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::enums::platformtype_short_code
+
+Core
+----
+
+core.configuration_short_code
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::core::configuration_short_code
+
+core.source_file_filter
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::core::source_file_filter

@@ -21,14 +21,12 @@ import io
 from io import StringIO
 from enum import Enum
 from hashlib import md5
-from copy import deepcopy
 from burger import PY2, save_text_file_if_newer, convert_to_windows_slashes, delete_file
 from burger import perforce_edit, escape_xml_cdata, escape_xml_attribute, convert_to_array
 from burger import packed_paths
-import makeprojects.core
 from .enums import platformtype_short_code
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .core import configuration_short_code
+from .core import configuration_short_code, source_file_filter
 
 if not PY2:
     # pylint: disable=C0103
@@ -289,12 +287,14 @@ class VS2003XML():
         Set the defaults.
         Args:
             name: Name of the XML element
+            attribute_defaults: dict of attributes to use as defaults.
+            force_pair: If True, disable the use of /> XML suffix usage.
         """
 
         ## Name of this XML chunk.
         self.name = name
 
-        ## Disable <foo/> syntax
+        ## Disable ``<foo/>`` syntax
         self.force_pair = force_pair
 
         ## XML attributes.
@@ -460,6 +460,7 @@ class VS2003Tool(VS2003XML):
         Init a tool record with the tool name.
         Args:
             name: Name of the tool.
+            force_pair: If True, disable the use of /> XML suffix usage.
         """
         VS2003XML.__init__(self, 'Tool', {'Name': name}, force_pair=force_pair)
 
@@ -1365,9 +1366,9 @@ class VS2003Files(VS2003XML):
         # Create group names and attach all files that belong to that group
         groups = dict()
         for item in project.codefiles:
-            groupname = item.extractgroupname()
+            groupname = item.get_group_name()
             # Put each filename in its proper group
-            name = convert_to_windows_slashes(item.filename)
+            name = convert_to_windows_slashes(item.relative_pathname)
             group = groups.get(groupname, None)
             if group is None:
                 groups[groupname] = [name]
@@ -1451,6 +1452,7 @@ class VS2003vcproj(VS2003XML):
         Write out the VisualStudioProject record.
         Args:
             line_list: string list to save the XML text
+            indent: Level of indentation to begin with.
         """
 
         # XML is utf-8 only
@@ -1477,8 +1479,6 @@ def generate(solution):
     # For starters, generate the UUID and filenames for the solution file
     # for visual studio, since each solution and project file generate
     # seperately
-
-    solution = deepcopy(solution)
 
     # Visual Studio doesn't support x64
     if solution.ide == IDETypes.vs2003:
@@ -1650,13 +1650,13 @@ def writefiltergroup(fileref, filelist, groups, compilername):
     # Iterate over the list
     for item in filelist:
         # Get the Visual Studio group name
-        groupname = item.extractgroupname()
+        groupname = item.get_group_name()
         if groupname != '':
             # Add to the list of groups found
             groups.append(groupname)
             # Write out the record
             fileref.write(u'\t\t<' + compilername + ' Include="' +
-                          convert_to_windows_slashes(item.filename) + '">\n')
+                          convert_to_windows_slashes(item.relative_pathname) + '">\n')
             fileref.write(u'\t\t\t<Filter>' + groupname + '</Filter>\n')
             fileref.write(u'\t\t</' + compilername + '>\n')
 
@@ -2039,15 +2039,15 @@ class vsProject(object):
         # Directories to use for file inclusion
         self.includedirectories = includedirectories
         # Seperate all the files to the types to be generated with
-        self.listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
-        self.listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
-        self.listcpp.extend(makeprojects.core.pickfromfilelist(codefiles, FileTypes.c))
-        self.listwindowsresource = makeprojects.core.pickfromfilelist(codefiles, FileTypes.rc)
-        self.listhlsl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.hlsl)
-        self.listglsl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.glsl)
-        self.listx360sl = makeprojects.core.pickfromfilelist(codefiles, FileTypes.x360sl)
-        self.listvitacg = makeprojects.core.pickfromfilelist(codefiles, FileTypes.vitacg)
-        self.listico = makeprojects.core.pickfromfilelist(codefiles, FileTypes.ico)
+        self.listh = source_file_filter(codefiles, FileTypes.h)
+        self.listcpp = source_file_filter(codefiles, FileTypes.cpp)
+        self.listcpp.extend(source_file_filter(codefiles, FileTypes.c))
+        self.listwindowsresource = source_file_filter(codefiles, FileTypes.rc)
+        self.listhlsl = source_file_filter(codefiles, FileTypes.hlsl)
+        self.listglsl = source_file_filter(codefiles, FileTypes.glsl)
+        self.listx360sl = source_file_filter(codefiles, FileTypes.x360sl)
+        self.listvitacg = source_file_filter(codefiles, FileTypes.vitacg)
+        self.listico = source_file_filter(codefiles, FileTypes.ico)
 
     #
     # Write out the project file in the 2010 format
@@ -2286,32 +2286,32 @@ class vsProject(object):
                 fp.write(
                     u'\t\t<ClInclude Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '" />\n')
 
             for item in self.listcpp:
                 fp.write(
                     u'\t\t<ClCompile Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '" />\n')
 
             for item in self.listwindowsresource:
                 fp.write(
                     u'\t\t<ResourceCompile Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '" />\n')
 
             for item in self.listhlsl:
                 fp.write(
                     u'\t\t<HLSL Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '">\n')
                 # Cross platform way in splitting the path (MacOS doesn't like windows slashes)
                 basename = convert_to_windows_slashes(
-                    item.filename).lower().rsplit('\\', 1)[1]
+                    item.relative_pathname).lower().rsplit('\\', 1)[1]
                 splitname = os.path.splitext(basename)
                 if splitname[0].startswith('vs41'):
                     profile = 'vs_4_1'
@@ -2352,10 +2352,10 @@ class vsProject(object):
                 fp.write(
                     u'\t\t<X360SL Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '">\n')
                 # Cross platform way in splitting the path (MacOS doesn't like windows slashes)
-                basename = item.filename.lower().rsplit('\\', 1)[1]
+                basename = item.relative_pathname.lower().rsplit('\\', 1)[1]
                 splitname = os.path.splitext(basename)
                 if splitname[0].startswith('vs3'):
                     profile = 'vs_3_0'
@@ -2382,10 +2382,10 @@ class vsProject(object):
 
             for item in self.listvitacg:
                 fp.write(u'\t\t<VitaCGCompile Include="' +
-                         convert_to_windows_slashes(item.filename) + '">\n')
+                         convert_to_windows_slashes(item.relative_pathname) + '">\n')
                 # Cross platform way in splitting the path
                 # (MacOS doesn't like windows slashes)
-                basename = item.filename.lower().rsplit('\\', 1)[1]
+                basename = item.relative_pathname.lower().rsplit('\\', 1)[1]
                 splitname = os.path.splitext(basename)
                 if splitname[0].startswith('vs'):
                     profile = 'sce_vp_psp2'
@@ -2398,7 +2398,7 @@ class vsProject(object):
                 fp.write(
                     u'\t\t<GLSL Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '" />\n')
 
             if self.defaults.fileversion.value >= FileVersions.vs2015.value:
@@ -2411,7 +2411,7 @@ class vsProject(object):
                     chunkname +
                     ' Include="' +
                     convert_to_windows_slashes(
-                        item.filename) +
+                        item.relative_pathname) +
                     '" />\n')
 
             fp.write(u'\t</ItemGroup>\n')

@@ -132,6 +132,8 @@ def get_project_list(args, build_rules_list, working_directory):
     # Determine the list of platforms to generate projects for.
     platform_list = get_platform_list(build_rules_list, working_directory, args)
 
+    # If a platform was chosen, but not an IDE, choose the proper IDE for
+    # that platform
     fixup_ide_platform(ide_list, platform_list)
 
     # For every IDE, generate the requested project.
@@ -145,24 +147,29 @@ def get_project_list(args, build_rules_list, working_directory):
             ide=ide)
 
         for platform in platform_list:
-
             project = Project(
                 name=project_name,
                 project_type=project_type,
                 working_directory=working_directory,
                 platform=platform)
             solution.add_project(project)
+            project.get_attributes(build_rules_list, working_directory)
 
             # Create the configurations for this platform
             configuration_list = get_configuration_list(
                 build_rules_list, working_directory, args, platform, ide)
+
+            # Add all the configurations
             for item in platform.get_expanded():
                 for config_name in configuration_list:
-                    configuration = Configuration(config_name, platform=item)
+                    configuration = Configuration(
+                        config_name, platform=item, project_type=project_type)
                     project.add_configuration(configuration)
                     configuration.get_attributes(build_rules_list, working_directory)
 
-        print(solution)
+            # Perform the generation
+            solution.generate(ide)
+    return 0
 
 
 ########################################
@@ -188,8 +195,9 @@ def process(working_directory, args):
         print('Fatal error, no build_rules.py exist anywhere.')
         return 10
 
-    #get_project_list(args, build_rules_list, working_directory)
-    #return 0
+    get_project_list(args, build_rules_list, working_directory)
+    return 0
+
     # Create a blank solution
 
     solution = Solution(
@@ -316,7 +324,7 @@ def main(working_directory=None, args=None):
     parser.add_argument('-c', dest='configurations', action='append',
                         metavar='<configuration>',
                         help='Configuration(s) to create.')
-    parser.add_argument('-i', dest='ides', action='append',
+    parser.add_argument('-g', dest='ides', action='append',
                         metavar='<IDE>', default=[],
                         help='IDE(s) to generate for.')
     parser.add_argument('-p', dest='platforms', action='append',

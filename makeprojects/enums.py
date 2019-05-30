@@ -41,8 +41,8 @@ class AutoEnum(EnumMeta):
     # pylint: disable=C0204
     def __new__(mcs, cls, bases, classdict):
         """
-        Create a new instance of this class
-
+        Create a new instance of this class.
+        @details
         Given an instance of the parent class and a dictionary
         off all entries to be enumerated, go through every entry
         of the dictionary, and find those who have values set to an
@@ -93,7 +93,7 @@ class AutoEnum(EnumMeta):
 
 ## @var makeprojects.enums.AutoIntEnum
 #
-# Integer enumerator
+# Integer enumerator.
 #
 # If a class derives from this object, it will become the equivalent of
 # a C++ enum class. Every variable declared using an empty tuple as a value
@@ -361,11 +361,10 @@ class ProjectTypes(AutoIntEnum):
         """
 
         # Already a ProjectTypes?
+        if isinstance(project_type_name, ProjectTypes):
+            return project_type_name
+
         if project_type_name:
-
-            if isinstance(project_type_name, ProjectTypes):
-                return project_type_name
-
             # Try the member name as is.
             test_name = project_type_name.lower()
             if hasattr(ProjectTypes, project_type_name):
@@ -561,11 +560,10 @@ class IDETypes(AutoIntEnum):
         """
 
         # Already a IDETypes?
+        if isinstance(ide_name, IDETypes):
+            return ide_name
+
         if ide_name:
-
-            if isinstance(ide_name, IDETypes):
-                return ide_name
-
             # Try the member name as is.
             test_name = ide_name.lower()
             if hasattr(IDETypes, test_name):
@@ -709,6 +707,9 @@ def get_installed_visual_studio():
 
     Scan the host computer and return the IDETypes for the most
     recent version of Visual Studio that's installed.
+
+    Returns:
+        IDETypes value or None
     """
 
     vs_studio_table = (
@@ -737,6 +738,9 @@ def get_installed_xcode():
 
     Scan the host computer and return the IDETypes for the most
     recent version of XCode that's installed.
+
+    Returns:
+        IDETypes value or None
     """
 
     xcode_table = {
@@ -1055,12 +1059,11 @@ class PlatformTypes(AutoIntEnum):
             makeprojects.enums._PLATFORMTYPES_READABLE
         """
 
+        if isinstance(platform_name, PlatformTypes):
+            return platform_name
+
         # Already a PlatformTypes?
         if platform_name:
-
-            if isinstance(platform_name, PlatformTypes):
-                return platform_name
-
             # Try the member name as is.
             test_name = platform_name.lower()
             if hasattr(PlatformTypes, test_name):
@@ -1312,7 +1315,8 @@ def platformtype_short_code(configurations):
     Args:
         configurations: List of configurations to scan
     Returns:
-        Either '' or the generic short code or the first code in the list.
+        Either '' or the generic short code of the group
+        or the first code in the configuration list.
     """
 
     # None?

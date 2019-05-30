@@ -19,8 +19,8 @@ import os
 import operator
 import burger
 from burger import StringIO
-from makeprojects import FileTypes, ProjectTypes, \
-    PlatformTypes, SourceFile
+from .enums import FileTypes, ProjectTypes, PlatformTypes
+from .core import SourceFile
 
 # pylint: disable=C0302
 
@@ -949,7 +949,7 @@ def generate(solution):
     #
 
     for item in codefiles:
-        item.filename = burger.convert_to_linux_slashes(item.filename)
+        item.relative_pathname = burger.convert_to_linux_slashes(item.relative_pathname)
 
     #
     # Let's create the solution file!
@@ -987,7 +987,7 @@ def generate(solution):
         if item.type != FileTypes.rc and \
                 item.type != FileTypes.r and \
                 item.type != FileTypes.hlsl:
-            xcodeprojectfile.addfilereference(item.filename, item.type)
+            xcodeprojectfile.addfilereference(item.relative_pathname, item.type)
 
     #
     # What's the final output file?
@@ -1105,7 +1105,7 @@ def generate(solution):
                 grouproot.append(item)
             else:
                 # Separate the path and name
-                # base = item.filename[index+1:]
+                # base = item.relative_pathname[index+1:]
                 path = item.filename[0:index]
                 #
                 # See if a group already exists

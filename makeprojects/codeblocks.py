@@ -22,8 +22,8 @@
 from __future__ import absolute_import, print_function, unicode_literals
 import os
 import burger
-import makeprojects.core
-from makeprojects import FileTypes, ProjectTypes
+from .enums import FileTypes, ProjectTypes
+from .core import source_file_filter
 
 #
 # Create a codeblocks 13.12 project
@@ -48,12 +48,11 @@ def generate(solution):
     # Save out the filenames
     #
 
-    listh = makeprojects.core.pickfromfilelist(codefiles, FileTypes.h)
-    listcpp = makeprojects.core.pickfromfilelist(codefiles, FileTypes.cpp)
+    listh = source_file_filter(codefiles, FileTypes.h)
+    listcpp = source_file_filter(codefiles, FileTypes.cpp)
     listwindowsresource = []
     if platformcode == 'win':
-        listwindowsresource = makeprojects.core.pickfromfilelist(
-            codefiles, FileTypes.rc)
+        listwindowsresource = source_file_filter(codefiles, FileTypes.rc)
 
     alllists = listh + listcpp + listwindowsresource
 
@@ -199,7 +198,7 @@ def generate(solution):
 
     filelist = []
     for i in alllists:
-        filelist.append(burger.convert_to_linux_slashes(i.filename))
+        filelist.append(burger.convert_to_linux_slashes(i.relative_pathname))
 
     filelist = sorted(filelist)
 
