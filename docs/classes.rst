@@ -1,18 +1,6 @@
 Classes
 =======
 
-Enumerators
------------
-
-enums.AutoEnum
-^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::enums::AutoEnum
-    :members:
-
-enums.AutoIntEnum
-^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::enums::AutoIntEnum
-
 Enumerations
 ------------
 

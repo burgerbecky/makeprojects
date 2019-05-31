@@ -18,7 +18,7 @@ All enumerations are stored in this package
 # Please? It's not like I'm asking you for money!
 
 from __future__ import absolute_import, print_function, unicode_literals
-from enum import IntEnum, EnumMeta, _EnumDict
+from enum import IntEnum
 import os
 from burger import get_mac_host_type, get_windows_host_type, where_is_visual_studio
 from burger import where_is_codeblocks, where_is_watcom, where_is_xcode
@@ -26,100 +26,7 @@ from burger import where_is_codeblocks, where_is_watcom, where_is_xcode
 ########################################
 
 
-class AutoEnum(EnumMeta):
-    """
-    Class to allow auto generation of enumerations
-
-    Using an empty tuple as a value stepper, create the equivalent of a
-    C++ enum type. It is derived from enum.EnumMeta.
-
-    See Also:
-        makeprojects.enums.AutoIntEnum
-
-    """
-
-    # pylint: disable=C0204
-    def __new__(mcs, cls, bases, classdict):
-        """
-        Create a new instance of this class.
-        @details
-        Given an instance of the parent class and a dictionary
-        off all entries to be enumerated, go through every entry
-        of the dictionary, and find those who have values set to an
-        empty tuple and replace those entries with an auto incremented
-        value to simulate a C++ style enumeration.
-
-        Args:
-            mcs: metaclass instance
-            cls: string with the name of this class
-            bases: tuple of enum classes to derive from
-            classdict: Starting dictionary
-        """
-
-        # pylint: disable=W0212
-        original_dict = classdict
-        classdict = _EnumDict()
-        for k, item in original_dict.items():
-            classdict[k] = item
-
-        temp = type(classdict)()
-        names = set(classdict._member_names)
-
-        # Start the enumeration with this value
-        i = 0
-        for k in classdict._member_names:
-
-            # Does this entry need assignment?
-            # Test by checking for the initial value
-            # being set to ().
-            item = classdict[k]
-
-            # If not an empty tuple, use the assigned value
-            if item != ():
-                i = item
-            temp[k] = i
-
-            # Increment for the next assigned value
-            i += 1
-
-        # Update the dictionary by adding new entries
-        for k, item in classdict.items():
-            if k not in names:
-                temp[k] = item
-
-        # Pass the dictionary up
-        return super(AutoEnum, mcs).__new__(mcs, cls, bases, temp)
-
-
-## @var makeprojects.enums.AutoIntEnum
-#
-# Integer enumerator.
-#
-# If a class derives from this object, it will become the equivalent of
-# a C++ enum class. Every variable declared using an empty tuple as a value
-# will be placed in a dict() record with an incremented value assignment
-# starting with 0.
-#
-#
-# @code
-# class MyEnum(AutoIntEnum):
-#    entry = ()
-#    another = ()
-#
-# print("test {}, {}", MyEnum.entry, MyEnum.another)
-# @endcode
-#
-# The above code will print "test 0,1"
-#
-# @sa makeprojects.enums.AutoEnum
-
-AutoIntEnum = AutoEnum(str('AutoIntEnum'), (IntEnum,), {})
-
-
-########################################
-
-
-class FileTypes(AutoIntEnum):
+class FileTypes(IntEnum):
     """
     Enumeration of supported file types for project input
 
@@ -129,57 +36,57 @@ class FileTypes(AutoIntEnum):
     """
 
     ## User file type (Unknown)
-    user = ()
+    user = 0
     ## Non compiling file type
-    generic = ()
+    generic = 1
     ## Compile as C
-    c = ()
+    c = 2
     ## Compile as C++
-    cpp = ()
+    cpp = 3
     ## C/C++ header
-    h = ()
+    h = 4
     ## Objective-C
-    m = ()
+    m = 5
     ## XML text file
-    xml = ()
+    xml = 6
     ## Windows resource file
-    rc = ()
+    rc = 7
     ## Mac OS resource file
-    r = ()
+    r = 8
     ## HLSL DirectX Shader
-    hlsl = ()
+    hlsl = 9
     ## GLSL OpenGL Shader
-    glsl = ()
+    glsl = 10
     ## Xbox 360 DirectX Shader
-    x360sl = ()
+    x360sl = 11
     ## Playstation Vita CG Shader
-    vitacg = ()
+    vitacg = 12
     ## Mac OSX Framework
-    frameworks = ()
+    frameworks = 13
     ## Static libary
-    library = ()
+    library = 14
     ## Object code
-    object = ()
+    object = 15
     ## Executable file
-    exe = ()
+    exe = 16
     ## XCode configuration file
-    xcconfig = ()
+    xcconfig = 17
     ## X86 assembly source
-    x86 = ()
+    x86 = 18
     ## X64 assembly source
-    x64 = ()
+    x64 = 19
     ## 6502/65812 assembly source
-    a65 = ()
+    a65 = 20
     ## PowerPC assembly source
-    ppc = ()
+    ppc = 21
     ## 680x0 assembly source
-    a68 = ()
+    a68 = 22
     ## Image files
-    image = ()
+    image = 23
     ## Windows icon files
-    ico = ()
+    ico = 24
     ## MacOSX icon files
-    icns = ()
+    icns = 25
 
     @staticmethod
     def lookup(test_name):
@@ -312,7 +219,7 @@ _FILETYPES_READABLE = {
 ########################################
 
 
-class ProjectTypes(AutoIntEnum):
+class ProjectTypes(IntEnum):
     """
     Enumeration of supported project types
 
@@ -321,17 +228,17 @@ class ProjectTypes(AutoIntEnum):
     """
 
     ## Code library
-    library = ()
+    library = 0
     ## Command line tool
-    tool = ()
+    tool = 1
     ## Application
-    app = ()
+    app = 2
     ## Screen saver
-    screensaver = ()
+    screensaver = 3
     ## Shared library (DLL)
-    sharedlibrary = ()
+    sharedlibrary = 4
     ## Empty project
-    empty = ()
+    empty = 5
 
     def is_library(self):
         """
@@ -429,7 +336,7 @@ _PROJECTTYPES_READABLE = {
 ########################################
 
 
-class IDETypes(AutoIntEnum):
+class IDETypes(IntEnum):
     """
     Enumeration of supported IDEs
 
@@ -437,62 +344,62 @@ class IDETypes(AutoIntEnum):
     """
 
     ## Visual studio 2003
-    vs2003 = ()
+    vs2003 = 0
     ## Visual studio 2005
-    vs2005 = ()
+    vs2005 = 1
     ## Visual studio 2008
-    vs2008 = ()
+    vs2008 = 2
     ## Visual studio 2010
-    vs2010 = ()
+    vs2010 = 3
     ## Visual studio 2012
-    vs2012 = ()
+    vs2012 = 4
     ## Visual studio 2013
-    vs2013 = ()
+    vs2013 = 5
     ## Visual studio 2015
-    vs2015 = ()
+    vs2015 = 6
     ## Visual studio 2017
-    vs2017 = ()
+    vs2017 = 7
     ## Visual studio 2019
-    vs2019 = ()
+    vs2019 = 8
 
     ## Open Watcom 1.9 or later
-    watcom = ()
+    watcom = 9
 
     ## Metrowerks Codewarrior 9 / 5.0 (Windows/Mac OS)
-    codewarrior50 = ()
+    codewarrior50 = 10
     ## Metrowerks Codewarrior 10 / 5.8 (Mac OS Carbon)
-    codewarrior58 = ()
+    codewarrior58 = 11
     ## Freescale Codewarrior 5.9 (Nintendo DSi)
-    codewarrior59 = ()
+    codewarrior59 = 12
 
     ## XCode 3 (PowerPC 3.1.4 is the target version)
-    xcode3 = ()
+    xcode3 = 13
     ## XCode 4
-    xcode4 = ()
+    xcode4 = 14
     ## XCode 5
-    xcode5 = ()
+    xcode5 = 15
     ## XCode 6
-    xcode6 = ()
+    xcode6 = 16
     ## XCode 7
-    xcode7 = ()
+    xcode7 = 17
     ## XCode 8
-    xcode8 = ()
+    xcode8 = 18
     ## XCode 9
-    xcode9 = ()
+    xcode9 = 19
     ## XCode 10
-    xcode10 = ()
+    xcode10 = 20
 
     ## Codeblocks
-    codeblocks = ()
+    codeblocks = 21
 
     ## nmake
-    nmake = ()
+    nmake = 22
 
     ## make
-    make = ()
+    make = 23
 
     ## bazel
-    bazel = ()
+    bazel = 24
 
     def get_short_code(self):
         """
@@ -761,7 +668,7 @@ def get_installed_xcode():
 ########################################
 
 
-class PlatformTypes(AutoIntEnum):
+class PlatformTypes(IntEnum):
     """
     Enumeration of supported target platforms.
 
@@ -769,103 +676,103 @@ class PlatformTypes(AutoIntEnum):
     """
 
     ## Windows 32 and 64 bit Intel
-    windows = ()
+    windows = 0
     ## Windows 32 bit intel only
-    win32 = ()
+    win32 = 1
     ## Window 64 bit intel only
-    win64 = ()
+    win64 = 2
 
     ## Mac OSX, all CPUs
-    macosx = ()
+    macosx = 3
     ## Mac OSX PowerPC 32 bit only
-    macosxppc32 = ()
+    macosxppc32 = 4
     ## Mac OSX PowerPC 64 bit only
-    macosxppc64 = ()
+    macosxppc64 = 5
     ## Mac OSX Intel 32 bit only
-    macosxintel32 = ()
+    macosxintel32 = 6
     ## Mac OSX Intel 64 bit only
-    macosxintel64 = ()
+    macosxintel64 = 7
 
     ## Mac OS 9, all CPUs
-    macos9 = ()
+    macos9 = 8
     ## Mac OS 9 680x0 only
-    macos968k = ()
+    macos968k = 9
     ## Mac OS 9 PowerPC 32 bit only
-    macos9ppc = ()
+    macos9ppc = 10
     ## Mac OS Carbon, all CPUs
-    maccarbon = ()
+    maccarbon = 11
     ## Mac OS Carbon 680x0 only (CFM)
-    maccarbon68k = ()
+    maccarbon68k = 12
     ## Mac OS Carbon PowerPC 32 bit only
-    maccarbonppc = ()
+    maccarbonppc = 13
 
     ## iOS, all CPUs
-    ios = ()
+    ios = 14
     ## iOS 32 bit ARM only
-    ios32 = ()
+    ios32 = 15
     ## iOS 64 bit ARM only
-    ios64 = ()
+    ios64 = 16
     ## iOS emulator, all CPUs
-    iosemu = ()
+    iosemu = 17
     ## iOS emulator 32 bit Intel only
-    iosemu32 = ()
+    iosemu32 = 18
     ## iOS emulator 64 bit Intel only
-    iosemu64 = ()
+    iosemu64 = 19
 
     ## Microsoft Xbox classic
-    xbox = ()
+    xbox = 20
     ## Microsoft Xbox 360
-    xbox360 = ()
+    xbox360 = 21
     ## Microsoft Xbox ONE
-    xboxone = ()
+    xboxone = 22
 
     ## Sony PS3
-    ps3 = ()
+    ps3 = 23
     ## Sony PS4
-    ps4 = ()
+    ps4 = 24
     ## Sony Playstation VITA
-    vita = ()
+    vita = 25
 
     ## Nintendo WiiU
-    wiiu = ()
+    wiiu = 26
     ## Nintendo Switch
-    switch = ()
+    switch = 27
     ## Nintendo 3DS
-    dsi = ()
+    dsi = 28
     ## Nintendo DS
-    ds = ()
+    ds = 29
 
     ## Generic Android
-    android = ()
+    android = 30
     ## nVidia SHIELD
-    shield = ()
+    shield = 31
     ## Intellivision Amico
-    amico = ()
+    amico = 32
     ## Ouya (Now Razor)
-    ouya = ()
+    ouya = 33
     ## Android Arm32
-    androidarm32 = ()
+    androidarm32 = 34
     ## Android Arm64
-    androidarm64 = ()
+    androidarm64 = 35
     ## Android Intel x32
-    androidintel32 = ()
+    androidintel32 = 36
     ## Android Intel / AMD 64
-    androidintel64 = ()
+    androidintel64 = 37
 
     ## Generic Linux
-    linux = ()
+    linux = 38
 
     ## MSDOS
-    msdos = ()
+    msdos = 39
     ## MSDOS Dos4GW
-    msdos4gw = ()
+    msdos4gw = 40
     ## MSDOS DosX32
-    msdosx32 = ()
+    msdosx32 = 41
 
     ## BeOS
-    beos = ()
+    beos = 42
     ## Apple IIgs
-    iigs = ()
+    iigs = 43
 
     def get_short_code(self):
         """

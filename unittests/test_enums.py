@@ -196,7 +196,8 @@ def test_platformtypes_is_macos():
 
     for item in PlatformTypes:
         if item in (PlatformTypes.macos9, PlatformTypes.macos968k, PlatformTypes.macos9ppc,
-                    PlatformTypes.maccarbon, PlatformTypes.maccarbon68k, PlatformTypes.maccarbonppc):
+                    PlatformTypes.maccarbon, PlatformTypes.maccarbon68k,
+                    PlatformTypes.maccarbonppc):
             assert item.is_macos()
         else:
             assert not item.is_macos()

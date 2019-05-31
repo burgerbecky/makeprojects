@@ -747,8 +747,7 @@ class Solution:
         for project in solution.projects:
             project.configurations = sorted(
                 project.configurations, key=lambda x: (
-                    x.attributes['name'], int(
-                        x.attributes['platform'])))
+                    x.get_attribute('name'), x.get_attribute('platform')))
 
         # If ide was passed, check it, otherwise assume
         # solution.ide is valid

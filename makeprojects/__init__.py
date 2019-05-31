@@ -223,14 +223,14 @@ def new_configuration(name, platform=None, project_type=None):
 
         # Special case, if the platform is an expandable, convert to an array
         # of configurations that fit the bill.
-        if platform:
+        if platform is None:
+            results.append(Configuration(name_item, platform, project_type))
+        else:
             platform_type = PlatformTypes.lookup(platform)
             if platform_type is None:
                 raise TypeError("parameter 'platform_type' must be of type PlatformTypes")
             for item in platform_type.get_expanded():
                 results.append(Configuration(name_item, item, project_type))
-        else:
-            results.append(Configuration(name_item, platform, project_type))
 
     # If a single object, pass back as is.
     if len(results) == 1:
