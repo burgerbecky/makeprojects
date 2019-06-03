@@ -12,7 +12,6 @@ Please? It's not like I'm asking you for money!
 
 """
 
-from burger import convert_to_array
 from makeprojects.visualstudio import get_uuid, VS2003XML
 
 ########################################
@@ -48,7 +47,9 @@ def test_vs2003xml():
 
     # Entry with only attributes
     vs_project.add_attribute('ProjectType', 'Visual C++')
-    assert str(vs_project) == '<VisualStudioProject\n\tProjectType="Visual C++"\n/>'
+    assert str(vs_project) == (
+        '<VisualStudioProject\n'
+        '\tProjectType="Visual C++"\n/>')
 
     # Test a second element
     platform = VS2003XML('Platform')

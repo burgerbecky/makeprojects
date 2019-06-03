@@ -48,14 +48,19 @@ def test_visual_studio(tmpdir):
                 str(source_dir), 'helloworld.cpp'))
 
     for item in empty_tests:
-        solution = makeprojects.new_solution(name='hello', working_directory=str(tmpdir))
-        project = makeprojects.new_project(name='helloworld', working_directory=str(tmpdir))
+        solution = makeprojects.new_solution(
+            name='hello', working_directory=str(tmpdir), perforce=False)
+        project = makeprojects.new_project(
+            name='helloworld', working_directory=str(tmpdir))
         solution.add_project(project)
-        configuration = makeprojects.new_configuration(name='Debug', platform='windows')
+        configuration = makeprojects.new_configuration(
+            {'name': 'Debug', 'platform': 'windows'})
         project.add_configuration(configuration)
-        configuration = makeprojects.new_configuration(name='Internal', platform='windows')
+        configuration = makeprojects.new_configuration(
+            {'name': 'Internal', 'platform': 'windows'})
         project.add_configuration(configuration)
-        configuration = makeprojects.new_configuration(name='Release', platform='windows')
+        configuration = makeprojects.new_configuration(
+            {'name': 'Release', 'platform': 'windows'})
         project.add_configuration(configuration)
         assert not solution.generate(ide=item[0])
 

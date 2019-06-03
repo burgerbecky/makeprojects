@@ -83,9 +83,10 @@ def test_idetypes_is_visual_studio():
     """
 
     for item in IDETypes:
-        if item in (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010,
-                    IDETypes.vs2012, IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017,
-                    IDETypes.vs2019):
+        if item in (
+                IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008,
+                IDETypes.vs2010, IDETypes.vs2012, IDETypes.vs2013,
+                IDETypes.vs2015, IDETypes.vs2017, IDETypes.vs2019):
             assert item.is_visual_studio()
         else:
             assert not item.is_visual_studio()
@@ -100,8 +101,9 @@ def test_idetypes_is_xcode():
     """
 
     for item in IDETypes:
-        if item in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
-                    IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10):
+        if item in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5,
+                    IDETypes.xcode6, IDETypes.xcode7, IDETypes.xcode8,
+                    IDETypes.xcode9, IDETypes.xcode10):
             assert item.is_xcode()
         else:
             assert not item.is_xcode()
@@ -116,7 +118,8 @@ def test_idetypes_is_codewarrior():
     """
 
     for item in IDETypes:
-        if item in (IDETypes.codewarrior50, IDETypes.codewarrior58, IDETypes.codewarrior59):
+        if item in (IDETypes.codewarrior50, IDETypes.codewarrior58,
+                    IDETypes.codewarrior59):
             assert item.is_codewarrior()
         else:
             assert not item.is_codewarrior()
@@ -150,7 +153,8 @@ def test_platformtypes_is_windows():
     """
 
     for item in PlatformTypes:
-        if item in (PlatformTypes.windows, PlatformTypes.win32, PlatformTypes.win64):
+        if item in (PlatformTypes.windows, PlatformTypes.win32,
+                    PlatformTypes.win64):
             assert item.is_windows()
         else:
             assert not item.is_windows()
@@ -164,9 +168,9 @@ def test_platformtypes_is_macosx():
     """
 
     for item in PlatformTypes:
-        if item in (
-                PlatformTypes.macosx, PlatformTypes.macosxppc32, PlatformTypes.macosxppc64,
-                PlatformTypes.macosxintel32, PlatformTypes.macosxintel64):
+        if item in (PlatformTypes.macosx, PlatformTypes.macosxppc32,
+                    PlatformTypes.macosxppc64, PlatformTypes.macosxintel32,
+                    PlatformTypes.macosxintel64):
             assert item.is_macosx()
         else:
             assert not item.is_macosx()
@@ -181,7 +185,8 @@ def test_platformtypes_is_ios():
 
     for item in PlatformTypes:
         if item in (PlatformTypes.ios, PlatformTypes.ios32, PlatformTypes.ios64,
-                    PlatformTypes.iosemu, PlatformTypes.iosemu32, PlatformTypes.iosemu64):
+                    PlatformTypes.iosemu, PlatformTypes.iosemu32,
+                    PlatformTypes.iosemu64):
             assert item.is_ios()
         else:
             assert not item.is_ios()
@@ -195,9 +200,9 @@ def test_platformtypes_is_macos():
     """
 
     for item in PlatformTypes:
-        if item in (PlatformTypes.macos9, PlatformTypes.macos968k, PlatformTypes.macos9ppc,
-                    PlatformTypes.maccarbon, PlatformTypes.maccarbon68k,
-                    PlatformTypes.maccarbonppc):
+        if item in (PlatformTypes.macos9, PlatformTypes.macos968k,
+                    PlatformTypes.macos9ppc, PlatformTypes.maccarbon,
+                    PlatformTypes.maccarbon68k, PlatformTypes.maccarbonppc):
             assert item.is_macos()
         else:
             assert not item.is_macos()
@@ -226,7 +231,8 @@ def test_platformtypes_is_macos_classic():
     """
 
     for item in PlatformTypes:
-        if item in (PlatformTypes.macos9, PlatformTypes.macos968k, PlatformTypes.macos9ppc):
+        if item in (PlatformTypes.macos9, PlatformTypes.macos968k,
+                    PlatformTypes.macos9ppc):
             assert item.is_macos_classic()
         else:
             assert not item.is_macos_classic()

@@ -72,15 +72,17 @@ def rules(command, working_directory, root=True):
 
     The parameter working_directory is required, and if it has no default
     parameter, this function will only be called with the folder that this
-    file resides in. If there is a default parameter of None, it will be called with
-    any folder that it is invoked on. If the default parameter is a directory, this
-    function will only be called if that directory is desired.
+    file resides in. If there is a default parameter of None, it will be called
+    with any folder that it is invoked on. If the default parameter is a
+    directory, this function will only be called if that directory is desired.
 
-    The optional parameter of root alerts the tool if subsequent processing of other
-    build_rules.py files are needed or if set to have a default parameter of True, processing
-    will end once the calls to this rules() function are completed.
+    The optional parameter of root alerts the tool if subsequent processing of
+    other build_rules.py files are needed or if set to have a default parameter
+    of True, processing will end once the calls to this rules() function are
+    completed.
 
-    Commands are 'build', 'clean', 'prebuild', 'postbuild', 'project', 'configurations'
+    Commands are 'build', 'clean', 'prebuild', 'postbuild', 'project',
+    'configurations'
 
     Arg:
         command: Command to execute.
@@ -90,6 +92,9 @@ def rules(command, working_directory, root=True):
         Zero on success, non-zero on failure, and a list for 'configurations'
 
     """
+
+    # Unused arguments
+    # pylint: disable=W0613
 
     if command == 'clean':
         burger.clean_directories(working_directory, ('temp', '_build'))

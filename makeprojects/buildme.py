@@ -6,9 +6,9 @@ Module that contains the code for the command line "buildme".
 
 Scan the current directory and all projects files will be built.
 
-If build_rules.py is found, it will be parsed for a build_rules.BUILD_LIST and if one
-isn't found a default buildme.BUILD_LIST is used. If the functions listed in the
-buildme.BUILD_LIST exist, they will be called in priority order.
+If build_rules.py is found, it will be parsed for a build_rules.BUILD_LIST and
+if one isn't found a default buildme.BUILD_LIST is used. If the functions
+listed in the buildme.BUILD_LIST exist, they will be called in priority order.
 
 Build commands are performed from lowest priority value to highest value.
 
@@ -24,16 +24,17 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
 import argparse
-import subprocess
-import struct
+from struct import unpack as struct_unpack
 from operator import attrgetter
-import re
 import xml.etree.ElementTree as ET
-import burger
+from burger import where_is_doxygen, create_folder_if_needed, \
+    get_windows_host_type, get_mac_host_type, delete_file, save_text_file, \
+    load_text_file, run_command, read_zero_terminated_string, \
+    where_is_watcom, host_machine, import_py_script, where_is_visual_studio, \
+    is_codewarrior_mac_allowed, where_is_codeblocks, run_py_script
 from .__pkginfo__ import VERSION
-
-## Match *.xcodeproj
-_XCODEPROJ_MATCH = re.compile('(?ms).*\\.xcodeproj\\Z')
+from .config import BUILD_RULES_PY
+from .__init__ import _XCODEPROJ_MATCH
 
 ## Default build function list, priority / entrypoint
 BUILD_LIST = (
@@ -211,10 +212,15 @@ class BuildObject:
             A full string.
         """
 
-        result = 'BuildObject for file "{}" using tool "{}" with priority {}'.format(
-            self.file_name, self.build_type, self.priority)
+        result = (
+            'BuildObject for file "{}" using '
+            'tool "{}" with priority {}').format(
+                self.file_name,
+                self.build_type,
+                self.priority)
         if self.function_ref:
-            result += ' calling function "{}"'.format(self.function_ref.__name__)
+            result += ' calling function "{}"'.format(
+                self.function_ref.__name__)
         return result
 
     __str__ = __repr__
@@ -253,7 +259,9 @@ def build_rez_script(full_pathname, verbose=False):
 
     # Perform the command
     try:
-        error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
+        error_code = run_command(
+            cmd, working_dir=os.path.dirname(full_pathname),
+            quiet=not verbose)[0]
         msg = None
     except OSError as error:
         error_code = getattr(error, 'winerror', error.errno)
@@ -286,7 +294,9 @@ def build_slicer_script(full_pathname, verbose=False):
 
     # Perform the command
     try:
-        error_code = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
+        error_code = run_command(
+            cmd, working_dir=os.path.dirname(full_pathname),
+            quiet=not verbose)[0]
         msg = None
     except OSError as error:
         error_code = getattr(error, 'winerror', error.errno)
@@ -325,10 +335,11 @@ def build_doxygen(full_pathname, verbose=False):
 
     # Is Doxygen installed?
 
-    doxygenpath = burger.where_is_doxygen(verbose=verbose)
+    doxygenpath = where_is_doxygen(verbose=verbose)
     if doxygenpath is None:
         error_code = 10
-        msg = '{} requires Doxygen to be installed to build!'.format(full_pathname)
+        msg = '{} requires Doxygen to be installed to build!'.format(
+            full_pathname)
     else:
 
         # Determine the working directory
@@ -337,41 +348,41 @@ def build_doxygen(full_pathname, verbose=False):
 
         # Make the output folder for errors (If needed)
         temp_dir = os.path.join(doxyfile_dir, 'temp')
-        burger.create_folder_if_needed(temp_dir)
+        create_folder_if_needed(temp_dir)
 
         # The macOS/Linux version will die if the text file isn't Linux
         # format, copy the config file with the proper line feeds
-        if burger.get_windows_host_type() is False:
-            doxyfile_data = burger.load_text_file(full_pathname)
+        if get_windows_host_type() is False:
+            doxyfile_data = load_text_file(full_pathname)
             temp_doxyfile = full_pathname + '.tmp'
-            burger.save_text_file(temp_doxyfile, doxyfile_data, line_feed='\n')
+            save_text_file(temp_doxyfile, doxyfile_data, line_feed='\n')
         else:
             temp_doxyfile = full_pathname
 
         # Create the build command
-        cmd = [doxygenpath, burger.encapsulate_path(temp_doxyfile)]
+        cmd = [doxygenpath, temp_doxyfile]
         if verbose:
             print(' '.join(cmd))
 
         # Capture the error output
-        stderr = burger.run_command(cmd, doxyfile_dir,
-                                    quiet=not verbose, capture_stderr=True)[2]
+        stderr = run_command(cmd, working_dir=doxyfile_dir,
+                             quiet=not verbose, capture_stderr=True)[2]
 
         # If there was a temp doxyfile, get rid of it.
         if temp_doxyfile != full_pathname:
-            burger.delete_file(temp_doxyfile)
+            delete_file(temp_doxyfile)
 
         # Location of the log file
         log_filename = os.path.join(temp_dir, 'doxygenerrors.txt')
 
         # If the error log has something, save it.
         if stderr:
-            burger.save_text_file(log_filename, stderr.splitlines())
+            save_text_file(log_filename, stderr.splitlines())
             error_code = 10
             msg = 'Errors stored in {}'.format(log_filename)
         else:
             # Make sure it's gone since there's no errors
-            burger.delete_file(log_filename)
+            delete_file(log_filename)
             error_code = 0
             msg = None
 
@@ -388,8 +399,8 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
     On Linux and Windows hosts, this function will invoke the ``wmake``
     tool to build the watcom make file.
 
-    The PATH will be temporarily adjusted to include the watcom tools so wmake can
-    find its shared libraries.
+    The PATH will be temporarily adjusted to include the watcom tools so wmake
+    can find its shared libraries.
 
     The default target built is ``all``.
 
@@ -402,26 +413,29 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
     """
 
     # Is Watcom installed?
-    watcom_path = burger.where_is_watcom(verbose=verbose)
+    watcom_path = where_is_watcom(verbose=verbose)
     if watcom_path is None:
-        return BuildError(0, full_pathname,
-                          msg=full_pathname + ' requires Watcom to be installed to build!')
+        return BuildError(
+            0, full_pathname,
+            msg='{} requires Watcom to be installed to build!'.format(
+                full_pathname))
 
     # Watcom requires the path set up so it can access link files
     saved_path = os.environ['PATH']
-    if burger.get_windows_host_type():
-        new_path = os.path.join(
-            watcom_path, 'binnt') + os.pathsep + os.path.join(watcom_path, 'binw')
+    if get_windows_host_type():
+        new_path = os.pathsep.join(
+            (os.path.join(
+                watcom_path, 'binnt'), os.path.join(
+                    watcom_path, 'binw')))
     else:
         new_path = os.path.join(watcom_path, 'binl')
 
-    exe_name = burger.where_is_watcom(verbose=verbose, command='wmake')
+    exe_name = where_is_watcom(verbose=verbose, command='wmake')
     os.environ['PATH'] = new_path + os.pathsep + saved_path
 
     commands = []
     # New format has an 'all' target
-    commands.append(([exe_name, '-e', '-h', '-f',
-                      burger.encapsulate_path(full_pathname), 'all'], 'all'))
+    commands.append(([exe_name, '-e', '-h', '-f', full_pathname, 'all'], 'all'))
 
     # Iterate over the commands
     results = []
@@ -430,16 +444,20 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
             print(' '.join(cmd[0]))
         # Perform the command
         try:
-            error_code = burger.run_command(
-                cmd[0], os.path.dirname(full_pathname),
+            error_code = run_command(
+                cmd[0], working_dir=os.path.dirname(full_pathname),
                 quiet=not verbose)[0]
             msg = None
         except OSError as error:
             error_code = getattr(error, 'winerror', error.errno)
             msg = str(error)
             print(msg, file=sys.stderr)
-        results.append(BuildError(error_code, full_pathname, configuration=cmd[1],
-                                  msg=msg))
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=cmd[1],
+                msg=msg))
         if error_code and fatal:
             break
 
@@ -469,12 +487,14 @@ def build_makefile(full_pathname, verbose=False, fatal=False):
     """
 
     # Running under Linux?
-    if burger.host_machine() != 'linux':
-        return BuildError(0, full_pathname, msg='{} can only build on Linux!'.format(full_pathname))
+    if host_machine() != 'linux':
+        return BuildError(
+            0, full_pathname, msg='{} can only build on Linux!'.format(
+                full_pathname))
 
     commands = []
     # New format has an 'all' target
-    commands.append((['make', '-s', '-f', burger.encapsulate_path(full_pathname), 'all'], 'all'))
+    commands.append((['make', '-s', '-f', full_pathname, 'all'], 'all'))
 
     # Iterate over the commands
     results = []
@@ -483,15 +503,21 @@ def build_makefile(full_pathname, verbose=False, fatal=False):
             print(' '.join(cmd[0]))
         # Perform the command
         try:
-            error_code = subprocess.call(cmd[0], cwd=os.path.dirname(full_pathname),
-                                         shell=False)
+            error_code = run_command(
+                cmd[0],
+                working_dir=os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
             msg = None
         except OSError as error:
             error_code = getattr(error, 'winerror', error.errno)
             msg = str(error)
             print(msg, file=sys.stderr)
-        results.append(BuildError(error_code, full_pathname, configuration=cmd[1],
-                                  msg=msg))
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=cmd[1],
+                msg=msg))
         if error_code and fatal:
             break
 
@@ -521,7 +547,7 @@ def parse_sln_file(full_pathname):
     """
 
     # Load in the .sln file, it's a text file
-    file_lines = burger.load_text_file(full_pathname)
+    file_lines = load_text_file(full_pathname)
 
     # Version not known yet
     vs_version = 0
@@ -556,12 +582,15 @@ def parse_sln_file(full_pathname):
                         target_list.append(target)
                 continue
 
-            # Scanning for the secondary version number in Visual Studio 2012 or higher
+            # Scanning for the secondary version number in Visual Studio 2012 or
+            # higher
 
             if looking_for_visual_studio and '# Visual Studio' in line:
-                # The line contains '# Visual Studio 15' or '# Visual Studio Version 16'
+                # The line contains '# Visual Studio 15' or '# Visual Studio
+                # Version 16'
 
-                # Use the version number to determine which visual studio to launch
+                # Use the version number to determine which visual studio to
+                # launch
                 vs_version = _VS_VERSION_YEARS.get(line.rsplit()[-1], 0)
                 looking_for_visual_studio = False
                 continue
@@ -571,7 +600,8 @@ def parse_sln_file(full_pathname):
                 # The line contains
                 # 'Microsoft Visual Studio Solution File, Format Version 12.00'
                 # The number is in the last part of the line
-                  # Use the version string to determine which visual studio to launch
+                # Use the version string to determine which visual studio to
+                # launch
                 vs_version = _VS_OLD_VERSION_YEARS.get(line.split()[-1], 0)
                 if vs_version == 2012:
                     # 2012 or higher requires a second check
@@ -579,14 +609,15 @@ def parse_sln_file(full_pathname):
                 continue
 
             # Look for this section, it contains the configurations
-            if '(SolutionConfigurationPlatforms)' in line or '(ProjectConfiguration)' in line:
+            if '(SolutionConfigurationPlatforms)' in line or \
+                    '(ProjectConfiguration)' in line:
                 looking_for_end_global_section = True
 
     # Exit with the results
     if not vs_version:
         print(
-            'The visual studio solution file {} is corrupt or an unknown version!'.format(
-                full_pathname),
+            ('The visual studio solution file {} '
+             'is corrupt or an unknown version!').format(full_pathname),
             file=sys.stderr)
     return (target_list, vs_version)
 
@@ -597,8 +628,9 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
     """
     Build a visual studio .sln file.
 
-    Supports Visual Studio 2005 - 2019. Supports platforms Win32, x64, Android, nVidia Tegra,
-    PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360, Xbox ONE, Switch, Wii
+    Supports Visual Studio 2005 - 2019. Supports platforms Win32, x64,
+    Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360, Xbox ONE,
+    Switch, Wii
 
     Args:
         full_pathname: Pathname to the Visual Studio .sln file
@@ -618,12 +650,12 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         return BuildError(10, full_pathname, msg=full_pathname + ' is corrupt!')
 
     # Locate the proper version of Visual Studio for this .sln file
-    vstudiopath = burger.where_is_visual_studio(vs_version)
+    vstudiopath = where_is_visual_studio(vs_version)
 
     # Is Visual studio installed?
     if vstudiopath is None:
-        msg = '{} requires Visual Studio version {} to be installed to build!'.format(
-            full_pathname, vs_version)
+        msg = ('{} requires Visual Studio version {}'
+               ' to be installed to build!').format(full_pathname, vs_version)
         print(msg, file=sys.stderr)
         return BuildError(0, full_pathname, msg=msg)
 
@@ -638,10 +670,16 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
         if test_env:
             if os.getenv(test_env, default=None) is None:
-                msg = 'Target {} was detected but the environment variable {} was not found.'
-                msg = msg.format(targettypes[1], test_env)
+                msg = (
+                    'Target {} was detected but the environment variable {} '
+                    'was not found.').format(targettypes[1], test_env)
                 print(msg, file=sys.stderr)
-                results.append(BuildError(0, full_pathname, configuration=target, msg=msg))
+                results.append(
+                    BuildError(
+                        0,
+                        full_pathname,
+                        configuration=target,
+                        msg=msg))
                 continue
 
         # Create the build command
@@ -649,19 +687,31 @@ def build_visual_studio(full_pathname, verbose=False, fatal=False):
         # process the target properly due to the presence of the | character
         # which causes piping.
 
-        # Visual Studio 2003 doesn't support setting platforms, just use the configuration name
+        # Visual Studio 2003 doesn't support setting platforms, just use the
+        # configuration name
         if vs_version == 2003:
             target = targettypes[0]
 
-        cmd = '{} {} /Build {}'.format(burger.encapsulate_path(vstudiopath),
-                                       burger.encapsulate_path(full_pathname),
-                                       burger.encapsulate_path(target))
+        cmd = [vstudiopath, full_pathname, '/Build', target]
         if verbose:
-            print(cmd)
+            print(' '.join(cmd))
         sys.stdout.flush()
-        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
-        results.append(BuildError(error, full_pathname, configuration=target))
-        if error and fatal:
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
+            msg = None
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=target,
+                msg=msg))
+        if error_code and fatal:
             break
 
     return results
@@ -704,14 +754,16 @@ def parse_mcp_file(full_pathname):
                 # Little endian
                 endian = '<'
             else:
-                print('Codewarrior "cool" signature not found!', file=sys.stderr)
+                print(
+                    'Codewarrior "cool" signature not found!',
+                    file=sys.stderr)
                 return None, None, None
 
             # Get the offset to the strings
             filep.seek(16)
-            index_offset = struct.unpack(endian + 'I', filep.read(4))[0]
+            index_offset = struct_unpack(endian + 'I', filep.read(4))[0]
             filep.seek(index_offset)
-            string_offset = struct.unpack(endian + 'I', filep.read(4))[0]
+            string_offset = struct_unpack(endian + 'I', filep.read(4))[0]
 
             # Read in the version
             filep.seek(28)
@@ -720,7 +772,9 @@ def parse_mcp_file(full_pathname):
             # Load the string 'CodeWarrior Project'
             filep.seek(40)
             if filep.read(19) != b'CodeWarrior Project':
-                print('"Codewarrior Project" signature not found!', file=sys.stderr)
+                print(
+                    '"Codewarrior Project" signature not found!',
+                    file=sys.stderr)
                 return None, None, None
 
             # Read in the strings for the targets
@@ -729,7 +783,7 @@ def parse_mcp_file(full_pathname):
             linkers = []
             # Scan for known linkers
             while True:
-                item = burger.read_zero_terminated_string(filep)
+                item = read_zero_terminated_string(filep)
                 if not item:
                     break
 
@@ -775,14 +829,21 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
         parse_mcp_file
     """
 
+    # Too many return statements
+    # Too many branches
+    # Too many statements
+    # pylint: disable=R0911,R0912,R0915
+
     # Test for older macOS or Windows
-    if burger.get_mac_host_type():
-        if not burger.is_codewarrior_mac_allowed():
-            return BuildError(0, full_pathname,
-                              msg='Codewarrior is not compatible with this version of macOS')
-    elif not burger.get_windows_host_type():
-        return BuildError(0, full_pathname,
-                          msg='Codewarrior is not compatible with this operating system')
+    if get_mac_host_type():
+        if not is_codewarrior_mac_allowed():
+            return BuildError(
+                0, full_pathname,
+                msg='Codewarrior is not compatible with this version of macOS')
+    elif not get_windows_host_type():
+        return BuildError(
+            0, full_pathname,
+            msg='Codewarrior is not compatible with this operating system')
 
     # Handle ../../
     full_pathname = os.path.abspath(full_pathname)
@@ -796,14 +857,16 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
     # build a project with specific linkers.
 
     cw_path = None
-    if burger.get_windows_host_type():
+    if get_windows_host_type():
         # Test for linkers that are not available on Windows
         if '68K Linker' in linkers:
-            return BuildError(0, full_pathname,
-                              msg="Requires a 68k linker which Windows doesn't support.")
+            return BuildError(
+                0, full_pathname,
+                msg="Requires a 68k linker which Windows doesn't support.")
         if 'PPC Linker' in linkers:
-            return BuildError(0, full_pathname,
-                              msg="Requires a PowerPC linker which Windows doesn't support.")
+            return BuildError(
+                0, full_pathname,
+                msg="Requires a PowerPC linker which Windows doesn't support.")
 
         # Determine which version of CodeWarrior to run.
 
@@ -822,41 +885,43 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
             cw_path = os.getenv('CWFolder', default=None)
 
         if cw_path is None:
-            return BuildError(0, full_pathname,
-                              msg="CodeWarrior with propler linker is not installed.")
+            return BuildError(
+                0, full_pathname,
+                msg="CodeWarrior with propler linker is not installed.")
 
         # Note: CmdIDE is preferred, however, Codewarrior 9.4 has a bug
         # that it will die horribly if the pathname to it
         # has a space, so ide is used instead.
-        cwfile = os.path.join(cw_path, 'Bin', 'IDE.exe')
+        cw_path = os.path.join(cw_path, 'Bin', 'IDE.exe')
     else:
 
         # Handle mac version
 
         # Only CodeWarrior 9 has the Windows linker
         if 'x86 Linker' in linkers:
-            cwfile = (
+            cw_path = (
                 '/Applications/Metrowerks CodeWarrior 9.0'
                 '/Metrowerks CodeWarrior/CodeWarrior IDE')
-            if not os.path.isfile(cwfile):
+            if not os.path.isfile(cw_path):
                 # Try an alternate path
-                cwfile = (
+                cw_path = (
                     '/Applications/Metrowerks CodeWarrior 9.0'
                     '/Metrowerks CodeWarrior/CodeWarrior IDE 9.6')
 
         # Build with CodeWarrior 10
         elif any(i in ('68K Linker', 'PPC Linker') for i in linkers):
-            cwfile = (
+            cw_path = (
                 '/Applications/Metrowerks CodeWarrior 10.0'
                 '/Metrowerks CodeWarrior/CodeWarrior IDE')
-            if not os.path.isfile(cwfile):
+            if not os.path.isfile(cw_path):
                 # Alternate path
-                cwfile = (
+                cw_path = (
                     '/Applications/Metrowerks CodeWarrior 10.0'
                     '/Metrowerks CodeWarrior/CodeWarrior IDE 10')
-        if cwfile is None:
-            return BuildError(0, full_pathname,
-                              msg="CodeWarrior with proper linker is not installed.")
+        if cw_path is None:
+            return BuildError(
+                0, full_pathname,
+                msg="CodeWarrior with proper linker is not installed.")
 
     # If there's an "Uber" target, just use that
     if 'Everything' in targets:
@@ -864,37 +929,48 @@ def build_codewarrior(full_pathname, verbose=False, fatal=False):
 
     # Create the temp folder in case there's an error file generated
     mytempdir = os.path.join(os.path.dirname(full_pathname), 'temp')
-    burger.create_folder_if_needed(mytempdir)
+    create_folder_if_needed(mytempdir)
 
     results = []
     for target in targets:
 
         # Use the proper dispatcher
-        if burger.get_windows_host_type():
+        if get_windows_host_type():
             # Create the build command
             # /s New instance
             # /t Project name
             # /b Build
             # /c close the project after completion
             # /q Close Codewarrior on completion
-            cmd = [cwfile, full_pathname, '/t', target, '/s', '/c', '/q', '/b']
+            cmd = [cw_path, full_pathname, '/t', target, '/s', '/c', '/q', '/b']
         else:
             # Create the folder for the error log
             error_file = os.path.join(mytempdir, '{}-{}.err'.format(
                 os.path.splitext(os.path.basename(full_pathname))[0], target))
             cmd = ['cmdide', '-proj', '-bcwef', error_file,
-                   '-y', cwfile, '-z', target, full_pathname]
+                   '-y', cw_path, '-z', target, full_pathname]
 
         if verbose:
             print(' '.join(cmd))
-        sys.stdout.flush()
-        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname))
-        msg = None
-        if error and error < len(CODEWARRIOR_ERRORS):
-            msg = CODEWARRIOR_ERRORS[error]
-        results.append(BuildError(error, full_pathname, configuration=target,
-                                  msg=msg))
-        if error and fatal:
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
+            msg = None
+            if error_code and error_code < len(CODEWARRIOR_ERRORS):
+                msg = CODEWARRIOR_ERRORS[error_code]
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=target,
+                msg=msg))
+        if error_code and fatal:
             break
 
     return results
@@ -980,25 +1056,49 @@ def build_xcode(full_pathname, verbose=False, fatal=False):
 
     # Invoke XCode 4 or higher from the app store
     else:
-        xcodebuild = '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild'
+        xcodebuild = (
+            '/Applications/Xcode.app/Contents/'
+            'Developer/usr/bin/xcodebuild')
 
     # Is this version of XCode installed?
     if os.path.isfile(xcodebuild) is not True:
-        print('Can\'t build {} the proper version of XCode is not installed'.format(full_pathname))
-        return BuildError(0, full_pathname, msg='Proper version of XCode not found')
+        print(('Can\'t build {} the proper version '
+               'of XCode is not installed').format(full_pathname))
+        return BuildError(0, full_pathname,
+                          msg='Proper version of XCode not found')
 
     # Build each and every target
     results = []
     for target in targetlist:
         # Create the build command
-        cmd = '{} -project "{}" -alltargets -parallelizeTargets -configuration "{}"'.format(
-            xcodebuild, os.path.basename(full_pathname), target)
+        cmd = [
+            xcodebuild,
+            '-project',
+            os.path.basename(full_pathname),
+            '-alltargets',
+            '-parallelizeTargets',
+            '-configuration',
+            target]
+
         if verbose:
-            print(cmd)
-        sys.stdout.flush()
-        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
-        results.append(BuildError(error, full_pathname, configuration=target))
-        if error and fatal:
+            print(' '.join(cmd))
+
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
+            msg = None
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=target))
+        if error_code and fatal:
             break
 
     return results
@@ -1022,13 +1122,15 @@ def parse_codeblocks_file(full_pathname):
         build_codeblocks
     """
 
+    # Too many nested blocks
+    # pylint: disable=R0101
+
     # Start with an empty list
+    targetlist = []
 
     # Parse the XML file
-    targetlist = []
     try:
         tree = ET.parse(full_pathname)
-
     except IOError as error:
         print(str(error), file=sys.stderr)
         return targetlist
@@ -1095,18 +1197,21 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
     # --file=
 
     # Is Codeblocks installed?
-    codeblocks_path = burger.where_is_codeblocks()
+    codeblocks_path = where_is_codeblocks()
     if codeblocks_path is None:
-        return BuildError(0, full_pathname, msg='Requires Codeblocks to be installed to build!')
+        return BuildError(
+            0, full_pathname,
+            msg='Requires Codeblocks to be installed to build!')
 
-    if burger.get_windows_host_type():
+    if get_windows_host_type():
         if full_pathname.endswith('osx.cbp'):
-            return BuildError(0, full_pathname, msg="Can only be built on macOS")
-        codeblocksflags = '--no-check-associations --no-dde '
+            return BuildError(0, full_pathname,
+                              msg="Can only be built on macOS")
+        codeblocksflags = ['--no-check-associations', '--no-dde']
     else:
         if not full_pathname.endswith('osx.cbp'):
             return BuildError(0, full_pathname, msg="Can not be built on macOS")
-        codeblocksflags = '--no-ipc'
+        codeblocksflags = ['--no-ipc']
 
     # Handle ../../
     full_pathname = os.path.abspath(full_pathname)
@@ -1122,14 +1227,28 @@ def build_codeblocks(full_pathname, verbose=False, fatal=False):
     results = []
     for target in targets:
         # Create the build command
-        cmd = '"{}" {} --no-splash-screen --build "{}" --target={}'.format(
-            codeblocks_path, codeblocksflags, full_pathname, target)
+        cmd = [codeblocks_path]
+        cmd.extend(codeblocksflags)
+        cmd.extend(['--no-splash-screen', '--build',
+                    full_pathname, '--target=' + target])
 
         if verbose:
-            print(cmd)
-        error = subprocess.call(cmd, cwd=os.path.dirname(full_pathname), shell=True)
-        results.append(BuildError(error, full_pathname, configuration=target))
-        if error and fatal:
+            print(' '.join(cmd))
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(full_pathname),
+                quiet=not verbose)[0]
+            msg = None
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+        results.append(
+            BuildError(
+                error_code,
+                full_pathname,
+                configuration=target))
+        if error_code and fatal:
             break
     return results
 
@@ -1155,7 +1274,7 @@ def add_build_rules(projects, file_name, args):
     """
 
     file_name = os.path.abspath(file_name)
-    build_rules = burger.import_py_script(file_name)
+    build_rules = import_py_script(file_name)
     if build_rules:
         if args.verbose:
             print('Using configuration file {}'.format(file_name))
@@ -1187,6 +1306,9 @@ def add_project(projects, file_name, args):
         True if the file was buildable, False if not.
     """
 
+    # Too many branches
+    # pylint: disable=R0912
+
     # Only process project files
     base_name = os.path.basename(file_name)
     base_name_lower = base_name.lower()
@@ -1195,7 +1317,7 @@ def add_project(projects, file_name, args):
     if base_name == 'prebuild.py':
         projecttype = 'python'
         priority = 1
-    elif base_name == 'build_rules.py':
+    elif base_name == BUILD_RULES_PY:
         if not args.rules_file:
             return add_build_rules(projects, file_name, args)
     elif base_name_lower.endswith('.slicerscript'):
@@ -1261,13 +1383,16 @@ def process(working_directory, args, results):
     Build a specific directory.
 
     Args:
-        working_directory: path of the directory to pass to the ``clean_rules`` function
+        working_directory: Directory to pass to the ``clean_rules`` function
         args: Args for determining verbosity for output
-        results: List to append BuildError records to record the state of the build process
+        results: List to append BuildError records
     Returns:
         Zero on no error, non zero integer on error
     """
 
+    # Too many branches
+    # Too many statements
+    # pylint: disable=R0912,R0915
     if args.verbose:
         print('Building "{}".'.format(working_directory))
 
@@ -1283,7 +1408,8 @@ def process(working_directory, args, results):
         for item in args.args:
             projectname = os.path.join(working_directory, item)
             if add_project(projects, projectname, args) is False:
-                print('Error: {} is not a known project file.'.format(projectname))
+                print(('Error: {} is not a '
+                       'known project file.').format(projectname))
                 return 10
     else:
         get_projects(projects, working_directory, args)
@@ -1301,18 +1427,18 @@ def process(working_directory, args, results):
             if not project.has_python_function():
                 if args.verbose:
                     print('Invoking ' + fullpathname)
-                error = burger.run_py_script(fullpathname, 'main', os.path.dirname(fullpathname))
+                error = run_py_script(
+                    fullpathname, 'main', os.path.dirname(fullpathname))
             else:
                 func_name = projecttype.split(':')[1]
                 if args.verbose:
                     print(
-                        'Calling ' +
-                        project.function_ref.__name__ +
-                        '(command="' +
-                        func_name +
-                        '") in ' +
-                        fullpathname)
-                error = project.function_ref(func_name, working_directory=working_directory)
+                        'Calling {}(command="{}") in {}'.format(
+                            project.function_ref.__name__,
+                            func_name,
+                            fullpathname))
+                error = project.function_ref(
+                    func_name, working_directory=working_directory)
             berror = BuildError(error, fullpathname)
 
         # Is it a slicer script?
@@ -1340,22 +1466,29 @@ def process(working_directory, args, results):
 
         # Visual studio solution files?
         elif projecttype == 'visualstudio':
-            if burger.get_windows_host_type():
+            if get_windows_host_type():
                 berror = build_visual_studio(fullpathname, verbose=args.verbose,
                                              fatal=args.fatal)
 
         # Metrowerks Codewarrior files?
         elif projecttype == 'codewarrior':
-            berror = build_codewarrior(fullpathname, verbose=args.verbose, fatal=args.fatal)
+            berror = build_codewarrior(
+                fullpathname, verbose=args.verbose, fatal=args.fatal)
 
         # XCode project file?
         elif projecttype == 'xcode':
-            if burger.get_mac_host_type():
-                berror = build_xcode(fullpathname, verbose=args.verbose, fatal=args.fatal)
+            if get_mac_host_type():
+                berror = build_xcode(
+                    fullpathname,
+                    verbose=args.verbose,
+                    fatal=args.fatal)
 
         # Codeblocks project file?
         elif projecttype == 'codeblocks':
-            berror = build_codeblocks(fullpathname, verbose=args.verbose, fatal=args.fatal)
+            berror = build_codeblocks(
+                fullpathname,
+                verbose=args.verbose,
+                fatal=args.fatal)
 
         error = 0
         if berror is not None:
@@ -1404,7 +1537,7 @@ def main(working_directory=None, args=None):
     - ``--version``, show version.
     - ``-r``, Perform a recursive rebuild.
     - ``-v``, Verbose output.
-    - ``--generate-rules``, Create build_rules.py in the working directory and exit.
+    - ``--generate-rules``, Create build_rules.py and exit.
     - ``--rules-file``, Override the configruration file.
     - ``-f``, Stop building on the first build failure.
     - ``-d``, List of directories to rebuild.
@@ -1412,12 +1545,14 @@ def main(working_directory=None, args=None):
     - Additional terms are considered specific files to build.
 
     Args:
-        working_directory: Directory to operate on, or ``None`` for ``os.getcwd()``.
+        working_directory: Directory to operate on, or ``None``.
         args: Command line to use instead of ``sys.argv``.
     Returns:
         Zero on no error, non-zero on error
     """
 
+    # Too many branches
+    # pylint: disable=R0912
     # Make sure working_directory is properly set
     if working_directory is None:
         working_directory = os.getcwd()
@@ -1425,8 +1560,8 @@ def main(working_directory=None, args=None):
     # Parse the command line
     parser = argparse.ArgumentParser(
         description='Build project files. Copyright by Rebecca Ann Heineman. '
-        'Builds *.sln, *.mcp, *.cbp, *.wmk, *.rezscript, *.slicerscript, doxyfile, '
-        'makefile and *.xcodeproj files')
+        'Builds *.sln, *.mcp, *.cbp, *.wmk, *.rezscript, *.slicerscript, '
+        'doxyfile, makefile and *.xcodeproj files')
 
     parser.add_argument('--version', action='version',
                         version='%(prog)s ' + VERSION)
@@ -1437,8 +1572,12 @@ def main(working_directory=None, args=None):
     parser.add_argument('--generate-rules', dest='generate_build_rules',
                         action='store_true', default=False,
                         help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rules-file', dest='rules_file',
-                        metavar='<file>', default=None, help='Specify a configuration file.')
+    parser.add_argument(
+        '--rules-file',
+        dest='rules_file',
+        metavar='<file>',
+        default=None,
+        help='Specify a configuration file.')
 
     parser.add_argument('-f', dest='fatal', action='store_true',
                         default=False, help='Quit immediately on any error.')
@@ -1455,10 +1594,14 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
-        from .config import savedefault
+        from .config import save_default
         if args.verbose:
-            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
-        savedefault(working_directory)
+            print(
+                'Saving {}'.format(
+                    os.path.join(
+                        working_directory,
+                        BUILD_RULES_PY)))
+        save_default(working_directory)
         return 0
 
     # Make a list of directories to process

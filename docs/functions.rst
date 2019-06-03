@@ -34,9 +34,9 @@ makeprojects.new_configuration
 Configuration
 -------------
 
-config.savedefault
-^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::config::savedefault
+config.save_default
+^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::config::save_default
 
 config.find_default_build_rules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -161,10 +161,6 @@ enums.platformtype_short_code
 
 Core
 ----
-
-core.configuration_short_code
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::core::configuration_short_code
 
 core.source_file_filter
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

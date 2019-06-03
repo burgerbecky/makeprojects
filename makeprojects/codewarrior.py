@@ -25,7 +25,7 @@ import sys
 import makeprojects.core
 import burger
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .core import configuration_short_code, source_file_filter
+from .core import source_file_filter
 
 if not burger.PY2:
     unicode = str
@@ -70,11 +70,11 @@ class Defaults(object):
         self.libraries = []
 
         # In windows, set BURGER_SDKS as an environment variable
-        if solution.projects[0].get_attribute('platform').is_windows():
+        if solution.project_list[0].get_attribute('platform').is_windows():
             self.environmentvariables = ['BURGER_SDKS']
 
             # Add the default system directories
-            if solution.projects[0].get_attribute('project_type') != ProjectTypes.library or \
+            if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library or \
                     solution.attributes['name'] != 'burgerlib':
                 self.burgersdkspaths.append('windows\\burgerlib')
             self.burgersdkspaths.append('windows\\perforce')
@@ -97,15 +97,15 @@ class Defaults(object):
                 'winmm.lib'
             ]
 
-        elif solution.projects[0].get_attribute('platform').is_macos():
-            if solution.projects[0].get_attribute('project_type') != ProjectTypes.library or \
+        elif solution.project_list[0].get_attribute('platform').is_macos():
+            if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library or \
                     solution.attributes['name'] != 'burgerlib':
                 self.burgersdkspaths.append('mac/burgerlib')
             self.burgersdkspaths.append('mac/gamesprockets')
             self.burgersdkspaths.append('mac/opengl')
             self.burgersdkspaths.append('codewarrior')
 
-            if solution.projects[0].get_attribute('platform').is_macos_carbon():
+            if solution.project_list[0].get_attribute('platform').is_macos_carbon():
                 self.systemsearchpaths = ['MSL', 'MacOS Support']
                 self.libraries = [
                     'CarbonLib',
@@ -113,7 +113,7 @@ class Defaults(object):
                     'InputSprocketStubLib'
                 ]
 
-            elif solution.projects[0].get_attribute('platform').is_macos_classic():
+            elif solution.project_list[0].get_attribute('platform').is_macos_classic():
                 self.systemsearchpaths = ['MSL', 'MacOS Support']
 
                 self.libraries = [
@@ -702,7 +702,7 @@ class Project(object):
         self.projectnamecode = str(projectname + idecode + platformcode)
 
         # Data chunks
-        self.projects = []
+        self.project_list = []
         self.orderedtargets = []
         self.group = GROUP(None)
 
@@ -712,7 +712,7 @@ class Project(object):
 
     def addtarget(self, targetname, linker):
         entry = TARGET(targetname, linker)
-        self.projects.append(entry)
+        self.projeproject_listcts.append(entry)
         self.orderedtargets.append(ORDEREDTARGET(entry))
         return entry
 
@@ -823,7 +823,7 @@ class Project(object):
 
         # Target settings
         fileref.write(TAB + '<TARGETLIST>\n')
-        for item in self.projects:
+        for item in self.project_list:
             item.write(fileref, 2)
         fileref.write(TAB + '</TARGETLIST>\n')
 
@@ -847,13 +847,13 @@ class Project(object):
 def generate(solution):
 
     # Codewarrior doesn't support x64
-    for project in solution.projects:
-        configs = []
-        for configuration in project.configurations:
+    for project in solution.project_list:
+        configuration_list = []
+        for configuration in project.configuration_list:
             if configuration.attributes['platform'].is_windows():
                 configuration.attributes['platform'] = PlatformTypes.win32
-            configs.append(configuration)
-        project.configurations = configs
+            configuration_list.append(configuration)
+        project.configuration_list = configuration_list
 
     #
     # Find the files to put into the project
@@ -882,7 +882,7 @@ def generate(solution):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+    platformcode = solution.project_list[0].get_attribute('platform').get_short_code()
     codewarriorprojectfile = Project(solution.attributes['name'], idecode, platformcode)
 
     #
@@ -899,7 +899,7 @@ def generate(solution):
     listh = source_file_filter(codefiles, FileTypes.h)
     listcpp = source_file_filter(codefiles, FileTypes.cpp)
     listwindowsresource = []
-    if solution.projects[0].get_attribute('platform').is_windows():
+    if solution.project_list[0].get_attribute('platform').is_windows():
         listwindowsresource = source_file_filter(codefiles,FileTypes.rc)
 
     alllists = listh + listcpp + listwindowsresource
@@ -908,7 +908,7 @@ def generate(solution):
     # Select the project linker for the platform
     #
 
-    if solution.projects[0].get_attribute('platform').is_windows():
+    if solution.project_list[0].get_attribute('platform').is_windows():
         linker = 'Win32 x86 Linker'
     else:
         linker = 'MacOS PPC Linker'
@@ -917,7 +917,7 @@ def generate(solution):
     # Add every configuration to the project
     #
 
-    for configuration in solution.projects[0].configurations:
+    for configuration in solution.project_list[0].configurations:
 
         #
         # Create the project for the configuration
@@ -941,7 +941,7 @@ def generate(solution):
         #
         target.settinglist.append(
             SearchPath(
-                solution.projects[0].get_attribute('platform'),
+                solution.project_list[0].get_attribute('platform'),
                 'bin',
                 'Project',
                 'OutputDirectory'))
@@ -956,7 +956,7 @@ def generate(solution):
                 entry = usersearchpaths.addsetting()
                 entry.subsettings.append(
                     SearchPathAndFlags(
-                        solution.projects[0].get_attribute('platform'),
+                        solution.project_list[0].get_attribute('platform'),
                         item,
                         'Project',
                         False))
@@ -970,7 +970,7 @@ def generate(solution):
             entry = systemsearchpaths.addsetting()
             entry.subsettings.append(
                 SearchPathAndFlags(
-                    solution.projects[0].get_attribute('platform'),
+                    solution.project_list[0].get_attribute('platform'),
                     item,
                     'BURGER_SDKS',
                     False))
@@ -979,7 +979,7 @@ def generate(solution):
             entry = systemsearchpaths.addsetting()
             entry.subsettings.append(
                 SearchPathAndFlags(
-                    solution.projects[0].get_attribute('platform'),
+                    solution.project_list[0].get_attribute('platform'),
                     item,
                     'CodeWarrior',
                     True))
@@ -991,8 +991,8 @@ def generate(solution):
         # C/C++ Language
         target.settinglist.append(MWFrontEnd_C())
 
-        platform = solution.projects[0].get_attribute('platform')
-        definelist = configuration.get_attribute('defines')
+        platform = solution.project_list[0].get_attribute('platform')
+        definelist = configuration.get_attribute('define_list')
         # C/C++ Preprocessor
         target.settinglist.append(C_CPP_Preprocessor(definelist))
         # C/C++ Warnings
@@ -1002,14 +1002,14 @@ def generate(solution):
         # Windows settings
         #
 
-        if solution.projects[0].get_attribute('platform').is_windows():
+        if solution.project_list[0].get_attribute('platform').is_windows():
 
             # x86 Target
             target.settinglist.append(
                 MWProject_X86(
-                    solution.projects[0].get_attribute('project_type'),
+                    solution.project_list[0].get_attribute('project_type'),
                     solution.attributes['name'] + idecode + 'w32'
-                    + configuration_short_code(configuration.attributes['name'])))
+                    + configuration.attributes['short_code']))
 
             # x86 CodeGen
             target.settinglist.append(MWCodeGen_X86(configuration.attributes['name']))
@@ -1033,7 +1033,7 @@ def generate(solution):
         #
 
         liblist = []
-        if solution.projects[0].get_attribute('project_type') != ProjectTypes.library:
+        if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library:
             if configuration.attributes['name'] == 'Debug':
                 liblist.append('burgerlibc50w32dbg.lib')
             elif configuration.attributes['name'] == 'Internal':
@@ -1058,21 +1058,21 @@ def generate(solution):
                 parts = item.relative_pathname.split('/')
                 filelist.append(unicode(parts[len(parts) - 1]))
                 # Add to file group
-                codewarriorprojectfile.addtogroups(solution.projects[0].get_attribute('platform'), configuration.attributes['name'], parts)
+                codewarriorprojectfile.addtogroups(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], parts)
 
             filelist = sorted(filelist, key=unicode.lower)
             for item in filelist:
-                target.filelist.append(FILE(solution.projects[0].get_attribute('platform'), configuration.attributes['name'], item))
-                target.linkorder.append(FILEREF(solution.projects[0].get_attribute('platform'), None, item))
+                target.filelist.append(FILE(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], item))
+                target.linkorder.append(FILEREF(solution.project_list[0].get_attribute('platform'), None, item))
 
             # Sort case insensitive
             liblist = sorted(liblist, key=unicode.lower)
             for item in liblist:
-                target.filelist.append(FILE(solution.projects[0].get_attribute('platform'), configuration.attributes['name'], item))
-                target.linkorder.append(FILEREF(solution.projects[0].get_attribute('platform'), None, item))
+                target.filelist.append(FILE(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], item))
+                target.linkorder.append(FILEREF(solution.project_list[0].get_attribute('platform'), None, item))
                 # Add to file group
                 codewarriorprojectfile.addtogroups(
-                    solution.projects[0].get_attribute('platform'), configuration.attributes['name'], [
+                    solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], [
                         'Libraries', item])
 
     #
@@ -1096,7 +1096,7 @@ def generate(solution):
     #
 
     cwfile = os.getenv('CWFolder')
-    if cwfile is not None and solution.projects[0].get_attribute('platform').is_windows():
+    if cwfile is not None and solution.project_list[0].get_attribute('platform').is_windows():
         mcppathname = os.path.join(solution.attributes['working_directory'],
                                    codewarriorprojectfile.projectnamecode + '.mcp')
         burger.perforce_edit(mcppathname)

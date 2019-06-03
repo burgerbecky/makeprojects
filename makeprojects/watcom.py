@@ -25,7 +25,6 @@ import os
 from io import StringIO
 import burger
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes
-from .core import configuration_short_code
 
 # pylint: disable=C0302
 
@@ -34,13 +33,6 @@ from .core import configuration_short_code
 # This module contains classes needed to generate
 # project files intended for use by OpenWatcom WMAKE
 #
-
-#
-# Default folder for DOS tools when invoking 'FINAL_FOLDER'
-# from the command line
-#
-
-DEFAULT_FINAL_FOLDER = '$(BURGER_SDKS)/dos/burgerlib'
 
 ## Array of targets that Watcom can build
 VALID_TARGETS = [
@@ -67,7 +59,7 @@ class Project(object):
         self.include_folders = []
         self.final_folder = None
         self.platforms = []
-        self.configurations = []
+        self.configuration_list = []
 
     def add_source_file(self, source_file):
         """
@@ -113,7 +105,7 @@ class Project(object):
             '!endif\n')
 
         config = None
-        for item in self.configurations:
+        for item in self.configuration_list:
             if item == 'Release':
                 config = 'Release'
             elif config is None:
@@ -156,9 +148,9 @@ class Project(object):
                     item.get_short_code()[-3:]))
         filep.write('\n')
 
-        for item in self.configurations:
+        for item in self.configuration_list:
             filep.write('CONFIG_SUFFIX_{0} = {1}\n'.format(str(item),
-                                                           configuration_short_code(item)))
+                                                           item.get_attribute('short_code')))
 
         filep.write(
             '\n'
@@ -425,7 +417,7 @@ class Project(object):
                     '# List the names of all of the final binaries to build\n'
                     '#\n\n'
                     'all: ')
-        for item in self.configurations:
+        for item in self.configuration_list:
             filep.write(str(item) + ' ')
         filep.write('.SYMBOLIC\n'
                     '\t@%null\n')
@@ -435,7 +427,7 @@ class Project(object):
                     '# Configurations\n'
                     '#\n\n')
 
-        for configuration in self.configurations:
+        for configuration in self.configuration_list:
             filep.write('{0}: '.format(str(configuration)))
             for platform in self.platforms:
                 filep.write(str(configuration) + platform.get_short_code() + ' ')
@@ -444,7 +436,7 @@ class Project(object):
 
         for platform in self.platforms:
             filep.write('{0}: '.format(platform.get_short_code()))
-            for configuration in self.configurations:
+            for configuration in self.configuration_list:
                 filep.write(str(configuration) + platform.get_short_code() + ' ')
             filep.write('.SYMBOLIC\n'
                         '\t@%null\n\n')
@@ -454,21 +446,21 @@ class Project(object):
         else:
             suffix = 'exe'
 
-        for configuration in self.configurations:
+        for configuration in self.configuration_list:
             for platform in self.platforms:
                 filep.write('{0}{1}: .SYMBOLIC\n'.format(str(configuration),
                                                          platform.get_short_code()))
                 filep.write('\t@if not exist "$(DESTINATION_DIR)" '
                             '@mkdir "$(DESTINATION_DIR)"\n')
                 name = 'wat' + platform.get_short_code()[-3:] + \
-                    configuration_short_code(configuration)
+                    configuration.get_attribute('short_code')
                 filep.write('\t@if not exist "$(BASE_TEMP_DIR){0}" '
                             '@mkdir "$(BASE_TEMP_DIR){0}"\n'.format(name))
                 filep.write('\t@set CONFIG=' + str(configuration) + '\n')
                 filep.write('\t@set TARGET=' + platform.get_short_code() + '\n')
                 filep.write('\t@%make $(DESTINATION_DIR)\\$(PROJECT_NAME)wat' +
                             platform.get_short_code()[-3:] +
-                            configuration_short_code(configuration) + '.' + suffix + '\n')
+                            configuration.get_attribute('short_code') + '.' + suffix + '\n')
                 filep.write('\n')
 
         filep.write(
@@ -495,12 +487,12 @@ class Project(object):
             suffix = '.exe'
 
         for target in self.platforms:
-            for config in self.configurations:
+            for config in self.configuration_list:
                 filep.write('A = $(BASE_TEMP_DIR)wat' + target.get_short_code()[-3:] +
-                            configuration_short_code(config) + '\n'
+                            config.get_attribute('short_code') + '\n'
                             '$(DESTINATION_DIR)\\$(PROJECT_NAME)wat' +
                             target.get_short_code()[-3:] +
-                            configuration_short_code(config) +
+                            config.get_attribute('short_code') +
                             suffix + ': $+$(OBJS)$- ' + self.projectname_code + '.wmk\n')
                 if self.projecttype == ProjectTypes.library:
 
@@ -538,7 +530,7 @@ def generate(solution):
     platforms = []
 
     # Special case, discard any attempt to build 64 bit windows
-    for item in solution.projects[0].get_attribute('platform').get_expanded():
+    for item in solution.project_list[0].get_attribute('platform').get_expanded():
         if item == PlatformTypes.win64:
             continue
         platforms.append(item)
@@ -560,7 +552,7 @@ def generate(solution):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+    platformcode = solution.project_list[0].get_attribute('platform').get_short_code()
     watcom_projectfile = Project(solution.attributes['name'], idecode, platformcode)
     project_filename = solution.attributes['name'] + idecode + platformcode + '.wmk'
     project_pathname = os.path.join(
@@ -571,16 +563,16 @@ def generate(solution):
         watcom_projectfile.add_source_file(item)
 
     # Sent the include folder list to the project
-    for item in solution.projects[0].get_attribute('include_folders'):
+    for item in solution.project_list[0].get_attribute('include_folders_list'):
         watcom_projectfile.add_include_folder(item)
 
     watcom_projectfile.platforms = platforms
     watcom_projectfile.configurations = []
-    for configuration in solution.projects[0].configurations:
+    for configuration in solution.project_list[0].configurations:
         if configuration.attributes.get('deploy_folder'):
             watcom_projectfile.final_folder = configuration.attributes.get('deploy_folder')
         watcom_projectfile.configurations.append(configuration.attributes['name'])
-    watcom_projectfile.projecttype = solution.projects[0].get_attribute('project_type')
+    watcom_projectfile.projecttype = solution.project_list[0].get_attribute('project_type')
 
     #
     # Serialize the Watcom file

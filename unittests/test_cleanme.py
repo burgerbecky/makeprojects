@@ -73,7 +73,6 @@ def test_cleanme_root(tmpdir):
         '       burger.clean_files(working_directory, "*.cpp")\n'
     )
 
-
     # Create some temp folders
     a_dir = tmpdir.mkdir('a')
 

@@ -166,13 +166,19 @@ def clean(working_directory):
     for item in CLEAN_DIR_LIST:
         burger.delete_directory(os.path.join(working_directory, item))
 
-    burger.clean_directories(working_directory, CLEAN_DIR_RECURSE_LIST, recursive=True)
+    burger.clean_directories(
+        working_directory,
+        CLEAN_DIR_RECURSE_LIST,
+        recursive=True)
 
     #
     # Delete all *.pyc and *.pyo files
     #
 
-    burger.clean_files(working_directory, name_list=CLEAN_EXTENSION_LIST, recursive=True)
+    burger.clean_files(
+        working_directory,
+        name_list=CLEAN_EXTENSION_LIST,
+        recursive=True)
 
 
 def myunlock(working_directory, recursive):

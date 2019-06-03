@@ -42,6 +42,15 @@ COPYRIGHT
 ^^^^^^^^^
 .. doxygenvariable:: makeprojects::__copyright__
 
+Internal constants
+------------------
+
+Constants used internally by this package.
+
+_XCODEPROJ_MATCH
+^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::_XCODEPROJ_MATCH
+
 Internal tables
 ---------------
 
@@ -84,9 +93,9 @@ enums._PROJECTTYPES_READABLE
 Folder locations
 ----------------
 
-config.BUILD_RULES
-^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::config::BUILD_RULES
+config.BUILD_RULES_PY
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::BUILD_RULES_PY
 
 config._BUILD_RULES_VAR
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -106,10 +115,6 @@ config.DEFAULT_BUILD_RULES
 
 Build Constants
 ---------------
-
-buildme._XCODEPROJ_MATCH
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::_XCODEPROJ_MATCH
 
 buildme.BUILD_LIST
 ^^^^^^^^^^^^^^^^^^
@@ -134,11 +139,3 @@ buildme._VS_OLD_VERSION_YEARS
 buildme._VS_SDK_ENV_VARIABLE
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::buildme::_VS_SDK_ENV_VARIABLE
-
-
-Clean Constants
----------------
-
-cleanme._XCODEPROJ_MATCH
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::cleanme::_XCODEPROJ_MATCH

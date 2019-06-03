@@ -9,10 +9,10 @@ Module that contains the code to generate defaults.
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import os
 from burger import convert_to_array
 
 from .enums import IDETypes, PlatformTypes, ProjectTypes
+from .build_rules import rules as default_rules
 
 ########################################
 
@@ -34,14 +34,19 @@ def get_project_name(build_rules_list, working_directory, args):
         Name of the project.
     """
 
-    # Check build_rules.py
-    for rules in build_rules_list:
-        project_name = rules('default_project_name', working_directory=working_directory)
-        if project_name:
-            break
-    else:
-        # Use the default
-        project_name = os.path.basename(working_directory)
+    project_name = args.name
+    if not project_name:
+        # Check build_rules.py
+        for rules in build_rules_list:
+            project_name = rules(
+                'default_project_name',
+                working_directory=working_directory)
+            if project_name:
+                break
+        else:
+            # Use the default
+            project_name = default_rules(
+                'default_project_name', working_directory)
 
     # Print if needed.
     if args.verbose:
@@ -51,7 +56,7 @@ def get_project_name(build_rules_list, working_directory, args):
 ########################################
 
 
-def get_project_type(build_rules_list, working_directory, args):
+def get_project_type(build_rules_list, working_directory, args, project_name):
     """
     Determine the project type.
 
@@ -63,29 +68,39 @@ def get_project_type(build_rules_list, working_directory, args):
         build_rules_list: List to append a valid build_rules file instance.
         working_directory: Full path name of the build_rules.py to load.
         args: Args for determining verbosity for output.
+        project_name: Name of the project being built.
 
     Returns:
         ProjectTypes enumeration.
     """
 
-    # Check build_rules.py
-    for rules in build_rules_list:
-        item = rules('default_project_type', working_directory=working_directory)
+    project_type = args.project_type
+    if project_type:
+        project_type = ProjectTypes.lookup(project_type)
 
-        # Is it a ProjectTypes?
-        if isinstance(item, ProjectTypes):
-            project_type = item
-            break
+    if not isinstance(project_type, ProjectTypes):
+        # Check build_rules.py
+        for rules in build_rules_list:
+            item = rules(
+                'default_project_type',
+                working_directory=working_directory,
+                project_name=project_name)
 
-        # Try string lookup
-        if item != 0:
-            project_type = ProjectTypes.lookup(item)
-            if project_type is not None:
+            # Is it a ProjectTypes?
+            if isinstance(item, ProjectTypes):
+                project_type = item
                 break
-            print('Project Type {} is not supported.'.format(item))
-    else:
-        # Use the default
-        project_type = ProjectTypes.tool
+
+            # Try string lookup
+            if item != 0:
+                project_type = ProjectTypes.lookup(item)
+                if project_type is not None:
+                    break
+                print('Project Type {} is not supported.'.format(item))
+        else:
+            # Use the default
+            project_type = default_rules(
+                'default_project_type', working_directory)
 
     # Print if needed.
     if args.verbose:
@@ -170,7 +185,9 @@ def get_platform_list(build_rules_list, working_directory, args):
     temp_list = args.platforms
     if not temp_list:
         for rules in build_rules_list:
-            default = rules('default_platform', working_directory=working_directory)
+            default = rules(
+                'default_platform',
+                working_directory=working_directory)
             # Check if it's a single PlatformTypes enum
             if isinstance(default, PlatformTypes):
                 # Convert to a list
@@ -203,7 +220,8 @@ def get_platform_list(build_rules_list, working_directory, args):
 ########################################
 
 
-def get_configuration_list(build_rules_list, working_directory, args, platform, ide):
+def get_configuration_list(
+        build_rules_list, working_directory, args, platform, ide):
     """
     Determine the configurations to generate projects for.
 
@@ -233,11 +251,11 @@ def get_configuration_list(build_rules_list, working_directory, args, platform, 
             if configuration_list != 0:
                 break
         else:
-            configuration_list = [
-                'Debug',
-                'Internal',
-                'Release'
-            ]
+            configuration_list = default_rules(
+                'configuration_list',
+                working_directory=working_directory,
+                platform=platform,
+                ide=ide)
 
     return configuration_list
 
@@ -270,23 +288,32 @@ def fixup_ide_platform(ide_list, platform_list):
     elif not ide_list:
         # Platform without an IDE is tricky, because video game platforms
         # are picky.
-        if PlatformTypes.xbox360 in platform_list:
+        if PlatformTypes.xbox in platform_list:
+            ide_list.append(IDETypes.vs2003)
+
+        elif PlatformTypes.xbox360 in platform_list:
             ide_list.append(IDETypes.vs2010)
+
+        elif PlatformTypes.xboxone in platform_list:
+            ide_list.append(IDETypes.vs2017)
 
         elif PlatformTypes.ps3 in platform_list:
-            ide_list.append(IDETypes.vs2010)
+            ide_list.append(IDETypes.vs2015)
 
         elif PlatformTypes.ps4 in platform_list:
-            ide_list.append(IDETypes.vs2010)
+            ide_list.append(IDETypes.vs2015)
 
         elif PlatformTypes.vita in platform_list:
-            ide_list.append(IDETypes.vs2010)
+            ide_list.append(IDETypes.vs2015)
 
         elif PlatformTypes.shield in platform_list:
-            ide_list.append(IDETypes.vs2010)
+            ide_list.append(IDETypes.vs2015)
 
         elif PlatformTypes.wiiu in platform_list:
-            ide_list.append(IDETypes.vs2013)
+            ide_list.append(IDETypes.vs2015)
+
+        elif PlatformTypes.switch in platform_list:
+            ide_list.append(IDETypes.vs2017)
 
         # Unknown, punt on the IDE
         else:

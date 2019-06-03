@@ -19,9 +19,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 import sys
 import os
 import argparse
-from makeprojects import buildme
-from makeprojects import cleanme
+from makeprojects import buildme, cleanme
 from .__pkginfo__ import VERSION
+from .config import BUILD_RULES_PY, save_default
 
 ########################################
 
@@ -36,7 +36,7 @@ def main(working_directory=None, args=None):
     - ``--version``, show version.
     - ``-r``, Perform a recursive rebuild.
     - ``-v``, Verbose output.
-    - ``--generate-rules``, Create build_rules.py in the working directory and exit.
+    - ``--generate-rules``, Create build_rules.py and exit.
     - ``--rules-file``, Override the configruration file.
     - ``-f``, Stop building on the first build failure.
     - ``-d``, List of directories to rebuild.
@@ -49,6 +49,9 @@ def main(working_directory=None, args=None):
     Returns:
         Zero on no error, non-zero on error
     """
+
+    # Too many branches
+    # pylint: disable=R0912
 
     # Make sure the working directory is set
     if working_directory is None:
@@ -68,8 +71,12 @@ def main(working_directory=None, args=None):
     parser.add_argument('--generate-rules', dest='generate_build_rules',
                         action='store_true', default=False,
                         help='Generate a sample configuration file and exit.')
-    parser.add_argument('--rules-file', dest='rules_file',
-                        metavar='<file>', default=None, help='Specify a configuration file.')
+    parser.add_argument(
+        '--rules-file',
+        dest='rules_file',
+        metavar='<file>',
+        default=None,
+        help='Specify a configuration file.')
 
     parser.add_argument('-f', dest='fatal', action='store_true',
                         default=False, help='Quit immediately on any error.')
@@ -84,10 +91,13 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
-        from .config import savedefault
         if args.verbose:
-            print('Saving {}'.format(os.path.join(working_directory, 'build_rules.py')))
-        savedefault(working_directory)
+            print(
+                'Saving {}'.format(
+                    os.path.join(
+                        working_directory,
+                        BUILD_RULES_PY)))
+        save_default(working_directory)
         return 0
 
     # Generate command lines for the tools

@@ -31,14 +31,6 @@ from .core import SourceFile
 # IDE
 #
 
-#
-# Default folder for MacOSX tools when invoking 'finalfolder'
-# from the command line
-#
-
-DEFAULT_FINAL_FOLDER = '$(BURGER_SDKS)/macosx/bin/'
-
-
 IOS_MINIMUM_FRAMEWORKS = [
     'AVFoundation.framework',
     'CoreGraphics.framework',
@@ -127,27 +119,27 @@ class Defaults(object):
 
         # Handle iOS targets
 
-        if solution.projects[0].get_attribute('platform') == PlatformTypes.ios:
-            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+        if solution.project_list[0].get_attribute('platform') == PlatformTypes.ios:
+            if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
                 self.configfilename = 'burger.libxcoios.xcconfig'
             else:
                 # Frameworks for an iOS app
                 minimumframeworks.extend(IOS_MINIMUM_FRAMEWORKS)
-                if solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+                if solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
                     self.configfilename = 'burger.gamexcoios.xcconfig'
                 else:
                     self.configfilename = 'burger.toolxcoios.xcconfig'
 
         # Handle Mac OSX targets
 
-        elif solution.projects[0].get_attribute('platform') == PlatformTypes.macosx:
+        elif solution.project_list[0].get_attribute('platform') == PlatformTypes.macosx:
 
-            if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+            if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
                 self.configfilename = 'burger.libxcoosx.xcconfig'
             else:
                 # Frameworks for a Mac OSX app or tool
                 minimumframeworks.extend(MACOS_MINIMUM_FRAMEWORKS)
-                if solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+                if solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
                     self.configfilename = 'burger.gamexcoosx.xcconfig'
                 else:
                     self.configfilename = 'burger.toolxcoosx.xcconfig'
@@ -168,7 +160,7 @@ class Defaults(object):
         """
         error = 0
         for key in myjson.keys():
-            if key == 'frameworks':
+            if key == 'frameworks_list':
                 self.frameworks = burger.convert_to_array(myjson[key])
             else:
                 print('Unknown keyword "' + str(key) + '" with data "' +
@@ -649,7 +641,7 @@ class XCConfigurationList(object):
     def __init__(self, pbxtype, targetname):
         self.pbxtype = pbxtype
         self.targetname = targetname
-        self.configurations = []
+        self.configuration_list = []
         self.uuid = calcuuid('XCConfigurationList' + pbxtype + targetname)
 
     def write(self, filep):
@@ -662,7 +654,7 @@ class XCConfigurationList(object):
         filep.write('\t\t\tisa = XCConfigurationList;\n')
         filep.write('\t\t\tbuildConfigurations = (\n')
         default = None
-        for item in self.configurations:
+        for item in self.configuration_list:
             if item.configname == 'Release':
                 default = 'Release'
             elif default is None:
@@ -940,7 +932,7 @@ def generate(solution):
     #
 
     idecode = solution.ide.get_short_code()
-    platformcode = solution.projects[0].get_attribute('platform').get_short_code()
+    platformcode = solution.project_list[0].get_attribute('platform').get_short_code()
     xcodeprojectfile = Project(solution.attributes['name'], idecode, platformcode)
     rootproject = xcodeprojectfile.pbxprojects[0]
 
@@ -993,15 +985,15 @@ def generate(solution):
     # What's the final output file?
     #
 
-    if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
-        if solution.projects[0].get_attribute('platform') == PlatformTypes.ios:
+    if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
+        if solution.project_list[0].get_attribute('platform') == PlatformTypes.ios:
             libextension = 'ios.a'
         else:
             libextension = 'osx.a'
         outputfilereference = xcodeprojectfile.addfilereference(
             'lib' + solution.attributes['name'] + idecode + libextension, FileTypes.library)
     else:
-        if solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+        if solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
             outputfilereference = xcodeprojectfile.addfilereference(
                 solution.attributes['name'] + '.app', FileTypes.exe)
         else:
@@ -1013,8 +1005,8 @@ def generate(solution):
     #
 
     ioslibrary = False
-    if solution.projects[0].get_attribute('platform') == PlatformTypes.ios:
-        if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+    if solution.project_list[0].get_attribute('platform') == PlatformTypes.ios:
+        if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
             ioslibrary = True
 
     if ioslibrary is True:
@@ -1171,7 +1163,7 @@ def generate(solution):
 
     configlistref = xcodeprojectfile.addxcconfigurationlist(
         'PBXProject', xcodeprojectfile.projectnamecode)
-    for item in solution.projects[0].configurations:
+    for item in solution.project_list[0].configurations:
         configlistref.configurations.append(
             xcodeprojectfile.addxcbuildconfigurationlist(
                 item.attributes['name'], configfilereference, configlistref, None, False))
@@ -1183,14 +1175,14 @@ def generate(solution):
     #
 
     sdkroot = None
-    if solution.projects[0].get_attribute('platform') == PlatformTypes.ios:
+    if solution.project_list[0].get_attribute('platform') == PlatformTypes.ios:
         sdkroot = 'iphoneos'
 
-    if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+    if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
         outputtype = 'com.apple.product-type.library.static'
-    elif solution.projects[0].get_attribute('project_type') == ProjectTypes.screensaver:
+    elif solution.project_list[0].get_attribute('project_type') == ProjectTypes.screensaver:
         outputtype = 'com.apple.product-type.bundle'
-    elif solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+    elif solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
         outputtype = 'com.apple.product-type.application'
     else:
         outputtype = 'com.apple.product-type.tool'
@@ -1203,13 +1195,13 @@ def generate(solution):
         configlistref = xcodeprojectfile.addxcconfigurationlist(
             'PBXNativeTarget', xcodeprojectfile.projectname)
         install = False
-        if solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+        if solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
             install = True
-        for item in solution.projects[0].configurations:
+        for item in solution.project_list[0].configurations:
             configlistref.configurations.append(
                 xcodeprojectfile.addxcbuildconfigurationlist(
                     item.attributes['name'], None, configlistref, sdkroot, install))
-        if solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+        if solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
             finalname = xcodeprojectfile.projectnamecode
         else:
             finalname = xcodeprojectfile.projectname
@@ -1228,7 +1220,7 @@ def generate(solution):
         targetname = xcodeprojectfile.projectnamecode
         configlistref = xcodeprojectfile.addxcconfigurationlist(
             'PBXNativeTarget', targetname)
-        for item in solution.projects[0].configurations:
+        for item in solution.project_list[0].configurations:
             configlistref.configurations.append(
                 xcodeprojectfile.addxcbuildconfigurationlist(
                     item.attributes['name'], None, configlistref, None, False))
@@ -1240,7 +1232,7 @@ def generate(solution):
         targetname = solution.attributes['name'] + idecode + 'dev'
         configlistref = xcodeprojectfile.addxcconfigurationlist(
             'PBXNativeTarget', targetname)
-        for item in solution.projects[0].configurations:
+        for item in solution.project_list[0].configurations:
             configlistref.configurations.append(
                 xcodeprojectfile.addxcbuildconfigurationlist(
                     item.attributes['name'], None, configlistref, 'iphoneos', False))
@@ -1257,7 +1249,7 @@ def generate(solution):
         targetname = solution.attributes['name'] + idecode + 'sim'
         configlistref = xcodeprojectfile.addxcconfigurationlist(
             'PBXNativeTarget', targetname)
-        for item in solution.projects[0].configurations:
+        for item in solution.project_list[0].configurations:
             configlistref.configurations.append(
                 xcodeprojectfile.addxcbuildconfigurationlist(
                     item.attributes['name'], None, configlistref, 'iphonesimulator', False))
@@ -1284,8 +1276,8 @@ def generate(solution):
     # Is this an application?
     #
 
-    if solution.projects[0].get_attribute('platform') == PlatformTypes.macosx:
-        if solution.projects[0].get_attribute('project_type') == ProjectTypes.tool:
+    if solution.project_list[0].get_attribute('platform') == PlatformTypes.macosx:
+        if solution.project_list[0].get_attribute('project_type') == ProjectTypes.tool:
             input_data = ['${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
             output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
             command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
@@ -1294,7 +1286,7 @@ def generate(solution):
             shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(
                 input_data, output, command)
             nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
-        elif solution.projects[0].get_attribute('project_type') == ProjectTypes.app:
+        elif solution.project_list[0].get_attribute('project_type') == ProjectTypes.app:
             input_data = [
                 '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app'
                 '/Contents/MacOS/${EXECUTABLE_NAME}']
@@ -1316,7 +1308,7 @@ def generate(solution):
     #
 
     deploy_folder = None
-    for configuration in solution.projects[0].configurations:
+    for configuration in solution.project_list[0].configurations:
         if configuration.attributes.get('deploy_folder'):
             deploy_folder = configuration.attributes.get('deploy_folder')
 
@@ -1342,7 +1334,7 @@ def generate(solution):
                 solution.attributes['name'] + idecode + \
                 'sim${SUFFIX}/lib' + solution.attributes['name'] + \
                 idecode + 'sim.a\\n'
-        elif solution.projects[0].get_attribute('project_type') == ProjectTypes.library:
+        elif solution.project_list[0].get_attribute('project_type') == ProjectTypes.library:
             command = 'p4 edit ' + deploy_folder + \
                 '${FINAL_OUTPUT}\\n${CP} ' \
                 '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + \

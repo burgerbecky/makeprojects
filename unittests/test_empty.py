@@ -38,7 +38,8 @@ def test_visual_studio(tmpdir):
     ]
 
     for item in empty_tests:
-        solution = makeprojects.new_solution(name='empty', working_directory=str(tmpdir))
+        solution = makeprojects.new_solution(
+            name='empty', working_directory=str(tmpdir))
         assert not solution.generate(ide=item[0])
 
         empty_file = os.path.join(
