@@ -2,40 +2,27 @@
 # -*- coding: utf-8 -*-
 
 """
-Sub file for makeprojects.
-Handler for Microsoft Visual Studio projects
+Project file generator for Microsoft Visual Studio.
+
+This module contains classes needed to generate
+project files intended for use by
+Microsoft's Visual Studio IDE
 """
 
-# Copyright 1995-8 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
+## \package makeprojects.visualstudio
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 from uuid import NAMESPACE_DNS, UUID
 from hashlib import md5
-from burger import PY2, save_text_file_if_newer, convert_to_windows_slashes, \
+from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     delete_file, escape_xml_cdata, escape_xml_attribute, \
-    convert_to_array, packed_paths, truefalse
+    packed_paths, truefalse
 
 from .enums import platformtype_short_code
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .core import source_file_filter
-
-if not PY2:
-    # pylint: disable=C0103
-    unicode = str
-
-#
-# \package makeprojects.visualstudio
-# This module contains classes needed to generate
-# project files intended for use by
-# Microsoft's Visual Studio IDE
-#
 
 ########################################
 
@@ -56,6 +43,47 @@ def get_uuid(input_str):
     # Generate using md5 with NAMESPACE_DNS as salt
     temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode('utf-8')).digest()
     return str(UUID(bytes=temp_md5[:16], version=3)).upper()
+
+########################################
+
+
+def vs2003_do_tree(xml_entry, filter_name, tree, groups):
+    """
+    Recursively create a Filter/File tree.
+
+    Dump out a recursive tree of files to reconstruct a
+    directory hiearchy for a file list with XML Filter
+    records.
+
+    Args:
+        xml_entry: Root entry to attach records to.
+        filter_name: Name of the current filter
+        tree: dict() containing the file list
+        groups: List of filter entries to match to the tree
+    """
+
+    # Process the tree in sorted order for consistency
+    for item in sorted(tree):
+        # Root entry has no slash.
+        if filter_name == '':
+            merged = item
+        else:
+            merged = filter_name + '\\' + item
+
+        # Create the filter entry
+        new_filter = VS2003Filter(item)
+        xml_entry.add_element(new_filter)
+
+        # See if this directory string creates a group?
+        if merged in groups:
+            # Found, add all the elements into this filter
+            for fileitem in sorted(groups[merged]):
+                new_filter.add_element(VS2003File(fileitem))
+
+        tree_key = tree[item]
+        # Recurse down the tree if there are sub entries
+        if isinstance(tree_key, dict):
+            vs2003_do_tree(new_filter, merged, tree_key, groups)
 
 ########################################
 
@@ -149,13 +177,14 @@ def generate_solution_file(solution_lines, solution):
                  project.attributes['vs_uuid']))
 
         # Write out the dependencies, if any
-        solution_lines.append(
-            '\tProjectSection(ProjectDependencies) = postProject')
-        for dependent in project.project_list:
+        if project.project_list or solution.ide < IDETypes.vs2005:
             solution_lines.append(
-                '\t\t{{{0}}} = {{{0}}}'.format(
-                    dependent.attributes['vs_uuid']))
-        solution_lines.append('\tEndProjectSection')
+                '\tProjectSection(ProjectDependencies) = postProject')
+            for dependent in project.project_list:
+                solution_lines.append(
+                    '\t\t{{{0}}} = {{{0}}}'.format(
+                        dependent.attributes['vs_uuid']))
+            solution_lines.append('\tEndProjectSection')
         solution_lines.append('EndProject')
 
     # Begin the Global record
@@ -277,10 +306,30 @@ def generate_solution_file(solution_lines, solution):
 
 
 class VS2003XML():
-    """
+    r"""
     Visual Studio 2003-2008 XML formatter.
 
-    Output XML elements in the format of Visual Studio 2003-2008
+    Output XML elements in the format of Visual Studio 2003-2008.
+
+    Visual Studio 2003-2008 only supports XML tags and attributes.
+    There is no support for text between tags.
+
+    Theses are examples of XML fragments this class exports.
+
+    @code{.unparsed}
+        <Platforms>
+            <Platform
+                Name="Win32"/>
+        </Platforms>
+
+    <Tool
+        Name="VCMIDLTool"/>
+
+    <-- force_pair disables support for "/>" closure -->
+    <File
+        RelativePath=".\source\Win32Console.cpp">
+    </File>
+    @endcode
     """
 
     def __init__(self, name, attribute_defaults=None, force_pair=False):
@@ -292,38 +341,49 @@ class VS2003XML():
             force_pair: If True, disable the use of /> XML suffix usage.
         """
 
-        # Name of this XML chunk.
+        ## Name of this XML chunk.
         self.name = name
 
-        # Disable ``<foo/>`` syntax
+        ## Disable ``<foo/>`` syntax
         self.force_pair = force_pair
 
-        # XML attributes.
+        ## List of name/data pairs
         self.attributes = []
 
-        # List of elements in this element.
+        ## List of elements in this element.
         self.elements = []
 
-        # List of valid attributes and defaults
+        ## List of valid attributes and defaults
         self.attribute_defaults = {}
 
         # Add the defaults, if any
         self.add_defaults(attribute_defaults)
 
+    ########################################
+
     def add_defaults(self, attribute_defaults):
         """
         Add a dict of attribute defaults.
+        @details
+        If any defaults were already present, they will be overwritten
+        with the new values.
 
         Args:
             attribute_defaults: dict of attribute names and default values.
         """
+
+        # Test for None
         if attribute_defaults:
-            for attribute in attribute_defaults:
-                self.attribute_defaults[attribute] = \
-                    attribute_defaults[attribute]
-                if attribute_defaults[attribute] is not None:
-                    self.set_attribute(
-                        attribute, attribute_defaults[attribute])
+            # Update the dictionary with the new defaults
+            self.attribute_defaults.update(attribute_defaults)
+
+            # Update the list of valid attributes to include
+            # non None entries
+            for item in attribute_defaults.items():
+                if item[1] is not None:
+                    self.set_attribute(item[0], item[1])
+
+    ########################################
 
     def add_attribute(self, name, value):
         """
@@ -335,6 +395,8 @@ class VS2003XML():
         """
         self.attributes.append([name, value])
 
+    ########################################
+
     def add_element(self, element):
         """
         Add an element to this XML element.
@@ -344,44 +406,57 @@ class VS2003XML():
         """
         self.elements.append(element)
 
+    ########################################
+
     def set_attribute(self, name, value):
         """
         Either change existing attribute or create a new one.
-
+        @details
         If the attribute was not found, it will be appended to the list
 
         Args:
             name: String of the entry to match
             value: Value to substitute
         """
+
+        # Iterate over the name/value pairs for a name match.
         for attribute in self.attributes:
             if attribute[0] == name:
+
+                # Update the data
                 attribute[1] = value
                 break
         else:
-            # Not found? Add the entry and then exit
+            # Not found? Append the entry and then exit
             self.attributes.append([name, value])
+
+    ########################################
 
     def remove_attribute(self, name):
         """
         Remove an attribute.
-
+        @details
         If the value is in the list, remove it.
 
         Args:
             name: String of the entry to remove
+        Returns:
+            True if found and removed, False if not present.
         """
 
         for item in self.attributes:
             # Match? Kill it.
             if item[0] == name:
                 self.attributes.remove(item)
-                break
+                return True
+        return False
+
+    ########################################
 
     def reset_attribute(self, name):
         """
         Reset an attribute to default.
-
+        @details
         If the attribute is in the attribute_defaults list, set
         it to the default, which can include the attribute removal.
 
@@ -395,41 +470,55 @@ class VS2003XML():
         else:
             self.remove_attribute(name)
 
-    def generate(self, line_list, indent=0):
+    ########################################
+
+    def generate(self, line_list=None, indent=0):
         """
         Generate the text lines for this XML element.
+
         Args:
             line_list: list object to have text lines appended to
             indent: number of tabs to insert (For recursion)
+        Returns:
+            line_list with all lines appended to it.
         """
 
+        # Create the default
+        if line_list is None:
+            line_list = []
+
         # Determine the indentation
+        # vs2003 uses tabs
         tabs = '\t' * indent
 
         # Special case, if no attributes, don't allow <foo/> XML
         # This is to duplicate the output of Visual Studio 2003-2008
         line_list.append('{0}<{1}'.format(tabs, escape_xml_cdata(self.name)))
         if self.attributes:
-            # Output tag with attributes and support '/>' closing
 
+            # Output tag with attributes and support '/>' closing
             for attribute in self.attributes:
                 line_list.append(
-                    '\t{0}{1}="{2}"'.format(
+                    '{0}\t{1}="{2}"'.format(
                         tabs, escape_xml_cdata(
                             attribute[0]), escape_xml_attribute(attribute[1])))
+
+            # Check if /> closing is disabled
             if not self.elements and not self.force_pair:
                 line_list.append('{}/>'.format(tabs))
-                return
+                return line_list
             # Close the open tag
-            line_list.append('\t{}>'.format(tabs))
+            line_list.append('{}\t>'.format(tabs))
         else:
             line_list[-1] = line_list[-1] + '>'
 
         # Output the embedded elements
         for element in self.elements:
             element.generate(line_list, indent=indent + 1)
+
         # Close the current element
         line_list.append('{0}</{1}>'.format(tabs, escape_xml_cdata(self.name)))
+        return line_list
 
     def __repr__(self):
         """
@@ -439,11 +528,9 @@ class VS2003XML():
             Human readable string or None if the solution is invalid
         """
 
-        line_list = []
-        self.generate(line_list)
-        return '\n'.join(line_list)
+        return '\n'.join(self.generate())
 
-    # Allow str() to work.
+    ## Allow str() to work.
     __str__ = __repr__
 
 
@@ -452,7 +539,7 @@ class VS2003XML():
 
 class VS2003Tool(VS2003XML):
     """
-    Helper class to output a Tool record for Visual Studio 2003-2008
+    Helper class to output a Tool record for Visual Studio 2003-2008.
 
     In Visual Studio project files from version 2003 to 2008, Tool
     XML records were used for settings for each and every compiler tool
@@ -472,26 +559,41 @@ class VS2003Tool(VS2003XML):
 
 class VCCLCompilerTool(VS2003Tool):
     """
-    Visual Studio 2003-2008 VCCLCompilerTool record
+    Visual Studio 2003-2008 VCCLCompilerTool record.
     """
 
     def __init__(self, configuration):
         """
         Init defaults
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
+
+        # Set the tag
         VS2003Tool.__init__(self, name='VCCLCompilerTool')
+
+        # Create the defaults using the generic flags
         if configuration.get_attribute('optimization'):
-            vs_optimization = '2'
+            vs_optimization = '3'
             vs_inlinefunctionexpansion = '2'
             vs_enableintrinsicfunctions = 'true'
             vs_omitframepointers = 'true'
+            vs_enablefibersafe = 'true'
         else:
             vs_optimization = '0'
             vs_inlinefunctionexpansion = None
             vs_enableintrinsicfunctions = None
             vs_omitframepointers = None
+            vs_enablefibersafe = None
+
+        if configuration.get_attribute('link_time_code_generation'):
+            vs_link_time_code_generation = 'true'
+        else:
+            vs_link_time_code_generation = None
 
         if configuration.get_attribute('debug'):
             vs_buffersecuritychecks = 'true'
@@ -500,7 +602,8 @@ class VCCLCompilerTool(VS2003Tool):
             vs_buffersecuritychecks = 'false'
             vs_runtimelibrary = '0'
 
-        if configuration.get_attribute('project_type') == ProjectTypes.library \
+        # Libaries have symbols
+        if configuration.get_attribute('project_type').is_library() \
                 or configuration.get_attribute('debug'):
             vs_debuginformationformat = '3'
             vs_programdatabasefilename = '"$(OutDir)$(TargetName).pdb"'
@@ -508,12 +611,13 @@ class VCCLCompilerTool(VS2003Tool):
             vs_debuginformationformat = '0'
             vs_programdatabasefilename = None
 
-        # Start with a copy (To prevent damaging the original list)
+        # Get the header includes
         include_folders = configuration.get_attribute_list(
             '_source_include_list')
         include_folders.extend(configuration.get_attribute_list(
             'include_folders_list'))
 
+        # Get the defines
         define_list = configuration.get_attribute_list('define_list')
 
         self.add_defaults({
@@ -525,7 +629,8 @@ class VCCLCompilerTool(VS2003Tool):
             'ImproveFloatingPointConsistency': None,
             'FavorSizeOrSpeed': '1',
             'OmitFramePointers': vs_omitframepointers,
-            'EnableFiberSafeOptimizations': None,
+            'WholeProgramOptimization': vs_link_time_code_generation,
+            'EnableFiberSafeOptimizations': vs_enablefibersafe,
             'OptimizeForProcessor': None,
             'OptimizeForWindowsApplication': None,
 
@@ -552,7 +657,7 @@ class VCCLCompilerTool(VS2003Tool):
             'StructMemberAlignment': '4',
             'BufferSecurityCheck': vs_buffersecuritychecks,
             'EnableFunctionLevelLinking': 'true',
-            'FloatingPointModel': '2',              # 2008
+            'FloatingPointModel': '2',
             'EnableEnhancedInstructionSet': None,
 
             # Language extensions menu
@@ -583,7 +688,7 @@ class VCCLCompilerTool(VS2003Tool):
 
             # Advanced menu
             'CallingConvention': '1',
-            'CompileAs': '2',
+            'CompileAs': None,
             'DisableSpecificWarnings': '4201',
             'ForcedIncludeFile': None,
             'ForcedUsingFiles': None,
@@ -600,15 +705,20 @@ class VCCLCompilerTool(VS2003Tool):
 
 class VCCustomBuildTool(VS2003Tool):
     """
-    Visual Studio 2003-2008 VCCustomBuildTool record
+    Visual Studio 2003-2008 VCCustomBuildTool record.
     """
 
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, name='VCCustomBuildTool')
         self.add_defaults({
             # General menu
@@ -623,17 +733,23 @@ class VCCustomBuildTool(VS2003Tool):
 
 class VCLinkerTool(VS2003Tool):
     """
-    Visual Studio 2003-2008 VCLinkerTool
+    Visual Studio 2003-2008 VCLinkerTool.
     """
 
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
-        ide = configuration.project.solution.ide
+
         VS2003Tool.__init__(self, 'VCLinkerTool')
+
+        # Don't use $(TargetExt)
         vs_output = '"$(OutDir){}{}{}{}.exe"'.format(
             configuration.project.get_attribute('name'),
             configuration.project.solution.ide.get_short_code(),
@@ -641,18 +757,8 @@ class VCLinkerTool(VS2003Tool):
             configuration.attributes['short_code'])
 
         # Start with a copy (To prevent damaging the original list)
-        library_folders = list(
-            convert_to_array(
-                configuration.attributes.get(
-                    'library_folders_list', [])))
-        library_folders.extend(
-            convert_to_array(
-                configuration.project.attributes.get(
-                    'library_folders_list', [])))
-        library_folders.extend(
-            convert_to_array(
-                configuration.project.solution.attributes.get(
-                    'library_folders_list', [])))
+        library_folders = configuration.get_attribute_list(
+            'library_folders_list')
 
         if configuration.get_attribute('project_type') == ProjectTypes.tool:
             # Console
@@ -661,10 +767,11 @@ class VCLinkerTool(VS2003Tool):
             # Application
             vs_subsystem = '2'
 
-        if ide == IDETypes.vs2003:
-            vs_linkincremental = 'true'
-        else:
+        # Link incremental if no optimizations
+        if configuration.get_attribute('optimization'):
             vs_linkincremental = None
+        else:
+            vs_linkincremental = 'true'
 
         self.add_defaults({
             # General menu
@@ -749,10 +856,17 @@ class VCLibrarianTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, 'VCLibrarianTool')
 
+        # Don't use $(TargetExt)
         vs_output = '"$(OutDir){}{}{}{}.lib"'.format(
             configuration.project.get_attribute('name'),
             configuration.project.solution.ide.get_short_code(),
@@ -776,7 +890,12 @@ class VCMIDLTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCMIDLTool')
 
@@ -791,7 +910,12 @@ class VCALinkTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCALinkTool')
 
@@ -807,7 +931,12 @@ class VCManifestTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManifestTool')
 
@@ -823,7 +952,12 @@ class VCXDCMakeTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCXDCMakeTool')
 
@@ -838,7 +972,12 @@ class VCBscMakeTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCBscMakeTool')
 
@@ -853,7 +992,12 @@ class VCFxCopTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCFxCopTool')
 
@@ -868,7 +1012,12 @@ class VCAppVerifierTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCAppVerifierTool')
 
@@ -883,7 +1032,12 @@ class VCManagedResourceCompilerTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManagedResourceCompilerTool')
 
@@ -898,25 +1052,52 @@ class VCPostBuildEventTool(VS2003Tool):
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, 'VCPostBuildEventTool')
+
         if configuration.get_attribute('deploy_folder') is not None:
+
             deploy_folder = convert_to_windows_slashes(
                 configuration.get_attribute('deploy_folder'), True)
+
+            project_type = configuration.get_attribute('project_type')
+            platform = configuration.get_attribute('platform')
+
+            # For windows, 64 bit and 32 bit tools go into seperate folders.
+
+            if not project_type.is_library():
+                if platform is PlatformTypes.win32:
+                    deploy_folder = deploy_folder + 'x86\\'
+                elif platform is PlatformTypes.win64:
+                    deploy_folder = deploy_folder + 'x64\\'
+
+            perforce = configuration.get_attribute('perforce')
             vs_description = 'Copying $(TargetName)$(TargetExt) to {}'.format(
                 deploy_folder)
-            vs_cmd = (
-                '"$(perforce)\\p4" edit "{0}$(TargetName)$(TargetExt)"\r\n'
-                '"$(perforce)\\p4" edit "{0}$(TargetName).pdb"\r\n'
-                'copy /Y "$(OutDir)$(TargetName)$(TargetExt)" '
-                '"{0}$(TargetName)$(TargetExt)"\r\n'
-                'copy /Y "$(OutDir)$(TargetName).pdb" '
-                '"{0}$(TargetName).pdb"\r\n'
-                '"$(perforce)\\p4" revert -a "{0}$(TargetName)$(TargetExt)"\r\n'
-                '"$(perforce)\\p4" revert -a '
-                '"{0}$(TargetName).pdb"\r\n').format(deploy_folder)
+
+            vs_cmd = 'mkdir "{0}" 2>nul\r\n'.format(deploy_folder)
+
+            if perforce:
+                vs_cmd = ('{0}p4 edit "{1}$(TargetName)$(TargetExt)"\r\n'
+                          'p4 edit "{1}$(TargetName).pdb"\r\n').format(
+                              vs_cmd, deploy_folder)
+
+            vs_cmd = ('{0}copy /Y "$(OutDir)$(TargetName)$(TargetExt)" '
+                      '"{1}$(TargetName)$(TargetExt)"\r\n'
+                      'copy /Y "$(OutDir)$(TargetName).pdb" '
+                      '"{1}$(TargetName).pdb"\r\n').format(
+                          vs_cmd, deploy_folder)
+            if perforce:
+                vs_cmd = ('{0}p4 revert -a "{1}$(TargetName)$(TargetExt)"\r\n'
+                          'p4 revert -a "{1}$(TargetName).pdb"\r\n').format(
+                              vs_cmd, deploy_folder)
         else:
             vs_description = None
             vs_cmd = None
@@ -934,13 +1115,18 @@ class VCPostBuildEventTool(VS2003Tool):
 
 class VCPreBuildEventTool(VS2003Tool):
     """
-    VCPreBuildEventTool
+    Visual Studio 2003-2008 for VCPreBuildEventTool.
     """
 
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCPreBuildEventTool')
         self.add_defaults({
@@ -956,14 +1142,20 @@ class VCPreBuildEventTool(VS2003Tool):
 
 class VCPreLinkEventTool(VS2003Tool):
     """
-    VCPreLinkEventTool
+    Visual Studio 2003-2008 for VCPreLinkEventTool.
     """
 
     def __init__(self, configuration):
         """
         Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, 'VCPreLinkEventTool')
         self.add_defaults({
             # General menu
@@ -977,14 +1169,20 @@ class VCPreLinkEventTool(VS2003Tool):
 
 class VCResourceCompilerTool(VS2003Tool):
     """
-    VCResourceCompilerTool
+    Visual Studio 2003-2008 for VCResourceCompilerTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, 'VCResourceCompilerTool')
         self.add_defaults({
             'Culture': '1033'
@@ -995,13 +1193,18 @@ class VCResourceCompilerTool(VS2003Tool):
 
 class XboxDeploymentTool(VS2003Tool):
     """
-    XboxDeploymentTool for Xbox Classic
+    XboxDeploymentTool for Xbox Classic.
     """
 
     def __init__(self, configuration):
         """
-        Init defaults
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'XboxDeploymentTool')
 
@@ -1010,13 +1213,18 @@ class XboxDeploymentTool(VS2003Tool):
 
 class XboxImageTool(VS2003Tool):
     """
-    XboxImageTool
+    XboxImageTool for Xbox Classic.
     """
 
     def __init__(self, configuration):
         """
-        Init defaults
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'XboxImageTool')
 
@@ -1025,13 +1233,18 @@ class XboxImageTool(VS2003Tool):
 
 class VCWebServiceProxyGeneratorTool(VS2003Tool):
     """
-    VCWebServiceProxyGeneratorTool
+    Visual Studio 2003-2008 for VCWebServiceProxyGeneratorTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCWebServiceProxyGeneratorTool')
 
@@ -1040,14 +1253,20 @@ class VCWebServiceProxyGeneratorTool(VS2003Tool):
 
 class VCXMLDataGeneratorTool(VS2003Tool):
     """
-    VCXMLDataGeneratorTool
+    Visual Studio 2003-2008 for VCXMLDataGeneratorTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
+
         VS2003Tool.__init__(self, 'VCXMLDataGeneratorTool')
 
 ########################################
@@ -1055,13 +1274,18 @@ class VCXMLDataGeneratorTool(VS2003Tool):
 
 class VCWebDeploymentTool(VS2003Tool):
     """
-    VCWebDeploymentTool
+    Visual Studio 2003-2008 for VCWebDeploymentTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCWebDeploymentTool')
 
@@ -1070,13 +1294,18 @@ class VCWebDeploymentTool(VS2003Tool):
 
 class VCManagedWrapperGeneratorTool(VS2003Tool):
     """
-    VCManagedWrapperGeneratorTool
+    Visual Studio 2003-2008 for VCManagedWrapperGeneratorTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManagedWrapperGeneratorTool')
 
@@ -1085,13 +1314,18 @@ class VCManagedWrapperGeneratorTool(VS2003Tool):
 
 class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
     """
-    VCAuxiliaryManagedWrapperGeneratorTool
+    Visual Studio 2003-2008 for VCAuxiliaryManagedWrapperGeneratorTool.
     """
 
     def __init__(self, configuration):
         """
-        Init
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCAuxiliaryManagedWrapperGeneratorTool')
 
@@ -1100,14 +1334,20 @@ class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
 
 class VS2003Platform(VS2003XML):
     """
-    Visual Studio 2003-2008 Platform record
+    Visual Studio 2003-2008 Platform record.
     """
 
     def __init__(self, platform):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            platform: PlatformTypes of the platform to build
         """
+
+        ## PlatformTypes
         self.platform = platform
+
         VS2003XML.__init__(
             self, 'Platform', {
                 'Name': platform.get_vs_platform()[0]})
@@ -1122,19 +1362,20 @@ class VS2003Platforms(VS2003XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            project: Project record to extract defaults.
         """
 
-        VS2003XML.__init__(self, 'Platforms')
+        ## Parent platform
         self.project = project
+        VS2003XML.__init__(self, 'Platforms')
 
         # Get the list of platforms
-        platforms = []
+        platforms = set()
         for configuration in project.configuration_list:
-            platforms.append(configuration.attributes['platform'])
-
-        # Remove duplicates
-        platforms = set(platforms)
+            platforms.add(configuration.attributes['platform'])
 
         # Add the records
         for platform in sorted(platforms):
@@ -1151,7 +1392,7 @@ class VS2003References(VS2003XML):
 
     def __init__(self):
         """
-        Set the defaults
+        Set the defaults.
         """
 
         VS2003XML.__init__(self, 'References')
@@ -1164,11 +1405,16 @@ class VS2003ToolFiles(VS2003XML):
     Visual Studio 2003-2008 ToolFiles record
     """
 
-    def __init__(self, platform):
+    def __init__(self, project):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            project: Project record to extract defaults.
         """
-        self.platform = platform
+
+        ## Parent project
+        self.platform = project
         VS2003XML.__init__(self, 'ToolFiles')
 
 ########################################
@@ -1181,7 +1427,7 @@ class VS2003Globals(VS2003XML):
 
     def __init__(self):
         """
-        Set the defaults
+        Init defaults.
         """
 
         VS2003XML.__init__(self, 'Globals')
@@ -1196,23 +1442,41 @@ class VS2003Configuration(VS2003XML):
 
     def __init__(self, configuration):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        # Too many branches
+        # pylint: disable=R0912
+
+        ## Parent configuration
         self.configuration = configuration
+
         ide = configuration.project.solution.ide
+        platform = configuration.get_attribute('platform')
+        project_type = configuration.get_attribute('project_type')
 
         vs_name = configuration.attributes['vs_configuration_name']
         vs_intdirectory = 'temp\\{}{}{}{}\\'.format(
             configuration.project.get_attribute('name'),
             configuration.project.solution.ide.get_short_code(),
-            configuration.attributes['platform'].get_short_code(),
+            platform.get_short_code(),
             configuration.attributes['short_code'])
 
-        if configuration.get_attribute('project_type') == ProjectTypes.library:
+        if project_type is ProjectTypes.library:
             vs_configuration_type = '4'
+        elif project_type is ProjectTypes.sharedlibrary:
+            vs_configuration_type = '2'
         else:
             vs_configuration_type = '1'
+
+        if configuration.get_attribute('link_time_code_generation'):
+            vs_link_time_code_generation = '1'
+        else:
+            vs_link_time_code_generation = None
+
         VS2003XML.__init__(self, 'Configuration', {
             'Name': vs_name,
             'OutputDirectory': 'bin\\',
@@ -1223,35 +1487,35 @@ class VS2003Configuration(VS2003XML):
             'CharacterSet': '1',
             'DeleteExtensionsOnClean': None,
             'ManagedExtensions': None,
-            'WholeProgramOptimization': None,
+            'WholeProgramOptimization': vs_link_time_code_generation,
             'ReferencesPath': None
         })
 
+        # Include all the data chunks
         self.add_element(VCPreBuildEventTool(configuration))
         self.add_element(VCCustomBuildTool(configuration))
 
-        if configuration.get_attribute('platform') != PlatformTypes.xbox:
+        if platform is not PlatformTypes.xbox:
             self.add_element(VCXMLDataGeneratorTool(configuration))
             self.add_element(VCWebServiceProxyGeneratorTool(configuration))
 
-        if configuration.get_attribute('platform').is_windows():
+        if platform.is_windows():
             self.add_element(VCMIDLTool(configuration))
 
         self.add_element(VCCLCompilerTool(configuration))
 
-        if configuration.get_attribute('platform').is_windows():
+        if platform.is_windows():
             self.add_element(VCManagedResourceCompilerTool(configuration))
             self.add_element(VCResourceCompilerTool(configuration))
 
         self.add_element(VCPreLinkEventTool(configuration))
 
-        if configuration.get_attribute('project_type') in (
-                ProjectTypes.library, ProjectTypes.sharedlibrary):
+        if project_type.is_library():
             self.add_element(VCLibrarianTool(configuration))
         else:
             self.add_element(VCLinkerTool(configuration))
 
-        if configuration.get_attribute('platform') == PlatformTypes.xbox:
+        if platform is PlatformTypes.xbox:
             self.add_element(XboxDeploymentTool(configuration))
             self.add_element(XboxImageTool(configuration))
 
@@ -1265,8 +1529,8 @@ class VS2003Configuration(VS2003XML):
         self.add_element(VCFxCopTool(configuration))
         self.add_element(VCAppVerifierTool(configuration))
 
-        if ide != IDETypes.vs2008:
-            if configuration.get_attribute('platform') != PlatformTypes.xbox:
+        if ide is not IDETypes.vs2008:
+            if platform is not PlatformTypes.xbox:
                 self.add_element(VCWebDeploymentTool(configuration))
 
         self.add_element(VCPostBuildEventTool(configuration))
@@ -1281,8 +1545,14 @@ class VS2003Configurations(VS2003XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            project: Project record to extract defaults.
         """
+
+        ## Parent project
+        self.project = project
 
         VS2003XML.__init__(self, 'Configurations')
         for configuration in project.configuration_list:
@@ -1299,9 +1569,13 @@ class VS2003File(VS2003XML):
 
     def __init__(self, source_file):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            source_file: SourceFile record to extract defaults.
         """
 
+        ## SourceFile record
         self.source_file = source_file
         VS2003XML.__init__(
             self, 'File', {'RelativePath': source_file}, force_pair=True)
@@ -1316,40 +1590,16 @@ class VS2003Filter(VS2003XML):
 
     def __init__(self, name):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            name: name of the filter.
         """
 
+        ## Name of the filter
         self.name = name
+
         VS2003XML.__init__(self, 'Filter', {'Name': name})
-
-
-########################################
-
-def do_tree(xml_entry, filter_name, tree, groups):
-    """
-    Dump out a recursive tree of files to reconstruct a
-    directory hiearchy for a file list
-    """
-
-    for item in sorted(tree):
-        if filter_name == '':
-            merged = item
-        else:
-            merged = filter_name + '\\' + item
-
-        new_filter = VS2003Filter(item)
-        xml_entry.add_element(new_filter)
-
-        # See if this directory string creates a group?
-        if merged in groups:
-            # Found, add all the elements into this filter
-            for fileitem in sorted(groups[merged]):
-                new_filter.add_element(VS2003File(fileitem))
-
-        tree_key = tree[item]
-        # Recurse down the tree
-        if isinstance(tree_key, dict):
-            do_tree(new_filter, merged, tree_key, groups)
 
 
 class VS2003Files(VS2003XML):
@@ -1359,9 +1609,13 @@ class VS2003Files(VS2003XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
         VS2003XML.__init__(self, 'Files')
 
@@ -1369,6 +1623,7 @@ class VS2003Files(VS2003XML):
         groups = dict()
         for item in project.codefiles:
             groupname = item.get_group_name()
+
             # Put each filename in its proper group
             name = convert_to_windows_slashes(item.relative_pathname)
             group = groups.get(groupname, None)
@@ -1394,7 +1649,7 @@ class VS2003Files(VS2003XML):
                 nexttree = nexttree[parts[item]]
 
         # Generate the file tree
-        do_tree(self, '', tree, groups)
+        vs2003_do_tree(self, '', tree, groups)
 
 ########################################
 
@@ -1402,65 +1657,89 @@ class VS2003Files(VS2003XML):
 class VS2003vcproj(VS2003XML):
     """
     Visual Studio 2003-2008 formatter.
+
     This record instructs how to write a Visual Studio 2003-2008 format
-    vcproj file
+    vcproj file.
     """
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults.
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
 
         # Which project type?
         ide = project.solution.ide
-        if ide == IDETypes.vs2003:
+        if ide is IDETypes.vs2003:
             version = '7.10'
-        elif ide == IDETypes.vs2005:
+        elif ide is IDETypes.vs2005:
             version = '8.00'
         else:
             version = '9.00'
 
         VS2003XML.__init__(
             self, 'VisualStudioProject',
-            {'ProjectType': 'Visual C++', 'Version': version,
+            {'ProjectType': 'Visual C++',
+             'Version': version,
              'Name': project.get_attribute('name'),
              'ProjectGUID': '{' + project.attributes['vs_uuid'] + '}'})
-        if ide != IDETypes.vs2003:
+
+        if ide is not IDETypes.vs2003:
             self.add_defaults({'RootNamespace': project.get_attribute('name')})
+
         self.add_defaults({'Keyword': 'Win32Proj'})
-        if ide == IDETypes.vs2008:
+        if ide is IDETypes.vs2008:
             self.add_defaults({'TargetFrameworkVersion': '196613'})
 
         # Add all the sub chunks
+
+        ## VS2003Platforms
         self.platforms = VS2003Platforms(project)
         self.add_element(self.platforms)
 
+        ## VS2003ToolFiles
         self.toolfiles = VS2003ToolFiles(project)
-        if ide != IDETypes.vs2003:
+        if ide is not IDETypes.vs2003:
             self.add_element(self.toolfiles)
 
+        ## VS2003Configurations
         self.configuration_list = VS2003Configurations(project)
         self.add_element(self.configuration_list)
+
+        ## VS2003References
         self.references = VS2003References()
         self.add_element(self.references)
+
+        ## VS2003Files
         self.files = VS2003Files(project)
         self.add_element(self.files)
+
+        ## VS2003Globals
         self.globals = VS2003Globals()
         self.add_element(self.globals)
 
-    def generate(self, line_list, indent=0):
+    ########################################
+
+    def generate(self, line_list=None, indent=0):
         """
         Write out the VisualStudioProject record.
+
         Args:
             line_list: string list to save the XML text
             indent: Level of indentation to begin with.
         """
 
+        if line_list is None:
+            line_list = []
+
         # XML is utf-8 only
         line_list.append('<?xml version="1.0" encoding="UTF-8"?>')
-        VS2003XML.generate(self, line_list, indent=indent)
+        return VS2003XML.generate(self, line_list=line_list, indent=indent)
 
 
 ########################################
@@ -1482,23 +1761,25 @@ class VS2010XML():
             contents: String to insert between xml name tags.
         """
 
-        # Name of this XML chunk.
+        ## Name of this XML chunk.
         self.name = name
 
-        # XML attributes.
+        ## List of name/data attributes
         self.attributes = []
 
-        # List of elements in this element.
+        ## List of elements in this element.
         self.elements = []
 
-        # List of valid attributes and defaults
+        ## List of valid attributes and defaults
         self.attribute_defaults = {}
 
-        # String contained in this XML chunk
+        ## String contained in this XML chunk
         self.contents = contents
 
         # Add the defaults, if any
         self.add_defaults(attribute_defaults)
+
+    ########################################
 
     def add_defaults(self, attribute_defaults):
         """
@@ -1507,13 +1788,19 @@ class VS2010XML():
         Args:
             attribute_defaults: dict of attribute names and default values.
         """
+
+        # Test for None
         if attribute_defaults:
-            for attribute in attribute_defaults:
-                self.attribute_defaults[attribute] = \
-                    attribute_defaults[attribute]
-                if attribute_defaults[attribute] is not None:
-                    self.set_attribute(
-                        attribute, attribute_defaults[attribute])
+            # Update the dictionary with the new defaults
+            self.attribute_defaults.update(attribute_defaults)
+
+            # Update the list of valid attributes to include
+            # non None entries
+            for item in attribute_defaults.items():
+                if item[1] is not None:
+                    self.set_attribute(item[0], item[1])
+
+    ########################################
 
     def add_attribute(self, name, value):
         """
@@ -1525,6 +1812,8 @@ class VS2010XML():
         """
         self.attributes.append([name, value])
 
+    ########################################
+
     def add_element(self, element):
         """
         Add an element to this XML element.
@@ -1533,6 +1822,21 @@ class VS2010XML():
             element: VS2010XML object
         """
         self.elements.append(element)
+
+    ########################################
+
+    def add_tags(self, tag_list):
+        """
+        Add an earray of XML tags to this XML element.
+
+        Args:
+            tag_list: List of name/content pairs
+        """
+
+        for tag in tag_list:
+            self.add_element(VS2010XML(tag[0], contents=tag[1]))
+
+    ########################################
 
     def set_attribute(self, name, value):
         """
@@ -1552,6 +1856,8 @@ class VS2010XML():
             # Not found? Add the entry and then exit
             self.attributes.append([name, value])
 
+    ########################################
+
     def remove_attribute(self, name):
         """
         Remove an attribute.
@@ -1567,6 +1873,8 @@ class VS2010XML():
             if item[0] == name:
                 self.attributes.remove(item)
                 break
+
+    ########################################
 
     def reset_attribute(self, name):
         """
@@ -1585,7 +1893,9 @@ class VS2010XML():
         else:
             self.remove_attribute(name)
 
-    def generate(self, line_list, indent=0):
+    ########################################
+
+    def generate(self, line_list=None, indent=0):
         """
         Generate the text lines for this XML element.
         Args:
@@ -1593,36 +1903,44 @@ class VS2010XML():
             indent: number of tabs to insert (For recursion)
         """
 
+        if line_list is None:
+            line_list = []
+
         # Determine the indentation
         tabs = '  ' * indent
 
-        # Special case, if no attributes, don't allow <foo/> XML
-        # This is to duplicate the output of Visual Studio 2003-2008
-        line_list.append('{0}<{1}'.format(tabs, escape_xml_cdata(self.name)))
+        # Output the tag
+        line = '{0}<{1}'.format(tabs, escape_xml_cdata(self.name))
 
         # Output tag with attributes and support '/>' closing
         for attribute in self.attributes:
-            line_list[-1] = line_list[-1] + ' {0}="{1}"'.format(
-                escape_xml_cdata(attribute[0]),
-                escape_xml_attribute(attribute[1]))
+            line = '{0} {1}="{2}"'.format(line,
+                                          escape_xml_cdata(attribute[0]),
+                                          escape_xml_attribute(attribute[1]))
+
         if not self.elements and not self.contents:
-            line_list[-1] = line_list[-1] + ' />'
-            return
+            line_list.append(line + ' />')
+            return line_list
+
         # Close the open tag
-        line_list[-1] = line_list[-1] + '>'
+        line = line + '>'
         if self.contents:
-            line_list[-1] = line_list[-1] + self.contents
+            line = line + self.contents
 
         if not self.elements:
-            line_list[-1] = line_list[-1] + \
-                '</{0}>'.format(escape_xml_cdata(self.name))
-            return
+            line_list.append(
+                '{0}</{1}>'.format(line, escape_xml_cdata(self.name)))
+            return line_list
 
+        line_list.append(line)
         # Output the embedded elements
         for element in self.elements:
             element.generate(line_list, indent=indent + 1)
         # Close the current element
         line_list.append('{0}</{1}>'.format(tabs, escape_xml_cdata(self.name)))
+        return line_list
+
+    ########################################
 
     def __repr__(self):
         """
@@ -1632,11 +1950,9 @@ class VS2010XML():
             Human readable string or None if the solution is invalid
         """
 
-        line_list = []
-        self.generate(line_list)
-        return '\n'.join(line_list)
+        return '\n'.join(self.generate())
 
-    # Allow str() to work.
+    ## Allow str() to work.
     __str__ = __repr__
 
 
@@ -1650,22 +1966,23 @@ class VS2010ProjectConfiguration(VS2010XML):
 
     def __init__(self, configuration):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
+
         VS2010XML.__init__(
             self, 'ProjectConfiguration', {
                 'Include':
                     configuration.get_attribute('vs_configuration_name')})
-        self.add_element(
-            VS2010XML(
-                'Configuration',
-                contents=configuration.get_attribute('name')))
-        self.add_element(
-            VS2010XML(
-                'Platform',
-                contents=configuration.get_attribute('vs_platform')))
+
+        self.add_tags((
+            ('Configuration', configuration.get_attribute('name')),
+            ('Platform', configuration.get_attribute('vs_platform'))))
 
 ########################################
 
@@ -1677,10 +1994,15 @@ class VS2010ProjectConfigurations(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
+
         VS2010XML.__init__(self, 'ItemGroup', {
             'Label': 'ProjectConfigurations'})
 
@@ -1697,16 +2019,18 @@ class VS2010NsightTegraProject(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
+
         VS2010XML.__init__(self, 'PropertyGroup', {
             'Label': 'NsightTegraProject'})
-        self.add_element(
-            VS2010XML(
-                'NsightTegraProjectRevisionNumber',
-                contents='11'))
+        self.add_tags((('NsightTegraProjectRevisionNumber', '11'),))
 
 
 ########################################
@@ -1719,10 +2043,15 @@ class VS2010ExtensionTargets(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
+
         VS2010XML.__init__(self, 'ImportGroup', {'Label': 'ExtensionTargets'})
 
 
@@ -1736,27 +2065,34 @@ class VS2010Globals(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
         VS2010XML.__init__(self, 'PropertyGroup', {'Label': 'Globals'})
-        self.add_element(
-            VS2010XML('ProjectName', contents=project.get_attribute('name')))
+
+        tag_list = [
+            ('ProjectName', project.get_attribute('name'))
+        ]
+
         deploy_folder = project.get_attribute('deploy_folder')
         if deploy_folder:
-            self.add_element(
-                VS2010XML(
-                    'FinalFolder',
-                    contents=convert_to_windows_slashes(
-                        deploy_folder,
-                        True)))
-        self.add_element(VS2010XML('ProjectGuid', contents='{{{}}}'.format(
+            tag_list.append(
+                ('FinalFolder',
+                 convert_to_windows_slashes(
+                     deploy_folder,
+                     True)))
+        tag_list.append(('ProjectGuid', '{{{}}}'.format(
             project.get_attribute('vs_uuid'))))
 
         if project.solution.ide >= IDETypes.vs2015:
-            self.add_element(
-                VS2010XML('WindowsTargetPlatformVersion', contents='8.1'))
+            tag_list.append(('WindowsTargetPlatformVersion', '8.1'))
+
+        self.add_tags(tag_list)
 
 
 ########################################
@@ -1769,10 +2105,15 @@ class VS2010Configuration(VS2010XML):
 
     def __init__(self, configuration):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        ## Parent configuration
         self.configuration = configuration
+
         vs_configuration_name = configuration.get_attribute(
             'vs_configuration_name')
 
@@ -1788,19 +2129,17 @@ class VS2010Configuration(VS2010XML):
         # Set the configuration type
         if project_type in (ProjectTypes.app, ProjectTypes.tool):
             configuration_type = 'Application'
-        elif project_type == ProjectTypes.sharedlibrary:
+        elif project_type is ProjectTypes.sharedlibrary:
             configuration_type = 'DynamicLibrary'
         else:
             configuration_type = 'StaticLibrary'
-        self.add_element(
-            VS2010XML('ConfigurationType',
-                      contents=configuration_type))
 
-        # Enable debug libraries
-        self.add_element(
-            VS2010XML('UseDebugLibraries',
-                      contents=truefalse(
-                          configuration.get_attribute('debug'))))
+        tag_list = [
+            ('ConfigurationType', configuration_type),
+            # Enable debug libraries
+            ('UseDebugLibraries', truefalse(
+                configuration.get_attribute('debug')))
+        ]
 
         # Which toolset to use?
         platform_toolset = configuration.get_attribute('vs_platform_toolset')
@@ -1818,16 +2157,15 @@ class VS2010Configuration(VS2010XML):
                     configuration.project.solution.ide, 'v141_xp')
 
         if platform_toolset:
-            self.add_element(
-                VS2010XML('PlatformToolset', contents=platform_toolset))
+            tag_list.append(('PlatformToolset', platform_toolset))
 
         # Link time code generation
-        if configuration.get_attribute('link_time_code_generation'):
-            self.add_element(
-                VS2010XML('WholeProgramOptimization', contents='true'))
+        tag_list.append(('WholeProgramOptimization', truefalse(
+            configuration.get_attribute('link_time_code_generation'))))
 
-        self.add_element(VS2010XML('CharacterSet', contents='Unicode'))
+        tag_list.append(('CharacterSet', 'Unicode'))
 
+        self.add_tags(tag_list)
 
 ########################################
 
@@ -1839,9 +2177,13 @@ class VS2010ExtensionSettings(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
         VS2010XML.__init__(self, 'ImportGroup', {'Label': 'ExtensionSettings'})
 
@@ -1855,9 +2197,13 @@ class VS2010UserMacros(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
         VS2010XML.__init__(self, 'PropertyGroup', {'Label': 'UserMacros'})
 
@@ -1871,11 +2217,17 @@ class VS2010PropertySheets(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
+
         VS2010XML.__init__(self, 'ImportGroup', {'Label': 'PropertySheets'})
+
         self.add_element(
             VS2010XML(
                 'Import',
@@ -1898,9 +2250,15 @@ class VS2010PropertyGroup(VS2010XML):
 
     def __init__(self, configuration):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
+
+        ## Parent configuration
         self.configuration = configuration
+
         vs_configuration_name = configuration.get_attribute(
             'vs_configuration_name')
 
@@ -1927,11 +2285,19 @@ class VS2010ItemDefinitionGroup(VS2010XML):
 
     def __init__(self, configuration):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            configuration: Configuration record to extract defaults.
         """
 
+        # Too many branches
+        # Too many statements
+        # pylint: disable=R0912,R0915
+
+        ## Parent configuration
         self.configuration = configuration
-        VS2010XML.__init__(self, 'ItemDefinitionGroup')
+
         vs_configuration_name = configuration.get_attribute(
             'vs_configuration_name')
 
@@ -1943,7 +2309,7 @@ class VS2010ItemDefinitionGroup(VS2010XML):
         self.compile = VS2010XML('ClCompile')
         self.link = VS2010XML('Link')
 
-        # Start with a copy (To prevent damaging the original list)
+        # Prepend $(ProjectDir) to all source folders
         include_folders = []
 
         for item in configuration.get_attribute_list('_source_include_list'):
@@ -1962,30 +2328,16 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                         slashes='\\')))
 
         # Handle defines
-        defines = []
-        defines.extend(configuration.attributes.get('define_list', []))
-        defines.extend(configuration.project.attributes.get('define_list', []))
-        defines.extend(
-            configuration.project.solution.attributes.get(
-                'define_list', []))
+        defines = configuration.get_attribute_list('define_list')
         if defines:
             defines.append('%(PreprocessorDefinitions)')
             self.compile.add_element(VS2010XML(
                 'PreprocessorDefinitions', contents=packed_paths(defines)))
 
         # Start with a copy (To prevent damaging the original list)
-        library_folders = []
-        library_folders.extend(convert_to_array(
-            configuration.attributes.get(
-                'library_folders_list', [])))
-        library_folders.extend(
-            convert_to_array(
-                configuration.project.attributes.get(
-                    'library_folders_list', [])))
-        library_folders.extend(
-            convert_to_array(
-                configuration.project.solution.attributes.get(
-                    'library_folders_list', [])))
+        library_folders = configuration.get_attribute_list(
+            'library_folders_list')
+
         if library_folders:
             library_folders.append('%(AdditionalLibraryDirectories)')
             self.link.add_element(
@@ -1995,36 +2347,17 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                         library_folders,
                         slashes='\\')))
 
-        self.compile.add_element(
-            VS2010XML(
-                'WarningLevel',
-                contents='Level4'))
-        self.compile.add_element(
-            VS2010XML(
-                'DebugInformationFormat',
-                contents='ProgramDatabase'))
-        self.compile.add_element(
-            VS2010XML(
-                'ExceptionHandling',
-                contents='false'))
-        self.compile.add_element(
-            VS2010XML(
-                'FloatingPointModel',
-                contents='Fast'))
-        self.compile.add_element(VS2010XML('RuntimeTypeInfo', contents='false'))
-        self.compile.add_element(VS2010XML('StringPooling', contents='true'))
-        self.compile.add_element(
-            VS2010XML(
-                'FunctionLevelLinking',
-                contents='true'))
-        self.compile.add_element(
-            VS2010XML(
-                'MultiProcessorCompilation',
-                contents='true'))
-        self.compile.add_element(
-            VS2010XML(
-                'EnableFiberSafeOptimizations',
-                contents='true'))
+        self.compile.add_tags((
+            ('WarningLevel', 'Level4'),
+            ('DebugInformationFormat', 'ProgramDatabase'),
+            ('ExceptionHandling', 'false'),
+            ('FloatingPointModel', 'Fast'),
+            ('RuntimeTypeInfo', 'false'),
+            ('StringPooling', 'true'),
+            ('FunctionLevelLinking', 'true'),
+            ('MultiProcessorCompilation', 'true'),
+            ('EnableFiberSafeOptimizations', 'true')
+        ))
 
         platform = configuration.get_attribute('platform')
         project_type = configuration.get_attribute('project_type')
@@ -2034,13 +2367,13 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                     'CallingConvention',
                     contents='FastCall'))
 
-            if project_type == ProjectTypes.tool:
+            if project_type is ProjectTypes.tool:
                 subsystem = 'Console'
             else:
                 subsystem = 'Windows'
             self.link.add_element(VS2010XML('SubSystem', contents=subsystem))
 
-            if platform == PlatformTypes.win32:
+            if platform is PlatformTypes.win32:
                 targetmachine = 'MachineX86'
             else:
                 targetmachine = 'MachineX64'
@@ -2055,7 +2388,7 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                     VS2010XML(
                         'OptimizationLevel',
                         contents='Level2'))
-                if platform == PlatformTypes.ps3:
+                if platform is PlatformTypes.ps3:
                     self.compile.add_element(
                         VS2010XML(
                             'Branchless',
@@ -2066,16 +2399,11 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                         'OptimizationLevel',
                         contents='Level0'))
 
-        if platform == PlatformTypes.vita:
+        if platform is PlatformTypes.vita:
             if project_type in (ProjectTypes.tool, ProjectTypes.app):
-                self.link.add_element(
-                    VS2010XML(
-                        'DataStripping',
-                        contents='StripFuncsAndData'))
-                self.link.add_element(
-                    VS2010XML(
-                        'DuplicateStripping',
-                        contents='true'))
+                self.link.add_tags((
+                    ('DataStripping', 'StripFuncsAndData'),
+                    ('DuplicateStripping', 'true')))
 
         if platform in (PlatformTypes.vita, PlatformTypes.ps3):
             self.compile.add_element(
@@ -2083,11 +2411,9 @@ class VS2010ItemDefinitionGroup(VS2010XML):
                     'CppLanguageStd',
                     contents='Cpp11'))
 
-        self.link.add_element(VS2010XML('OptimizeReferences', contents='true'))
-        self.link.add_element(
-            VS2010XML(
-                'GenerateDebugInformation',
-                contents='true'))
+        self.link.add_tags((
+            ('OptimizeReferences', 'true'),
+            ('GenerateDebugInformation', 'true')))
 
         # Add the entries if they have elements
         if self.compile.elements:
@@ -2105,13 +2431,19 @@ class VS2010Files(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
         # Too many branches
         # Too many statements
         # pylint: disable=R0912,R0915
+
+        ## Parent project
         self.project = project
+
         VS2010XML.__init__(self, 'ItemGroup')
 
         for item in source_file_filter(project.codefiles, FileTypes.h):
@@ -2175,11 +2507,9 @@ class VS2010Files(VS2010XML):
             else:
                 profile = 'fx_2_0'
 
-            element.add_element(
-                VS2010XML(
-                    'VariableName',
-                    contents='g_' + splitname[0]))
-            element.add_element(VS2010XML('TargetProfile', contents=profile))
+            element.add_tags((
+                ('VariableName', 'g_' + splitname[0]),
+                ('TargetProfile', profile)))
 
         for item in source_file_filter(project.codefiles, FileTypes.x360sl):
             name = convert_to_windows_slashes(item.relative_pathname)
@@ -2209,11 +2539,9 @@ class VS2010Files(VS2010XML):
             else:
                 profile = 'fx_2_0'
 
-            element.add_element(
-                VS2010XML(
-                    'VariableName',
-                    contents='g_' + splitname[0]))
-            element.add_element(VS2010XML('TargetProfile', contents=profile))
+            element.add_tags((
+                ('VariableName', 'g_' + splitname[0]),
+                ('TargetProfile', profile)))
 
         for item in source_file_filter(project.codefiles, FileTypes.vitacg):
             name = convert_to_windows_slashes(item.relative_pathname)
@@ -2248,13 +2576,13 @@ class VS2010Files(VS2010XML):
                         'Include': convert_to_windows_slashes(
                             item.relative_pathname)}))
 
-
 ########################################
 
 
 class VS2010vcproj(VS2010XML):
     """
-    Visual Studio 2010- formatter
+    Visual Studio 2010- formatter.
+
     This record instructs how to write a Visual Studio 2010- format vcproj file
     """
 
@@ -2263,9 +2591,13 @@ class VS2010vcproj(VS2010XML):
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
 
         # Which project type?
@@ -2288,8 +2620,11 @@ class VS2010vcproj(VS2010XML):
                 self.add_element(VS2010NsightTegraProject(project))
                 break
 
+        ## VS2010ProjectConfigurations
         self.projectconfigurations = VS2010ProjectConfigurations(project)
         self.add_element(self.projectconfigurations)
+
+        ## VS2010Globals
         self.globals = VS2010Globals(project)
         self.add_element(self.globals)
 
@@ -2317,12 +2652,15 @@ class VS2010vcproj(VS2010XML):
                 'Import',
                 {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.props'}))
 
+        ## VS2010ExtensionSettings
         self.extensionsettings = VS2010ExtensionSettings(project)
         self.add_element(self.extensionsettings)
 
+        ## VS2010PropertySheets
         self.propertysheets = VS2010PropertySheets(project)
         self.add_element(self.propertysheets)
 
+        ## VS2010UserMacros
         self.usermacros = VS2010UserMacros(project)
         self.add_element(self.usermacros)
 
@@ -2332,6 +2670,7 @@ class VS2010vcproj(VS2010XML):
         for configuration in project.configuration_list:
             self.add_element(VS2010ItemDefinitionGroup(configuration))
 
+        ## VS2010Files
         self.files = VS2010Files(project)
         self.add_element(self.files)
 
@@ -2340,35 +2679,46 @@ class VS2010vcproj(VS2010XML):
                 'Import',
                 {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.targets'}))
 
+        ## VS2010ExtensionTargets
         self.extensiontargets = VS2010ExtensionTargets(project)
         self.add_element(self.extensiontargets)
 
-    def generate(self, line_list, indent=0):
+    ########################################
+
+    def generate(self, line_list=None, indent=0):
         """
         Write out the VisualStudioProject record.
+
         Args:
             line_list: string list to save the XML text
             indent: Level of indentation to begin with.
         """
 
+        if line_list is None:
+            line_list = []
         # XML is utf-8 only
         line_list.append('<?xml version="1.0" encoding="utf-8"?>')
-        VS2010XML.generate(self, line_list, indent=indent)
+        return VS2010XML.generate(self, line_list=line_list, indent=indent)
 
 ########################################
 
 
 class VS2010vcprojfilter(VS2010XML):
     """
-    Visual Studio 2010- filter
+    Visual Studio 2010- filter.
+
     This record instructs how to write a Visual Studio 2010- format vcproj file
     """
 
     def __init__(self, project):
         """
-        Set the defaults
+        Init defaults
+
+        Args:
+            project: Project record to extract defaults.
         """
 
+        ## Parent project
         self.project = project
 
         # Which project type?
@@ -2383,6 +2733,7 @@ class VS2010vcprojfilter(VS2010XML):
             {'ToolsVersion': version,
              'xmlns': 'http://schemas.microsoft.com/developer/msbuild/2003'})
 
+        ## Main ItemGroup
         self.main_element = VS2010XML('ItemGroup')
         self.add_element(self.main_element)
 
@@ -2394,6 +2745,7 @@ class VS2010vcprojfilter(VS2010XML):
         self.write_filter_group(FileTypes.x360sl, groups, 'X360SL')
         self.write_filter_group(FileTypes.vitacg, groups, 'VitaCGCompile')
         self.write_filter_group(FileTypes.glsl, groups, 'GLSL')
+
         # Visual Studio 2015 and later have a "compiler" for ico files
         if ide >= IDETypes.vs2015:
             self.write_filter_group(FileTypes.ico, groups, 'Image')
@@ -2415,13 +2767,16 @@ class VS2010vcprojfilter(VS2010XML):
                     'UniqueIdentifier',
                     contents=groupuuid))
 
+    ########################################
+
     def write_filter_group(self, file_type, groups, compilername):
         """
-        Subroutine for saving out a group of filenames based on compiler used
-        Used by the filter exporter
-        """
-        # Iterate over the list
+        Subroutine for saving out a group of filenames.
 
+        Based based on compiler used.
+        """
+
+        # Iterate over the list
         for item in source_file_filter(self.project.codefiles, file_type):
             # Get the Visual Studio group name
             groupname = item.get_group_name()
@@ -2436,17 +2791,23 @@ class VS2010vcprojfilter(VS2010XML):
                 self.main_element.add_element(element)
                 element.add_element(VS2010XML('Filter', contents=groupname))
 
-    def generate(self, line_list, indent=0):
+    ########################################
+
+    def generate(self, line_list=None, indent=0):
         """
         Write out the VisualStudioProject record.
+
         Args:
             line_list: string list to save the XML text
             indent: Level of indentation to begin with.
         """
 
+        if line_list is None:
+            line_list = []
+
         # XML is utf-8 only
         line_list.append('<?xml version="1.0" encoding="utf-8"?>')
-        VS2010XML.generate(self, line_list, indent=indent)
+        return VS2010XML.generate(self, line_list, indent=indent)
 
 
 ########################################
@@ -2546,6 +2907,7 @@ def generate(solution):
     for project in solution.project_list:
         project.get_file_list([FileTypes.h,
                                FileTypes.cpp,
+                               FileTypes.c,
                                FileTypes.rc,
                                FileTypes.ico,
                                FileTypes.hlsl,

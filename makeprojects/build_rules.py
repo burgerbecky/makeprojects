@@ -8,6 +8,8 @@ This file is parsed by the cleanme, buildme, rebuildme and makeprojects
 command line tools to clean, build and generate project files.
 """
 
+## \package makeprojects.build_rules
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import sys
@@ -24,7 +26,7 @@ def do_project_settings(project):
     Set up defines and default libraries.
 
     Args:
-        configuration: Configuration record to update.
+        project: Project record to update.
     """
 
     project.attributes.setdefault('vs_UseOfMfc', False)
@@ -145,6 +147,45 @@ def do_configuration_settings(configuration):
     return 0
 
 
+def do_configuration_list(platform, ide):
+    """
+    Create the default configurations.
+
+    Args:
+        platform: platform being built.
+        ide: IDE being generated for.
+    Returns:
+        List of dict() descriptions of configurations.
+    """
+
+    # All platforms support this format.
+    results = [
+        {'name': 'Debug', 'short_code': 'dbg', 'debug': True},
+        {'name': 'Internal', 'short_code': 'int', 'optimization': 4,
+         'debug': True},
+        {'name': 'Release', 'short_code': 'rel', 'optimization': 4}]
+
+    # Xbox and Windows support link time code generation
+    # as a platform
+    if ide.is_visual_studio() and platform in (PlatformTypes.win32,
+                                               PlatformTypes.win64,
+                                               PlatformTypes.xbox360):
+        results.append({'name': 'Release_LTCG',
+                        'short_code': 'ltc',
+                        'optimization': 4,
+                        'link_time_code_generation': True})
+
+    # Configurations specific to the Xbox 360
+    if platform is PlatformTypes.xbox360:
+        results.extend(
+            [{'name': 'Profile', 'short_code': 'pro',
+              'optimization': 4, 'profile': True},
+             {'name': 'Profile_FastCap', 'short_code': 'fas',
+              'optimization': True, 'profile': True},
+             {'name': 'CodeAnalysis', 'short_code': 'cod'}])
+
+    return results
+
 ########################################
 
 
@@ -222,22 +263,7 @@ def rules(command, working_directory, root=True, **kargs):
         return PlatformTypes.default()
 
     elif command == 'configuration_list':
-        # Return the list of default configurations
-        results = [
-            {'name': 'Debug', 'short_code': 'dbg', 'debug': True},
-            {'name': 'Internal', 'short_code': 'int',
-             'optimization': 4, 'debug': True},
-            {'name': 'Release', 'short_code': 'rel', 'optimization': 4}]
-        if kargs.get('platform') == PlatformTypes.xbox360:
-            results.extend(
-                [{'name': 'Profile', 'short_code': 'pro', 'optimization': 4,
-                  'profile': True},
-                 {'name': 'Release_LTCG', 'short_code': 'ltc',
-                  'optimization': True, 'link_time_code_generation': True},
-                 {'name': 'CodeAnalysis', 'short_code': 'cod'},
-                 {'name': 'Profile_FastCap', 'short_code': 'fas',
-                  'optimization': True, 'profile': True}])
-        return results
+        return do_configuration_list(kargs.get('platform'), kargs.get('ide'))
 
     elif command == 'project_settings':
         # Return the settings for a specific project

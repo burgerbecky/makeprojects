@@ -160,13 +160,12 @@ def get_project_list(args, build_rules_list, working_directory):
             solution.add_project(project)
             project.parse_attributes(build_rules_list, working_directory)
 
-            # Create the configurations for this platform
-            configuration_list = get_configuration_list(
-                build_rules_list, working_directory, args, platform, ide)
-
             # Add all the configurations
             for platform_item in platform.get_expanded():
-                for config_item in configuration_list:
+                # Create the configurations for this platform
+                for config_item in get_configuration_list(
+                        build_rules_list, working_directory, args,
+                        platform_item, ide):
 
                     # Set the platform
                     config_item['platform'] = platform_item
@@ -223,6 +222,9 @@ def main(working_directory=None, args=None):
         Zero if no error, non-zero on error
 
     """
+
+    # Too many statements
+    # pylint: disable=R0915
 
     # Make sure working_directory is properly set
     if working_directory is None:
