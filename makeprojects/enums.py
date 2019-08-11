@@ -469,6 +469,9 @@ class IDETypes(IntEnum):
             A @ref IDETypes member or None on failure.
         """
 
+        # Too many return statements
+        # pylint: disable=R0911
+
         # Already a IDETypes?
         if isinstance(ide_name, IDETypes):
             return ide_name
@@ -680,106 +683,116 @@ class PlatformTypes(IntEnum):
     All supported tool chains for specific platforms are enumerated here.
     """
 
-    ## Windows 32 and 64 bit Intel
+    ## Windows 32 and 64 bit Intel and arm64
     windows = 0
+    ## Windows 32 and 64 bit Intel
+    windowsintel = 1
+    ## Windows 32 and 64 bit arm
+    windowsarm = 2
     ## Windows 32 bit intel only
-    win32 = 1
+    win32 = 3
     ## Window 64 bit intel only
-    win64 = 2
+    win64 = 4
+    ## Windows 32 bit arm only
+    winarm32 = 5
+    ## Windows 64 bit arm only
+    winarm64 = 6
+    ## Windows 64 bit itanium only
+    winitanium = 7
 
     ## Mac OSX, all CPUs
-    macosx = 3
+    macosx = 8
     ## Mac OSX PowerPC 32 bit only
-    macosxppc32 = 4
+    macosxppc32 = 9
     ## Mac OSX PowerPC 64 bit only
-    macosxppc64 = 5
+    macosxppc64 = 10
     ## Mac OSX Intel 32 bit only
-    macosxintel32 = 6
+    macosxintel32 = 11
     ## Mac OSX Intel 64 bit only
-    macosxintel64 = 7
+    macosxintel64 = 12
 
     ## Mac OS 9, all CPUs
-    macos9 = 8
+    macos9 = 13
     ## Mac OS 9 680x0 only
-    macos968k = 9
+    macos968k = 14
     ## Mac OS 9 PowerPC 32 bit only
-    macos9ppc = 10
+    macos9ppc = 15
     ## Mac OS Carbon, all CPUs
-    maccarbon = 11
+    maccarbon = 16
     ## Mac OS Carbon 680x0 only (CFM)
-    maccarbon68k = 12
+    maccarbon68k = 17
     ## Mac OS Carbon PowerPC 32 bit only
-    maccarbonppc = 13
+    maccarbonppc = 18
 
     ## iOS, all CPUs
-    ios = 14
+    ios = 19
     ## iOS 32 bit ARM only
-    ios32 = 15
+    ios32 = 20
     ## iOS 64 bit ARM only
-    ios64 = 16
+    ios64 = 21
     ## iOS emulator, all CPUs
-    iosemu = 17
+    iosemu = 22
     ## iOS emulator 32 bit Intel only
-    iosemu32 = 18
+    iosemu32 = 23
     ## iOS emulator 64 bit Intel only
-    iosemu64 = 19
+    iosemu64 = 24
 
     ## Microsoft Xbox classic
-    xbox = 20
+    xbox = 25
     ## Microsoft Xbox 360
-    xbox360 = 21
+    xbox360 = 26
     ## Microsoft Xbox ONE
-    xboxone = 22
+    xboxone = 27
 
     ## Sony PS3
-    ps3 = 23
+    ps3 = 28
     ## Sony PS4
-    ps4 = 24
+    ps4 = 29
     ## Sony Playstation VITA
-    vita = 25
+    vita = 30
 
     ## Nintendo WiiU
-    wiiu = 26
+    wiiu = 31
     ## Nintendo Switch
-    switch = 27
+    switch = 32
     ## Nintendo 3DS
-    dsi = 28
+    dsi = 33
     ## Nintendo DS
-    ds = 29
+    ds = 34
 
     ## Generic Android
-    android = 30
+    android = 35
     ## nVidia SHIELD
-    shield = 31
+    shield = 36
     ## Intellivision Amico
-    amico = 32
+    amico = 37
     ## Ouya (Now Razor)
-    ouya = 33
+    ouya = 38
     ## Android Tegra
-    tegra = 34
+    tegra = 39
     ## Android Arm32
-    androidarm32 = 35
+    androidarm32 = 40
     ## Android Arm64
-    androidarm64 = 36
+    androidarm64 = 41
     ## Android Intel x32
-    androidintel32 = 37
+    androidintel32 = 42
     ## Android Intel / AMD 64
-    androidintel64 = 38
+    androidintel64 = 43
 
     ## Generic Linux
-    linux = 39
+    linux = 44
 
     ## MSDOS
-    msdos = 40
+    msdos = 45
     ## MSDOS Dos4GW
-    msdos4gw = 41
+    msdos4gw = 46
     ## MSDOS DosX32
-    msdosx32 = 42
+    msdosx32 = 47
 
     ## BeOS
-    beos = 43
+    beos = 48
     ## Apple IIgs
-    iigs = 44
+    iigs = 49
 
     def get_short_code(self):
         """
@@ -807,8 +820,21 @@ class PlatformTypes(IntEnum):
             True if the platform is for Microsoft windows.
         """
 
-        return self in (PlatformTypes.windows,
-                        PlatformTypes.win32, PlatformTypes.win64)
+        return self in (PlatformTypes.windows, PlatformTypes.windowsintel,
+                        PlatformTypes.windowsarm, PlatformTypes.win32,
+                        PlatformTypes.win64, PlatformTypes.winarm32,
+                        PlatformTypes.winarm64, PlatformTypes.winitanium)
+
+    def is_xbox(self):
+        """
+        Determine if the platform is a version of the Xbox.
+
+        Returns:
+            True if the platform is for Xbox, Xbox 360, or Xbox ONE.
+        """
+
+        return self in (PlatformTypes.xbox,
+                        PlatformTypes.xbox360, PlatformTypes.xboxone)
 
     def is_macosx(self):
         """
@@ -1022,7 +1048,13 @@ class PlatformTypes(IntEnum):
         # Windows host?
         temp = get_windows_host_type()
         if temp:
-            return PlatformTypes.win64 if temp == 'x64' else PlatformTypes.win32
+            win_table = {
+                'x86': PlatformTypes.win32,
+                'x64': PlatformTypes.win64,
+                'arm': PlatformTypes.winarm32,
+                'arm64': PlatformTypes.winarm64,
+                'ia64': PlatformTypes.winitanium}
+            return win_table.get(temp, PlatformTypes.win32)
 
         # Mac host?
         temp = get_mac_host_type()
@@ -1032,7 +1064,7 @@ class PlatformTypes(IntEnum):
                 'ppc64': PlatformTypes.macosxppc64,
                 'x32': PlatformTypes.macosxintel32,
                 'x64': PlatformTypes.macosxintel64}
-            mac_table.get(temp, PlatformTypes.macosxintel64)
+            return mac_table.get(temp, PlatformTypes.macosxintel64)
 
         # Unknown platforms default to Linux
         return PlatformTypes.linux
@@ -1061,9 +1093,14 @@ class PlatformTypes(IntEnum):
 # @sa makeprojects.enums.PlatformTypes.get_short_code
 
 _PLATFORMTYPES_CODES = {
-    PlatformTypes.windows: 'win',           # Windows targets
+    PlatformTypes.windows: 'win10',         # Windows targets
+    PlatformTypes.windowsintel: 'win',
+    PlatformTypes.windowsarm: 'winarm',
     PlatformTypes.win32: 'w32',
     PlatformTypes.win64: 'w64',
+    PlatformTypes.winarm32: 'wina32',
+    PlatformTypes.winarm64: 'wina64',
+    PlatformTypes.winitanium: 'winita',
     PlatformTypes.macosx: 'osx',            # Mac OSX targets
     PlatformTypes.macosxppc32: 'osxp32',
     PlatformTypes.macosxppc64: 'osxp64',
@@ -1117,9 +1154,14 @@ _PLATFORMTYPES_CODES = {
 
 _PLATFORMTYPES_VS = {
     # Windows targets
-    PlatformTypes.windows: ('Win32', 'x64'),
+    PlatformTypes.windows: ('Win32', 'x64', 'ARM', 'ARM64'),
+    PlatformTypes.windowsintel: ('Win32', 'x64'),
+    PlatformTypes.windowsarm: ('ARM', 'ARM64'),
     PlatformTypes.win32: ('Win32',),
     PlatformTypes.win64: ('x64',),
+    PlatformTypes.winarm32: ('ARM',),
+    PlatformTypes.winarm64: ('ARM64',),
+    PlatformTypes.winitanium: ('IA64',),
 
     # Microsoft Xbox versions
     PlatformTypes.xbox: ('Xbox',),
@@ -1159,9 +1201,14 @@ _PLATFORMTYPES_VS = {
 
 _PLATFORMTYPES_READABLE = {
     # Windows targets
-    PlatformTypes.windows: 'Microsoft Windows x86 and x64',
+    PlatformTypes.windows: 'Microsoft Windows x86, x64, ARM, and ARM64',
+    PlatformTypes.windowsintel: 'Microsoft Windows x86 and x64',
+    PlatformTypes.windowsarm: 'Microsoft Windows ARM 32 and 64',
     PlatformTypes.win32: 'Microsoft Windows x86',
     PlatformTypes.win64: 'Microsoft Windows x64',
+    PlatformTypes.winarm32: 'Microsoft Windows ARM 32',
+    PlatformTypes.winarm64: 'Microsoft Windows ARM 64',
+    PlatformTypes.winitanium: 'Microsoft Windows Itanium',
 
     # Mac OSX targets
     PlatformTypes.macosx: 'Apple macOS all CPUs',
@@ -1235,7 +1282,15 @@ _PLATFORMTYPES_READABLE = {
 _PLATFORMTYPES_EXPANDED = {
     PlatformTypes.windows: (
         PlatformTypes.win32,
+        PlatformTypes.win64,
+        PlatformTypes.winarm32,
+        PlatformTypes.winarm64),
+    PlatformTypes.windowsintel: (
+        PlatformTypes.win32,
         PlatformTypes.win64),
+    PlatformTypes.windowsarm: (
+        PlatformTypes.winarm32,
+        PlatformTypes.winarm64),
     PlatformTypes.msdos: (
         PlatformTypes.msdosx32,
         PlatformTypes.msdos4gw),
@@ -1293,7 +1348,7 @@ def platformtype_short_code(configurations):
     # Extract the platform codes from all configurations
     codes = []
     for configuration in configurations:
-        codes.append(configuration.attributes['platform'])
+        codes.append(configuration.platform)
 
     for item in _PLATFORMTYPES_EXPANDED:
         if all(x in codes for x in _PLATFORMTYPES_EXPANDED[item]):

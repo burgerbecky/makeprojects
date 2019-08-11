@@ -430,7 +430,7 @@ def build_watcom_makefile(full_pathname, verbose=False, fatal=False):
     else:
         new_path = os.path.join(watcom_path, 'binl')
 
-    exe_name = where_is_watcom(verbose=verbose, command='wmake')
+    exe_name = where_is_watcom('wmake', verbose=verbose)
     os.environ['PATH'] = new_path + os.pathsep + saved_path
 
     commands = []

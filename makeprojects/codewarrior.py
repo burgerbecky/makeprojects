@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-#
-# Sub file for makeprojects.
-# Handler for Codewarrior projects
+"""
+Sub file for makeprojects.
+Handler for Codewarrior projects
+"""
+
 #
 # Version 5.0 is MacOS Codewarrior 9 and Windows Codewarrior 9
 # Version 5.8 is MacOS Codewarrior 10
@@ -17,21 +19,6 @@
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-from __future__ import absolute_import, print_function, unicode_literals
-import os
-import operator
-import subprocess
-import sys
-import makeprojects.core
-import burger
-from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .core import source_file_filter
-
-if not burger.PY2:
-    unicode = str
-
-TAB = '\t'
-
 #
 ## \package makeprojects.codewarrior
 # This module contains classes needed to generate
@@ -39,115 +26,48 @@ TAB = '\t'
 # Freescale Codewarrior
 #
 
-#
-# Class to hold the defaults and settings to output a Codewarrior
-# compatible project file.
-# json keyword "codewarrior" for dictionary of overrides
-#
+from __future__ import absolute_import, print_function, unicode_literals
+import os
+import operator
+import subprocess
+from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
+    convert_to_linux_slashes, convert_to_windows_slashes, truefalse
+from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
+from .core import source_file_filter
+
+if not PY2:
+    unicode = str
+
+SUPPORTED_IDES = (
+    IDETypes.codewarrior50,
+    IDETypes.codewarrior58,
+    IDETypes.codewarrior59)
+
+########################################
 
 
-class Defaults(object):
+def test(ide, platform_type):
+    """ Filter for supported platforms
 
-    #
-    # Power up defaults
-    #
+    Args:
+        ide: IDETypes
+        platform_type: PlatformTypes
+    Returns:
+        True if supported, False if not
+    """
 
-    def __init__(self):
-        self.environmentvariables = []
-        self.burgersdkspaths = []
-        self.systemsearchpaths = []
-        self.libraries = []
+    # pylint: disable=unused-argument
 
-    #
-    # The solution has been set up, perform setup
-    # based on the type of project being created
-    #
+    return platform_type in (
+        PlatformTypes.win32,)
 
-    def defaults(self, solution, configuration=None):
-        self.environmentvariables = []
-        self.burgersdkspaths = []
-        self.systemsearchpaths = []
-        self.libraries = []
 
-        # In windows, set BURGER_SDKS as an environment variable
-        if solution.project_list[0].get_attribute('platform').is_windows():
-            self.environmentvariables = ['BURGER_SDKS']
-
-            # Add the default system directories
-            if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library or \
-                    solution.attributes['name'] != 'burgerlib':
-                self.burgersdkspaths.append('windows\\burgerlib')
-            self.burgersdkspaths.append('windows\\perforce')
-            self.burgersdkspaths.append('windows\\opengl')
-            self.burgersdkspaths.append('windows\\directx9')
-
-            self.systemsearchpaths = ['MSL', 'Win32-x86 Support']
-
-            self.libraries = [
-                'advapi32.lib',
-                'comctl32.lib',
-                'gdi32.lib',
-                'kernel32.lib',
-                'ole32.lib',
-                'opengl32.lib',
-                'shell32.lib',
-                'shlwapi.lib',
-                'user32.lib',
-                'version.lib',
-                'winmm.lib'
-            ]
-
-        elif solution.project_list[0].get_attribute('platform').is_macos():
-            if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library or \
-                    solution.attributes['name'] != 'burgerlib':
-                self.burgersdkspaths.append('mac/burgerlib')
-            self.burgersdkspaths.append('mac/gamesprockets')
-            self.burgersdkspaths.append('mac/opengl')
-            self.burgersdkspaths.append('codewarrior')
-
-            if solution.project_list[0].get_attribute('platform').is_macos_carbon():
-                self.systemsearchpaths = ['MSL', 'MacOS Support']
-                self.libraries = [
-                    'CarbonLib',
-                    'DrawSprocketStubLib',
-                    'InputSprocketStubLib'
-                ]
-
-            elif solution.project_list[0].get_attribute('platform').is_macos_classic():
-                self.systemsearchpaths = ['MSL', 'MacOS Support']
-
-                self.libraries = [
-                    'DriverLoaderLib',
-                    'InterfaceLib',
-                    'MathLib'
-                ]
-
-    #
-    # A json file had the key "codewarrior" with a dictionary.
-    # Parse the dictionary for extra control
-    #
-
-    def loadjson(self, myjson):
-        error = 0
-        for key in myjson.keys():
-            if key == 'systemsearchpaths':
-                self.systemsearchpaths = burger.convert_to_array(myjson[key])
-            elif key == 'burgersdkspaths':
-                self.burgersdkspaths = burger.convert_to_array(myjson[key])
-            elif key == 'environmentvariables':
-                self.environmentvariables = burger.convert_to_array(myjson[key])
-            else:
-                print('Unknown keyword "' + str(key) + '" with data "' + str(myjson[key]) +
-                      '" found in loadjson')
-                error = 1
-
-        return error
+TAB = '\t'
 
 #
 ## Class for a simple setting entry
 # This class handles the Name, Value and sub entries
 #
-
 
 class SETTING(object):
     def __init__(self, name=None, value=None):
@@ -164,114 +84,130 @@ class SETTING(object):
         self.subsettings.append(entry)
         return entry
 
-    #
-    # Write out a setting record, and all of its
-    # sub settings
-    #
-
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
+        """
+        Write out a setting record, and all of its
+        sub settings
+        """
         tabs = TAB * level
-        fileref.write(tabs + '<SETTING>')
+        entry = tabs + '<SETTING>'
 
         # Write the name record if one exists
         if self.name is not None:
-            fileref.write('<NAME>' + self.name + '</NAME>')
+            entry = entry + '<NAME>' + self.name + '</NAME>'
 
         # Write the value record if one exists
         if self.value is not None:
-            fileref.write('<VALUE>' + str(self.value) + '</VALUE>')
+            if is_string(self.value):
+                entry = entry + '<VALUE>' + self.value + '</VALUE>'
+            else:
+                entry = entry + '<VALUE>'
+                for item in self.value:
+                    line_list.append(entry + item)
+                    entry = ''
+                entry = entry + '</VALUE>'
 
         # If there are sub settings, recurse and use
         # a tabbed /SETTING record
         if self.subsettings:
-            fileref.write('\n')
+            line_list.append(entry)
             for item in self.subsettings:
-                item.write(fileref, level + 1)
-            fileref.write(tabs + '</SETTING>\n')
+                item.generate(line_list, level + 1)
+            line_list.append(tabs + '</SETTING>')
         else:
             # Close the setting record on the same line
-            fileref.write('</SETTING>\n')
-
-#
-## Create an entry for UserSourceTrees
-#
+            line_list.append(entry + '</SETTING>')
 
 
 class UserSourceTree(object):
 
-    #
-    # Create the setting list
-    #
+    """
+    Create an entry for UserSourceTrees
+    """
 
     def __init__(self, name):
+        """
+        Create the setting list
+        """
         self.settings = SETTING()
         self.settings.addsetting('Name', name)
         self.settings.addsetting('Kind', 'EnvironmentVariable')
         self.settings.addsetting('VariableName', name)
 
-    #
-    # Output the settings
-    #
-
-    def write(self, fileref, level=4):
-        self.settings.write(fileref, level)
-
-#
-## Create a path entry for UserSearchPaths or SystemSearchPaths
-#
-# The title defaults to SearchPath, however it can be overridden
-# such as OutputDirectory
-#
+    def generate(self, line_list, level=4):
+        """
+        Output the settings
+        """
+        self.settings.generate(line_list, level)
 
 
 class SearchPath(object):
+    """
+    Create a path entry for UserSearchPaths or SystemSearchPaths.
+
+    The title defaults to SearchPath, however it can be overridden
+    such as OutputDirectory
+    """
+
     def __init__(self, platform, path, root=None, title='SearchPath'):
         self.settings = SETTING(title)
+
+        if path.startswith('$('):
+            index = path.find(')')
+            if index != -1:
+                root = path[2:index]
+                path = path[index + 1:]
+                if path[0] in ('\\', '/'):
+                    path = path[1:]
+
         if platform.is_windows():
-            self.settings.addsetting('Path', burger.convert_to_windows_slashes(path))
+            self.settings.addsetting(
+                'Path', convert_to_windows_slashes(path))
             pathformat = 'Windows'
         else:
-            self.settings.addsetting('Path', burger.convert_to_linux_slashes(path))
+            self.settings.addsetting(
+                'Path', convert_to_linux_slashes(path))
             pathformat = 'Unix'
         self.settings.addsetting('PathFormat', pathformat)
         if root is not None:
             self.settings.addsetting('PathRoot', root)
 
-    #
-    # Output the settings
-    #
-
-    def write(self, fileref, level=4):
-        self.settings.write(fileref, level)
-
-#
-## Create a path entry for with flags for recursion
-#
+    def generate(self, line_list, level=4):
+        """
+        Output the settings
+        """
+        self.settings.generate(line_list, level)
 
 
 class SearchPathAndFlags(object):
+    """
+    Create a path entry for with flags for recursion
+    """
+
     def __init__(self, platform, path, root=None, recursive=False):
+        if path.startswith('$(CodeWarrior)'):
+            recursive = True
+
         self.settings = [
             SearchPath(platform, path, root, 'SearchPath'),
-            SETTING('Recursive', burger.truefalse(recursive)),
+            SETTING('Recursive', truefalse(recursive)),
             SETTING('FrameworkPath', 'false'),
             SETTING('HostFlags', 'All')
         ]
 
-    #
-    # Output the settings
-    #
-
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
+        """
+        Output the settings
+        """
         for item in self.settings:
-            item.write(fileref, level)
-
-#
-# Write out the settings for MWProject_X86
-#
+            item.generate(line_list, level)
 
 
 class MWProject_X86(object):
+    """
+    Write out the settings for MWProject_X86
+    """
+
     def __init__(self, projecttype, filename):
         if projecttype == ProjectTypes.library:
             x86type = 'Library'
@@ -285,9 +221,9 @@ class MWProject_X86(object):
             SETTING('MWProject_X86_outfile', filename + extension)
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class MWFrontEnd_C(object):
@@ -319,16 +255,16 @@ class MWFrontEnd_C(object):
             SETTING('MWFrontEnd_C_dontreusestrings', '0')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class C_CPP_Preprocessor(object):
     def __init__(self, defines):
-        definestring = ''
+        definestring = []
         for item in defines:
-            definestring = definestring + '#define ' + item + '\n'
+            definestring.append('#define ' + item)
 
         self.settings = [
             SETTING('C_CPP_Preprocessor_PrefixText', definestring),
@@ -342,9 +278,9 @@ class C_CPP_Preprocessor(object):
             SETTING('C_CPP_Preprocessor_EmitLine', 'false')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class MWWarning_C(object):
@@ -376,9 +312,9 @@ class MWWarning_C(object):
             SETTING('MWWarning_C_warningerrors', '0')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class MWCodeGen_X86(object):
@@ -411,9 +347,9 @@ class MWCodeGen_X86(object):
             SETTING('MWCodeGen_X86_name_mangling', 'MWWin32')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class GlobalOptimizer_X86(object):
@@ -428,9 +364,9 @@ class GlobalOptimizer_X86(object):
             SETTING('GlobalOptimizer_X86__optfor', 'Size')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class PDisasmX86(object):
@@ -456,9 +392,9 @@ class PDisasmX86(object):
             SETTING('PDisasmX86_verbose', 'false')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class MWLinker_X86(object):
@@ -486,18 +422,18 @@ class MWLinker_X86(object):
             SETTING('MWLinker_X86_commandfile', '')
         ]
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         for item in self.settings:
-            item.write(fileref, level)
+            item.generate(line_list, level)
 
 
 class FILE(object):
     def __init__(self, platform, configuration, filename):
         if platform.is_windows():
-            self.filename = burger.convert_to_windows_slashes(filename)
+            self.filename = convert_to_windows_slashes(filename)
             self.format = 'Windows'
         else:
-            self.filename = burger.convert_to_linux_slashes(filename)
+            self.filename = convert_to_linux_slashes(filename)
             self.format = 'Unix'
 
         self.flags = ''
@@ -509,42 +445,46 @@ class FILE(object):
                     self.filename.endswith(('.c', '.cpp')):
                 self.flags = 'Debug'
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         tabs = TAB * level
         tabs2 = tabs + TAB
-        fileref.write(tabs + '<FILE>\n')
-        fileref.write(tabs2 + '<PATHTYPE>Name</PATHTYPE>\n')
-        fileref.write(tabs2 + '<PATH>' + self.filename + '</PATH>\n')
-        fileref.write(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>\n')
-        fileref.write(tabs2 + '<FILEKIND>' + self.kind + '</FILEKIND>\n')
-        fileref.write(tabs2 + '<FILEFLAGS>' + self.flags + '</FILEFLAGS>\n')
-        fileref.write(tabs + '</FILE>\n')
+        line_list.append(tabs + '<FILE>')
+        line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
+        line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
+        line_list.append(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>')
+        line_list.append(tabs2 + '<FILEKIND>' + self.kind + '</FILEKIND>')
+        line_list.append(tabs2 + '<FILEFLAGS>' + self.flags + '</FILEFLAGS>')
+        line_list.append(tabs + '</FILE>')
 
 
 class FILEREF(object):
     def __init__(self, platform, configuration, filename):
         self.configuration = configuration
         if platform.is_windows():
-            self.filename = burger.convert_to_windows_slashes(filename)
+            self.filename = convert_to_windows_slashes(filename)
             self.format = 'Windows'
         else:
-            self.filename = burger.convert_to_linux_slashes(filename)
+            self.filename = convert_to_linux_slashes(filename)
             self.format = 'Unix'
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         tabs = TAB * level
         tabs2 = tabs + TAB
-        fileref.write(tabs + '<FILEREF>\n')
+        line_list.append(tabs + '<FILEREF>')
         if self.configuration is not None:
-            fileref.write(tabs2 + '<TARGETNAME>' + str(self.configuration) + '</TARGETNAME>\n')
-        fileref.write(tabs2 + '<PATHTYPE>Name</PATHTYPE>\n')
-        fileref.write(tabs2 + '<PATH>' + self.filename + '</PATH>\n')
-        fileref.write(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>\n')
-        fileref.write(tabs + '</FILEREF>\n')
+            line_list.append(tabs2 +
+                             '<TARGETNAME>' +
+                             str(self.configuration) +
+                             '</TARGETNAME>')
+        line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
+        line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
+        line_list.append(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>')
+        line_list.append(tabs + '</FILEREF>')
 
 #
 # Each file group
 #
+
 
 class GROUP(object):
     def __init__(self, name):
@@ -568,43 +508,49 @@ class GROUP(object):
         self.groups.append(item)
         return item
 
-    def write(self, fileref, level=2):
+    def generate(self, line_list, level=2):
+        """
+        Generate output
+        """
         if level == 1:
             groupstring = 'GROUPLIST'
         else:
             groupstring = 'GROUP'
         tabs = TAB * level
-        fileref.write(tabs + '<' + groupstring + '>')
+        entry = tabs + '<' + groupstring + '>'
         if self.name is not None:
-            fileref.write('<NAME>' + self.name + '</NAME>')
-        fileref.write('\n')
+            entry = entry + '<NAME>' + self.name + '</NAME>'
+        line_list.append(entry)
 
         groups = sorted(self.groups, key=operator.attrgetter('name'))
         for item in groups:
-            item.write(fileref, level + 1)
+            item.generate(line_list, level + 1)
 
         filerefs = sorted(
             self.filerefs,
             key=lambda s: s.filename.lower())
         for item in filerefs:
-            item.write(fileref, level + 1)
-        fileref.write(tabs + '</' + groupstring + '>\n')
-
-#
-## Class for a sub target entry for the master target list
-#
+            item.generate(line_list, level + 1)
+        line_list.append(tabs + '</' + groupstring + '>')
 
 
 class SUBTARGET(object):
+    """
+    Class for a sub target entry for the master target list.
+    """
+
     def __init__(self, target):
         self.target = target
 
-    def write(self, fileref, level=4):
+    def generate(self, line_list, level=4):
         tabs = TAB * level
         tabs2 = tabs + TAB
-        fileref.write(tabs + '<SUBTARGET>\n')
-        fileref.write(tabs2 + '<TARGETNAME>' + str(self.target.name) + '</TARGETNAME>\n')
-        fileref.write(tabs + '</SUBTARGET>\n')
+        line_list.append(tabs + '<SUBTARGET>')
+        line_list.append(tabs2 +
+                         '<TARGETNAME>' +
+                         str(self.target.name) +
+                         '</TARGETNAME>')
+        line_list.append(tabs + '</SUBTARGET>')
 
 #
 ## Each TARGET entry
@@ -617,7 +563,10 @@ class TARGET(object):
     def __init__(self, name, linker):
         self.name = name
         self.linker = linker
-        self.settinglist = [SETTING('Linker', linker), SETTING('Targetname', name)]
+        self.settinglist = [
+            SETTING(
+                'Linker', linker), SETTING(
+                'Targetname', name)]
         self.filelist = []
         self.linkorder = []
         self.subtargetlist = []
@@ -639,37 +588,36 @@ class TARGET(object):
         entry = SUBTARGET(target)
         self.subtargetlist.append(entry)
 
-    #
-    # Write out this target record
-    #
-
-    def write(self, fileref, level=2):
+    def generate(self, line_list, level=2):
+        """
+        Write out this target record.
+        """
         tabs = TAB * level
         tabs2 = tabs + TAB
-        fileref.write(tabs + '<TARGET>\n')
-        fileref.write(tabs2 + '<NAME>' + str(self.name) + '</NAME>\n')
+        line_list.append(tabs + '<TARGET>')
+        line_list.append(tabs2 + '<NAME>' + str(self.name) + '</NAME>')
 
-        fileref.write(tabs2 + '<SETTINGLIST>\n')
+        line_list.append(tabs2 + '<SETTINGLIST>')
         for item in self.settinglist:
-            item.write(fileref, level + 2)
-        fileref.write(tabs2 + '</SETTINGLIST>\n')
+            item.generate(line_list, level + 2)
+        line_list.append(tabs2 + '</SETTINGLIST>')
 
-        fileref.write(tabs2 + '<FILELIST>\n')
+        line_list.append(tabs2 + '<FILELIST>')
         for item in self.filelist:
-            item.write(fileref, level + 2)
-        fileref.write(tabs2 + '</FILELIST>\n')
+            item.generate(line_list, level + 2)
+        line_list.append(tabs2 + '</FILELIST>')
 
-        fileref.write(tabs2 + '<LINKORDER>\n')
+        line_list.append(tabs2 + '<LINKORDER>')
         for item in self.linkorder:
-            item.write(fileref, level + 2)
-        fileref.write(tabs2 + '</LINKORDER>\n')
+            item.generate(line_list, level + 2)
+        line_list.append(tabs2 + '</LINKORDER>')
 
-        fileref.write(tabs2 + '<SUBTARGETLIST>\n')
+        line_list.append(tabs2 + '<SUBTARGETLIST>')
         for item in self.subtargetlist:
-            item.write(fileref, level + 2)
-        fileref.write(tabs2 + '</SUBTARGETLIST>\n')
+            item.generate(line_list, level + 2)
+        line_list.append(tabs2 + '</SUBTARGETLIST>')
 
-        fileref.write(tabs + '</TARGET>\n')
+        line_list.append(tabs + '</TARGET>')
 
 #
 # Each TARGETORDER entry
@@ -680,39 +628,229 @@ class ORDEREDTARGET(object):
     def __init__(self, target):
         self.target = target
 
-    def write(self, fileref, level=2):
+    def generate(self, line_list, level=2):
         tabs = TAB * level
-        fileref.write(tabs +
-    '<ORDEREDTARGET><NAME>' +
-    str(self.target.name) +
-            '</NAME></ORDEREDTARGET>\n')
-
-#
-# Root object for an Code IDE project file
-# Created with the name of the project, the IDE code (c50, c58)
-# the platform code (win,mac)
-#
+        line_list.append(tabs +
+                         '<ORDEREDTARGET><NAME>' +
+                         str(self.target.name) +
+                         '</NAME></ORDEREDTARGET>')
 
 
 class Project(object):
-    def __init__(self, projectname, idecode, platformcode):
+    """
+    Root object for an CodeWarrior IDE project file.
+
+    Created with the name of the project, the IDE code (c50, c58)
+    the platform code (win,mac)
+    """
+
+    def __init__(self, solution, projectname=None,
+                 idecode=None, platformcode=None):
+        """
+        Initialize the exporter.
+        """
+
+        ## Parent solution
+        self.solution = solution
+
+        ## List of all configurations
+        self.configuration_list = []
+
+        self.solution = solution
         self.projectname = projectname
         self.idecode = idecode
         self.platformcode = platformcode
-        self.projectnamecode = str(projectname + idecode + platformcode)
+        self.projectnamecode = ''  # str(projectname + idecode + platformcode)
 
         # Data chunks
         self.project_list = []
         self.orderedtargets = []
         self.group = GROUP(None)
 
-    #
-    # Add a new TARGET
-    #
+        # Create a phony empty project called "Everything" that will
+        # build all sub project
+        rootproject = self.addtarget('Everything', 'None')
+
+        # Process all the projects and configurations
+        for project in solution.project_list:
+
+            # Process the filenames
+            project.get_file_list([FileTypes.h,
+                                   FileTypes.cpp,
+                                   FileTypes.c,
+                                   FileTypes.rc
+                                   ])
+
+            # Add to the master list
+            self.configuration_list.extend(project.configuration_list)
+
+            # Get the source files that are compatible
+            listh = source_file_filter(project.codefiles, FileTypes.h)
+            listcpp = source_file_filter(project.codefiles, FileTypes.cpp)
+            listwindowsresource = []
+            if project.platform.is_windows():
+                listwindowsresource = source_file_filter(
+                    project.codefiles, FileTypes.rc)
+            alllists = listh + listcpp + listwindowsresource
+
+            # Select the project linker for the platform
+            if project.platform.is_windows():
+                linker = 'Win32 x86 Linker'
+            else:
+                linker = 'MacOS PPC Linker'
+
+            # Create sets of configuration names and projects
+            for configuration in project.configuration_list:
+                configuration.cw_name = configuration.name
+
+                # Create the project for the configuration
+                # and add to the "Everything" project
+                target = self.addtarget(configuration.cw_name, linker)
+                rootproject.addsubtarget(target)
+
+                # Add any environment variables if needed
+
+                temp_list = configuration.get_unique_chained_list(
+                    'cw_environment_variables')
+                if temp_list:
+                    entry = target.addsetting('UserSourceTrees')
+                    for item in temp_list:
+                        entry.subsettings.append(UserSourceTree(item))
+
+                # Create a OutputDirectory record for saving
+                # the output to the bin folder
+                target.settinglist.append(
+                    SearchPath(
+                        configuration.platform,
+                        'bin',
+                        'Project',
+                        'OutputDirectory'))
+
+                # User include folders
+                temp_list = configuration.get_unique_chained_list(
+                    '_source_include_list')
+                temp_list.extend(configuration.get_unique_chained_list(
+                    'include_folders_list'))
+
+                if temp_list:
+                    usersearchpaths = target.addsetting('UserSearchPaths')
+                    for item in temp_list:
+                        entry = usersearchpaths.addsetting()
+                        entry.subsettings.append(
+                            SearchPathAndFlags(
+                                configuration.platform,
+                                item,
+                                'Project',
+                                False))
+
+                # System include folders
+                temp_list = configuration.get_unique_chained_list(
+                    '_library_folders_list')
+                if temp_list:
+                    systemsearchpaths = target.addsetting('SystemSearchPaths')
+                    for item in temp_list:
+                        entry = systemsearchpaths.addsetting()
+                        entry.subsettings.append(
+                            SearchPathAndFlags(
+                                solution.project_list[0].platform,
+                                item,
+                                'CodeWarrior',
+                                False))
+
+                # Generic settings for all platforms
+
+                # C/C++ Language
+                target.settinglist.append(MWFrontEnd_C())
+
+                definelist = configuration.get_chained_list('define_list')
+                # C/C++ Preprocessor
+                target.settinglist.append(C_CPP_Preprocessor(definelist))
+                # C/C++ Warnings
+                target.settinglist.append(MWWarning_C())
+
+                # Windows settings
+                if configuration.platform.is_windows():
+
+                    # x86 Target
+                    target.settinglist.append(
+                        MWProject_X86(
+                            configuration.project_type,
+                            solution.name +
+                            solution.ide.get_short_code() +
+                            'w32' +
+                            configuration.short_code))
+
+                    # x86 CodeGen
+                    target.settinglist.append(MWCodeGen_X86(configuration.name))
+
+                    # Global Optimizations
+                    target.settinglist.append(
+                        GlobalOptimizer_X86(
+                            configuration.name))
+
+                    # x86 Dissassembler
+                    target.settinglist.append(PDisasmX86())
+
+                    # x86 Linker
+                    target.settinglist.append(MWLinker_X86())
+
+                # Create the list of libraries to add to the project if
+                # it's an application
+
+                liblist = []
+                if not configuration.project_type.is_library():
+                    liblist = configuration.get_unique_chained_list(
+                        'libraries_list')
+
+                # Generate the file and group lists
+                if alllists or liblist:
+                    filelist = []
+                    for item in alllists:
+                        parts = convert_to_linux_slashes(
+                            item.relative_pathname).split('/')
+                        filelist.append(unicode(parts[len(parts) - 1]))
+                        # Add to file group
+                        self.addtogroups(
+                            configuration.platform, configuration.name, parts)
+
+                    filelist = sorted(filelist, key=unicode.lower)
+                    for item in filelist:
+                        target.filelist.append(
+                            FILE(
+                                configuration.platform,
+                                configuration.name,
+                                item))
+                        target.linkorder.append(
+                            FILEREF(
+                                configuration.platform,
+                                None,
+                                item))
+
+                    # Sort case insensitive
+                    liblist = sorted(liblist, key=unicode.lower)
+                    for item in liblist:
+                        target.filelist.append(
+                            FILE(
+                                configuration.platform,
+                                configuration.name,
+                                item))
+                        target.linkorder.append(
+                            FILEREF(
+                                configuration.platform,
+                                None,
+                                item))
+                        # Add to file group
+                        self.addtogroups(
+                            configuration.platform, configuration.name, [
+                                'Libraries', item])
+
 
     def addtarget(self, targetname, linker):
+        """
+        Add a new TARGET
+        """
         entry = TARGET(targetname, linker)
-        self.projeproject_listcts.append(entry)
+        self.project_list.append(entry)
         self.orderedtargets.append(ORDEREDTARGET(entry))
         return entry
 
@@ -732,25 +870,25 @@ class Project(object):
                 group = group.addgroup(parts[0])
                 parts.pop(0)
 
-    #
-    # Dump out the entire file
-    #
+    def generate(self, line_list=None):
+        """
+        Write out the Codewarrior project.
 
-    def write(self, fileref):
-
-        #
-        # Write the Codewarrior header
-        #
+        Args:
+            line_list: string list to save the XML text
+        """
 
         # Always use UTF-8 encoding
-        fileref.write('<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>\n')
+        line_list.append(
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>')
 
         # Set the version for the desired version of the Codewarrior IDE
-        if self.idecode == 'c59':
+        ide = self.solution.ide
+        if ide is IDETypes.codewarrior59:
             # Freescale Codewarrior for Nintendo DS
             exportversion = '2.0'
             ideversion = '5.9.0'
-        elif self.idecode == 'c58':
+        elif ide is IDETypes.codewarrior58:
             # Codewarrior 10 for Mac OS
             exportversion = '2.0'
             ideversion = '5.8'
@@ -759,352 +897,153 @@ class Project(object):
             exportversion = '1.0.1'
             ideversion = '5.0'
 
-        fileref.write('<?codewarrior exportversion="' + exportversion +
-                      '" ideversion="' + ideversion + '" ?>\n\n')
+        line_list.append('<?codewarrior exportversion="' + exportversion +
+                         '" ideversion="' + ideversion + '" ?>')
 
         # Write out the XML description template
-        fileref.write(
-            '<!DOCTYPE PROJECT [\n'
-            '<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, GROUPLIST, DESIGNLIST?)>\n'
-            '<!ELEMENT TARGETLIST (TARGET+)>\n'
+        line_list.extend([
+            '',
+            '<!DOCTYPE PROJECT [',
+            '<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, GROUPLIST, DESIGNLIST?)>',
+            '<!ELEMENT TARGETLIST (TARGET+)>',
             '<!ELEMENT TARGET (NAME, SETTINGLIST, FILELIST?, LINKORDER?, SEGMENTLIST?, '
-            'OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>\n'
-            '<!ELEMENT NAME (#PCDATA)>\n'
-            '<!ELEMENT USERSOURCETREETYPE (#PCDATA)>\n'
-            '<!ELEMENT PATH (#PCDATA)>\n'
-            '<!ELEMENT FILELIST (FILE*)>\n'
+            'OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>',
+            '<!ELEMENT NAME (#PCDATA)>',
+            '<!ELEMENT USERSOURCETREETYPE (#PCDATA)>',
+            '<!ELEMENT PATH (#PCDATA)>',
+            '<!ELEMENT FILELIST (FILE*)>',
             '<!ELEMENT FILE (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?, '
-            'ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>\n'
-            '<!ELEMENT PATHTYPE (#PCDATA)>\n'
-            '<!ELEMENT PATHROOT (#PCDATA)>\n'
-            '<!ELEMENT ACCESSPATH (#PCDATA)>\n'
-            '<!ELEMENT PATHFORMAT (#PCDATA)>\n'
-            '<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>\n'
-            '<!ELEMENT FILEKIND (#PCDATA)>\n'
-            '<!ELEMENT FILEFLAGS (#PCDATA)>\n'
-            '<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>\n'
-            '<!ELEMENT TARGETNAME (#PCDATA)>\n'
-            '<!ELEMENT SETTINGLIST ((SETTING|PANELDATA)+)>\n'
-            '<!ELEMENT SETTING (NAME?, (VALUE|(SETTING+)))>\n'
-            '<!ELEMENT PANELDATA (NAME, VALUE)>\n'
-            '<!ELEMENT VALUE (#PCDATA)>\n'
-            '<!ELEMENT LINKORDER (FILEREF*)>\n'
-            '<!ELEMENT SEGMENTLIST (SEGMENT+)>\n'
-            '<!ELEMENT SEGMENT (NAME, ATTRIBUTES?, FILEREF*)>\n'
-            '<!ELEMENT ATTRIBUTES (#PCDATA)>\n'
-            '<!ELEMENT OVERLAYGROUPLIST (OVERLAYGROUP+)>\n'
-            '<!ELEMENT OVERLAYGROUP (NAME, BASEADDRESS, OVERLAY*)>\n'
-            '<!ELEMENT BASEADDRESS (#PCDATA)>\n'
-            '<!ELEMENT OVERLAY (NAME, FILEREF*)>\n'
-            '<!ELEMENT SUBTARGETLIST (SUBTARGET+)>\n'
-            '<!ELEMENT SUBTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>\n'
-            '<!ELEMENT SUBPROJECTLIST (SUBPROJECT+)>\n'
-            '<!ELEMENT SUBPROJECT (FILEREF, SUBPROJECTTARGETLIST)>\n'
-            '<!ELEMENT SUBPROJECTTARGETLIST (SUBPROJECTTARGET*)>\n'
-            '<!ELEMENT SUBPROJECTTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>\n'
-            '<!ELEMENT FRAMEWORKLIST (FRAMEWORK+)>\n'
-            '<!ELEMENT FRAMEWORK (FILEREF, DYNAMICLIBRARY?, VERSION?)>\n'
-            '<!ELEMENT PACKAGEACTIONSLIST (PACKAGEACTION+)>\n'
-            '<!ELEMENT PACKAGEACTION (#PCDATA)>\n'
-            '<!ELEMENT LIBRARYFILE (FILEREF)>\n'
-            '<!ELEMENT VERSION (#PCDATA)>\n'
-            '<!ELEMENT TARGETORDER (ORDEREDTARGET|ORDEREDDESIGN)*>\n'
-            '<!ELEMENT ORDEREDTARGET (NAME)>\n'
-            '<!ELEMENT ORDEREDDESIGN (NAME, ORDEREDTARGET+)>\n'
-            '<!ELEMENT GROUPLIST (GROUP|FILEREF)*>\n'
-            '<!ELEMENT GROUP (NAME, (GROUP|FILEREF)*)>\n'
-            '<!ELEMENT DESIGNLIST (DESIGN+)>\n'
-            '<!ELEMENT DESIGN (NAME, DESIGNDATA)>\n'
-            '<!ELEMENT DESIGNDATA (#PCDATA)>\n'
-            ']>\n\n')
+            'ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>',
+            '<!ELEMENT PATHTYPE (#PCDATA)>',
+            '<!ELEMENT PATHROOT (#PCDATA)>',
+            '<!ELEMENT ACCESSPATH (#PCDATA)>',
+            '<!ELEMENT PATHFORMAT (#PCDATA)>',
+            '<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>',
+            '<!ELEMENT FILEKIND (#PCDATA)>',
+            '<!ELEMENT FILEFLAGS (#PCDATA)>',
+            '<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>',
+            '<!ELEMENT TARGETNAME (#PCDATA)>',
+            '<!ELEMENT SETTINGLIST ((SETTING|PANELDATA)+)>',
+            '<!ELEMENT SETTING (NAME?, (VALUE|(SETTING+)))>',
+            '<!ELEMENT PANELDATA (NAME, VALUE)>',
+            '<!ELEMENT VALUE (#PCDATA)>',
+            '<!ELEMENT LINKORDER (FILEREF*)>',
+            '<!ELEMENT SEGMENTLIST (SEGMENT+)>',
+            '<!ELEMENT SEGMENT (NAME, ATTRIBUTES?, FILEREF*)>',
+            '<!ELEMENT ATTRIBUTES (#PCDATA)>',
+            '<!ELEMENT OVERLAYGROUPLIST (OVERLAYGROUP+)>',
+            '<!ELEMENT OVERLAYGROUP (NAME, BASEADDRESS, OVERLAY*)>',
+            '<!ELEMENT BASEADDRESS (#PCDATA)>',
+            '<!ELEMENT OVERLAY (NAME, FILEREF*)>',
+            '<!ELEMENT SUBTARGETLIST (SUBTARGET+)>',
+            '<!ELEMENT SUBTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>',
+            '<!ELEMENT SUBPROJECTLIST (SUBPROJECT+)>',
+            '<!ELEMENT SUBPROJECT (FILEREF, SUBPROJECTTARGETLIST)>',
+            '<!ELEMENT SUBPROJECTTARGETLIST (SUBPROJECTTARGET*)>',
+            '<!ELEMENT SUBPROJECTTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>',
+            '<!ELEMENT FRAMEWORKLIST (FRAMEWORK+)>',
+            '<!ELEMENT FRAMEWORK (FILEREF, DYNAMICLIBRARY?, VERSION?)>',
+            '<!ELEMENT PACKAGEACTIONSLIST (PACKAGEACTION+)>',
+            '<!ELEMENT PACKAGEACTION (#PCDATA)>',
+            '<!ELEMENT LIBRARYFILE (FILEREF)>',
+            '<!ELEMENT VERSION (#PCDATA)>',
+            '<!ELEMENT TARGETORDER (ORDEREDTARGET|ORDEREDDESIGN)*>',
+            '<!ELEMENT ORDEREDTARGET (NAME)>',
+            '<!ELEMENT ORDEREDDESIGN (NAME, ORDEREDTARGET+)>',
+            '<!ELEMENT GROUPLIST (GROUP|FILEREF)*>',
+            '<!ELEMENT GROUP (NAME, (GROUP|FILEREF)*)>',
+            '<!ELEMENT DESIGNLIST (DESIGN+)>',
+            '<!ELEMENT DESIGN (NAME, DESIGNDATA)>',
+            '<!ELEMENT DESIGNDATA (#PCDATA)>',
+            ']>',
+            ''
+        ])
 
         # Start the project
-        fileref.write('<PROJECT>\n')
+        line_list.append('<PROJECT>')
 
         # Target settings
-        fileref.write(TAB + '<TARGETLIST>\n')
+        line_list.append(TAB + '<TARGETLIST>')
         for item in self.project_list:
-            item.write(fileref, 2)
-        fileref.write(TAB + '</TARGETLIST>\n')
+            item.generate(line_list, 2)
+        line_list.append(TAB + '</TARGETLIST>')
 
         # Order of targets in the list
-        fileref.write(TAB + '<TARGETORDER>\n')
+        line_list.append(TAB + '<TARGETORDER>')
         for item in self.orderedtargets:
-            item.write(fileref, 2)
-        fileref.write(TAB + '</TARGETORDER>\n')
+            item.generate(line_list, 2)
+        line_list.append(TAB + '</TARGETORDER>')
 
         # File group list (Source file groupings)
-        self.group.write(fileref, 1)
+        self.group.generate(line_list, 1)
 
         # Wrap up the project file
-        fileref.write('</PROJECT>\n')
+        line_list.append('</PROJECT>')
+        return 0
 
-#
-# Create a project file for Codewarrior
-#
+
+########################################
 
 
 def generate(solution):
+    """
+    Create a project file for Metrowerks CodeWarrior.
 
-    # Codewarrior doesn't support x64
-    for project in solution.project_list:
-        configuration_list = []
-        for configuration in project.configuration_list:
-            if configuration.attributes['platform'].is_windows():
-                configuration.attributes['platform'] = PlatformTypes.win32
-            configuration_list.append(configuration)
-        project.configuration_list = configuration_list
+    Given a Solution object, create an appropriate Watcom WMAKE
+    file to allow this project to build.
 
-    #
-    # Find the files to put into the project
-    #
+    Args:
+        solution: Solution instance.
 
-    codefiles, includedirectories = solution.getfilelist([
-        FileTypes.h, FileTypes.cpp, FileTypes.rc,
-        FileTypes.hlsl, FileTypes.glsl])
+    Returns:
+        Zero if no error, non-zero on error.
+    """
 
-    #
-    # Configure the codewarrior writer to the type
-    # of solution requested
-    #
+    # Failsafe
+    if solution.ide not in SUPPORTED_IDES:
+        return 10
 
-    solution.codewarrior.defaults(solution)
+    # Create the output filename and pass it to the generator
+    # so it can reference itself in make targets
+    solution.codewarrior_filename = '{}{}{}.mcp'.format(
+        solution.name, solution.ide_code, solution.platform_code)
 
-    #
-    # Ensure the slashes are in Linux format (For MacOS)
-    #
+    exporter = Project(solution)
 
-    for item in codefiles:
-        item.relative_pathname = burger.convert_to_linux_slashes(item.relative_pathname)
-
-    #
-    # Determine the ide and target type for the final file name
-    #
-
-    idecode = solution.ide.get_short_code()
-    platformcode = solution.project_list[0].get_attribute('platform').get_short_code()
-    codewarriorprojectfile = Project(solution.attributes['name'], idecode, platformcode)
-
-    #
-    # Create a phony empty project called "Everything" that will
-    # build all sub projects
-    #
-
-    rootproject = codewarriorprojectfile.addtarget('Everything', 'None')
-
-    #
-    # Get the source files that are compatible
-    #
-
-    listh = source_file_filter(codefiles, FileTypes.h)
-    listcpp = source_file_filter(codefiles, FileTypes.cpp)
-    listwindowsresource = []
-    if solution.project_list[0].get_attribute('platform').is_windows():
-        listwindowsresource = source_file_filter(codefiles,FileTypes.rc)
-
-    alllists = listh + listcpp + listwindowsresource
-
-    #
-    # Select the project linker for the platform
-    #
-
-    if solution.project_list[0].get_attribute('platform').is_windows():
-        linker = 'Win32 x86 Linker'
-    else:
-        linker = 'MacOS PPC Linker'
-
-    #
-    # Add every configuration to the project
-    #
-
-    for configuration in solution.project_list[0].configurations:
-
-        #
-        # Create the project for the configuration
-        # and add to the "Everything" project
-        #
-
-        target = codewarriorprojectfile.addtarget(configuration.attributes['name'], linker)
-        rootproject.addsubtarget(target)
-
-        #
-        # Add any environment variables if needed
-        #
-
-        if solution.codewarrior.environmentvariables:
-            entry = target.addsetting('UserSourceTrees')
-            for item in solution.codewarrior.environmentvariables:
-                entry.subsettings.append(UserSourceTree(item))
-
-        #
-        # Create a OutputDirectory record for saving the output to the bin folder
-        #
-        target.settinglist.append(
-            SearchPath(
-                solution.project_list[0].get_attribute('platform'),
-                'bin',
-                'Project',
-                'OutputDirectory'))
-
-        #
-        # User include folders
-        #
-
-        if includedirectories:
-            usersearchpaths = target.addsetting('UserSearchPaths')
-            for item in includedirectories:
-                entry = usersearchpaths.addsetting()
-                entry.subsettings.append(
-                    SearchPathAndFlags(
-                        solution.project_list[0].get_attribute('platform'),
-                        item,
-                        'Project',
-                        False))
-
-        #
-        # System include folders
-        #
-
-        systemsearchpaths = target.addsetting('SystemSearchPaths')
-        for item in solution.codewarrior.burgersdkspaths:
-            entry = systemsearchpaths.addsetting()
-            entry.subsettings.append(
-                SearchPathAndFlags(
-                    solution.project_list[0].get_attribute('platform'),
-                    item,
-                    'BURGER_SDKS',
-                    False))
-
-        for item in solution.codewarrior.systemsearchpaths:
-            entry = systemsearchpaths.addsetting()
-            entry.subsettings.append(
-                SearchPathAndFlags(
-                    solution.project_list[0].get_attribute('platform'),
-                    item,
-                    'CodeWarrior',
-                    True))
-
-        #
-        # Generic settings for all platforms
-        #
-
-        # C/C++ Language
-        target.settinglist.append(MWFrontEnd_C())
-
-        platform = solution.project_list[0].get_attribute('platform')
-        definelist = configuration.get_attribute('define_list')
-        # C/C++ Preprocessor
-        target.settinglist.append(C_CPP_Preprocessor(definelist))
-        # C/C++ Warnings
-        target.settinglist.append(MWWarning_C())
-
-        #
-        # Windows settings
-        #
-
-        if solution.project_list[0].get_attribute('platform').is_windows():
-
-            # x86 Target
-            target.settinglist.append(
-                MWProject_X86(
-                    solution.project_list[0].get_attribute('project_type'),
-                    solution.attributes['name'] + idecode + 'w32'
-                    + configuration.attributes['short_code']))
-
-            # x86 CodeGen
-            target.settinglist.append(MWCodeGen_X86(configuration.attributes['name']))
-
-            # Global Optimizations
-            target.settinglist.append(GlobalOptimizer_X86(configuration.attributes['name']))
-
-            # x86 Dissassembler
-            target.settinglist.append(PDisasmX86())
-
-            # x86 Linker
-            target.settinglist.append(MWLinker_X86())
-
-        #
-        # MacOS settings
-        #
-
-        #
-        # Create the list of libraries to add to the project if
-        # it's an application
-        #
-
-        liblist = []
-        if solution.project_list[0].get_attribute('project_type') != ProjectTypes.library:
-            if configuration.attributes['name'] == 'Debug':
-                liblist.append('burgerlibc50w32dbg.lib')
-            elif configuration.attributes['name'] == 'Internal':
-                liblist.append('burgerlibc50w32int.lib')
-            else:
-                liblist.append('burgerlibc50w32rel.lib')
-
-            if configuration.attributes['name'] == 'Debug':
-                liblist.append('MSL_All_x86_D.lib')
-            else:
-                liblist.append('MSL_All_x86.lib')
-
-            liblist += solution.codewarrior.libraries
-
-        #
-        # Generate the file and group lists
-        #
-
-        if alllists or liblist:
-            filelist = []
-            for item in alllists:
-                parts = item.relative_pathname.split('/')
-                filelist.append(unicode(parts[len(parts) - 1]))
-                # Add to file group
-                codewarriorprojectfile.addtogroups(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], parts)
-
-            filelist = sorted(filelist, key=unicode.lower)
-            for item in filelist:
-                target.filelist.append(FILE(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], item))
-                target.linkorder.append(FILEREF(solution.project_list[0].get_attribute('platform'), None, item))
-
-            # Sort case insensitive
-            liblist = sorted(liblist, key=unicode.lower)
-            for item in liblist:
-                target.filelist.append(FILE(solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], item))
-                target.linkorder.append(FILEREF(solution.project_list[0].get_attribute('platform'), None, item))
-                # Add to file group
-                codewarriorprojectfile.addtogroups(
-                    solution.project_list[0].get_attribute('platform'), configuration.attributes['name'], [
-                        'Libraries', item])
-
-    #
-    # Let's create the solution file!
-    #
-
-    projectpathname = os.path.join(solution.attributes['working_directory'],
-                                   codewarriorprojectfile.projectnamecode + '.mcp.xml')
-
-    #
-    # Write out the file
-    #
-
-    burger.perforce_edit(projectpathname)
-    fileref = open(projectpathname, 'w')
-    codewarriorprojectfile.write(fileref)
-    fileref.close()
-
-    #
-    # If codewarrior is installed, create the MCP file
-    #
-
-    cwfile = os.getenv('CWFolder')
-    if cwfile is not None and solution.project_list[0].get_attribute('platform').is_windows():
-        mcppathname = os.path.join(solution.attributes['working_directory'],
-                                   codewarriorprojectfile.projectnamecode + '.mcp')
-        burger.perforce_edit(mcppathname)
-        cwfile = os.path.join(cwfile, 'Bin', 'ide')
-        cmd = '"' + cwfile + '" /x "' + projectpathname + '" "' + mcppathname + '" /s /c /q'
-        sys.stdout.flush()
-        error = subprocess.call(cmd, cwd=os.path.dirname(projectpathname), shell=True)
-        #if error==0:
-        #    os.remove(projectpathname)
+    # Output the actual project file
+    codewarrior_lines = []
+    error = exporter.generate(codewarrior_lines)
+    if error:
         return error
-    return 0
+
+    # Save the file if it changed
+    xml_filename = os.path.join(
+        solution.working_directory,
+        solution.codewarrior_filename + '.xml')
+
+    error = 0
+    if not save_text_file_if_newer(
+            xml_filename,
+            codewarrior_lines,
+            bom=False,
+            perforce=solution.perforce,
+            verbose=solution.verbose):
+
+        # If a file was updated and codewarrior is installed, create the MCP
+        # file
+
+        cwfile = os.getenv('CWFolder')
+        if cwfile is not None and solution.ide in (IDETypes.codewarrior50,):
+            mcp_filename = os.path.join(
+                solution.working_directory,
+                solution.codewarrior_filename)
+
+            perforce_edit(mcp_filename)
+            cwfile = os.path.join(cwfile, 'Bin', 'ide')
+            cmd = '"' + cwfile + '" /x "' + xml_filename + \
+                '" "' + mcp_filename + '" /s /c /q'
+            if solution.verbose:
+                print(cmd)
+            error = subprocess.call(
+                cmd, cwd=os.path.dirname(xml_filename), shell=True)
+    return error

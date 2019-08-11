@@ -42,6 +42,7 @@ from .core import SourceFile, Configuration, Project, Solution
 from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, \
     URI, EMAIL, LICENSE, COPYRIGHT
+from .defaults import _CONFIGURATION_DEFAULTS
 
 ########################################
 
@@ -74,6 +75,18 @@ __copyright__ = COPYRIGHT
 
 ## Match *.xcodeproj
 _XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
+
+## Match *.hlsl
+_HLSL_MATCH = re_compile('(?ms).*\\.hlsl\\Z')
+
+## Match *.glsl
+_GLSL_MATCH = re_compile('(?ms).*\\.glsl\\Z')
+
+## Match *.x360sl
+_X360SL_MATCH = re_compile('(?ms).*\\.x360sl\\Z')
+
+## Match *.vitacg
+_VITACG_MATCH = re_compile('(?ms).*\\.vitacg\\Z')
 
 ## Items to import on "from makeprojects import *"
 
@@ -250,3 +263,30 @@ def new_configuration(configuration_list):
     if len(results) == 1:
         return results[0]
     return results
+
+########################################
+
+def new(name=None, platform=None, project_type=None):
+    """
+    Create a new instance of a full solution
+
+    Convenience routine to create a Solution with a
+    Project and three configurations 'Debug', 'Release', 'Internal'
+
+    Args:
+        name: Name of the project
+        platform: Platform for the project
+        project_type: Type of project
+
+    Returns:
+        None, a fully stocked Solution
+    See Also:
+        core.Solution
+    """
+
+    solution = Solution(name=name)
+    project = Project(name=name, platform=platform, project_type=project_type)
+    configurations = new_configuration(_CONFIGURATION_DEFAULTS[:3])
+    solution.add_project(project)
+    project.add_configuration(configurations)
+    return solution

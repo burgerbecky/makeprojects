@@ -10,64 +10,118 @@ Module contains the core classes for makeproject.
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+import re
+import fnmatch
 from operator import attrgetter
 from copy import deepcopy
 from burger import get_windows_host_type, convert_to_windows_slashes, \
-    convert_to_linux_slashes, is_string, translate_to_regex_match
+    convert_to_linux_slashes, is_string, translate_to_regex_match, \
+    string_to_bool, StringListProperty, BooleanProperty, NoneProperty
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
+from .enums import platformtype_short_code
 from .build_rules import rules as default_rules
-
-## List of attributes that consist of lists
-
-_DEFAULT_ATTRIBUTE_LISTS = (
-    'define_list',
-    'exclude_from_build_list',
-    '_source_include_list',
-    'include_folders_list',
-    'library_folders_list',
-    'libraries_list',
-    'frameworks_list'
-)
 
 ########################################
 
 
-def validate_type(self, attribute_name, data_type):
+def validate_enum_type(value, data_type):
     """
-    Verify an attribute is a specific data type.
+    Verify a value is a specific data type.
 
-    Check if the attribute exists and if so, verify it's an instance of a
-    specfic data type. If so, exit immediately. If the record doesn't exist,
-    create it with the default of None. If the record contains a string,
+    Check if the value is either None or an instance of a
+    specfic data type. If so, return immediately. If the value is a string,
     call the lookup() function of the data type for conversion.
 
     Args:
-        self: Class the contains a member called ``attributes``.
-        attribute_name: Name of the attribute to check.
+        value: Value to check.
         data_type: Type instance of the class type to match.
 
     Returns:
-        Value found in the attribute.
+        Value converted to data_type or None.
 
     Exception:
         TypeError if lookup() failed.
     """
 
-    # Ensure the entry exists
-    data = self.attributes.setdefault(attribute_name)
-    if data is not None:
-        if not isinstance(data, data_type):
-            # Perform the lookup
-            new_data = data_type.lookup(data)
-            if new_data is None:
-                msg = '["{}"]={} must be of type "{}".'.format(
-                    attribute_name, data, data_type.__name__)
-                raise TypeError(msg)
-            # Save the converted type
-            self.attributes[attribute_name] = new_data
-            return new_data
-    return data
+    if value is not None:
+        # Perform the lookup
+        new_value = data_type.lookup(value)
+        if new_value is None:
+            msg = '"{}" must be of type "{}".'.format(
+                value, data_type.__name__)
+            raise TypeError(msg)
+        # Save the converted type
+        value = new_value
+    return value
+
+########################################
+
+
+def regex_dict(item):
+    """ Convert *.cpp keys to regex keys
+
+    Args:
+        item: dict to convert
+    Returns:
+        dict with keys converted to regexes
+    """
+
+    output = {}
+    for key in item:
+        output[re.compile(fnmatch.translate(key)).match] = item[key]
+    return output
+
+########################################
+
+
+def validate_boolean(value):
+    """
+    Verify a value is a boolean.
+
+    Check if the value can be converted to a bool, if so,
+    return the value as bool. None is converted to False.
+
+    Args:
+        value: Value to check.
+
+    Returns:
+        Value converted to data_type or None.
+
+    Exception:
+        ValueError if conversion failed.
+    """
+
+    if value is not None:
+        # Convert to bool
+        value = string_to_bool(value)
+    return value
+
+########################################
+
+
+def validate_string(value):
+    """
+    Verify a value is a string.
+
+    Check if the value is a string, if so,
+    return the value as is or None.
+
+    Args:
+        value: Value to check.
+
+    Returns:
+        Value is string or None.
+
+    Exception:
+        ValueError if conversion failed.
+    """
+
+    if value is not None:
+        # Convert to bool
+        if not is_string(value):
+            raise ValueError('"{}" must be a string.'.format(value))
+    return value
 
 ########################################
 
@@ -96,11 +150,341 @@ def source_file_filter(file_list, file_type_list):
                 result_list.append(item)
     return result_list
 
+########################################
+
+
+class Attributes:
+    """
+    Base class for Solution parts to unify common code
+    """
+
+    # Too many instance attributes
+    # pylint: disable=R0902
+
+    ## List of defines for the compiler
+    define_list = StringListProperty('_define_list')
+
+    ## List of folders to add to compiler include list
+    include_folders_list = StringListProperty('_include_folders_list')
+
+    ## List of folders to add to linker include list
+    library_folders_list = StringListProperty('_library_folders_list')
+
+    ## List of libraries to link
+    libraries_list = StringListProperty('_libraries_list')
+
+    ## Darwin frameworks list
+    frameworks_list = StringListProperty('_frameworks_list')
+
+    ## List of file patterns to exclude from this configuration
+    exclude_from_build_list = StringListProperty('_exclude_from_build_list')
+
+    ## List of files to exclude from directory scanning
+    exclude_list = StringListProperty('_exclude_list')
+
+    ## List of CodeWarrior environment variables
+    cw_environment_variables = StringListProperty('_cw_environment_variables')
+
+    def __init__(self, **kargs):
+        """
+        Perform initialization that's common to all parts.
+
+        Args:
+            kargs: List of defaults.
+        """
+
+        ## Reference to parent object for chained attribute lookups
+        self.parent = None
+
+        ## Generated file folder list
+        self._source_include_list = []
+
+        ## Custom build rules
+        self.custom_rules = {}
+
+        # Set all the variables
+        for key in kargs:
+            setattr(self, key, kargs[key])
+
+    ########################################
+
+    def get_chained_value(self, name):
+        """
+        Follow the chain to find a value.
+
+        Args:
+            self: The 'this' reference.
+            name: Name of the attribute
+        Return:
+            None or the value.
+        """
+        value = getattr(self, name, None)
+        if value is None and self.parent is not None:
+            value = self.parent.get_chained_value(name)
+        return value
+
+    ########################################
+
+    def get_chained_list(self, name):
+        """
+        Return an chained attribute list.
+        @details
+        Obtain the list from the named attribute and append
+        it with the same attribute in parent
+        and return the entire list. This function does not
+        modify the original lists.
+
+        Args:
+            name: Name of the attribute key
+        Return:
+            A list of all items found. The list can be empty.
+        """
+
+        value_list = list(getattr(self, name, []))
+
+        # Is there a reverse link?
+        if self.parent is not None:
+            value_list.extend(getattr(self.parent, name, []))
+        return value_list
+
+    ########################################
+
+    def get_unique_chained_list(self, name):
+        """
+        Return an chained attribute list with duplicates removed.
+        @details
+        Obtain the list from the named attribute and append
+        it with the same attribute in parent
+        and return the entire list. This function does not
+        modify the original lists. All duplicates are removed.
+
+        Args:
+            name: Name of the attribute key
+        Return:
+            A list of all items found. The list can be empty.
+        See Also:
+            get_chained_list
+        """
+
+        return list(dict.fromkeys(self.get_chained_list(name)))
+
+    ########################################
+
+    # Attribute defined outside __init__
+    # pylint: disable=W0201
+
+    @property
+    def platform(self):
+        """ Get the enums.PlatformTypes """
+        return self.get_chained_value('_platform')
+
+    @platform.setter
+    def platform(self, value):
+        """
+        Set the enums.PlatformTypes with validation
+        Args:
+            self: The 'this' reference.
+            value: None or enums.PlatformTypes
+        """
+
+        ## Private enums.PlatformTypes value
+        self._platform = validate_enum_type(value, PlatformTypes)
+
+    @property
+    def project_type(self):
+        """ Get the enums.ProjectTypes """
+        return self.get_chained_value('_project_type')
+
+    @project_type.setter
+    def project_type(self, value):
+        """
+        Set the enums.ProjectTypes with validation
+        Args:
+            self: The 'this' reference.
+            value: None or enums.ProjectTypes
+        """
+
+        ## Private enums.ProjectTypes value
+        self._project_type = validate_enum_type(value, ProjectTypes)
+
+    ########################################
+
+    @property
+    def debug(self):
+        """ Get debug boolean """
+        return self.get_chained_value('_debug')
+
+    @debug.setter
+    def debug(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for debug
+        self._debug = validate_boolean(value)
+
+    @property
+    def link_time_code_generation(self):
+        """ Get link time code generation boolean """
+        return self.get_chained_value('_link_time_code_generation')
+
+    @link_time_code_generation.setter
+    def link_time_code_generation(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for link_time_code_generation
+        self._link_time_code_generation = validate_boolean(value)
+
+    @property
+    def optimization(self):
+        """ Get optimization boolean """
+        return self.get_chained_value('_optimization')
+
+    @optimization.setter
+    def optimization(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for optimization
+        self._optimization = validate_boolean(value)
+
+    @property
+    def analyze(self):
+        """ Get code analysis boolean """
+        return self.get_chained_value('_analyze')
+
+    @analyze.setter
+    def analyze(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for analyze
+        self._analyze = validate_boolean(value)
+
+    @property
+    def use_mfc(self):
+        """ Get use of Microsoft Foundation class boolean """
+        return self.get_chained_value('_use_mfc')
+
+    @use_mfc.setter
+    def use_mfc(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for use_mfc
+        self._use_mfc = validate_boolean(value)
+
+    @property
+    def use_atl(self):
+        """ Get Microsoft Active Template Library boolean """
+        return self.get_chained_value('_use_atl')
+
+    @use_atl.setter
+    def use_atl(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for use_atl
+        self._use_atl = validate_boolean(value)
+
+    @property
+    def clr_support(self):
+        """ Get Common Language Runtime boolean """
+        return self.get_chained_value('_clr_support')
+
+    @clr_support.setter
+    def clr_support(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The 'this' reference.
+            value: None, True or False
+        """
+
+        ## Private boolean for clr_support
+        self._clr_support = validate_boolean(value)
+
+    ########################################
+
+    @property
+    def name(self):
+        """ Get name string """
+        return self.get_chained_value('_name')
+
+    @name.setter
+    def name(self, value):
+        """
+        Set the string with validation
+        Args:
+            self: The 'this' reference.
+            value: None, string
+        """
+
+        ## Private string for name
+        self._name = validate_string(value)
+
+    @property
+    def working_directory(self):
+        """ Get working directory string """
+        return self.get_chained_value('_working_directory')
+
+    @working_directory.setter
+    def working_directory(self, value):
+        """
+        Set the string with validation
+        Args:
+            self: The 'this' reference.
+            value: None, string
+        """
+
+        ## Private string for working_directory
+        self._working_directory = validate_string(value)
+
+    @property
+    def deploy_folder(self):
+        """ Get deployment folder string """
+        return self.get_chained_value('_deploy_folder')
+
+    @deploy_folder.setter
+    def deploy_folder(self, value):
+        """
+        Set the string with validation
+        Args:
+            self: The 'this' reference.
+            value: None, string
+        """
+
+        ## Private string for deploy_folder
+        self._deploy_folder = validate_string(value)
 
 ########################################
 
 
-class SourceFile():
+class SourceFile:
     """
     Object for each input file to insert to a solution.
 
@@ -205,7 +589,7 @@ class SourceFile():
 ########################################
 
 
-class Configuration:
+class Configuration(Attributes):
     """
     Object for containing attributes specific to a build configuration.
 
@@ -233,6 +617,22 @@ class Configuration:
         Project, Solution
     """
 
+    ## Don't allow source folders in configuration
+    source_folders_list = NoneProperty('_source_folders_list')
+
+    ## Don't allow source files to be added in a configuration
+    source_files_list = StringListProperty('_source_files_list')
+
+    ## Don't allow Visual Studio props files
+    vs_props = NoneProperty('_vs_props')
+
+    ## Don't allow Visual Studio targets files
+    vs_targets = NoneProperty('_vs_targets')
+
+    ## Don't allow Visual Studio rules files
+    vs_rules = NoneProperty('_vs_rules')
+
+
     def __init__(self, **kargs):
         """
         Init defaults.
@@ -241,80 +641,53 @@ class Configuration:
             kargs: List of defaults.
         """
 
-        ## Dictionary of attributes describing how to build this configuration.
-        self.attributes = deepcopy(kargs)
-
-        ## Project this Configuration is attached to.
-        self.project = None
-
         # Set the default name
-        name = self.attributes.get('name')
+        name = kargs.get('name', None)
         if not is_string(name):
             raise TypeError(
                 "string parameter 'name' is required")
 
-        # Set the optional short code for file names
-        self.attributes.setdefault('short_code', name)
+        # Init the base class
+        Attributes.__init__(self, **kargs)
 
-        # Verify the platform parameter
-        validate_type(self, 'platform', PlatformTypes)
+        ## Project this Configuration is attached to.
+        self.project = None
 
-        # Verify the project type
-        validate_type(self, 'project_type', ProjectTypes)
-
-        # Initialize the attributes that are lists
-        for item in _DEFAULT_ATTRIBUTE_LISTS:
-            self.attributes.setdefault(item, [])
 
     ########################################
 
-    def get_attribute(self, name):
-        """
-        Return an attribute by key.
-        @details
-        If the attribute does not exist, it will check
-        the parent project and then the parent solution for the key.
+    # Attribute defined outside __init__
+    # pylint: disable=W0201
 
+    @property
+    def ide(self):
+        """
+        Return the preferred IDE
+        """
+        if self.parent is not None:
+            return self.parent.ide
+        return None
+
+    @property
+    def short_code(self):
+        """
+        Return the short code
+        """
+
+        short_code = getattr(self, '_short_code', None)
+        if short_code is None:
+            return self.name
+        return short_code
+
+    @short_code.setter
+    def short_code(self, value):
+        """
+        Set the filename suffix
         Args:
-            name: Name of the attribute key
-        Return:
-            None if the attribute is not in use, or a value.
+            self: The 'this' reference.
+            value: New short code
         """
-
-        value = self.attributes.get(name)
-        if value is None:
-            if self.project:
-                return self.project.get_attribute(name)
-        return value
-
-    ########################################
-
-    def get_attribute_list(self, name):
-        """
-        Return an chained attribute list.
-        @details
-        Obtain the list from the named attribute and append
-        it with the same attribute in project and solution
-        and return the entire list. This function does not
-        modify the original lists.
-
-        Args:
-            name: Name of the attribute key
-        Return:
-            A list of all items found. The list can be empty.
-        """
-
-        value_list = list(self.attributes.get(name, []))
-
-        # Is there a reverse link?
-        if self.project:
-            value_list.extend(self.project.attributes.get(name, []))
-
-            # Is there a solution?
-            if self.project.solution:
-                value_list.extend(
-                    self.project.solution.attributes.get(name, []))
-        return value_list
+        self._short_code = validate_string(value)
 
     ########################################
 
@@ -342,6 +715,33 @@ class Configuration:
 
     ########################################
 
+    def get_suffix(self):
+        """
+        Return the proposed suffix.
+
+        Each configuration can generate a seperate binary and
+        if they are stored in the same folder, a suffix
+        is appened to make the filename unique.
+
+        Returns:
+            A suffix of the IDE, Platform and Configuration short codes.
+        """
+
+        # It's possible to not have a platform for
+        # projects that consist of platform neutral data
+        platform = self.platform
+        if platform is not None:
+            platform_text = platform.get_short_code()
+        else:
+            platform_text = ''
+
+        return '{}{}{}'.format(
+            self.ide.get_short_code(),
+            platform_text,
+            self.short_code)
+
+    ########################################
+
     def __repr__(self):
         """
         Convert the configuration record into a human readable description.
@@ -350,8 +750,11 @@ class Configuration:
             Human readable string.
         """
 
-        return 'Configuration: {}, Attributes: {}'.format(
-            self.attributes['name'], str(self.attributes))
+        result_list = []
+        for item in self.__dict__:
+            item_name = item[1:] if item.startswith('_') else item
+            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
+        return 'Configuration:' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__
@@ -360,7 +763,7 @@ class Configuration:
 ########################################
 
 
-class Project:
+class Project(Attributes):
     """
     Object for processing a project file.
 
@@ -372,6 +775,23 @@ class Project:
 
     # Too many instance attributes
     # pylint: disable=too-many-instance-attributes
+    # pylint: disable=attribute-defined-outside-init
+
+    ## List of directories to scan for source code
+    source_folders_list = StringListProperty(
+        '_source_folders_list', ['.', 'source', 'src'])
+
+    ## List of generated source files to include in the project
+    source_files_list = StringListProperty('_source_files_list')
+
+    ## List of props files for Visual Studio
+    vs_props = StringListProperty('_vs_props')
+
+    ## List of targets file for Visual Studio
+    vs_targets = StringListProperty('_vs_targets')
+
+    ## List of rules file for Visual Studio 2005-2008
+    vs_rules = StringListProperty('_vs_rules')
 
     def __init__(self, **kargs):
         """
@@ -381,8 +801,14 @@ class Project:
             kargs: dict of arguments.
         """
 
-        ## Dictionary of attributes describing how to build this configuration.
-        self.attributes = deepcopy(kargs)
+        # Set a default project name
+        self.name = 'project'
+
+        # Set a default working directory
+        self.working_directory = os.getcwd()
+
+        # Init the base class
+        Attributes.__init__(self, **kargs)
 
         ## No parent solution yet
         self.solution = None
@@ -402,28 +828,19 @@ class Project:
         ## Used by scan_directory
         self.include_list = None
 
-        ## Used by scan_directory
-        self.exclude_list = None
+        ## Platform code for generation
+        self.platform_code = ''
 
-        # Set a default project name
-        self.attributes.setdefault('name', 'project')
+    ########################################
 
-        # Set a default working directory
-        self.attributes.setdefault('working_directory', os.getcwd())
-
-        # Verify the platform parameter
-        validate_type(self, 'platform', PlatformTypes)
-
-        # Verify the project type
-        validate_type(self, 'project_type', ProjectTypes)
-
-        # Initialize the attributes that are lists
-        for item in _DEFAULT_ATTRIBUTE_LISTS:
-            self.attributes.setdefault(item, [])
-
-        self.attributes.setdefault('exclude_list', [])
-        self.attributes.setdefault(
-            'source_folders_list', ['.', 'source', 'src'])
+    @property
+    def ide(self):
+        """
+        Return the preferred IDE
+        """
+        if self.parent is not None:
+            return self.parent.ide
+        return None
 
     ########################################
 
@@ -448,6 +865,7 @@ class Project:
 
                 # Set the configuration's parent
                 configuration.project = self
+                configuration.parent = self
                 self.configuration_list.append(configuration)
             else:
 
@@ -458,6 +876,7 @@ class Project:
                         raise TypeError(("parameter 'configuration' must "
                                          "be of type Configuration"))
                     item.project = self
+                    item.parent = self
                     self.configuration_list.append(item)
 
     ########################################
@@ -476,51 +895,6 @@ class Project:
         if not isinstance(project, Project):
             raise TypeError("parameter 'project' must be of type Project")
         self.project_list.append(project)
-
-    ########################################
-
-    def get_attribute(self, name):
-        """
-        Return an attribute by key.
-        @details
-        If the attribute does not exist, it will check
-        the solution for the key.
-
-        Args:
-            name: Name of the attribute key
-        Return:
-            None if the attribute is not in use, or a value.
-        """
-
-        value = self.attributes.get(name)
-        if value is None:
-            if self.solution:
-                value = self.solution.attributes.get(name)
-        return value
-
-    ########################################
-
-    def get_attribute_list(self, name):
-        """
-        Return an chained attribute list.
-        @details
-        Obtain the list from the named attribute and append
-        it with the same attribute in the solution
-        and return the entire list. This function does not
-        modify the original lists.
-
-        Args:
-            name: Name of the attribute key
-        Return:
-            A list of all items found. The list can be empty.
-        """
-
-        value_list = list(self.attributes.get(name, []))
-
-        # Is there a solution?
-        if self.solution:
-            value_list.extend(self.solution.attributes.get(name, []))
-        return value_list
 
     ########################################
 
@@ -559,7 +933,7 @@ class Project:
         # Absolute or relative?
         if not os.path.isabs(working_directory):
             working_directory = os.path.abspath(
-                os.path.join(self.get_attribute('working_directory'),
+                os.path.join(self.working_directory,
                              working_directory))
 
         # Is this a valid directory?
@@ -570,7 +944,7 @@ class Project:
         for base_name in os.listdir(working_directory):
 
             # Is this file in the exclusion list?
-            for item in self.exclude_list:
+            for item in self.exclude_list_regex:
                 if item(base_name):
                     break
             else:
@@ -594,15 +968,14 @@ class Project:
                         self.file_list.append(SourceFile(
                             os.path.relpath(
                                 file_name,
-                                self.get_attribute('working_directory')),
+                                self.working_directory),
                             working_directory,
                             file_type))
 
                         # Add the directory the file was found for header search
                         self.include_list.add(
                             os.path.relpath(
-                                working_directory, self.get_attribute(
-                                    'working_directory')))
+                                working_directory, self.working_directory))
 
                 # Process folders only if in recursion mode
                 elif recurse and os.path.isdir(file_name):
@@ -621,19 +994,55 @@ class Project:
 
         - ``exclude_list`` for wildcard matching for files to exclude
         - ``source_folders_list`` for list of folders to search for source code
+        - ``source_files_list`` list of files to add
         Args:
             acceptable_list: List of acceptable FileTypes
         """
 
+        # pylint: disable=attribute-defined-outside-init
+
         # Get the files to exclude in this
-        self.exclude_list = translate_to_regex_match(
-            self.get_attribute_list('exclude_list'))
+        self.exclude_list_regex = translate_to_regex_match(
+            self.get_unique_chained_list('exclude_list'))
 
         self.file_list = []
         self.include_list = set()
 
+        working_directory = self.working_directory
+
+        for item in self.get_unique_chained_list('source_files_list'):
+            if not os.path.isabs(item):
+                abs_path = os.path.abspath(
+                    os.path.join(working_directory, item))
+            else:
+                abs_path = item
+
+            # Check against the extension list (Skip if not
+            # supported)
+            file_type = FileTypes.lookup(os.path.basename(abs_path))
+            if file_type is None:
+                continue
+
+            # Found a match, test if the type is in
+            # the acceptable list
+
+            if file_type in acceptable_list:
+                # Create a new entry (Using windows style slashes
+                # for consistency)
+                self.file_list.append(SourceFile(
+                    os.path.relpath(
+                        abs_path,
+                        working_directory),
+                    os.path.dirname(abs_path),
+                    file_type))
+
+                # Add the directory the file was found for header search
+                self.include_list.add(
+                    os.path.relpath(
+                        os.path.dirname(abs_path), working_directory))
+
         # Pull in all the source folders and scan them
-        for item in self.get_attribute_list('source_folders_list'):
+        for item in self.get_unique_chained_list('source_folders_list'):
 
             # Is it a recursive test?
             recurse = False
@@ -651,12 +1060,12 @@ class Project:
         # file list, it's the same output.
         self.codefiles = sorted(
             self.file_list, key=attrgetter('relative_pathname'))
-        self.attributes['_source_include_list'] = sorted(self.include_list)
+        self._source_include_list = sorted(self.include_list)
 
         # Cleanup
         self.file_list = None
         self.include_list = None
-        self.exclude_list = None
+        del self.exclude_list_regex
 
     ########################################
 
@@ -668,21 +1077,52 @@ class Project:
             Human readable string or None if the solution is invalid
         """
 
-        return ('Project: {}, CodeFiles: {}, Attributes: {}, Configurations: '
-                '{}').format(self.attributes['name'], str(self.codefiles),
-                             str(self.attributes),
-                             str(self.configuration_list))
+        result_list = []
+        for item in self.__dict__:
+            item_name = item[1:] if item.startswith('_') else item
+            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
+        return 'Project:' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__
 
+########################################
 
-class Solution:
+
+class Solution(Attributes):
     """
     Object for processing a solution file.
 
     This object contains all of the items needed to create a solution.
     """
+
+    # Too many instance attributes
+    # pylint: disable=R0902
+
+    ## List of directories to scan for source code
+    source_folders_list = StringListProperty(
+        '_source_folders_list', ['.', 'source', 'src'])
+
+    ## List of generated source files to include in the project
+    source_files_list = StringListProperty('_source_files_list')
+
+    ## Don't allow Visual Studio props files
+    vs_props = NoneProperty('_vs_props')
+
+    ## Don't allow Visual Studio targets files
+    vs_targets = NoneProperty('_vs_targets')
+
+    ## Don't allow Visual Studio rules files
+    vs_rules = NoneProperty('_vs_rules')
+
+    ## Use perforce
+    perforce = BooleanProperty('_perforce', True)
+
+    ## Verbosity
+    verbose = BooleanProperty('_verbose', False)
+
+    ## Enable the use of suffixes in creating filenames
+    suffix_enable = BooleanProperty('_suffix_enable', True)
 
     def __init__(self, **kargs):
         """
@@ -692,40 +1132,49 @@ class Solution:
             kargs: dict of arguments.
         """
 
-        ## Dictionary of attributes describing how to build this configuration.
-        self.attributes = deepcopy(kargs)
+        ## Private instance of enums.IDETypes
+        self._ide = None
 
-        ## Type of ide
-        self.ide = validate_type(self, 'ide', IDETypes)
-        if self.ide is None:
-            self.ide = IDETypes.default()
-            self.attributes['ide'] = self.ide
+        # Set a default project name
+        self.name = 'project'
+
+        # Set a default working directory
+        self.working_directory = os.getcwd()
+
+        # Init the base class
+        Attributes.__init__(self, **kargs)
+
+        # Set a default project type
+        if self.project_type is None:
+            self.project_type = ProjectTypes.default()
 
         ## Initial array of Project records for projects
         self.project_list = []
 
-        # Set a default project name
-        self.attributes.setdefault('name', 'project')
+        ## IDE code for generation
+        self.ide_code = ''
 
-        # Set a default working directory
-        self.attributes.setdefault('working_directory', os.getcwd())
+        ## Platform code for generation
+        self.platform_code = ''
 
-        # Set a default working directory
-        self.attributes.setdefault('verbose', False)
+    ########################################
 
-        # Set a default working directory
-        self.attributes.setdefault('perforce', True)
+    @property
+    def ide(self):
+        """
+        Return the ide type
+        """
+        return self._ide
 
-        # Set a default working directory
-        self.attributes.setdefault('suffix_enable', True)
-
-        # Initialize the attributes that are lists
-        for item in _DEFAULT_ATTRIBUTE_LISTS:
-            self.attributes.setdefault(item, [])
-
-        self.attributes.setdefault('exclude_list', [])
-        self.attributes.setdefault(
-            'source_folders_list', ['.', 'source', 'src'])
+    @ide.setter
+    def ide(self, value):
+        """
+        Set the IDE type with validation
+        Args:
+            self: The 'this' reference.
+            value: None or new IDE type
+        """
+        self._ide = validate_enum_type(value, IDETypes)
 
     ########################################
 
@@ -746,34 +1195,8 @@ class Solution:
             raise TypeError("parameter 'project' must be of type Project")
 
         project.solution = self
+        project.parent = self
         self.project_list.append(project)
-
-    ########################################
-
-    def get_attribute(self, name):
-        """
-        Return an attribute by key.
-
-        Args:
-            name: Name of the attribute key
-        """
-        return self.attributes.get(name)
-
-    ########################################
-
-    def get_attribute_list(self, name):
-        """
-        Return an chained attribute list.
-        @details
-        Obtain the list from the named attribute.
-
-        Args:
-            name: Name of the attribute key
-        Return:
-            A list of all items found. The list can be empty.
-        """
-
-        return list(self.attributes.get(name, []))
 
     ########################################
 
@@ -785,29 +1208,84 @@ class Solution:
         # Work from a copy to ensure the original is not touched.
         solution = deepcopy(self)
 
-        # Sort the configuration/platforms to ensure diffs are minimized
-        for project in solution.project_list:
-            project.configuration_list = sorted(
-                project.configuration_list, key=lambda x: (
-                    x.get_attribute('name'), x.get_attribute('platform')))
-
-        # If ide was passed, check it, otherwise assume
+        # If an ide was passed, check it, otherwise assume
         # solution.ide is valid
         if ide is not None:
-            if not isinstance(ide, IDETypes):
-                raise TypeError("parameter 'ide' must be of type IDETypes")
+            # Note, this will throw if IDE is not an IDE value
             solution.ide = ide
 
-        # Create Visual Studio files
-        if ide.is_visual_studio():
-            from .visualstudio import generate as vs_generate
-            return vs_generate(solution)
+            # Grab the value back if there was conversion
+            ide = solution.ide
 
-        # Create Codewarrior files
-        if ide.is_codewarrior():
-            from .codewarrior import generate as cw_generate
-            return cw_generate(solution)
-        return 10
+        # Set the default IDE to whatever the system uses
+        if ide is None:
+            ide = IDETypes.default()
+            solution.ide = ide
+
+        # Determine which generator to use based on the selected IDE
+
+        import makeprojects.watcom
+        import makeprojects.makefile
+        import makeprojects.visual_studio
+        import makeprojects.visual_studio_2010
+        import makeprojects.codewarrior
+        import makeprojects.xcode
+
+        generator_list = (
+            makeprojects.visual_studio,
+            makeprojects.visual_studio_2010,
+            makeprojects.watcom,
+            makeprojects.makefile,
+            makeprojects.codewarrior,
+            makeprojects.xcode)
+        for generator in generator_list:
+            if ide in generator.SUPPORTED_IDES:
+                break
+        else:
+            print('IDE {} is not supported.'.format(ide))
+            return 10
+
+        # Convert keys that need to be regexes from *.cpp to regex
+        solution.custom_rules = regex_dict(solution.custom_rules)
+
+        all_configurations_list = []
+
+        # Process all the projects and configurations
+        for project in solution.project_list:
+
+            # Handle projects
+            project.custom_rules = regex_dict(project.custom_rules)
+
+            # Purge unsupported configurations
+            configuration_list = []
+            for configuration in project.configuration_list:
+                if generator.test(ide, configuration.platform):
+                    configuration_list.append(configuration)
+
+            # Sort the configurations to ensure consistency
+            configuration_list = sorted(
+                configuration_list, key=lambda x: (
+                    x.name, x.platform))
+            project.configuration_list = configuration_list
+            all_configurations_list.extend(configuration_list)
+            project.platform_code = platformtype_short_code(configuration_list)
+
+            # Handle regexes for configurations that will be used
+            for configuration in configuration_list:
+                configuration.custom_rules = regex_dict(
+                    configuration.custom_rules)
+                configuration.exclude_list_regex = translate_to_regex_match(
+                    configuration.exclude_list)
+
+        # Get the platform code
+        solution.platform_code = platformtype_short_code(
+            all_configurations_list)
+
+        # Set the IDE code
+        solution.ide_code = ide.get_short_code()
+
+        # Create project files
+        return generator.generate(solution)
 
     def __repr__(self):
         """
@@ -816,13 +1294,11 @@ class Solution:
         Returns:
             Human readable string or None if the solution is invalid
         """
-
-        return 'Solution: {}, IDE: {}, Attributes: {}, ' \
-            'Projects: [{}]'.format(
-                self.attributes['name'],
-                str(self.ide),
-                str(self.attributes),
-                '],['.join([str(i) for i in self.project_list]))
+        result_list = []
+        for item in self.__dict__:
+            item_name = item[1:] if item.startswith('_') else item
+            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
+        return 'Solution:' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__

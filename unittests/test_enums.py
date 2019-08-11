@@ -153,8 +153,12 @@ def test_platformtypes_is_windows():
     """
 
     for item in PlatformTypes:
-        if item in (PlatformTypes.windows, PlatformTypes.win32,
-                    PlatformTypes.win64):
+        if item in (
+                PlatformTypes.windows,
+                PlatformTypes.windowsarm, PlatformTypes.windowsintel,
+                PlatformTypes.winitanium,
+                PlatformTypes.win32, PlatformTypes.win64,
+                PlatformTypes.winarm32, PlatformTypes.winarm64):
             assert item.is_windows()
         else:
             assert not item.is_windows()

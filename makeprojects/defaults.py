@@ -14,6 +14,21 @@ from burger import convert_to_array
 from .enums import IDETypes, PlatformTypes, ProjectTypes
 from .build_rules import rules as default_rules
 
+_CONFIGURATION_DEFAULTS = [
+    {'name': 'Debug', 'short_code': 'dbg', 'debug': True},
+    {'name': 'Internal', 'short_code': 'int', 'optimization': 4,
+     'debug': True},
+    {'name': 'Release', 'short_code': 'rel', 'optimization': 4},
+    {'name': 'Release_LTCG',
+     'short_code': 'ltc',
+     'optimization': 4,
+     'link_time_code_generation': True},
+    {'name': 'Profile', 'short_code': 'pro',
+     'optimization': 4, 'profile': True},
+    {'name': 'Profile_FastCap', 'short_code': 'fas',
+     'optimization': 4, 'profile': 'fast'},
+    {'name': 'CodeAnalysis', 'short_code': 'cod', 'analyze': True}]
+
 ########################################
 
 
@@ -239,9 +254,21 @@ def get_configuration_list(
         List of configuration strings to generate projects for.
     """
 
+    # Too many branches
+    # pylint: disable=R0912
+
     # Create the configurations for this platform
     if args.configurations:
-        configuration_list = args.configurations
+        configuration_list = []
+        for configuration in args.configurations:
+            for item in _CONFIGURATION_DEFAULTS:
+                if item['name'] == configuration:
+                    configuration_list.append(item)
+                    break
+            else:
+                print(('configuration {} is not found in the '
+                       'acceptable name list.').format(
+                           configuration))
     else:
         for rules in build_rules_list:
             configuration_list = rules('configuration_list',
@@ -273,6 +300,9 @@ def fixup_ide_platform(ide_list, platform_list):
         ide_list: List of IDEs to generate for.
         platform_list: List of platforms to build for.
     """
+
+    # Too many branches
+    # pylint: disable=R0912
 
     # If no platform and IDE were selected, use the system defaults
     if not platform_list and not ide_list:

@@ -29,10 +29,10 @@ def do_project_settings(project):
         project: Project record to update.
     """
 
-    project.attributes.setdefault('vs_UseOfMfc', False)
-    project.attributes.setdefault('vs_UseOfAtl', False)
-    project.attributes.setdefault('vs_CLRSupport', False)
-    project.attributes.setdefault('vs_CharacterSet', 'Unicode')
+    project.use_mfc = False
+    project.use_atl = False
+    project.clr_support = False
+    project.vs_CharacterSet = 'Unicode'
     return 0
 
 ########################################
@@ -47,30 +47,48 @@ def do_configuration_settings(configuration):
     """
 
     # Too many branches
-    # pylint: disable=R0912
+    # Too many statements
+    # pylint: disable=R0912,R0915
 
+    ide = configuration.project.ide
     define_list = []
+    libraries_list = []
 
     # Debug/Release
-    if configuration.get_attribute('debug'):
+    if configuration.debug:
         define_list.append('_DEBUG')
     else:
         define_list.append('NDEBUG')
 
     # Sanity check for missing platform
-    platform = configuration.get_attribute('platform')
+    platform = configuration.platform
     if platform is not None:
+
         # Windows specific defines
         if platform.is_windows():
 
+            if ide.is_codewarrior():
+                configuration.library_folders_list = [
+                    '$(CodeWarrior)/MSL', '$(CodeWarrior)/Win32-x86 Support']
+                if configuration.debug:
+                    libraries_list.append('MSL_All_x86_D.lib')
+                else:
+                    libraries_list.append('MSL_All_x86.lib')
+
+            libraries_list.extend(
+                ['Kernel32.lib', 'Gdi32.lib', 'Shell32.lib', 'Ole32.lib',
+                 'User32.lib', 'Advapi32.lib', 'version.lib', 'Ws2_32.lib',
+                 'Comctl32.lib'])
+
             define_list.extend(['_WINDOWS', 'WIN32_LEAN_AND_MEAN'])
-            if platform is PlatformTypes.win64:
+            if platform in (PlatformTypes.win64,
+                            PlatformTypes.winarm64, PlatformTypes.winitanium):
                 define_list.append('WIN64')
             else:
                 define_list.append('WIN32')
 
             # Command line tools need this define
-            if configuration.get_attribute('project_type') is ProjectTypes.tool:
+            if configuration.project_type is ProjectTypes.tool:
                 define_list.append('_CONSOLE')
 
         # Playstation 4
@@ -84,10 +102,26 @@ def do_configuration_settings(configuration):
         # Android targets
         if platform.is_android():
             define_list.append('DISABLE_IMPORTGL')
+            libraries_list.extend(['android', 'EGL', 'GLESv1_CM'])
 
         # Xbox 360
         if platform == PlatformTypes.xbox360:
             define_list.extend(['_XBOX', 'XBOX'])
+            libraries_list.extend(['xbdm.lib', 'xboxkrnl.lib'])
+            if configuration.get_chained_value('profile'):
+                libraries_list.extend(
+                    ['d3d9i.lib', 'd3dx9i.lib', 'xgraphics.lib', 'xapilibi.lib',
+                     'xaudio2.lib', 'x3daudioi.lib', 'xmcorei.lib'])
+            elif configuration.debug:
+                libraries_list.extend(
+                    ['d3d9d.lib', 'd3dx9d.lib', 'xgraphicsd.lib',
+                     'xapilibd.lib', 'xaudiod2.lib', 'x3daudiod.lib',
+                     'xmcored.lib'])
+            else:
+                libraries_list.extend(
+                    ['d3d9ltcg.lib', 'd3dx9.lib', 'xgraphics.lib',
+                     'xapilib.lib', 'xaudio2.lib', 'x3daudioltcg.lib',
+                     'xmcoreltcg.lib'])
 
         # Mac Carbon
         if platform.is_macos_carbon():
@@ -118,7 +152,7 @@ def do_configuration_settings(configuration):
 
         # macOS X platform
         if platform.is_macosx():
-            configuration.attributes['frameworks_list'] = [
+            configuration.frameworks_list = [
                 'AppKit.framework',
                 'AudioToolbox.framework',
                 'AudioUnit.framework',
@@ -133,7 +167,7 @@ def do_configuration_settings(configuration):
 
         # iOS platform
         if platform.is_ios():
-            configuration.attributes['frameworks_list'] = [
+            configuration.frameworks_list = [
                 'AVFoundation.framework',
                 'CoreGraphics.framework',
                 'CoreLocation.framework',
@@ -143,7 +177,14 @@ def do_configuration_settings(configuration):
             ]
 
     # Save the #defines
-    configuration.attributes['define_list'] = define_list
+    configuration.define_list = define_list
+
+    # Only link libraries for executables.
+    project_type = configuration.project_type
+    if project_type is not None:
+        if not project_type.is_library():
+            configuration.libraries_list = libraries_list
+
     return 0
 
 
@@ -169,6 +210,9 @@ def do_configuration_list(platform, ide):
     # as a platform
     if ide.is_visual_studio() and platform in (PlatformTypes.win32,
                                                PlatformTypes.win64,
+                                               PlatformTypes.winarm32,
+                                               PlatformTypes.winarm64,
+                                               PlatformTypes.winitanium,
                                                PlatformTypes.xbox360):
         results.append({'name': 'Release_LTCG',
                         'short_code': 'ltc',
@@ -181,8 +225,8 @@ def do_configuration_list(platform, ide):
             [{'name': 'Profile', 'short_code': 'pro',
               'optimization': 4, 'profile': True},
              {'name': 'Profile_FastCap', 'short_code': 'fas',
-              'optimization': True, 'profile': True},
-             {'name': 'CodeAnalysis', 'short_code': 'cod'}])
+              'optimization': 4, 'profile': 'fast'},
+             {'name': 'CodeAnalysis', 'short_code': 'cod', 'analyze': True}])
 
     return results
 

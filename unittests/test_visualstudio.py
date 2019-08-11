@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Unit tests for makeprojects.visualstudio
+""" Unit tests for makeprojects.visual_studio
 
 Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -12,14 +12,15 @@ Please? It's not like I'm asking you for money!
 
 """
 
-from makeprojects.visualstudio import get_uuid, VS2003XML
+from makeprojects.visual_studio import get_uuid, VS2003XML
+from makeprojects.validators import StringProperty
 
 ########################################
 
 
 def test_get_uuid():
     """
-    Test makeprojects.visualstudio.get_uuid
+    Test makeprojects.visual_studio.get_uuid
     """
 
     tests = (
@@ -36,7 +37,7 @@ def test_get_uuid():
 
 def test_vs2003xml():
     """
-    Test makeprojects.visualstudio.VS2003XML
+    Test makeprojects.visual_studio.VS2003XML
     """
 
     # Test several combinations for XML for Visual Studio 2003
@@ -46,14 +47,14 @@ def test_vs2003xml():
     assert str(vs_project) == '<VisualStudioProject>\n</VisualStudioProject>'
 
     # Entry with only attributes
-    vs_project.add_attribute('ProjectType', 'Visual C++')
+    vs_project.add_default(StringProperty('ProjectType', 'Visual C++'))
     assert str(vs_project) == (
         '<VisualStudioProject\n'
         '\tProjectType="Visual C++"\n/>')
 
     # Test a second element
     platform = VS2003XML('Platform')
-    platform.add_attribute('Name', 'Win32')
+    platform.add_default(StringProperty('Name', 'Win32'))
     assert str(platform) == '<Platform\n\tName="Win32"\n/>'
 
     # Test an element in an element
@@ -66,7 +67,7 @@ def test_vs2003xml():
         '</VisualStudioProject>')
 
     # Test with element in an element with attributes
-    vs_project.add_attribute('ProjectType', 'Visual C++')
+    vs_project.add_default(StringProperty('ProjectType', 'Visual C++'))
     assert str(vs_project) == (
         '<VisualStudioProject\n'
         '\tProjectType="Visual C++"\n\t>\n'
@@ -82,7 +83,7 @@ def test_vs2003xml():
         '\t\tName="Win32"\n\t/>\n'
         '</VisualStudioProject>')
 
-    vs_project.set_attribute('ProjectGUID', 'GUID')
+    vs_project.add_default(StringProperty('ProjectGUID', 'GUID'))
     assert str(vs_project) == (
         '<VisualStudioProject\n'
         '\tProjectType="Visual C"\n'
