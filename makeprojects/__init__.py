@@ -39,7 +39,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 from re import compile as re_compile
 
 from .core import SourceFile, Configuration, Project, Solution
-from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes
+from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes, \
+    add_burgerlib
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, \
     URI, EMAIL, LICENSE, COPYRIGHT
 from .defaults import _CONFIGURATION_DEFAULTS
@@ -103,6 +104,7 @@ __all__ = [
     'ProjectTypes',
     'IDETypes',
     'PlatformTypes',
+    'add_burgerlib',
 
     'SourceFile',
     'Configuration',

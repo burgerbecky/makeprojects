@@ -146,6 +146,7 @@ _FILETYPES_LOOKUP = {
     'i': FileTypes.h,
     'inc': FileTypes.h,
     'm': FileTypes.m,                   # MacOSX / iOS Objective-C
+    'mm': FileTypes.m,                  # MacOSX / iOS Objective-C++
     'plist': FileTypes.xml,             # MacOSX / iOS plist files
     'rc': FileTypes.rc,                 # Windows resources
     'r': FileTypes.r,                   # MacOS classic resources
@@ -401,6 +402,9 @@ class IDETypes(IntEnum):
     ## bazel
     bazel = 24
 
+    ## MPW
+    mpw = 25
+
     def get_short_code(self):
         """
         Create the ide code from the ide type.
@@ -576,7 +580,8 @@ _IDETYPES_CODES = {
     IDETypes.codeblocks: 'cdb',             # Codeblocks
     IDETypes.nmake: 'nmk',                  # nmake
     IDETypes.make: 'mak',                   # make
-    IDETypes.bazel: 'bzl'                   # Bazel
+    IDETypes.bazel: 'bzl',                  # Bazel
+    IDETypes.mpw: 'mpw'                     # MPW Make
 }
 
 ## List of human readable strings
@@ -610,7 +615,8 @@ _IDETYPES_READABLE = {
     IDETypes.codeblocks: 'CodeBlocks 13.12',
     IDETypes.nmake: 'GNU make',
     IDETypes.make: 'Linux make',
-    IDETypes.bazel: 'Bazel build'
+    IDETypes.bazel: 'Bazel build',
+    IDETypes.mpw: 'Apple MPW make'
 }
 
 ########################################
@@ -658,7 +664,7 @@ def get_installed_xcode():
         IDETypes value or None
     """
 
-    xcode_table = {
+    xcode_table = (
         (10, IDETypes.xcode10),
         (9, IDETypes.xcode9),
         (8, IDETypes.xcode8),
@@ -666,8 +672,8 @@ def get_installed_xcode():
         (6, IDETypes.xcode6),
         (5, IDETypes.xcode5),
         (4, IDETypes.xcode4),
-        (3, IDETypes.xcode3),
-    }
+        (3, IDETypes.xcode3)
+    )
     for item in xcode_table:
         if where_is_xcode(item[0]):
             return item[1]
@@ -744,55 +750,63 @@ class PlatformTypes(IntEnum):
     ## Microsoft Xbox ONE
     xboxone = 27
 
+    ## Sony PS1
+    ps1 = 28
+    ## Sony PS2
+    ps2 = 29
     ## Sony PS3
-    ps3 = 28
+    ps3 = 30
     ## Sony PS4
-    ps4 = 29
+    ps4 = 31
+    ## Sony Playstation portable
+    psp = 32
     ## Sony Playstation VITA
-    vita = 30
+    vita = 33
 
+    ## Nintendi Wii
+    wii = 34
     ## Nintendo WiiU
-    wiiu = 31
+    wiiu = 35
     ## Nintendo Switch
-    switch = 32
+    switch = 36
     ## Nintendo 3DS
-    dsi = 33
+    dsi = 37
     ## Nintendo DS
-    ds = 34
+    ds = 38
 
     ## Generic Android
-    android = 35
+    android = 39
     ## nVidia SHIELD
-    shield = 36
+    shield = 40
     ## Intellivision Amico
-    amico = 37
+    amico = 41
     ## Ouya (Now Razor)
-    ouya = 38
+    ouya = 42
     ## Android Tegra
-    tegra = 39
+    tegra = 43
     ## Android Arm32
-    androidarm32 = 40
+    androidarm32 = 44
     ## Android Arm64
-    androidarm64 = 41
+    androidarm64 = 45
     ## Android Intel x32
-    androidintel32 = 42
+    androidintel32 = 46
     ## Android Intel / AMD 64
-    androidintel64 = 43
+    androidintel64 = 47
 
     ## Generic Linux
-    linux = 44
+    linux = 48
 
     ## MSDOS
-    msdos = 45
+    msdos = 49
     ## MSDOS Dos4GW
-    msdos4gw = 46
+    msdos4gw = 50
     ## MSDOS DosX32
-    msdosx32 = 47
+    msdosx32 = 51
 
     ## BeOS
-    beos = 48
+    beos = 52
     ## Apple IIgs
-    iigs = 49
+    iigs = 53
 
     def get_short_code(self):
         """
@@ -912,6 +926,51 @@ class PlatformTypes(IntEnum):
             PlatformTypes.amico, PlatformTypes.tegra,
             PlatformTypes.androidarm32, PlatformTypes.androidarm64,
             PlatformTypes.androidintel32, PlatformTypes.androidintel64)
+
+    def get_platform_folder(self):
+        """
+        Return the name of a folder that would hold platform specific files.
+        """
+
+        table = {
+            PlatformTypes.iigs: 'iigs',
+            PlatformTypes.beos: 'beos',
+            PlatformTypes.ps1: 'ps1',
+            PlatformTypes.ps2: 'ps2',
+            PlatformTypes.ps3: 'ps3',
+            PlatformTypes.ps4: 'ps4',
+            PlatformTypes.psp: 'psp',
+            PlatformTypes.vita: 'vita',
+            PlatformTypes.xbox: 'xbox',
+            PlatformTypes.xbox360: 'xbox360',
+            PlatformTypes.xboxone: 'xboxone',
+            PlatformTypes.ds: 'ds',
+            PlatformTypes.dsi: 'dsi',
+            PlatformTypes.wii: 'wii',
+            PlatformTypes.wiiu: 'wiiu',
+            PlatformTypes.switch: 'switch'
+        }
+
+        # Try the simple ones
+        platform_folder = table.get(self, None)
+        if platform_folder is None:
+            if self.is_windows():
+                platform_folder = 'windows'
+            elif self.is_msdos():
+                platform_folder = 'dos'
+            elif self.is_macosx():
+                platform_folder = 'macosx'
+            elif self.is_ios():
+                platform_folder = 'ios'
+            elif self.is_macos():
+                platform_folder = 'mac'
+            elif self.is_android():
+                platform_folder = 'shield'
+            elif self is PlatformTypes.ouya:
+                platform_folder = 'ouya'
+            else:
+                platform_folder = 'linux'
+        return platform_folder
 
     def match(self, second):
         """
@@ -1121,13 +1180,17 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.xbox: 'xbx',              # Microsoft Xbox versions
     PlatformTypes.xbox360: 'x36',
     PlatformTypes.xboxone: 'one',
-    PlatformTypes.ps3: 'ps3',               # Sony platforms
+    PlatformTypes.ps1: 'ps1',               # Sony platforms
+    PlatformTypes.ps2: 'ps2',
+    PlatformTypes.ps3: 'ps3',
     PlatformTypes.ps4: 'ps4',
+    PlatformTypes.psp: 'psp',
     PlatformTypes.vita: 'vit',
-    PlatformTypes.wiiu: 'wiu',              # Nintendo platforms
-    PlatformTypes.switch: 'swi',
+    PlatformTypes.ds: '2ds',                 # Nintendo platforms
     PlatformTypes.dsi: 'dsi',
-    PlatformTypes.ds: '2ds',
+    PlatformTypes.wii: 'wii',
+    PlatformTypes.wiiu: 'wiu',
+    PlatformTypes.switch: 'swi',
     PlatformTypes.android: 'and',           # Google platforms
     PlatformTypes.shield: 'shi',
     PlatformTypes.amico: 'ami',
@@ -1238,15 +1301,19 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.xbox360: 'Microsoft Xbox 360',
     PlatformTypes.xboxone: 'Microsoft Xbox ONE',
     # Sony platforms
+    PlatformTypes.ps1: 'Sony PS1',
+    PlatformTypes.ps2: 'Sony PS2',
     PlatformTypes.ps3: 'Sony PS3',
     PlatformTypes.ps4: 'Sony PS4',
+    PlatformTypes.psp: 'Sony Playstation Portable',
     PlatformTypes.vita: 'Sony Playstation Vita',
 
     # Nintendo platforms
+    PlatformTypes.ds: 'Nintendo 2DS',
+    PlatformTypes.dsi: 'Nintendo DSI',
+    PlatformTypes.wii: 'Nintendo Wii',
     PlatformTypes.wiiu: 'Nintendo WiiU',
     PlatformTypes.switch: 'Nintendo Switch',
-    PlatformTypes.dsi: 'Nintendo DSI',
-    PlatformTypes.ds: 'Nintendo 2DS',
 
     # Google platforms
     PlatformTypes.android: 'Google Android',
@@ -1356,3 +1423,36 @@ def platformtype_short_code(configurations):
 
     # Return the first entry's short code.
     return codes[0].get_short_code()
+
+########################################
+
+
+def add_burgerlib(command, **kargs):
+    """
+    Add burgerlib to a project.
+    """
+
+    if command == 'configuration_settings':
+        # Return the settings for a specific configuation
+        configuration = kargs['configuration']
+
+        platform = configuration.platform
+
+        lib_name = 'burger{}'.format(configuration.get_suffix())
+        if platform.is_android() or platform.is_macosx() or platform.is_ios():
+            lib_name = 'lib{}.a'.format(lib_name)
+        else:
+            lib_name = '{}.lib'.format(lib_name)
+        configuration.libraries_list.append(lib_name)
+
+        lib_dir = '$(BURGER_SDKS)/{}/burgerlib'.format(
+            platform.get_platform_folder())
+        configuration.library_folders_list.append(lib_dir)
+
+        # Include burger.h, however Codewarrior uses the library folder
+        if not configuration.project.solution.ide.is_codewarrior():
+            lib_dir = '$(BURGER_SDKS)/{}/burgerlib'.format(
+                platform.get_platform_folder())
+            configuration.include_folders_list.append(lib_dir)
+
+    return 0

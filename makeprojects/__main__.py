@@ -157,6 +157,7 @@ def get_project_list(args, build_rules_list, working_directory):
                 project_type=project_type,
                 working_directory=working_directory,
                 platform=platform)
+
             solution.add_project(project)
             project.parse_attributes(build_rules_list, working_directory)
 
@@ -176,6 +177,8 @@ def get_project_list(args, build_rules_list, working_directory):
 
             # Perform the generation
             solution.generate(ide)
+            # Reset the solution
+            solution.project_list = []
     return 0
 
 

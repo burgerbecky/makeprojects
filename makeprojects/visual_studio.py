@@ -465,7 +465,7 @@ def BoolSmallerTypeCheck(configuration):
     """
     return BooleanProperty.vs_validate(
         'SmallerTypeCheck', configuration,
-        None if configuration.optimization else True,
+        None,
         options_key='compiler_options',
         options=(('/RTCc', True),))
 

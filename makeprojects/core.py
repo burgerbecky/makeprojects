@@ -632,7 +632,6 @@ class Configuration(Attributes):
     ## Don't allow Visual Studio rules files
     vs_rules = NoneProperty('_vs_rules')
 
-
     def __init__(self, **kargs):
         """
         Init defaults.
@@ -652,7 +651,6 @@ class Configuration(Attributes):
 
         ## Project this Configuration is attached to.
         self.project = None
-
 
     ########################################
 
@@ -778,8 +776,7 @@ class Project(Attributes):
     # pylint: disable=attribute-defined-outside-init
 
     ## List of directories to scan for source code
-    source_folders_list = StringListProperty(
-        '_source_folders_list', ['.', 'source', 'src'])
+    source_folders_list = StringListProperty('_source_folders_list')
 
     ## List of generated source files to include in the project
     source_files_list = StringListProperty('_source_files_list')
@@ -806,6 +803,8 @@ class Project(Attributes):
 
         # Set a default working directory
         self.working_directory = os.getcwd()
+
+        self.source_folders_list = ['.', 'source', 'src']
 
         # Init the base class
         Attributes.__init__(self, **kargs)
@@ -1100,8 +1099,7 @@ class Solution(Attributes):
     # pylint: disable=R0902
 
     ## List of directories to scan for source code
-    source_folders_list = StringListProperty(
-        '_source_folders_list', ['.', 'source', 'src'])
+    source_folders_list = StringListProperty('_source_folders_list')
 
     ## List of generated source files to include in the project
     source_files_list = StringListProperty('_source_files_list')
@@ -1116,13 +1114,13 @@ class Solution(Attributes):
     vs_rules = NoneProperty('_vs_rules')
 
     ## Use perforce
-    perforce = BooleanProperty('_perforce', True)
+    perforce = BooleanProperty('_perforce')
 
     ## Verbosity
-    verbose = BooleanProperty('_verbose', False)
+    verbose = BooleanProperty('_verbose')
 
     ## Enable the use of suffixes in creating filenames
-    suffix_enable = BooleanProperty('_suffix_enable', True)
+    suffix_enable = BooleanProperty('_suffix_enable')
 
     def __init__(self, **kargs):
         """
@@ -1140,6 +1138,14 @@ class Solution(Attributes):
 
         # Set a default working directory
         self.working_directory = os.getcwd()
+
+        self.source_folders_list = ['.', 'source', 'src']
+
+        self.perforce = True
+
+        self.verbose = False
+
+        self.suffix_enable = True
 
         # Init the base class
         Attributes.__init__(self, **kargs)
