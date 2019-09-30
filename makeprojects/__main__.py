@@ -365,8 +365,7 @@ def main(working_directory=None, args=None):
     parser.add_argument('-lib', dest='library', action='store_true',
                         default=False, help='Build a library instead of a tool')
 
-    parser.add_argument('-f', dest='jsonfiles',
-                        action='append', help='Input file to process')
+
     parser.add_argument('args', nargs=argparse.REMAINDER,
                         help='project filenames')
 

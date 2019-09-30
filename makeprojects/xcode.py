@@ -13,16 +13,25 @@ Handler for Apple Computer XCode projects
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
+#
+## \package makeprojects.xcode
+# This module contains classes needed to generate
+# project files intended for use by Apple's XCode IDE
+#
+
 from __future__ import absolute_import, print_function, unicode_literals
 import hashlib
 import os
 import operator
-import burger
-from burger import StringIO
+from burger import create_folder_if_needed, save_text_file_if_newer, \
+    convert_to_windows_slashes, convert_to_linux_slashes
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import SourceFile
+from .core import SourceFile, Configuration
+from .core import Project as CoreProject
 
 # pylint: disable=C0302
+
+TABS = '\t'
 
 SUPPORTED_IDES = (
     IDETypes.xcode3,
@@ -33,6 +42,19 @@ SUPPORTED_IDES = (
     IDETypes.xcode8,
     IDETypes.xcode9,
     IDETypes.xcode10)
+
+## Version values
+# Tuple of objectVersion, , compatibilityVersion, developmentRegion
+OBJECT_VERSIONS = {
+    IDETypes.xcode3: ('45', None, 'Xcode 3.1', None),
+    IDETypes.xcode4: ('46', '0420', 'Xcode 3.2', 'English'),
+    IDETypes.xcode5: ('46', '0510', 'Xcode 3.2', 'English'),
+    IDETypes.xcode6: ('47', '0600', 'Xcode 6.3', None),
+    IDETypes.xcode7: ('47', '0700', 'Xcode 6.3', None),
+    IDETypes.xcode8: ('48', '0800', 'Xcode 8.0', None),
+    IDETypes.xcode9: ('50', '0900', 'Xcode 9.3', None),
+    IDETypes.xcode10: ('51', '1030', 'Xcode 10.0', None)
+}
 
 ########################################
 
@@ -47,38 +69,14 @@ def test(ide, platform_type):
         True if supported, False if not
     """
 
+    # pylint: disable=unused-argument
     return platform_type in (
-        PlatformTypes.macosxintel32, PlatformTypes.macosxintel64, PlatformTypes.
-        macosxppc32, PlatformTypes.macosxppc64)
+        PlatformTypes.macosxintel32, PlatformTypes.macosxintel64,
+        PlatformTypes.macosxppc32, PlatformTypes.macosxppc64,
+        PlatformTypes.ios32, PlatformTypes.ios64,
+        PlatformTypes.iosemu32, PlatformTypes.iosemu64)
 
-
-#
-## \package makeprojects.xcode
-# This module contains classes needed to generate
-# project files intended for use by Apple's XCode
-# IDE
-#
-IOS_MINIMUM_FRAMEWORKS = [
-    'AVFoundation.framework',
-    'CoreGraphics.framework',
-    'CoreLocation.framework',
-    'Foundation.framework',
-    'QuartzCore.framework',
-    'UIKit.framework'
-]
-
-MACOS_MINIMUM_FRAMEWORKS = [
-    'AppKit.framework',
-    'AudioToolbox.framework',
-    'AudioUnit.framework',
-    'Carbon.framework',
-    'Cocoa.framework',
-    'CoreAudio.framework',
-    'IOKit.framework',
-    'OpenGL.framework',
-    'QuartzCore.framework',
-    'SystemConfiguration.framework'
-]
+########################################
 
 
 def calcuuid(input_str):
@@ -86,7 +84,7 @@ def calcuuid(input_str):
     Given a string, create a 96 bit unique hash for XCode
     """
 
-    temphash = hashlib.md5(burger.convert_to_windows_slashes(
+    temphash = hashlib.md5(convert_to_windows_slashes(
         input_str).encode('utf-8')).hexdigest()
 
     # Take the hash string and only use the top 96 bits
@@ -94,107 +92,24 @@ def calcuuid(input_str):
     return temphash[0:24].upper()
 
 
-def writelist(selfarray, filep):
+def writelist(selfarray, line_list):
     """
     Print a list of objects sorted by uuid
     """
 
-    #
     # Only print if there's items to process
-    #
-
     if selfarray:
 
-        #
         # Sort by uuid
-        #
         selfarray = sorted(selfarray, key=operator.attrgetter('uuid'))
 
         # Using the name of the class, output the array of data items
         itemname = selfarray[0].__class__.__name__
-        filep.write('\n/* Begin ' + itemname + ' section */\n')
+        line_list.append('')
+        line_list.append('/* Begin ' + itemname + ' section */')
         for item in selfarray:
-            item.write(filep)
-        filep.write('/* End ' + itemname + ' section */\n')
-
-
-class Defaults(object):
-    """
-    Class to hold the defaults and settings to output an XCode
-    compatible project file.
-    json keyword "xcode" for dictionary of overrides
-    """
-
-    #
-    # Power up defaults
-    #
-
-    def __init__(self):
-        self.frameworks = []
-        self.configfilename = None
-
-    def defaults(self, solution):
-        """
-        The solution has been set up, perform setup
-        based on the type of project being created
-        """
-        #
-        # Get the config file name and default frameworks
-        #
-
-        minimumframeworks = []
-
-        # Handle iOS targets
-
-        if solution.project_list[0].platform == PlatformTypes.ios:
-            if solution.project_list[0].project_type == ProjectTypes.library:
-                self.configfilename = 'burger.libxcoios.xcconfig'
-            else:
-                # Frameworks for an iOS app
-                minimumframeworks.extend(IOS_MINIMUM_FRAMEWORKS)
-                if solution.project_list[0].project_type == ProjectTypes.app:
-                    self.configfilename = 'burger.gamexcoios.xcconfig'
-                else:
-                    self.configfilename = 'burger.toolxcoios.xcconfig'
-
-        # Handle Mac OSX targets
-
-        elif solution.project_list[0].platform == PlatformTypes.macosx:
-
-            if solution.project_list[0].project_type == ProjectTypes.library:
-                self.configfilename = 'burger.libxcoosx.xcconfig'
-            else:
-                # Frameworks for a Mac OSX app or tool
-                minimumframeworks.extend(MACOS_MINIMUM_FRAMEWORKS)
-                if solution.project_list[0].project_type == ProjectTypes.app:
-                    self.configfilename = 'burger.gamexcoosx.xcconfig'
-                else:
-                    self.configfilename = 'burger.toolxcoosx.xcconfig'
-
-        #
-        # Add the frameworks to the user supplied list
-        #
-
-        for item in minimumframeworks:
-            # Only add if not already in the list
-            if item not in self.frameworks:
-                self.frameworks.append(item)
-
-    def loadjson(self, myjson):
-        """
-        A json file had the key "xcode" with a dictionary.
-        Parse the dictionary for extra control
-        """
-        error = 0
-        for key in myjson.keys():
-            if key == 'frameworks_list':
-                self.frameworks = burger.convert_to_array(myjson[key])
-            else:
-                print('Unknown keyword "' + str(key) + '" with data "' +
-                      str(myjson[key]) + '" found in loadjson')
-                error = 1
-
-        return error
+            item.generate(line_list)
+        line_list.append('/* End ' + itemname + ' section */')
 
 
 class PBXBuildFile(object):
@@ -208,19 +123,19 @@ class PBXBuildFile(object):
         self.uuid = calcuuid(
             'PBXBuildFile' + filereference.filename + owner.filename)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
         # Is the file a framework?
-        if self.filereference.type == FileTypes.frameworks:
+        if self.filereference.type is FileTypes.frameworks:
             ref_type = 'Frameworks'
         else:
             # It's a source file
             ref_type = 'Sources'
 
         basename = os.path.basename(self.filereference.filename)
-        filep.write(
+        line_list.append(
             '\t\t' +
             self.uuid +
             ' /* ' +
@@ -231,7 +146,7 @@ class PBXBuildFile(object):
             self.filereference.uuid +
             ' /* ' +
             basename +
-            ' */; };\n')
+            ' */; };')
 
 
 class PBXFileReference(object):
@@ -241,103 +156,72 @@ class PBXFileReference(object):
     """
 
     def __init__(self, filename, ref_type):
+
+        filename = convert_to_linux_slashes(filename)
         self.filename = filename
         self.uuid = calcuuid('PBXFileReference' + filename)
         self.type = ref_type
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
         basename = os.path.basename(self.filename)
 
-        #
-        # Based on the file type, save out an assumed default to what kind of file
-        # XCode is expecting
-        #
+        # Based on the file type, save out an assumed default to what
+        # kind of file XCode is expecting
 
         # Start by saving the uuid and the type of record
 
-        filep.write('\t\t' + self.uuid + ' /* ' + basename +
-                    ' */ = {isa = PBXFileReference;')
+        entry = '\t\t' + self.uuid + ' /* ' + \
+            basename + ' */ = {isa = PBXFileReference;'
 
         # If not binary, assume UTF-8 encoding
 
-        if self.type != FileTypes.library and \
-                self.type != FileTypes.exe and \
-                self.type != FileTypes.frameworks:
-            filep.write(' fileEncoding = 4;')
+        if self.type not in (FileTypes.library, FileTypes.exe,
+                             FileTypes.frameworks):
+            entry = entry + ' fileEncoding = 4;'
 
         # Each file type is handled differently
 
-        if self.type == FileTypes.library:
-            filep.write(
-                ' explicitFileType = archive.ar; includeInIndex = 0; '
-                'path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;')
-        elif self.type == FileTypes.exe:
+        if self.type is FileTypes.library:
+            entry = entry + ' explicitFileType = archive.ar; includeInIndex = 0; ' + \
+                'path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;'
+        elif self.type is FileTypes.exe:
             if basename.endswith('.app'):
-                filep.write(' explicitFileType = wrapper.application; '
-                            'includeInIndex = 0; path = ' + basename
-                            + '; sourceTree = BUILT_PRODUCTS_DIR;')
+                entry = entry + ' explicitFileType = wrapper.application; ' + \
+                    'includeInIndex = 0; path = ' + basename + \
+                    '; sourceTree = BUILT_PRODUCTS_DIR;'
             else:
-                filep.write(' explicitFileType = "compiled.mach-o.executable"; '
-                            'includeInIndex = 0; path = ' + basename
-                            + '; sourceTree = BUILT_PRODUCTS_DIR;')
-        elif self.type == FileTypes.frameworks:
-            filep.write(
-                ' lastKnownFileType = wrapper.framework; name = ' +
-                basename +
-                '; path = System/Library/Frameworks/' +
-                basename +
-                '; sourceTree = SDKROOT;')
-        elif self.type == FileTypes.glsl:
-            filep.write(
-                ' lastKnownFileType = sourcecode.glsl; name = ' +
-                basename +
-                '; path = ' +
-                self.filename +
-                '; sourceTree = SOURCE_ROOT;')
-        elif self.type == FileTypes.xml:
+                entry = entry + ' explicitFileType = "compiled.mach-o.executable"; ' + \
+                    'includeInIndex = 0; path = ' + basename + '; sourceTree = BUILT_PRODUCTS_DIR;'
+        elif self.type is FileTypes.frameworks:
+            entry = entry + ' lastKnownFileType = wrapper.framework; name = ' + basename + \
+                '; path = System/Library/Frameworks/' + basename + '; sourceTree = SDKROOT;'
+        elif self.type is FileTypes.glsl:
+            entry = entry + ' lastKnownFileType = sourcecode.glsl; name = ' + \
+                basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;'
+        elif self.type is FileTypes.xml:
             if basename.endswith('.plist'):
-                filep.write(
-                    ' lastKnownFileType = text.plist.xml; name = ' +
-                    basename +
-                    '; path = ' +
-                    self.filename +
-                    '; sourceTree = SOURCE_ROOT;')
+                entry = entry + ' lastKnownFileType = text.plist.xml; name = ' + \
+                    basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;'
             else:
-                filep.write(
-                    ' lastKnownFileType = text.xml; name = ' +
-                    basename +
-                    '; path = ' +
-                    self.filename +
-                    '; sourceTree = SOURCE_ROOT;')
-        elif self.type == FileTypes.xcconfig:
-            filep.write(
-                ' lastKnownFileType = text.xcconfig; name = ' +
-                basename +
-                '; path = xcode/' +
-                basename +
-                '; sourceTree = BURGER_SDKS;')
-        elif self.type == FileTypes.cpp:
-            filep.write(
-                ' lastKnownFileType = sourcecode.cpp.cpp; name = ' +
-                basename +
-                '; path = ' +
-                self.filename +
-                '; sourceTree = SOURCE_ROOT;')
+                entry = entry + ' lastKnownFileType = text.xml; name = ' + basename + \
+                    '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;'
+        elif self.type is FileTypes.xcconfig:
+            entry = entry + ' lastKnownFileType = text.xcconfig; name = ' + \
+                basename + '; path = xcode/' + basename + '; sourceTree = BURGER_SDKS;'
+        elif self.type is FileTypes.cpp:
+            entry = entry + ' lastKnownFileType = sourcecode.cpp.cpp; name = ' + \
+                basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;'
         else:
-            filep.write(
-                ' lastKnownFileType = sourcecode.c.h; name = ' +
-                basename +
-                '; path = ' +
-                self.filename +
-                '; sourceTree = SOURCE_ROOT;')
+            entry = entry + ' lastKnownFileType = sourcecode.c.h; name = ' + \
+                basename + '; path = ' + self.filename + '; sourceTree = SOURCE_ROOT;'
 
         # Close out the line
-
-        filep.write(' };\n')
+        line_list.append(entry + ' };')
+        return 0
 
 
 class PBXBuildRule(object):
@@ -346,27 +230,30 @@ class PBXBuildRule(object):
     """
 
     def __init__(self, owner):
-        self.uuid = calcuuid('PBXBuildRule' + owner.projectnamecode)
+        self.owner = owner
+        self.uuid = calcuuid('PBXBuildRule' + owner.solution.xcode_folder_name)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* PBXBuildRule */ = {\n')
-        filep.write('\t\t\tisa = PBXBuildRule;\n')
-        filep.write('\t\t\tcompilerSpec = com.apple.compilers.proxy.script;\n')
-        filep.write('\t\t\tfilePatterns = "*.glsl";\n')
-        filep.write('\t\t\tfileType = pattern.proxy;\n')
-        filep.write('\t\t\tisEditable = 1;\n')
-        filep.write('\t\t\toutputFiles = (\n')
-        filep.write('\t\t\t\t"${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h",\n')
-        filep.write('\t\t\t);\n')
-        filep.write(
+        line_list.append('\t\t' + self.uuid + ' /* PBXBuildRule */ = {')
+        line_list.append('\t\t\tisa = PBXBuildRule;')
+        line_list.append(
+            '\t\t\tcompilerSpec = com.apple.compilers.proxy.script;')
+        line_list.append('\t\t\tfilePatterns = "*.glsl";')
+        line_list.append('\t\t\tfileType = pattern.proxy;')
+        line_list.append('\t\t\tisEditable = 1;')
+        line_list.append('\t\t\toutputFiles = (')
+        line_list.append('\t\t\t\t"${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h",')
+        line_list.append('\t\t\t);')
+        line_list.append(
             '\t\t\tscript = "${BURGER_SDKS}/macosx/bin/stripcomments '
             '${INPUT_FILE_PATH}'
-            ' -c -l g_${INPUT_FILE_BASE} ${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h";\n')
-        filep.write('\t\t};\n')
+            ' -c -l g_${INPUT_FILE_BASE} '
+            '${INPUT_FILE_DIR}/${INPUT_FILE_BASE}.h";')
+        line_list.append('\t\t};')
 
 
 class PBXGroup(object):
@@ -382,33 +269,44 @@ class PBXGroup(object):
         self.uuid = calcuuid('PBXGroup' + name + path)
         self.filelist = []
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
         self.filelist = sorted(self.filelist, key=operator.itemgetter(1))
-        filep.write('\t\t' + self.uuid + ' /* ' + self.name + ' */ = {\n')
-        filep.write('\t\t\tisa = PBXGroup;\n')
-        filep.write('\t\t\tchildren = (\n')
+        line_list.append('\t\t' + self.uuid + ' /* ' + self.name + ' */ = {')
+        line_list.append('\t\t\tisa = PBXGroup;')
+        line_list.append('\t\t\tchildren = (')
         # Output groups first
         for item in self.filelist:
             if item[2] is True:
-                filep.write('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,\n')
+                line_list.append(
+                    '\t\t\t\t' +
+                    item[0] +
+                    ' /* ' +
+                    item[1] +
+                    ' */,')
         # Output files last
         for item in self.filelist:
             if item[2] is not True:
-                filep.write('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,\n')
-        filep.write('\t\t\t);\n')
+                line_list.append(
+                    '\t\t\t\t' +
+                    item[0] +
+                    ' /* ' +
+                    item[1] +
+                    ' */,')
+        line_list.append('\t\t\t);')
         if self.path is not None:
             if self.name != self.path:
-                filep.write('\t\t\tname = ' + self.name + ';\n')
-            filep.write('\t\t\tpath = ' + self.path + ';\n')
-            filep.write('\t\t\tsourceTree = SOURCE_ROOT;\n')
+                line_list.append('\t\t\tname = ' + self.name + ';')
+            line_list.append('\t\t\tpath = ' + self.path + ';')
+            line_list.append('\t\t\tsourceTree = SOURCE_ROOT;')
         else:
-            filep.write('\t\t\tname = ' + self.name + ';\n')
-            filep.write('\t\t\tsourceTree = "<group>";\n')
-        filep.write('\t\t};\n')
+            line_list.append('\t\t\tname = ' + self.name + ';')
+            line_list.append('\t\t\tsourceTree = "<group>";')
+        line_list.append('\t\t};')
+        return 0
 
     def append(self, item):
         """
@@ -435,7 +333,7 @@ class PBXSourcesBuildPhase(object):
         self.buildfirstlist = []
         self.buildlist = []
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
@@ -444,19 +342,20 @@ class PBXSourcesBuildPhase(object):
             self.buildfirstlist, key=operator.itemgetter(1))
         self.buildlist = sorted(
             self.buildlist, key=operator.itemgetter(1))
-        filep.write('\t\t' + self.uuid + ' /* Sources */ = {\n')
-        filep.write('\t\t\tisa = PBXSourcesBuildPhase;\n')
-        filep.write('\t\t\tbuildActionMask = 2147483647;\n')
-        filep.write('\t\t\tfiles = (\n')
+        line_list.append('\t\t' + self.uuid + ' /* Sources */ = {')
+        line_list.append('\t\t\tisa = PBXSourcesBuildPhase;')
+        line_list.append('\t\t\tbuildActionMask = 2147483647;')
+        line_list.append('\t\t\tfiles = (')
         for item in self.buildfirstlist:
-            filep.write('\t\t\t\t' + item[0].uuid +
-                        ' /* ' + item[1] + ' in Sources */,\n')
+            line_list.append('\t\t\t\t' + item[0].uuid +
+                             ' /* ' + item[1] + ' in Sources */,')
         for item in self.buildlist:
-            filep.write('\t\t\t\t' + item[0].uuid +
-                        ' /* ' + item[1] + ' in Sources */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\trunOnlyForDeploymentPostprocessing = 0;\n')
-        filep.write('\t\t};\n')
+            line_list.append('\t\t\t\t' + item[0].uuid +
+                             ' /* ' + item[1] + ' in Sources */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\trunOnlyForDeploymentPostprocessing = 0;')
+        line_list.append('\t\t};')
+        return 0
 
     def append(self, item):
         """
@@ -481,23 +380,23 @@ class PBXFrameworksBuildPhase(object):
         self.uuid = calcuuid('PBXFrameworksBuildPhase' + owner.filename)
         self.buildlist = []
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
         self.buildlist = sorted(
             self.buildlist, key=operator.itemgetter(1))
-        filep.write('\t\t' + self.uuid + ' /* Frameworks */ = {\n')
-        filep.write('\t\t\tisa = PBXFrameworksBuildPhase;\n')
-        filep.write('\t\t\tbuildActionMask = 2147483647;\n')
-        filep.write('\t\t\tfiles = (\n')
+        line_list.append('\t\t' + self.uuid + ' /* Frameworks */ = {')
+        line_list.append('\t\t\tisa = PBXFrameworksBuildPhase;')
+        line_list.append('\t\t\tbuildActionMask = 2147483647;')
+        line_list.append('\t\t\tfiles = (')
         for item in self.buildlist:
-            filep.write('\t\t\t\t' + item[0] + ' /* ' +
-                        item[1] + ' in Frameworks */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\trunOnlyForDeploymentPostprocessing = 0;\n')
-        filep.write('\t\t};\n')
+            line_list.append('\t\t\t\t' + item[0] + ' /* ' +
+                             item[1] + ' in Frameworks */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\trunOnlyForDeploymentPostprocessing = 0;')
+        line_list.append('\t\t};')
 
     def append(self, item):
         """
@@ -519,29 +418,29 @@ class PBXShellScriptBuildPhase(object):
         self.uuid = calcuuid('PBXShellScriptBuildPhase' +
                              ''.join(input_data) + output + command)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* ShellScript */ = {\n')
-        filep.write('\t\t\tisa = PBXShellScriptBuildPhase;\n')
-        filep.write('\t\t\tbuildActionMask = 2147483647;\n')
-        filep.write('\t\t\tfiles = (\n')
-        filep.write('\t\t\t);\n')
+        line_list.append('\t\t' + self.uuid + ' /* ShellScript */ = {')
+        line_list.append('\t\t\tisa = PBXShellScriptBuildPhase;')
+        line_list.append('\t\t\tbuildActionMask = 2147483647;')
+        line_list.append('\t\t\tfiles = (')
+        line_list.append('\t\t\t);')
         if self.input:
-            filep.write('\t\t\tinputPaths = (\n')
+            line_list.append('\t\t\tinputPaths = (')
             for item in self.input:
-                filep.write('\t\t\t\t"' + item + '",\n')
-            filep.write('\t\t\t);\n')
-        filep.write('\t\t\toutputPaths = (\n')
-        filep.write('\t\t\t\t"' + self.output + '",\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\trunOnlyForDeploymentPostprocessing = 0;\n')
-        filep.write('\t\t\tshellPath = /bin/sh;\n')
-        filep.write('\t\t\tshellScript = "' + self.command + '\\n";\n')
-        filep.write('\t\t\tshowEnvVarsInLog = 0;\n')
-        filep.write('\t\t};\n')
+                line_list.append('\t\t\t\t"' + item + '",')
+            line_list.append('\t\t\t);')
+        line_list.append('\t\t\toutputPaths = (')
+        line_list.append('\t\t\t\t"' + self.output + '",')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\trunOnlyForDeploymentPostprocessing = 0;')
+        line_list.append('\t\t\tshellPath = /bin/sh;')
+        line_list.append('\t\t\tshellScript = "' + self.command + '\\n";')
+        line_list.append('\t\t\tshowEnvVarsInLog = 0;')
+        line_list.append('\t\t};')
 
 
 class PBXProject(object):
@@ -556,48 +455,48 @@ class PBXProject(object):
         self.targetlist = []
         self.rootgroup = None
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* Project object */ = {\n')
-        filep.write('\t\t\tisa = PBXProject;\n')
-        filep.write('\t\t\tattributes = {\n')
-        filep.write('\t\t\t\tBuildIndependentTargetsInParallel = YES;\n')
-        if self.project.idecode == 'xc5':
-            filep.write('\t\t\t\tLastUpgradeCheck = 0510;\n')
-        filep.write('\t\t\t};\n')
+        line_list.append('\t\t' + self.uuid + ' /* Project object */ = {')
+        line_list.append('\t\t\tisa = PBXProject;')
+        line_list.append('\t\t\tattributes = {')
+        line_list.append('\t\t\t\tBuildIndependentTargetsInParallel = YES;')
+        upgrade = OBJECT_VERSIONS.get(self.project.solution.ide)[1]
+        if upgrade:
+            line_list.append('\t\t\t\tLastUpgradeCheck = {};'.format(upgrade))
+        line_list.append('\t\t\t};')
         if self.configlistref is not None:
-            filep.write(
+            line_list.append(
                 '\t\t\tbuildConfigurationList = ' +
                 self.configlistref.uuid +
                 ' /* Build configuration list for PBXProject "' +
-                self.project.projectnamecode +
-                '" */;\n')
+                self.project.solution.name +
+                '" */;')
 
-        if self.project.idecode != 'xc3':
-            filep.write('\t\t\tcompatibilityVersion = "Xcode 3.2";\n')
-            filep.write('\t\t\tdevelopmentRegion = English;\n')
-        else:
-            filep.write('\t\t\tcompatibilityVersion = "Xcode 3.1";\n')
+        line_list.append('\t\t\tcompatibilityVersion = "{}";'.format(OBJECT_VERSIONS.get(self.project.solution.ide)[2]))
+        region = OBJECT_VERSIONS.get(self.project.solution.ide)[3]
+        if region:
+            line_list.append('\t\t\tdevelopmentRegion = {};'.format(region))
 
-        filep.write('\t\t\thasScannedForEncodings = 1;\n')
-        filep.write('\t\t\tknownRegions = (\n')
-        filep.write('\t\t\t\ten,\n')
-        filep.write('\t\t\t);\n')
+        line_list.append('\t\t\thasScannedForEncodings = 1;')
+        line_list.append('\t\t\tknownRegions = (')
+        line_list.append('\t\t\t\ten,')
+        line_list.append('\t\t\t);')
         if self.rootgroup is not None:
-            filep.write('\t\t\tmainGroup = ' + self.rootgroup.uuid +
-                        ' /* ' + self.rootgroup.name + ' */;\n')
-        filep.write('\t\t\tprojectDirPath = "";\n')
-        filep.write('\t\t\tprojectRoot = "";\n')
-        filep.write('\t\t\ttargets = (\n')
+            line_list.append('\t\t\tmainGroup = ' + self.rootgroup.uuid +
+                             ' /* ' + self.rootgroup.name + ' */;')
+        line_list.append('\t\t\tprojectDirPath = "";')
+        line_list.append('\t\t\tprojectRoot = "";')
+        line_list.append('\t\t\ttargets = (')
         if self.targetlist:
             for item in self.targetlist:
-                filep.write('\t\t\t\t' + item.uuid +
-                            ' /* ' + item.name + ' */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t};\n')
+                line_list.append('\t\t\t\t' + item.uuid +
+                                 ' /* ' + item.name + ' */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t};')
 
     def append(self, item):
         """
@@ -623,38 +522,43 @@ class PBXNativeTarget(object):
         self.phases = []
         self.depends = []
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* ' + self.name + ' */ = {\n')
-        filep.write('\t\t\tisa = PBXNativeTarget;\n')
+        line_list.append('\t\t' + self.uuid + ' /* ' + self.name + ' */ = {')
+        line_list.append('\t\t\tisa = PBXNativeTarget;')
         if self.configlistref is not None:
-            filep.write(
+            line_list.append(
                 '\t\t\tbuildConfigurationList = ' +
                 self.configlistref.uuid +
                 ' /* Build configuration list for PBXNativeTarget "' +
                 self.name +
-                '" */;\n')
-        filep.write('\t\t\tbuildPhases = (\n')
+                '" */;')
+        line_list.append('\t\t\tbuildPhases = (')
         for item in self.phases:
-            filep.write('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\tbuildRules = (\n')
+            line_list.append('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\tbuildRules = (')
         for item in self.parent.pbxbuildrules:
-            filep.write('\t\t\t\t' + item.uuid + ' /* PBXBuildRule */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\tdependencies = (\n')
+            line_list.append('\t\t\t\t' + item.uuid + ' /* PBXBuildRule */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\tdependencies = (')
         for item in self.depends:
-            filep.write('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,\n')
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\tname = ' + self.name + ';\n')
-        filep.write('\t\t\tproductName = ' + self.productname + ';\n')
-        filep.write('\t\t\tproductReference = ' + self.productreference.uuid +
-                    ' /* ' + self.productreference.filename + ' */;\n')
-        filep.write('\t\t\tproductType = "' + self.producttype + '";\n')
-        filep.write('\t\t};\n')
+            line_list.append('\t\t\t\t' + item[0] + ' /* ' + item[1] + ' */,')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\tname = ' + self.name + ';')
+        line_list.append('\t\t\tproductName = ' + self.productname + ';')
+        line_list.append(
+            '\t\t\tproductReference = ' +
+            self.productreference.uuid +
+            ' /* ' +
+            self.productreference.filename +
+            ' */;')
+        line_list.append('\t\t\tproductType = "' + self.producttype + '";')
+        line_list.append('\t\t};')
+        return 0
 
     def append(self, uuid, name):
         """
@@ -683,30 +587,30 @@ class XCBuildConfiguration(object):
         self.uuid = calcuuid('XCBuildConfiguration' +
                              owner.pbxtype + owner.targetname + str(configname))
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* ' +
-                    str(self.configname) + ' */ = {\n')
-        filep.write('\t\t\tisa = XCBuildConfiguration;\n')
+        line_list.append('\t\t' + self.uuid + ' /* ' +
+                         str(self.configname) + ' */ = {')
+        line_list.append('\t\t\tisa = XCBuildConfiguration;')
         if self.configfilereference is not None:
-            filep.write(
+            line_list.append(
                 '\t\t\tbaseConfigurationReference = ' +
                 self.configfilereference.uuid +
                 ' /* ' +
                 os.path.basename(
                     self.configfilereference.filename) +
-                ' */;\n')
-        filep.write('\t\t\tbuildSettings = {\n')
+                ' */;')
+        line_list.append('\t\t\tbuildSettings = {')
         if self.sdkroot is not None:
-            filep.write('\t\t\t\tSDKROOT = ' + self.sdkroot + ';\n')
+            line_list.append('\t\t\t\tSDKROOT = ' + self.sdkroot + ';')
         if self.installpath is True:
-            filep.write('\t\t\t\tINSTALL_PATH = "$(HOME)/Applications";\n')
-        filep.write('\t\t\t};\n')
-        filep.write('\t\t\tname = ' + str(self.configname) + ';\n')
-        filep.write('\t\t};\n')
+            line_list.append('\t\t\t\tINSTALL_PATH = "$(HOME)/Applications";')
+        line_list.append('\t\t\t};')
+        line_list.append('\t\t\tname = ' + str(self.configname) + ';')
+        line_list.append('\t\t};')
 
 
 class XCConfigurationList(object):
@@ -720,29 +624,39 @@ class XCConfigurationList(object):
         self.configuration_list = []
         self.uuid = calcuuid('XCConfigurationList' + pbxtype + targetname)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* Build configuration list for ' +
-                    self.pbxtype + ' "' + self.targetname + '" */ = {\n')
-        filep.write('\t\t\tisa = XCConfigurationList;\n')
-        filep.write('\t\t\tbuildConfigurations = (\n')
+        line_list.append(
+            '\t\t' +
+            self.uuid +
+            ' /* Build configuration list for ' +
+            self.pbxtype +
+            ' "' +
+            self.targetname +
+            '" */ = {')
+        line_list.append('\t\t\tisa = XCConfigurationList;')
+        line_list.append('\t\t\tbuildConfigurations = (')
         default = None
+        found = set()
         for item in self.configuration_list:
+            if item.configname in found:
+                continue
+            found.add(item.configname)
             if item.configname == 'Release':
                 default = 'Release'
             elif default is None:
-                default = str(item.configname)
-            filep.write('\t\t\t\t' + item.uuid + ' /* ' +
-                        str(item.configname) + ' */,\n')
+                default = item.configname
+            line_list.append('\t\t\t\t' + item.uuid + ' /* ' +
+                             item.configname + ' */,')
         if default is None:
             default = 'Release'
-        filep.write('\t\t\t);\n')
-        filep.write('\t\t\tdefaultConfigurationIsVisible = 0;\n')
-        filep.write('\t\t\tdefaultConfigurationName = ' + default + ';\n')
-        filep.write('\t\t};\n')
+        line_list.append('\t\t\t);')
+        line_list.append('\t\t\tdefaultConfigurationIsVisible = 0;')
+        line_list.append('\t\t\tdefaultConfigurationName = ' + default + ';')
+        line_list.append('\t\t};')
 
 
 class PBXContainerItemProxy(object):
@@ -755,20 +669,23 @@ class PBXContainerItemProxy(object):
         self.rootuuid = rootuuid
         self.uuid = calcuuid('PBXContainerItemProxy' + nativetarget.name)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* PBXContainerItemProxy */ = {\n')
-        filep.write('\t\t\tisa = PBXContainerItemProxy;\n')
-        filep.write('\t\t\tcontainerPortal = ' +
-                    self.rootuuid + ' /* Project object */;\n')
-        filep.write('\t\t\tproxyType = 1;\n')
-        filep.write('\t\t\tremoteGlobalIDString = ' +
-                    self.nativetarget.uuid + ';\n')
-        filep.write('\t\t\tremoteInfo = "' + self.nativetarget.name + '";\n')
-        filep.write('\t\t};\n')
+        line_list.append(
+            '\t\t' +
+            self.uuid +
+            ' /* PBXContainerItemProxy */ = {')
+        line_list.append('\t\t\tisa = PBXContainerItemProxy;')
+        line_list.append('\t\t\tcontainerPortal = ' +
+                         self.rootuuid + ' /* Project object */;')
+        line_list.append('\t\t\tproxyType = 1;')
+        line_list.append('\t\t\tremoteGlobalIDString = ' +
+                         self.nativetarget.uuid + ';')
+        line_list.append('\t\t\tremoteInfo = "' + self.nativetarget.name + '";')
+        line_list.append('\t\t};')
 
 
 class PBXTargetDependency(object):
@@ -782,18 +699,18 @@ class PBXTargetDependency(object):
         self.uuid = calcuuid('PBXTargetDependency' +
                              proxy.nativetarget.name + nativetarget.name)
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
         Write this record to output
         """
 
-        filep.write('\t\t' + self.uuid + ' /* PBXTargetDependency */ = {\n')
-        filep.write('\t\t\tisa = PBXTargetDependency;\n')
-        filep.write('\t\t\ttarget = ' + self.nativetarget.uuid +
-                    ' /* ' + self.nativetarget.name + ' */;\n')
-        filep.write('\t\t\ttargetProxy = ' + self.proxy.uuid +
-                    ' /* PBXContainerItemProxy */;\n')
-        filep.write('\t\t};\n')
+        line_list.append('\t\t' + self.uuid + ' /* PBXTargetDependency */ = {')
+        line_list.append('\t\t\tisa = PBXTargetDependency;')
+        line_list.append('\t\t\ttarget = ' + self.nativetarget.uuid +
+                         ' /* ' + self.nativetarget.name + ' */;')
+        line_list.append('\t\t\ttargetProxy = ' + self.proxy.uuid +
+                         ' /* PBXContainerItemProxy */;')
+        line_list.append('\t\t};')
 
 
 class Project(object):
@@ -803,17 +720,21 @@ class Project(object):
     the platform code (ios, osx)
     """
 
-    def __init__(self, projectname, idecode, platformcode):
-        self.projectname = projectname
-        self.idecode = idecode
-        self.platformcode = platformcode
-        self.projectnamecode = str(projectname + idecode + platformcode)
-        self.uuid = calcuuid('PBXProjectRoot' + self.projectnamecode)
+    def __init__(self, solution):
+        """
+        Init the project generator
+        """
+        self.solution = solution
+        self.uuid = calcuuid('PBXProjectRoot' + solution.xcode_folder_name)
+
+        idecode = solution.ide.get_short_code()
+        rootproject = PBXProject(self)
+
         # No files yet!
         self.pbxfilereferences = []
         self.pbxbuildfiles = []
-        self.pbxbuildrules = [PBXBuildRule(self)]
-        self.pbxprojects = [PBXProject(self)]
+        self.pbxbuildrules = []
+        self.pbxprojects = [rootproject]
         self.pbxnativetargets = []
         self.pbxgroups = []
         self.sourcesbuildphases = []
@@ -823,6 +744,384 @@ class Project(object):
         self.xcconfigurationlists = []
         self.containeritemproxies = []
         self.targetdependencies = []
+
+        found_glsl = False
+
+        # Process all the projects and configurations
+        for project in solution.project_list:
+            # Process the filenames
+            project.get_file_list([FileTypes.icns,
+                                   FileTypes.h,
+                                   FileTypes.cpp,
+                                   FileTypes.frameworks,
+                                   FileTypes.exe,
+                                   FileTypes.library,
+                                   FileTypes.glsl])
+
+            for item in project.configuration_list[0].frameworks_list:
+                item = SourceFile(item, '', FileTypes.frameworks)
+                project.codefiles.append(item)
+
+            for item in project.codefiles:
+                if item.type is FileTypes.glsl:
+                    found_glsl = True
+                self.addfilereference(item.relative_pathname, item.type)
+
+            # What's the final output file?
+            if project.project_type is ProjectTypes.library:
+                if project.platform is PlatformTypes.ios:
+                    libextension = 'ios.a'
+                else:
+                    libextension = 'osx.a'
+                outputfilereference = self.addfilereference(
+                    'lib' + solution.name + idecode + libextension,
+                    FileTypes.library)
+            elif project.project_type is ProjectTypes.app:
+                outputfilereference = self.addfilereference(
+                    solution.name + '.app', FileTypes.exe)
+            elif project.project_type is not ProjectTypes.empty:
+                outputfilereference = self.addfilereference(
+                    solution.name, FileTypes.exe)
+            else:
+                outputfilereference = None
+
+            # If a fat library, add references for dev and sim targets
+            ioslibrary = False
+            if project.platform is PlatformTypes.ios:
+                if project.project_type is ProjectTypes.library:
+                    ioslibrary = True
+
+            if ioslibrary:
+                devfilereference = self.addfilereference(
+                    'lib' + solution.name + idecode + 'dev.a', FileTypes.library)
+                simfilereference = self.addfilereference(
+                    'lib' + solution.name + idecode + 'sim.a', FileTypes.library)
+
+                # Two targets for "fat" libraries
+                buildphase1 = self.addsourcesbuildphase(
+                    devfilereference)
+                buildphase2 = self.addsourcesbuildphase(
+                    simfilereference)
+                framephase1 = self.addframeworksbuildphase(
+                    devfilereference)
+                framephase2 = self.addframeworksbuildphase(
+                    simfilereference)
+
+                # Add source files to compile for the ARM and the Intel libs
+
+                for item in self.pbxfilereferences:
+                    if item.type is FileTypes.cpp or item.type is FileTypes.glsl:
+                        buildphase1.append(
+                            self.addbuildfile(item, devfilereference))
+                        buildphase2.append(
+                            self.addbuildfile(item, simfilereference))
+                    elif item.type is FileTypes.frameworks:
+                        framephase1.append(
+                            self.addbuildfile(item, devfilereference))
+                        framephase2.append(
+                            self.addbuildfile(item, simfilereference))
+
+            else:
+                if outputfilereference:
+                    devfilereference = None
+                    simfilereference = None
+                    buildphase1 = self.addsourcesbuildphase(
+                        outputfilereference)
+                    framephase1 = self.addframeworksbuildphase(
+                        outputfilereference)
+                    for item in self.pbxfilereferences:
+                        if item.type is FileTypes.cpp or item.type is FileTypes.glsl:
+                            buildphase1.append(self.addbuildfile(
+                                item, outputfilereference))
+                        elif item.type is FileTypes.frameworks:
+                            framephase1.append(self.addbuildfile(
+                                item, outputfilereference))
+
+            # Create the root file group and the Products group
+            groupproducts = PBXGroup('Products', None)
+
+            grouproot = self.addgroup(solution.name, None)
+
+            # No frameworks group unless one is warranted
+
+            frameworksgroup = None
+
+            # Insert all the file references into groups
+
+            for item in self.pbxfilereferences:
+                # Products go into a special group
+                if item.type is FileTypes.exe:
+                    groupproducts.append(item)
+                elif item.type is FileTypes.library:
+                    groupproducts.append(item)
+                elif item.type is FileTypes.frameworks:
+
+                    # Create the group if needed
+
+                    if frameworksgroup is None:
+                        frameworksgroup = self.addgroup(
+                            'Frameworks', None)
+                        grouproot.appendgroup(frameworksgroup)
+
+                    frameworksgroup.append(item)
+                else:
+                    # Isolate the path
+                    index = item.filename.rfind('/')
+                    if index == -1:
+                        # Put in the root group
+                        grouproot.append(item)
+                    else:
+                        # Separate the path and name
+                        # base = item.relative_pathname[index+1:]
+                        path = item.filename[0:index]
+                        #
+                        # See if a group already exists
+                        #
+                        found = False
+                        for matchgroup in self.pbxgroups:
+                            if matchgroup.path is not None and matchgroup.path == path:
+                                # Add to a pre-existing group
+                                matchgroup.append(item)
+                                found = True
+                                break
+                        if found:
+                            continue
+
+                        # Group not found. Iterate and create the group
+                        # May need multiple levels
+
+                        #
+                        # Hack to remove preceding ../ entries
+                        #
+
+                        if path.startswith('../'):
+                            index = 3
+                        elif path.startswith('../../'):
+                            index = 6
+                        else:
+                            index = 0
+
+                        notdone = True
+                        previousgroup = grouproot
+                        while notdone:
+                            endindex = path[index:].find('/')
+                            if endindex == -1:
+                                # Final level, create group and add reference
+                                matchgroup = self.addgroup(
+                                    path[index:], path)
+                                matchgroup.append(item)
+                                previousgroup.appendgroup(matchgroup)
+                                notdone = False
+                            else:
+                                #
+                                # See if a group already exists
+                                #
+                                temppath = path[0:index + endindex]
+                                found = False
+                                for matchgroup in self.pbxgroups:
+                                    if matchgroup.path is None:
+                                        continue
+                                    if matchgroup.path == temppath:
+                                        found = True
+                                        break
+
+                                if not found:
+                                    matchgroup = self.addgroup(
+                                        path[index:index + endindex], temppath)
+                                    previousgroup.appendgroup(matchgroup)
+                                previousgroup = matchgroup
+                                index = index + endindex + 1
+
+
+            # Any output?
+            if groupproducts.filelist:
+                self.pbxgroups.append(groupproducts)
+                grouproot.appendgroup(groupproducts)
+            # Create the config list for the root project
+
+            configlistref = self.addxcconfigurationlist(
+                'PBXProject', solution.name)
+            for item in project.configuration_list:
+                configlistref.configuration_list.append(
+                    self.addxcbuildconfigurationlist(
+                        item.name, None, configlistref, None, False))
+            rootproject.configlistref = configlistref
+            rootproject.rootgroup = grouproot
+
+            #
+            # Create the PBXNativeTarget config chunks
+            #
+
+            sdkroot = None
+            if project.platform is PlatformTypes.ios:
+                sdkroot = 'iphoneos'
+
+            if project.project_type is ProjectTypes.library:
+                outputtype = 'com.apple.product-type.library.static'
+            elif project.project_type is ProjectTypes.screensaver:
+                outputtype = 'com.apple.product-type.bundle'
+            elif project.project_type is ProjectTypes.app:
+                outputtype = 'com.apple.product-type.application'
+            else:
+                outputtype = 'com.apple.product-type.tool'
+
+            # For a normal project, attach the config to a native target and
+            # we're done
+            if not ioslibrary and outputfilereference:
+                configlistref = self.addxcconfigurationlist(
+                    'PBXNativeTarget', solution.name)
+                install = False
+                if project.project_type is ProjectTypes.app:
+                    install = True
+                for item in project.configuration_list:
+                    configlistref.configuration_list.append(
+                        self.addxcbuildconfigurationlist(
+                            item.name, None, configlistref, sdkroot, install))
+                if project.project_type is ProjectTypes.library:
+                    finalname = solution.name
+                else:
+                    finalname = solution.name
+                nativetarget1 = self.addnativeproject(
+                    finalname, outputfilereference, solution.name, outputtype)
+                nativetarget1.configlistref = configlistref
+                rootproject.append(nativetarget1)
+                nativetarget1.append(buildphase1.uuid, 'Sources')
+                nativetarget1.append(framephase1.uuid, 'Frameworks')
+
+            #
+            # For fat binary iOS projects, it's a lot messier
+            #
+
+            elif outputfilereference:
+                targetname = solution.name
+                configlistref = self.addxcconfigurationlist(
+                    'PBXNativeTarget', targetname)
+                for item in project.configuration_list:
+                    configlistref.configuration_list.append(
+                        self.addxcbuildconfigurationlist(
+                            item.name, None, configlistref, None, False))
+                nativetarget1 = self.addnativeproject(
+                    targetname, outputfilereference, solution.name, outputtype)
+                nativetarget1.configlistref = configlistref
+                rootproject.append(nativetarget1)
+
+                targetname = solution.name + idecode + 'dev'
+                configlistref = self.addxcconfigurationlist(
+                    'PBXNativeTarget', targetname)
+                for item in project.configuration_list:
+                    configlistref.configuration_list.append(
+                        self.addxcbuildconfigurationlist(
+                            item.name, None, configlistref, 'iphoneos', False))
+                nativeprojectdev = self.addnativeproject(
+                    targetname, devfilereference, solution.name, outputtype)
+                nativeprojectdev.configlistref = configlistref
+                rootproject.append(nativeprojectdev)
+
+                nativeprojectdev.append(buildphase1.uuid, 'Sources')
+                nativeprojectdev.append(framephase1.uuid, 'Frameworks')
+                devcontainer = self.addcontaineritemproxy(
+                    nativeprojectdev, self.uuid)
+
+                targetname = solution.name + idecode + 'sim'
+                configlistref = self.addxcconfigurationlist(
+                    'PBXNativeTarget', targetname)
+                for item in project.configuration_list:
+                    configlistref.configuration_list.append(
+                        self.addxcbuildconfigurationlist(
+                            item.name, None, configlistref, 'iphonesimulator', False))
+                nativeprojectsim = self.addnativeproject(
+                    targetname, simfilereference, solution.name, outputtype)
+                nativeprojectsim.configlistref = configlistref
+                rootproject.append(nativeprojectsim)
+
+                nativeprojectsim.append(buildphase2.uuid, 'Sources')
+                nativeprojectsim.append(framephase2.uuid, 'Frameworks')
+                simcontainer = self.addcontaineritemproxy(
+                    nativeprojectsim, self.uuid)
+
+                nativetarget1.depend(self.adddependency(
+                    devcontainer, nativeprojectdev).uuid, 'PBXTargetDependency')
+                nativetarget1.depend(self.adddependency(
+                    simcontainer, nativeprojectsim).uuid, 'PBXTargetDependency')
+
+            # Add in a shell script build phase if needed
+            # Is this an application?
+
+            if project.platform is PlatformTypes.macosx:
+                if project.project_type is ProjectTypes.tool:
+                    input_data = [
+                        '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
+                    output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
+                    command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
+                        '${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' \
+                        '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
+                    shellbuildphase = self.addshellscriptbuildphase(
+                        input_data, output, command)
+                    nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
+                elif project.project_type is ProjectTypes.app:
+                    input_data = [
+                        '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app'
+                        '/Contents/MacOS/${EXECUTABLE_NAME}']
+                    output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
+                        '/Contents/MacOS/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
+                    command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
+                        '${CP} -r ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app/ ' \
+                        '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app/\\n' \
+                        'mv ${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
+                        '/Contents/MacOS/${EXECUTABLE_NAME} ' \
+                        '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
+                        '/Contents/MacOS/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
+                    shellbuildphase = self.addshellscriptbuildphase(
+                        input_data, output, command)
+                    nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
+
+            # Is there a deployment folder?
+
+            deploy_folder = None
+            for configuration in project.configuration_list:
+                if configuration.deploy_folder:
+                    deploy_folder = configuration.deploy_folder
+
+            if deploy_folder is not None:
+                if ioslibrary is False:
+                    input_data = [
+                        '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
+                else:
+                    input_data = [
+                        '${BUILD_ROOT}/' + solution.name + idecode +
+                        'dev${SUFFIX}/lib' + solution.name + idecode + 'dev.a',
+                        '${BUILD_ROOT}/' + solution.name + idecode +
+                        'sim${SUFFIX}/lib' +
+                        solution.name + idecode + 'sim.a'
+                    ]
+                deploy_folder = deploy_folder.replace('(', '{')
+                deploy_folder = deploy_folder.replace(')', '}')
+                if ioslibrary is True:
+                    command = 'p4 edit ' + deploy_folder + '${FINAL_OUTPUT}\\nlipo -output ' + \
+                        deploy_folder + '${FINAL_OUTPUT} -create ${BUILD_ROOT}/' + \
+                        solution.name + idecode + \
+                        'dev${SUFFIX}/lib' + solution.name + idecode + \
+                        'dev.a ${BUILD_ROOT}/' + \
+                        solution.name + idecode + \
+                        'sim${SUFFIX}/lib' + solution.name + \
+                        idecode + 'sim.a\\n'
+                elif project.project_type is ProjectTypes.library:
+                    command = 'p4 edit ' + deploy_folder + \
+                        '${FINAL_OUTPUT}\\n${CP} ' \
+                        '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + \
+                        deploy_folder + '${FINAL_OUTPUT}\\n'
+                else:
+                    command = 'if [ \\"${CONFIGURATION}\\" == \\"Release\\" ]; ' \
+                        'then\\np4 edit ' + deploy_folder + \
+                        '${FINAL_OUTPUT}\\n${CP} ' \
+                        '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + \
+                        deploy_folder + '${FINAL_OUTPUT}\\nfi\\n'
+                shellbuildphase = self.addshellscriptbuildphase(
+                    input_data, deploy_folder + '${FINAL_OUTPUT}', command)
+                nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
+
+        if found_glsl:
+            self.pbxbuildrules.append(PBXBuildRule(self))
 
     def addfilereference(self, filename, ref_type):
         """
@@ -893,7 +1192,12 @@ class Project(object):
         """
         entry = XCBuildConfiguration(
             configname, configfilereference, owner, sdkroot, installpath)
-        self.xcbuildconfigurations.append(entry)
+        for item in self.xcbuildconfigurations:
+            if item.uuid == entry.uuid:
+                entry = item
+                break
+        else:
+            self.xcbuildconfigurations.append(entry)
         return entry
 
     def addxcconfigurationlist(self, pbxtype, targetname):
@@ -920,533 +1224,101 @@ class Project(object):
         self.targetdependencies.append(entry)
         return entry
 
-    def write(self, filep):
+    def generate(self, line_list):
         """
-        Dump out the entire file
+        Dump out the entire file.
+
+        Args:
+            line_list: Line list to append new lines.
+        Return:
+            Non-zero on error.
         """
 
-        #
         # Write the XCode header
-        #
+        line_list.append('// !$*UTF8*$!')
+        line_list.append('{')
 
-        filep.write('// !$*UTF8*$!\n')
-        filep.write('{\n')
-
-        #
         # Always present in an XCode file
-        #
+        line_list.append('\tarchiveVersion = 1;')
+        line_list.append('\tclasses = {')
+        line_list.append('\t};')
+        line_list.append('\tobjectVersion = {};'.format(OBJECT_VERSIONS.get(self.solution.ide)[0]))
+        line_list.append('\tobjects = {')
 
-        filep.write('\tarchiveVersion = 1;\n')
-        filep.write('\tclasses = {\n')
-        filep.write('\t};\n')
-
-        #
-        # 42 = XCode 2.4
-        # 44 = XCode 3.0
-        # 45 = XCode 3.1
-        # 46 = XCode 3.2
-        #
-
-        if self.idecode == 'xc3':
-            filep.write('\tobjectVersion = 45;\n')
-        else:
-            filep.write('\tobjectVersion = 46;\n')
-        filep.write('\tobjects = {\n')
-
-        #
         # Write out each of the chunks
-        #
+        writelist(self.pbxbuildfiles, line_list)
+        writelist(self.pbxbuildrules, line_list)
+        writelist(self.containeritemproxies, line_list)
+        writelist(self.pbxfilereferences, line_list)
+        writelist(self.framesworksbuildphases, line_list)
+        writelist(self.pbxgroups, line_list)
+        writelist(self.pbxnativetargets, line_list)
+        writelist(self.pbxprojects, line_list)
+        writelist(self.shellscriptbuildphases, line_list)
+        writelist(self.sourcesbuildphases, line_list)
+        writelist(self.targetdependencies, line_list)
+        writelist(self.xcbuildconfigurations, line_list)
+        writelist(self.xcconfigurationlists, line_list)
 
-        writelist(self.pbxbuildfiles, filep)
-        writelist(self.pbxbuildrules, filep)
-        writelist(self.containeritemproxies, filep)
-        writelist(self.pbxfilereferences, filep)
-        writelist(self.framesworksbuildphases, filep)
-        writelist(self.pbxgroups, filep)
-        writelist(self.pbxnativetargets, filep)
-        writelist(self.pbxprojects, filep)
-        writelist(self.shellscriptbuildphases, filep)
-        writelist(self.sourcesbuildphases, filep)
-        writelist(self.targetdependencies, filep)
-        writelist(self.xcbuildconfigurations, filep)
-        writelist(self.xcconfigurationlists, filep)
-
-        #
         # Close up the project file
-        #
+        line_list.append('\t};')
+        line_list.append(
+            '\trootObject = ' +
+            self.uuid +
+            ' /* Project object */;')
+        line_list.append('}')
+        return 0
 
-        filep.write('\t};\n')
-        filep.write('\trootObject = ' + self.uuid + ' /* Project object */;\n')
-        filep.write('}\n')
+########################################
 
-
-#
-# Xcode 3, 4 and 5 support
-#
 
 def generate(solution):
     """
     Create a project file for XCode file format version 3.1
     """
 
-    #
-    # Find the files to put into the project
-    #
+    # Failsafe
+    if solution.ide not in SUPPORTED_IDES:
+        return 10
 
-    codefiles, _ = solution.getfilelist(
-        [FileTypes.icns, FileTypes.h, FileTypes.cpp, FileTypes.frameworks,
-         FileTypes.exe, FileTypes.library, FileTypes.glsl])
+    # Create the output filename and pass it to the generator
+    # so it can reference itself in make targets
+    solution.xcode_folder_name = '{}{}{}.xcodeproj'.format(
+        solution.name, solution.ide_code, solution.platform_code)
+    create_folder_if_needed(solution.xcode_folder_name)
 
-    #
-    # Configure the xcode writer to the type
-    # of solution requested
-    #
+    # Xcode requires configurations, if none are present, add some
 
-    solution.xcode.defaults(solution)
+    if not solution.project_list:
+        project = CoreProject(name=solution.name, project_type=ProjectTypes.empty)
+        project.source_folders_list = []
+        solution.project_list.append(project)
 
-    #
-    # Determine the ide and target type for the final file name
-    #
+    for project in solution.project_list:
+        if not project.configuration_list:
+            project.configuration_list.append(Configuration('Debug'))
+            project.configuration_list.append(Configuration('Release'))
 
-    idecode = solution.ide.get_short_code()
-    platformcode = solution.project_list[0].platform.get_short_code()
-    xcodeprojectfile = Project(solution.name, idecode, platformcode)
-    rootproject = xcodeprojectfile.pbxprojects[0]
+    exporter = Project(solution)
 
-    #
-    # Ensure the slashes are correct for XCode
-    #
+    # Output the actual project file
+    xcode_lines = []
+    error = exporter.generate(xcode_lines)
+    if error:
+        return error
 
-    for item in codefiles:
-        item.relative_pathname = burger.convert_to_linux_slashes(
-            item.relative_pathname)
-
-    #
-    # Let's create the solution file!
-    #
-
-    solutionfoldername = os.path.join(
+    # Save the file if it changed
+    xcode_filename = os.path.join(
         solution.working_directory,
-        xcodeprojectfile.projectnamecode +
-        '.xcodeproj')
-    burger.create_folder_if_needed(solutionfoldername)
-    projectfilename = os.path.join(solutionfoldername, 'project.pbxproj')
+        solution.xcode_folder_name,
+        'project.pbxproj')
 
-    #
-    # Add the configuration file reference (or not)
-    #
+    error = 0
+    save_text_file_if_newer(
+        xcode_filename,
+        xcode_lines,
+        bom=False,
+        perforce=solution.perforce,
+        verbose=solution.verbose)
 
-    if solution.xcode.configfilename is not None:
-        configfilereference = xcodeprojectfile.addfilereference(
-            solution.xcode.configfilename, FileTypes.xcconfig)
-    else:
-        configfilereference = None
-
-    #
-    # Add the frameworks to the build list
-    #
-
-    for framework in solution.xcode.frameworks:
-        item = SourceFile(framework, '', FileTypes.frameworks)
-        codefiles.append(item)
-
-    #
-    # Insert all of the files found into the file references
-    #
-
-    for item in codefiles:
-        # Remove unsupported file types
-        if item.type != FileTypes.rc and \
-                item.type != FileTypes.r and \
-                item.type != FileTypes.hlsl:
-            xcodeprojectfile.addfilereference(item.relative_pathname, item.type)
-
-    #
-    # What's the final output file?
-    #
-
-    if solution.project_list[0].project_type == ProjectTypes.library:
-        if solution.project_list[0].platform == PlatformTypes.ios:
-            libextension = 'ios.a'
-        else:
-            libextension = 'osx.a'
-        outputfilereference = xcodeprojectfile.addfilereference(
-            'lib' + solution.name + idecode + libextension, FileTypes.library)
-    else:
-        if solution.project_list[0].project_type == ProjectTypes.app:
-            outputfilereference = xcodeprojectfile.addfilereference(
-                solution.name + '.app', FileTypes.exe)
-        else:
-            outputfilereference = xcodeprojectfile.addfilereference(
-                solution.name, FileTypes.exe)
-
-    #
-    # If a fat library, add references for dev and sim targets
-    #
-
-    ioslibrary = False
-    if solution.project_list[0].platform == PlatformTypes.ios:
-        if solution.project_list[0].project_type == ProjectTypes.library:
-            ioslibrary = True
-
-    if ioslibrary is True:
-        devfilereference = xcodeprojectfile.addfilereference(
-            'lib' + solution.name + idecode + 'dev.a', FileTypes.library)
-        simfilereference = xcodeprojectfile.addfilereference(
-            'lib' + solution.name + idecode + 'sim.a', FileTypes.library)
-
-        #
-        # Two targets for "fat" libraries
-        #
-
-        buildphase1 = xcodeprojectfile.addsourcesbuildphase(devfilereference)
-        buildphase2 = xcodeprojectfile.addsourcesbuildphase(simfilereference)
-        framephase1 = xcodeprojectfile.addframeworksbuildphase(
-            devfilereference)
-        framephase2 = xcodeprojectfile.addframeworksbuildphase(
-            simfilereference)
-
-        #
-        # Add source files to compile for the ARM and the Intel libs
-        #
-
-        for item in xcodeprojectfile.pbxfilereferences:
-            if item.type == FileTypes.cpp or item.type == FileTypes.glsl:
-                buildphase1.append(
-                    xcodeprojectfile.addbuildfile(item, devfilereference))
-                buildphase2.append(
-                    xcodeprojectfile.addbuildfile(item, simfilereference))
-            elif item.type == FileTypes.frameworks:
-                framephase1.append(
-                    xcodeprojectfile.addbuildfile(item, devfilereference))
-                framephase2.append(
-                    xcodeprojectfile.addbuildfile(item, simfilereference))
-
-    else:
-        devfilereference = None
-        simfilereference = None
-        buildphase1 = xcodeprojectfile.addsourcesbuildphase(
-            outputfilereference)
-        framephase1 = xcodeprojectfile.addframeworksbuildphase(
-            outputfilereference)
-        for item in xcodeprojectfile.pbxfilereferences:
-            if item.type == FileTypes.cpp or item.type == FileTypes.glsl:
-                buildphase1.append(xcodeprojectfile.addbuildfile(
-                    item, outputfilereference))
-            elif item.type == FileTypes.frameworks:
-                framephase1.append(xcodeprojectfile.addbuildfile(
-                    item, outputfilereference))
-
-    #
-    # Create the root file group and the Products group
-    #
-
-    groupproducts = xcodeprojectfile.addgroup('Products', None)
-
-    grouproot = xcodeprojectfile.addgroup(xcodeprojectfile.projectname, None)
-    grouproot.appendgroup(groupproducts)
-
-    # No frameworks group unless one is warranted
-
-    frameworksgroup = None
-
-    #
-    # Insert all the file references into groups
-    #
-
-    for item in xcodeprojectfile.pbxfilereferences:
-        # Products go into a special group
-        if item.type == FileTypes.exe:
-            groupproducts.append(item)
-        elif item.type == FileTypes.library:
-            groupproducts.append(item)
-        elif item.type == FileTypes.frameworks:
-
-            # Create the group if needed
-
-            if frameworksgroup is None:
-                frameworksgroup = xcodeprojectfile.addgroup('Frameworks', None)
-                grouproot.appendgroup(frameworksgroup)
-
-            frameworksgroup.append(item)
-        else:
-            # Isolate the path
-            index = item.filename.rfind('/')
-            if index == -1:
-                # Put in the root group
-                grouproot.append(item)
-            else:
-                # Separate the path and name
-                # base = item.relative_pathname[index+1:]
-                path = item.filename[0:index]
-                #
-                # See if a group already exists
-                #
-                found = False
-                for matchgroup in xcodeprojectfile.pbxgroups:
-                    if matchgroup.path is not None and matchgroup.path == path:
-                        # Add to a pre-existing group
-                        matchgroup.append(item)
-                        found = True
-                        break
-                if found is True:
-                    continue
-
-                # Group not found. Iterate and create the group
-                # May need multiple levels
-
-                #
-                # Hack to remove preceding ../ entries
-                #
-
-                if path.startswith('../'):
-                    index = 3
-                elif path.startswith('../../'):
-                    index = 6
-                else:
-                    index = 0
-
-                notdone = True
-                previousgroup = grouproot
-                while notdone:
-                    endindex = path[index:].find('/')
-                    if endindex == -1:
-                        # Final level, create group and add reference
-                        matchgroup = xcodeprojectfile.addgroup(
-                            path[index:], path)
-                        matchgroup.append(item)
-                        previousgroup.appendgroup(matchgroup)
-                        notdone = False
-                    else:
-                        #
-                        # See if a group already exists
-                        #
-                        temppath = path[0:index + endindex]
-                        found = False
-                        for matchgroup in xcodeprojectfile.pbxgroups:
-                            if matchgroup.path is None:
-                                continue
-                            if matchgroup.path == temppath:
-                                found = True
-                                break
-
-                        if found is not True:
-                            matchgroup = xcodeprojectfile.addgroup(
-                                path[index:index + endindex], temppath)
-                            previousgroup.appendgroup(matchgroup)
-                        previousgroup = matchgroup
-                        index = index + endindex + 1
-
-    #
-    # Create the config list for the root project
-    #
-
-    configlistref = xcodeprojectfile.addxcconfigurationlist(
-        'PBXProject', xcodeprojectfile.projectnamecode)
-    for item in solution.project_list[0].configurations:
-        configlistref.configurations.append(
-            xcodeprojectfile.addxcbuildconfigurationlist(
-                item.name, configfilereference, configlistref, None, False))
-    rootproject.configlistref = configlistref
-    rootproject.rootgroup = grouproot
-
-    #
-    # Create the PBXNativeTarget config chunks
-    #
-
-    sdkroot = None
-    if solution.project_list[0].platform == PlatformTypes.ios:
-        sdkroot = 'iphoneos'
-
-    if solution.project_list[0].project_type == ProjectTypes.library:
-        outputtype = 'com.apple.product-type.library.static'
-    elif solution.project_list[0].project_type == ProjectTypes.screensaver:
-        outputtype = 'com.apple.product-type.bundle'
-    elif solution.project_list[0].project_type == ProjectTypes.app:
-        outputtype = 'com.apple.product-type.application'
-    else:
-        outputtype = 'com.apple.product-type.tool'
-
-    #
-    # For a normal project, attach the config to a native target and we're done
-    #
-
-    if ioslibrary is False:
-        configlistref = xcodeprojectfile.addxcconfigurationlist(
-            'PBXNativeTarget', xcodeprojectfile.projectname)
-        install = False
-        if solution.project_list[0].project_type == ProjectTypes.app:
-            install = True
-        for item in solution.project_list[0].configurations:
-            configlistref.configurations.append(
-                xcodeprojectfile.addxcbuildconfigurationlist(
-                    item.name, None, configlistref, sdkroot, install))
-        if solution.project_list[0].project_type == ProjectTypes.library:
-            finalname = xcodeprojectfile.projectnamecode
-        else:
-            finalname = xcodeprojectfile.projectname
-        nativetarget1 = xcodeprojectfile.addnativeproject(
-            finalname, outputfilereference, xcodeprojectfile.projectname, outputtype)
-        nativetarget1.configlistref = configlistref
-        rootproject.append(nativetarget1)
-        nativetarget1.append(buildphase1.uuid, 'Sources')
-        nativetarget1.append(framephase1.uuid, 'Frameworks')
-
-    #
-    # For fat binary iOS projects, it's a lot messier
-    #
-
-    else:
-        targetname = xcodeprojectfile.projectnamecode
-        configlistref = xcodeprojectfile.addxcconfigurationlist(
-            'PBXNativeTarget', targetname)
-        for item in solution.project_list[0].configurations:
-            configlistref.configurations.append(
-                xcodeprojectfile.addxcbuildconfigurationlist(
-                    item.name, None, configlistref, None, False))
-        nativetarget1 = xcodeprojectfile.addnativeproject(
-            targetname, outputfilereference, xcodeprojectfile.projectname, outputtype)
-        nativetarget1.configlistref = configlistref
-        rootproject.append(nativetarget1)
-
-        targetname = solution.name + idecode + 'dev'
-        configlistref = xcodeprojectfile.addxcconfigurationlist(
-            'PBXNativeTarget', targetname)
-        for item in solution.project_list[0].configurations:
-            configlistref.configurations.append(
-                xcodeprojectfile.addxcbuildconfigurationlist(
-                    item.name, None, configlistref, 'iphoneos', False))
-        nativeprojectdev = xcodeprojectfile.addnativeproject(
-            targetname, devfilereference, xcodeprojectfile.projectname, outputtype)
-        nativeprojectdev.configlistref = configlistref
-        rootproject.append(nativeprojectdev)
-
-        nativeprojectdev.append(buildphase1.uuid, 'Sources')
-        nativeprojectdev.append(framephase1.uuid, 'Frameworks')
-        devcontainer = xcodeprojectfile.addcontaineritemproxy(
-            nativeprojectdev, xcodeprojectfile.uuid)
-
-        targetname = solution.name + idecode + 'sim'
-        configlistref = xcodeprojectfile.addxcconfigurationlist(
-            'PBXNativeTarget', targetname)
-        for item in solution.project_list[0].configurations:
-            configlistref.configurations.append(
-                xcodeprojectfile.addxcbuildconfigurationlist(
-                    item.name, None, configlistref, 'iphonesimulator', False))
-        nativeprojectsim = xcodeprojectfile.addnativeproject(
-            targetname, simfilereference, xcodeprojectfile.projectname, outputtype)
-        nativeprojectsim.configlistref = configlistref
-        rootproject.append(nativeprojectsim)
-
-        nativeprojectsim.append(buildphase2.uuid, 'Sources')
-        nativeprojectsim.append(framephase2.uuid, 'Frameworks')
-        simcontainer = xcodeprojectfile.addcontaineritemproxy(
-            nativeprojectsim, xcodeprojectfile.uuid)
-
-        nativetarget1.depend(xcodeprojectfile.adddependency(
-            devcontainer, nativeprojectdev).uuid, 'PBXTargetDependency')
-        nativetarget1.depend(xcodeprojectfile.adddependency(
-            simcontainer, nativeprojectsim).uuid, 'PBXTargetDependency')
-
-    #
-    # Add in a shell script build phase if needed
-    #
-
-    #
-    # Is this an application?
-    #
-
-    if solution.project_list[0].platform == PlatformTypes.macosx:
-        if solution.project_list[0].project_type == ProjectTypes.tool:
-            input_data = ['${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
-            output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
-            command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
-                '${CP} ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' \
-                '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
-            shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(
-                input_data, output, command)
-            nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
-        elif solution.project_list[0].project_type == ProjectTypes.app:
-            input_data = [
-                '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app'
-                '/Contents/MacOS/${EXECUTABLE_NAME}']
-            output = '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
-                '/Contents/MacOS/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
-            command = 'if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n' \
-                '${CP} -r ${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}.app/ ' \
-                '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app/\\n' \
-                'mv ${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
-                '/Contents/MacOS/${EXECUTABLE_NAME} ' \
-                '${SRCROOT}/bin/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}.app' \
-                '/Contents/MacOS/${EXECUTABLE_NAME}${IDESUFFIX}${SUFFIX}'
-            shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(
-                input_data, output, command)
-            nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
-
-    #
-    # Is there a final folder?
-    #
-
-    deploy_folder = None
-    for configuration in solution.project_list[0].configurations:
-        if configuration.deploy_folder:
-            deploy_folder = configuration.deploy_folder
-
-    if deploy_folder is not None:
-        if ioslibrary is False:
-            input_data = ['${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}']
-        else:
-            input_data = [
-                '${BUILD_ROOT}/' + solution.name + idecode +
-                'dev${SUFFIX}/lib' + solution.name + idecode + 'dev.a',
-                '${BUILD_ROOT}/' + solution.name + idecode +
-                'sim${SUFFIX}/lib' +
-                solution.name + idecode + 'sim.a'
-            ]
-        deploy_folder = deploy_folder.replace('(', '{')
-        deploy_folder = deploy_folder.replace(')', '}')
-        if ioslibrary is True:
-            command = 'p4 edit ' + deploy_folder + '${FINAL_OUTPUT}\\nlipo -output ' + \
-                deploy_folder + '${FINAL_OUTPUT} -create ${BUILD_ROOT}/' + \
-                solution.name + idecode + \
-                'dev${SUFFIX}/lib' + solution.name + idecode + \
-                'dev.a ${BUILD_ROOT}/' + \
-                solution.name + idecode + \
-                'sim${SUFFIX}/lib' + solution.name + \
-                idecode + 'sim.a\\n'
-        elif solution.project_list[0].project_type == ProjectTypes.library:
-            command = 'p4 edit ' + deploy_folder + \
-                '${FINAL_OUTPUT}\\n${CP} ' \
-                '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + \
-                deploy_folder + '${FINAL_OUTPUT}\\n'
-        else:
-            command = 'if [ \\"${CONFIGURATION}\\" == \\"Release\\" ]; ' \
-                'then\\np4 edit ' + deploy_folder + \
-                '${FINAL_OUTPUT}\\n${CP} ' \
-                '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME} ' + \
-                deploy_folder + '${FINAL_OUTPUT}\\nfi\\n'
-        shellbuildphase = xcodeprojectfile.addshellscriptbuildphase(
-            input_data, deploy_folder + '${FINAL_OUTPUT}', command)
-        nativetarget1.append(shellbuildphase.uuid, 'ShellScript')
-
-    #
-    # Serialize the XCode file
-    #
-
-    filep = StringIO()
-    xcodeprojectfile.write(filep)
-
-    #
-    # Did it change?
-    #
-
-    if burger.compare_file_to_string(projectfilename, filep):
-        if solution.verbose:
-            print(projectfilename + ' was not changed')
-    else:
-        burger.perforce_edit(projectfilename)
-        filep2 = open(projectfilename, 'w')
-        filep2.write(filep.getvalue())
-        filep2.close()
-    filep.close()
-    return 0
+    return error

@@ -31,7 +31,8 @@ from burger import where_is_doxygen, create_folder_if_needed, \
     get_windows_host_type, get_mac_host_type, delete_file, save_text_file, \
     load_text_file, run_command, read_zero_terminated_string, \
     where_is_watcom, host_machine, import_py_script, where_is_visual_studio, \
-    is_codewarrior_mac_allowed, where_is_codeblocks, run_py_script
+    is_codewarrior_mac_allowed, where_is_codeblocks, run_py_script, \
+    where_is_xcode
 from .__pkginfo__ import VERSION
 from .config import BUILD_RULES_PY
 from .__init__ import _XCODEPROJ_MATCH
@@ -1046,27 +1047,37 @@ def build_xcode(full_pathname, verbose=False, fatal=False):
     targetlist = parse_xcodeproj_dir(full_pathname)
 
     file_name_lower = full_pathname.lower()
-    # Use XCode 3 off the root
-    if 'xc3' in file_name_lower:
-        # On OSX Lion and higher, XCode 3.1.4 is a separate folder
-        xcodebuild = '/Xcode3.1.4/usr/bin/xcodebuild'
-        if not os.path.isfile(xcodebuild):
-            # Use the pre-Lion folder
-            xcodebuild = '/Developer/usr/bin/xcodebuild'
 
-    # Invoke XCode 4 or higher from the app store
+    suffixes = (
+        ('xc3', 3),
+        ('xc4', 4),
+        ('xc5', 5),
+        ('xc6', 6),
+        ('xc7', 7),
+        ('xc8', 8),
+        ('xc9', 9),
+        ('x10', 10)
+    )
+
+    for item in suffixes:
+        if item[0] in file_name_lower:
+            version = item[1]
+            break
     else:
-        xcodebuild = (
-            '/Applications/Xcode.app/Contents/'
-            'Developer/usr/bin/xcodebuild')
+        version = None
+        
+    # Find XCode for the version needed
+    xcode = where_is_xcode(version)
 
     # Is this version of XCode installed?
-    if os.path.isfile(xcodebuild) is not True:
-        print(('Can\'t build {} the proper version '
-               'of XCode is not installed').format(full_pathname))
+    if not xcode or not os.path.isfile(xcode[0]):
+        msg = ('Can\'t build {}, the proper version '
+               'of XCode is not installed').format(full_pathname)
+        print(msg)
         return BuildError(0, full_pathname,
-                          msg='Proper version of XCode not found')
+                          msg=msg)
 
+    xcodebuild = xcode[0]
     # Build each and every target
     results = []
     for target in targetlist:

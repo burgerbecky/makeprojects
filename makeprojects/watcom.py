@@ -28,7 +28,6 @@ from burger import save_text_file_if_newer, encapsulate_path_linux, \
 
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
 
-# pylint: disable=C0302
 
 SUPPORTED_IDES = (IDETypes.watcom,)
 
@@ -173,10 +172,12 @@ class Project(object):
         target = None
         # Get all the configuration names
         for platform in self.platforms:
-            if platform == PlatformTypes.msdos4gw:
+            if platform is PlatformTypes.msdos4gw:
                 target = platform.get_short_code()
             elif target is None:
                 target = platform.get_short_code()
+        if target is None:
+            target = 'Release'
 
         line_list.extend([
             '',
@@ -455,10 +456,15 @@ class Project(object):
         ])
 
         obj_list = []
-        for item in self.solution.project_list[0].codefiles:
-            if item.type == FileTypes.c or \
-                    item.type == FileTypes.cpp or \
-                    item.type == FileTypes.x86:
+        if self.solution.project_list:
+            codefiles = self.solution.project_list[0].codefiles
+        else:
+            codefiles = []
+
+        for item in codefiles:
+            if item.type is FileTypes.c or \
+                    item.type is FileTypes.cpp or \
+                    item.type is FileTypes.x86:
 
                 tempfile = convert_to_linux_slashes(
                     item.relative_pathname)
@@ -469,9 +475,7 @@ class Project(object):
                     entry = tempfile[:index]
 
                 index = entry.rfind('/')
-                if index == -1:
-                    entry = entry
-                else:
+                if index != -1:
                     entry = entry[index + 1:]
 
                 obj_list.append(entry)
@@ -540,7 +544,7 @@ class Project(object):
             line_list.append('\t@%null')
 
         for configuration in self.configuration_list:
-            if configuration.project_type == ProjectTypes.library:
+            if configuration.project_type is ProjectTypes.library:
                 suffix = 'lib'
             else:
                 suffix = 'exe'
@@ -588,7 +592,7 @@ class Project(object):
 
 
         for configuration in self.configuration_list:
-            if configuration.project_type == ProjectTypes.library:
+            if configuration.project_type is ProjectTypes.library:
                 suffix = '.lib'
             else:
                 suffix = '.exe'
@@ -604,7 +608,7 @@ class Project(object):
                 configuration.short_code + suffix +
                 ': $+$(OBJS)$- ' + self.solution.watcom_filename)
 
-            if configuration.project_type == ProjectTypes.library:
+            if configuration.project_type is ProjectTypes.library:
 
                 line_list.extend([
                     '\t@SET WOW=$+$(OBJS)$-',

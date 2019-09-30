@@ -262,4 +262,4 @@ def test_platformtypes_lookup():
     )
 
     for test in tests:
-        assert PlatformTypes.lookup(test[0]) == test[1]
+        assert PlatformTypes.lookup(test[0]) is test[1]

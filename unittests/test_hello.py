@@ -41,7 +41,7 @@ def test_visual_studio(tmpdir):
     # Create a source code folder
     source_dir = tmpdir.mkdir('source')
     asset_base = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), 'source')
+        os.path.dirname(os.path.abspath(__file__)), 'assets', 'hello', 'source')
     copyfile(
         os.path.join(
             asset_base, 'helloworld.cpp'), os.path.join(

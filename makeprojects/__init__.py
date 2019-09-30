@@ -43,7 +43,7 @@ from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes, \
     add_burgerlib
 from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, \
     URI, EMAIL, LICENSE, COPYRIGHT
-from .defaults import _CONFIGURATION_DEFAULTS
+from .defaults import get_configuration_settings
 
 ########################################
 
@@ -97,8 +97,6 @@ __all__ = [
     'rebuild',
     'makeprojects',
     'new_solution',
-    'new_project',
-    'new_configuration',
 
     'FileTypes',
     'ProjectTypes',
@@ -186,44 +184,6 @@ def makeprojects(working_directory=None, args=None):
     from .__main__ import main
     return main(working_directory, args)
 
-
-########################################
-
-
-def new_solution(**kargs):
-    """
-    Create a new instance of a core.Solution
-
-    Convenience routine to create a core.Solution instance.
-
-    Args:
-        kargs: dict of arguments.
-    See Also:
-        core.Solution
-    """
-
-    return Solution(**kargs)
-
-########################################
-
-
-def new_project(**kargs):
-    """
-    Create a new instance of a core.Project
-
-    Convenience routine to create a core.Project instance.
-
-    Args:
-        kargs: dict of arguments.
-
-    Returns:
-        Project class instance.
-    See Also:
-        core.Project
-    """
-
-    return Project(**kargs)
-
 ########################################
 
 
@@ -268,7 +228,8 @@ def new_configuration(configuration_list):
 
 ########################################
 
-def new(name=None, platform=None, project_type=None):
+
+def new_solution(name=None, platform=None, project_type=None):
     """
     Create a new instance of a full solution
 
@@ -288,7 +249,9 @@ def new(name=None, platform=None, project_type=None):
 
     solution = Solution(name=name)
     project = Project(name=name, platform=platform, project_type=project_type)
-    configurations = new_configuration(_CONFIGURATION_DEFAULTS[:3])
     solution.add_project(project)
-    project.add_configuration(configurations)
+    for item in ('Debug', 'Internal', 'Release'):
+        settings = get_configuration_settings(item)
+        settings['platform'] = platform
+        project.add_configuration(new_configuration(settings))
     return solution

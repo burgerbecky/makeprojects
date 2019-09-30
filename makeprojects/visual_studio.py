@@ -71,7 +71,6 @@ def convert_file_name_vs2010(item):
         item = item.replace('%(Identity)', '$(InputPath)')
     return item
 
-
 ########################################
 
 # Boolean properties
@@ -3732,6 +3731,7 @@ class VS2003FileConfiguration(VS2003XML):
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-nested-blocks
         # pylint: disable=too-many-branches
+        # pylint: disable=too-many-statements
 
         ## Parent configuration
         self.configuration = configuration
@@ -4085,10 +4085,10 @@ def generate(solution):
     # seperately
 
     # Iterate over the project files and create the filenames
-    for project in solution.project_list:
 
+    for project in solution.get_project_list():
         project.vs_output_filename = '{}{}{}.vcproj'.format(
-            project.name, solution.ide_code, project.platform_code)
+            project.name, project.solution.ide_code, project.platform_code)
         project.vs_uuid = get_uuid(project.vs_output_filename)
 
         for configuration in project.configuration_list:

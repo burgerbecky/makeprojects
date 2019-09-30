@@ -20,6 +20,7 @@ from burger import get_windows_host_type, convert_to_windows_slashes, \
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .enums import platformtype_short_code
+from .defaults import get_configuration_settings
 from .build_rules import rules as default_rules
 
 ########################################
@@ -196,8 +197,29 @@ class Attributes:
         ## Reference to parent object for chained attribute lookups
         self.parent = None
 
+        ## List of defines for the compiler
+        self.define_list = []
+
+        ## List of folders to add to compiler include list
+        self.include_folders_list = []
+
+        ## List of folders to add to linker include list
+        self.library_folders_list = []
+
+        ## List of libraries to link
+        self.libraries_list = []
+
+        ## List of file patterns to exclude from this configuration
+        self.exclude_from_build_list = []
+
+        ## List of files to exclude from directory scanning
+        self.exclude_list = []
+
         ## Generated file folder list
         self._source_include_list = []
+
+        ## List of CodeWarrior environment variables
+        self.cw_environment_variables = []
 
         ## Custom build rules
         self.custom_rules = {}
@@ -290,6 +312,8 @@ class Attributes:
         ## Private enums.PlatformTypes value
         self._platform = validate_enum_type(value, PlatformTypes)
 
+    ########################################
+
     @property
     def project_type(self):
         """ Get the enums.ProjectTypes """
@@ -326,6 +350,8 @@ class Attributes:
         ## Private boolean for debug
         self._debug = validate_boolean(value)
 
+    ########################################
+
     @property
     def link_time_code_generation(self):
         """ Get link time code generation boolean """
@@ -342,6 +368,8 @@ class Attributes:
 
         ## Private boolean for link_time_code_generation
         self._link_time_code_generation = validate_boolean(value)
+
+    ########################################
 
     @property
     def optimization(self):
@@ -360,6 +388,8 @@ class Attributes:
         ## Private boolean for optimization
         self._optimization = validate_boolean(value)
 
+    ########################################
+
     @property
     def analyze(self):
         """ Get code analysis boolean """
@@ -377,6 +407,8 @@ class Attributes:
         ## Private boolean for analyze
         self._analyze = validate_boolean(value)
 
+    ########################################
+
     @property
     def use_mfc(self):
         """ Get use of Microsoft Foundation class boolean """
@@ -393,6 +425,8 @@ class Attributes:
 
         ## Private boolean for use_mfc
         self._use_mfc = validate_boolean(value)
+
+    ########################################
 
     @property
     def use_atl(self):
@@ -632,17 +666,38 @@ class Configuration(Attributes):
     ## Don't allow Visual Studio rules files
     vs_rules = NoneProperty('_vs_rules')
 
-    def __init__(self, **kargs):
+    def __init__(self, *args, **kargs):
         """
         Init defaults.
 
         Args:
+            args: name and setting_name for get_configuration_settings(_
             kargs: List of defaults.
         """
 
-        # Set the default name
-        name = kargs.get('name', None)
-        if not is_string(name):
+        # Were there nameless parameters?
+        if args:
+            # Too many parameters?
+            if len(args) >= 3:
+                raise ValueError(
+                    'Only one or two nameless parameters are allowed')
+
+            # Get the default settings
+            setting_name = None
+            if len(args) == 2:
+                setting_name = args[1]
+            new_args = get_configuration_settings(args[0], setting_name)
+            if new_args is None:
+                new_args = {'name': args[0]}
+
+            # Were there defaults found?
+            for item in new_args:
+                # Only add, never override
+                if item not in kargs:
+                    kargs[item] = new_args[item]
+
+        # Check the default name
+        if not is_string(kargs.get('name', None)):
             raise TypeError(
                 "string parameter 'name' is required")
 
@@ -750,9 +805,19 @@ class Configuration(Attributes):
 
         result_list = []
         for item in self.__dict__:
+            if item == 'parent':
+                continue
+            if item == 'project':
+                result_list.append(
+                    'Project: "{}"'.format(
+                        self.__dict__[item].name))
+                continue
             item_name = item[1:] if item.startswith('_') else item
-            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
-        return 'Configuration:' + ', '.join(result_list)
+            result_list.append(
+                '{0}: {1!s}'.format(
+                    item_name,
+                    self.__dict__[item]))
+        return 'Configuration: ' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__
@@ -790,29 +855,53 @@ class Project(Attributes):
     ## List of rules file for Visual Studio 2005-2008
     vs_rules = StringListProperty('_vs_rules')
 
-    def __init__(self, **kargs):
+    def __init__(self, name=None, **kargs):
         """
         Set defaults.
 
         Args:
+            name: Name of the project
             kargs: dict of arguments.
         """
 
-        # Set a default project name
-        self.name = 'project'
+        ## Project name
+        self.name = name
 
-        # Set a default working directory
-        self.working_directory = os.getcwd()
+        ## Working directory for the project
+        self.working_directory = None
 
+        ## List of folders to scan for source code
         self.source_folders_list = ['.', 'source', 'src']
+
+        ## List of files to add to the project
+        self.source_files_list = []
+
+        ## List of props files for Visual Studio
+        self.vs_props = []
+
+        ## List of targets file for Visual Studio
+        self.vs_targets = []
+
+        ## List of rules file for Visual Studio 2005-2008
+        self.vs_rules = []
 
         # Init the base class
         Attributes.__init__(self, **kargs)
 
+        working_directory = os.getcwd()
+
+        # Set a default project name
+        if self.name is None:
+            self.name = os.path.basename(working_directory)
+
+        # Default directory
+        if self.working_directory is None:
+            self.working_directory = working_directory
+
         ## No parent solution yet
         self.solution = None
 
-        ## Generate the three default configurations
+        ## Generate the default configurations
         self.configuration_list = []
 
         ## Initial array of Project records that need to be built first
@@ -857,26 +946,29 @@ class Project(Attributes):
             TypeError if ``configuration`` is not a Configuration
         """
 
-        if configuration:
+        if configuration is None or is_string(configuration):
+            configuration = Configuration(configuration)
 
-            # Singular
-            if isinstance(configuration, Configuration):
+        # Singular
+        if not isinstance(configuration, Configuration):
+            raise TypeError(("parameter 'configuration' "
+                             "must be of type Configuration"))
+            # Set the configuration's parent
 
-                # Set the configuration's parent
-                configuration.project = self
-                configuration.parent = self
-                self.configuration_list.append(configuration)
-            else:
+        if configuration.platform is None:
+            configuration.platform = PlatformTypes.default()
 
-                # Assume iterable
-                for item in configuration:
-                    # Sanity check
-                    if not isinstance(item, Configuration):
-                        raise TypeError(("parameter 'configuration' must "
-                                         "be of type Configuration"))
-                    item.project = self
-                    item.parent = self
-                    self.configuration_list.append(item)
+        if configuration.platform.is_expandable():
+            for platform in configuration.platform.get_expanded():
+                config = deepcopy(configuration)
+                config.platform = platform
+                config.project = self
+                config.parent = self
+                self.configuration_list.append(config)
+        else:
+            configuration.project = self
+            configuration.parent = self
+            self.configuration_list.append(configuration)
 
     ########################################
 
@@ -890,10 +982,74 @@ class Project(Attributes):
             TypeError if project is not a Project
         """
 
+        if project is None or is_string(project):
+            project = Project(project)
+
         # Sanity check
         if not isinstance(project, Project):
-            raise TypeError("parameter 'project' must be of type Project")
+            raise TypeError(
+                "parameter 'project' must be of type Project or name")
+
+        project.solution = self.solution
+        project.parent = self.solution
         self.project_list.append(project)
+        return project
+
+    ########################################
+
+    def get_project_list(self):
+        """
+        Return the project list for all projects.
+
+        Iterate over every project and sub project and return
+        a flattened list.
+
+        Returns:
+            list of every project in the solution.
+        """
+
+        # Make a copy of the current list
+        project_list = list(self.project_list)
+
+        # Scan the sub projects and add their projects to the
+        # generated list.
+        for project in self.project_list:
+            project_list.extend(project.get_project_list())
+        return project_list
+
+    ########################################
+
+    def set_platforms(self, platform):
+        """
+        Update all configurations to a new platform.
+
+        If there are no configurations, Debug and Release will be
+        created.
+
+        Args:
+            platform: Platform to change the configurations to.
+        """
+
+        if not self.configuration_list:
+            for item in ('Debug', 'Release'):
+                self.add_configuration(Configuration(item, platform=platform))
+        else:
+
+            # Create a set of configurations by name
+            config_list = []
+            name_list = []
+            for configuration in self.configuration_list:
+                if configuration.name in name_list:
+                    continue
+                name_list.append(configuration.name)
+                config_list.append(configuration)
+
+            # Expand platform groups
+            self.configuration_list = []
+            for item in platform.get_expanded():
+                for configuration in config_list:
+                    configuration.platform = item
+                    self.add_configuration(deepcopy(configuration))
 
     ########################################
 
@@ -1078,9 +1234,19 @@ class Project(Attributes):
 
         result_list = []
         for item in self.__dict__:
+            if item == 'parent':
+                continue
+            if item == 'solution':
+                result_list.append(
+                    'Solution: "{}"'.format(
+                        self.__dict__[item].name))
+                continue
             item_name = item[1:] if item.startswith('_') else item
-            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
-        return 'Project:' + ', '.join(result_list)
+            result_list.append(
+                '{0}: {1!s}'.format(
+                    item_name,
+                    self.__dict__[item]))
+        return 'Project: ' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__
@@ -1122,33 +1288,51 @@ class Solution(Attributes):
     ## Enable the use of suffixes in creating filenames
     suffix_enable = BooleanProperty('_suffix_enable')
 
-    def __init__(self, **kargs):
+    def __init__(self, name=None, **kargs):
         """
         Init defaults.
 
         Args:
+            name: Name of the Solution
             kargs: dict of arguments.
         """
 
         ## Private instance of enums.IDETypes
         self._ide = None
 
-        # Set a default project name
-        self.name = 'project'
+        ## Solution name
+        self.name = name
 
-        # Set a default working directory
-        self.working_directory = os.getcwd()
+        ## Working directory for the solution
+        self.working_directory = None
 
-        self.source_folders_list = ['.', 'source', 'src']
+        ## List of folders to scan for source code
+        self.source_folders_list = []
 
+        ## List of files to add to the projects
+        self.source_files_list = []
+
+        ## Enable perforce support
         self.perforce = True
 
+        ## Enable output verbosity
         self.verbose = False
 
+        ## Enable appending suffixes to project names
         self.suffix_enable = True
 
         # Init the base class
         Attributes.__init__(self, **kargs)
+
+        working_directory = os.getcwd()
+
+        # Use a default solution name
+        if self.name is None:
+            self.name = os.path.basename(working_directory)
+
+        # Default directory
+        if self.working_directory is None:
+            self.working_directory = working_directory
 
         # Set a default project type
         if self.project_type is None:
@@ -1184,7 +1368,7 @@ class Solution(Attributes):
 
     ########################################
 
-    def add_project(self, project):
+    def add_project(self, project=None, project_type=None):
         """
         Add a project to the list of projects found in this solution.
         @details
@@ -1194,15 +1378,97 @@ class Solution(Attributes):
         Args:
             self: The 'this' reference.
             project: Reference to an instance of a Project.
+            project_type: Type of project to create.
         """
+
+        if project is None or is_string(project):
+            project = Project(project, project_type=project_type)
 
         # Sanity check
         if not isinstance(project, Project):
-            raise TypeError("parameter 'project' must be of type Project")
+            raise TypeError(
+                "parameter 'project' must be of type Project or name")
 
         project.solution = self
         project.parent = self
         self.project_list.append(project)
+        return project
+
+    ########################################
+
+    def add_tool(self, project=None):
+        """
+        Add a project to build a command line tool.
+
+        See Also:
+            add_project
+        """
+        return self.add_project(project, ProjectTypes.tool)
+
+    def add_app(self, project=None):
+        """
+        Add a project to build an application.
+
+        See Also:
+            add_project
+        """
+        return self.add_project(project, ProjectTypes.app)
+
+    def add_library(self, project=None):
+        """
+        Add a project to build a static library.
+
+        See Also:
+            add_project
+        """
+        return self.add_project(project, ProjectTypes.library)
+
+    def add_shared_library(self, project=None):
+        """
+        Add a project to build a dynamic library.
+
+        See Also:
+            add_project
+        """
+        return self.add_project(project, ProjectTypes.sharedlibrary)
+
+    ########################################
+
+    def get_project_list(self):
+        """
+        Return the project list for all sub projects.
+
+        Iterate over every sub project and return
+        a flattened list.
+
+        Returns:
+            list of every project in the project.
+        """
+
+        # Make a copy of the current list
+        project_list = list(self.project_list)
+
+        # Scan the sub projects and add their projects to the
+        # generated list.
+        for project in self.project_list:
+            project_list.extend(project.get_project_list())
+        return project_list
+
+    ########################################
+
+    def set_platforms(self, platform):
+        """
+        Update all configurations to a new platform.
+
+        If there are no configurations, Debug and Release will be
+        created.
+
+        Args:
+            platform: Platform to change the configurations to.
+        """
+
+        for project in self.get_project_list():
+            project.set_platforms(platform)
 
     ########################################
 
@@ -1210,6 +1476,8 @@ class Solution(Attributes):
         """
         Generate a project file and write it out to disk.
         """
+
+        # pylint: disable=import-outside-toplevel
 
         # Work from a copy to ensure the original is not touched.
         solution = deepcopy(self)
@@ -1236,6 +1504,7 @@ class Solution(Attributes):
         import makeprojects.visual_studio_2010
         import makeprojects.codewarrior
         import makeprojects.xcode
+        import makeprojects.codeblocks
 
         generator_list = (
             makeprojects.visual_studio,
@@ -1243,7 +1512,8 @@ class Solution(Attributes):
             makeprojects.watcom,
             makeprojects.makefile,
             makeprojects.codewarrior,
-            makeprojects.xcode)
+            makeprojects.xcode,
+            makeprojects.codeblocks)
         for generator in generator_list:
             if ide in generator.SUPPORTED_IDES:
                 break
@@ -1257,13 +1527,17 @@ class Solution(Attributes):
         all_configurations_list = []
 
         # Process all the projects and configurations
-        for project in solution.project_list:
+        for project in solution.get_project_list():
 
             # Handle projects
             project.custom_rules = regex_dict(project.custom_rules)
 
             # Purge unsupported configurations
             configuration_list = []
+            if not project.configuration_list:
+                for item in ('Debug', 'Release'):
+                    project.add_configuration(item)
+
             for configuration in project.configuration_list:
                 if generator.test(ide, configuration.platform):
                     configuration_list.append(configuration)
@@ -1273,6 +1547,7 @@ class Solution(Attributes):
                 configuration_list, key=lambda x: (
                     x.name, x.platform))
             project.configuration_list = configuration_list
+
             all_configurations_list.extend(configuration_list)
             project.platform_code = platformtype_short_code(configuration_list)
 
@@ -1302,9 +1577,14 @@ class Solution(Attributes):
         """
         result_list = []
         for item in self.__dict__:
+            if item == 'parent':
+                continue
             item_name = item[1:] if item.startswith('_') else item
-            result_list.append('{}: {}'.format(item_name, self.__dict__[item]))
-        return 'Solution:' + ', '.join(result_list)
+            result_list.append(
+                '{0}: {1!s}'.format(
+                    item_name,
+                    self.__dict__[item]))
+        return 'Solution: ' + ', '.join(result_list)
 
     ## Allow str() to work.
     __str__ = __repr__

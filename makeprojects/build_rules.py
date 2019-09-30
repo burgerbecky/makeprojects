@@ -91,6 +91,18 @@ def do_configuration_settings(configuration):
             if configuration.project_type is ProjectTypes.tool:
                 define_list.append('_CONSOLE')
 
+            if ide in (IDETypes.watcom, IDETypes.codeblocks):
+                define_list.append('GLUT_DISABLE_ATEXIT_HACK')
+                define_list.append('GLUT_NO_LIB_PRAGMA')
+
+        # MSDos with DOS4GW extender
+        if platform is PlatformTypes.msdos4gw:
+            define_list.append('__DOS4G__')
+
+        # MSDos with X32 extender
+        if platform is PlatformTypes.msdosx32:
+            define_list.append('__X32__')
+
         # Playstation 4
         if platform is PlatformTypes.ps4:
             define_list.append('__ORBIS2__')
@@ -152,29 +164,31 @@ def do_configuration_settings(configuration):
 
         # macOS X platform
         if platform.is_macosx():
-            configuration.frameworks_list = [
-                'AppKit.framework',
-                'AudioToolbox.framework',
-                'AudioUnit.framework',
-                'Carbon.framework',
-                'Cocoa.framework',
-                'CoreAudio.framework',
-                'IOKit.framework',
-                'OpenGL.framework',
-                'QuartzCore.framework',
-                'SystemConfiguration.framework'
-            ]
+            if not configuration.project_type.is_library():
+                configuration.frameworks_list = [
+                    'AppKit.framework',
+                    'AudioToolbox.framework',
+                    'AudioUnit.framework',
+                    'Carbon.framework',
+                    'Cocoa.framework',
+                    'CoreAudio.framework',
+                    'IOKit.framework',
+                    'OpenGL.framework',
+                    'QuartzCore.framework',
+                    'SystemConfiguration.framework'
+                ]
 
         # iOS platform
         if platform.is_ios():
-            configuration.frameworks_list = [
-                'AVFoundation.framework',
-                'CoreGraphics.framework',
-                'CoreLocation.framework',
-                'Foundation.framework',
-                'QuartzCore.framework',
-                'UIKit.framework'
-            ]
+            if not configuration.project_type.is_library():
+                configuration.frameworks_list = [
+                    'AVFoundation.framework',
+                    'CoreGraphics.framework',
+                    'CoreLocation.framework',
+                    'Foundation.framework',
+                    'QuartzCore.framework',
+                    'UIKit.framework'
+                ]
 
     # Save the #defines
     configuration.define_list = define_list

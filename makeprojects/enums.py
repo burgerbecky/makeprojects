@@ -1430,6 +1430,16 @@ def platformtype_short_code(configurations):
 def add_burgerlib(command, **kargs):
     """
     Add burgerlib to a project.
+
+    In a build_rules.py file, the function rules() can call
+    this function to add burgerlib to the project.
+
+    Args:
+        command: command parameter from rules()
+        kargs: kargs parameter from rules()
+    Return:
+        Zero
+
     """
 
     if command == 'configuration_settings':

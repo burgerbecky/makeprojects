@@ -69,6 +69,7 @@ TAB = '\t'
 # This class handles the Name, Value and sub entries
 #
 
+
 class SETTING(object):
     def __init__(self, name=None, value=None):
         self.name = name
@@ -672,7 +673,11 @@ class Project(object):
         rootproject = self.addtarget('Everything', 'None')
 
         # Process all the projects and configurations
-        for project in solution.project_list:
+        for project in solution.get_project_list():
+
+            # Make sure a platform was present
+            if project.platform is None:
+                project.platform = project.configuration_list[0].platform
 
             # Process the filenames
             project.get_file_list([FileTypes.h,
@@ -701,6 +706,18 @@ class Project(object):
 
             # Create sets of configuration names and projects
             for configuration in project.configuration_list:
+                if not configuration.library_folders_list:
+                    if project.platform.is_windows():
+                        configuration.library_folders_list = [
+                            '$(CodeWarrior)/MSL', '$(CodeWarrior)/Win32-x86 Support']
+                        if not configuration.project_type.is_library():
+                            if configuration.debug:
+                                configuration.libraries_list.append(
+                                    'MSL_All_x86_D.lib')
+                            else:
+                                configuration.libraries_list.append(
+                                    'MSL_All_x86.lib')
+
                 configuration.cw_name = configuration.name
 
                 # Create the project for the configuration
@@ -843,7 +860,6 @@ class Project(object):
                         self.addtogroups(
                             configuration.platform, configuration.name, [
                                 'Libraries', item])
-
 
     def addtarget(self, targetname, linker):
         """

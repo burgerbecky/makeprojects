@@ -14,20 +14,71 @@ from burger import convert_to_array
 from .enums import IDETypes, PlatformTypes, ProjectTypes
 from .build_rules import rules as default_rules
 
-_CONFIGURATION_DEFAULTS = [
-    {'name': 'Debug', 'short_code': 'dbg', 'debug': True},
-    {'name': 'Internal', 'short_code': 'int', 'optimization': 4,
-     'debug': True},
-    {'name': 'Release', 'short_code': 'rel', 'optimization': 4},
-    {'name': 'Release_LTCG',
-     'short_code': 'ltc',
-     'optimization': 4,
-     'link_time_code_generation': True},
-    {'name': 'Profile', 'short_code': 'pro',
-     'optimization': 4, 'profile': True},
-    {'name': 'Profile_FastCap', 'short_code': 'fas',
-     'optimization': 4, 'profile': 'fast'},
-    {'name': 'CodeAnalysis', 'short_code': 'cod', 'analyze': True}]
+## Default settings for each configuration type
+# Each key must be lower case
+_CONFIGURATION_DEFAULTS = {
+    'debug': {
+        'short_code': 'dbg',
+        'debug': True},
+    'internal': {
+        'short_code': 'int',
+        'optimization': 4,
+        'debug': True},
+    'release': {
+        'short_code': 'rel',
+        'optimization': 4},
+    'release_ltcg': {
+        'short_code': 'ltc',
+        'optimization': 4,
+        'link_time_code_generation': True},
+    'profile': {
+        'short_code': 'pro',
+        'optimization': 4,
+        'profile': True},
+    'profile_fastcap': {
+        'short_code': 'fas',
+        'optimization': 4,
+        'profile': 'fast'},
+    'codeanalysis': {
+        'short_code': 'cod',
+        'analyze': True}
+}
+
+########################################
+
+
+def get_configuration_settings(name, setting_name=None):
+    """
+    Given a configuration name, return default settings.
+
+    Default names are Debug, Internal, Release, Release_LTCG,
+    Profile, Profile_FastCap and CodeAnalysis.
+
+    Args:
+        name: Name of the configuration
+        setting_name: Default settings name override.
+    Return:
+
+    """
+
+    # No override?
+    if setting_name is None:
+        setting_name = name
+
+    # Case insensitive test
+    test_lower = setting_name.lower()
+    settings = _CONFIGURATION_DEFAULTS.get(test_lower, None)
+
+    # Set up the configuration name
+    if settings:
+
+        # Use a copy
+        settings = settings.copy()
+
+        # Override the name
+        settings['name'] = name
+    return settings
+
 
 ########################################
 
@@ -261,10 +312,10 @@ def get_configuration_list(
     if args.configurations:
         configuration_list = []
         for configuration in args.configurations:
-            for item in _CONFIGURATION_DEFAULTS:
-                if item['name'] == configuration:
-                    configuration_list.append(item)
-                    break
+            item = get_configuration_settings(configuration)
+            if item:
+                configuration_list.append(item)
+                break
             else:
                 print(('configuration {} is not found in the '
                        'acceptable name list.').format(
