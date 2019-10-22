@@ -389,21 +389,23 @@ class IDETypes(IntEnum):
     xcode9 = 19
     ## XCode 10
     xcode10 = 20
+    ## XCode 11
+    xcode11 = 21
 
     ## Codeblocks
-    codeblocks = 21
+    codeblocks = 22
 
     ## nmake
-    nmake = 22
+    nmake = 23
 
     ## make
-    make = 23
+    make = 24
 
     ## bazel
-    bazel = 24
+    bazel = 25
 
     ## MPW
-    mpw = 25
+    mpw = 26
 
     def get_short_code(self):
         """
@@ -443,7 +445,8 @@ class IDETypes(IntEnum):
 
         return self in (
             IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
-            IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10)
+            IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
+            IDETypes.xcode11)
 
     def is_codewarrior(self):
         """
@@ -577,6 +580,7 @@ _IDETYPES_CODES = {
     IDETypes.xcode8: 'xc8',
     IDETypes.xcode9: 'xc9',
     IDETypes.xcode10: 'x10',
+    IDETypes.xcode11: 'x11',
     IDETypes.codeblocks: 'cdb',             # Codeblocks
     IDETypes.nmake: 'nmk',                  # nmake
     IDETypes.make: 'mak',                   # make
@@ -612,6 +616,7 @@ _IDETYPES_READABLE = {
     IDETypes.xcode8: 'XCode 8',
     IDETypes.xcode9: 'XCode 9',
     IDETypes.xcode10: 'XCode 10',
+    IDETypes.xcode11: 'XCode 11',
     IDETypes.codeblocks: 'CodeBlocks 13.12',
     IDETypes.nmake: 'GNU make',
     IDETypes.make: 'Linux make',
@@ -665,6 +670,7 @@ def get_installed_xcode():
     """
 
     xcode_table = (
+        (11, IDETypes.xcode11),
         (10, IDETypes.xcode10),
         (9, IDETypes.xcode9),
         (8, IDETypes.xcode8),
