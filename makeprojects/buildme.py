@@ -1043,6 +1043,8 @@ def build_xcode(full_pathname, verbose=False, fatal=False):
         parse_xcodeproj_dir
     """
 
+    # pylint: disable=too-many-locals
+
     # Get the list of build targets
     targetlist = parse_xcodeproj_dir(full_pathname)
 
@@ -1065,7 +1067,7 @@ def build_xcode(full_pathname, verbose=False, fatal=False):
             break
     else:
         version = None
-        
+
     # Find XCode for the version needed
     xcode = where_is_xcode(version)
 
@@ -1605,6 +1607,7 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
+        # pylint: disable=import-outside-toplevel
         from .config import save_default
         if args.verbose:
             print(

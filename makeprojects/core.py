@@ -768,7 +768,7 @@ class Configuration(Attributes):
 
     ########################################
 
-    def get_suffix(self):
+    def get_suffix(self, force_short=False):
         """
         Return the proposed suffix.
 
@@ -776,6 +776,8 @@ class Configuration(Attributes):
         if they are stored in the same folder, a suffix
         is appened to make the filename unique.
 
+        Args:
+            force_short: True to force the platform code to 3 characters
         Returns:
             A suffix of the IDE, Platform and Configuration short codes.
         """
@@ -785,6 +787,8 @@ class Configuration(Attributes):
         platform = self.platform
         if platform is not None:
             platform_text = platform.get_short_code()
+            if force_short:
+                platform_text = platform_text[:3]
         else:
             platform_text = ''
 

@@ -2349,7 +2349,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         default = None
         if debug or project_type.is_library():
-            default = '/Zi'
+            default = '/C7'
         self.add_default(
             EnumProperty('DebugInformationFormat', default, enum_list))
 

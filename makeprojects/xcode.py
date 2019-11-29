@@ -62,7 +62,7 @@ SUPPORTED_IDES = (
 ## Version values
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
 OBJECT_VERSIONS = {
-    IDETypes.xcode3: ('45', None, 'Xcode 3.1', None),
+    IDETypes.xcode3: ('45', None, 'Xcode 3.1', 'English'),
     IDETypes.xcode4: ('46', '0420', 'Xcode 3.2', 'English'),
     IDETypes.xcode5: ('46', '0510', 'Xcode 3.2', 'English'),
     IDETypes.xcode6: ('47', '0600', 'Xcode 6.3', None),
@@ -532,7 +532,7 @@ XCBUILD_FLAGS = (
     ('OTHER_CPLUSPLUSFLAGS', 'string', None),
 
     # Extra flags to pass to the linker
-    ('OTHER_LDFLAGS', 'string', None),
+    ('OTHER_LDFLAGS', 'stringarray', None),
 
     # Extra flags to pass to the unit test tool
     ('OTHER_TEST_FLAGS', 'string', None),
@@ -1729,8 +1729,13 @@ class PBXProject(JSONDict):
 
         self.build_config_list = JSONEntry(
             'buildConfigurationList',
-            comment=('Build configuration list '
-                     'for PBXProject "{}"').format(solution.name),
+            comment=(
+                'Build configuration list '
+                'for PBXProject "{}{}{}"'
+            ).format(
+                solution.name,
+                solution.ide_code,
+                solution.platform_code),
             enabled=False)
         self.add_item(self.build_config_list)
 
@@ -1959,6 +1964,8 @@ class XCBuildConfiguration(JSONDict):
         """
 
         # pylint: disable=too-many-arguments
+        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-statements
 
         if not isinstance(configuration, Configuration):
             raise TypeError(
@@ -2054,6 +2061,29 @@ class XCBuildConfiguration(JSONDict):
             item.value = (
                 '$(SYMROOT)/$(PRODUCT_NAME){}{}{}'
             ).format(idecode, platform_suffix, configuration.short_code)
+
+            # Location of extra header paths
+            item = build_settings.find_item('HEADER_SEARCH_PATHS')
+            for define in configuration.get_chained_list(
+                    'include_folders_list'):
+                item.add_item(JSONEntry(define, suffix=','))
+
+            # Location of libraries
+            item = build_settings.find_item('LIBRARY_SEARCH_PATHS')
+            for define in configuration.get_chained_list(
+                    'library_folders_list'):
+                item.add_item(JSONEntry(define, suffix=','))
+
+            # Additional libraries
+            item = build_settings.find_item('OTHER_LDFLAGS')
+            for define in configuration.get_chained_list(
+                    'libraries_list'):
+                # Get rid of lib and .a
+                if define.startswith('lib'):
+                    define = define[3:]
+                if define.endswith('.a'):
+                    define = define[:-2]
+                item.add_item(JSONEntry('-l' + define, suffix=','))
 
             item = build_settings.find_item('SUFFIX')
             item.value = platform_suffix + configuration.short_code
@@ -2451,7 +2481,11 @@ class Project(JSONDict):
                 grouproot.add_group(groupproducts)
             # Create the config list for the root project
 
-            configlistref = XCConfigurationList('PBXProject', solution.name)
+            configlistref = XCConfigurationList(
+                'PBXProject',
+                solution.name +
+                solution.ide_code +
+                solution.platform_code)
             objects.add_item(configlistref)
             for configuration in project.configuration_list:
                 entry = self.addxcbuildconfigurationlist(
@@ -2490,7 +2524,11 @@ class Project(JSONDict):
                 for configuration in project.configuration_list:
                     configlistref.configuration_list.append(
                         self.addxcbuildconfigurationlist(
-                            configuration, None, configlistref, sdkroot, install))
+                            configuration,
+                            None,
+                            configlistref,
+                            sdkroot,
+                            install))
                 nativetarget1 = PBXNativeTarget(
                     self,
                     solution.name,
@@ -2533,7 +2571,11 @@ class Project(JSONDict):
                 for configuration in project.configuration_list:
                     configlistref.configuration_list.append(
                         self.addxcbuildconfigurationlist(
-                            configuration, None, configlistref, 'iphoneos', False))
+                            configuration,
+                            None,
+                            configlistref,
+                            'iphoneos',
+                            False))
                 nativeprojectdev = PBXNativeTarget(
                     self,
                     targetname,
@@ -2680,7 +2722,7 @@ class Project(JSONDict):
                     ).format(_PERFORCE_PATH, output, TEMP_EXE_NAME, )
                 else:
                     output = deploy_folder + '${PRODUCT_NAME}'
-                    command = 'if [ \\"${CONFIGURATION}\\" == \\"Release\\" ]; then \\n' + \
+                    command = 'if [ "${CONFIGURATION}" == "Release" ]; then \\n' + \
                         _PERFORCE_PATH + ' edit ' + deploy_folder + \
                         '${PRODUCT_NAME}\\n${CP} ' + \
                         TEMP_EXE_NAME + ' ' + \

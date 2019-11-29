@@ -656,7 +656,9 @@ class VS2010Globals(VS2010XML):
         ide = project.ide
 
         platform_version = None
-        if ide >= IDETypes.vs2015:
+        if ide >= IDETypes.vs2019:
+            platform_version = '10.0'
+        elif ide >= IDETypes.vs2015:
             platform_version = '10.0.18362.0'
 
         self.add_tags((
@@ -1064,7 +1066,7 @@ class VS2010ClCompile(VS2010XML):
             ('AdditionalIncludeDirectories', include_folders),
             ('PreprocessorDefinitions', define_list),
             ('WarningLevel', 'Level4'),
-            ('DebugInformationFormat', 'ProgramDatabase'),
+            ('DebugInformationFormat', 'OldStyle'),
             ('ProgramDataBaseFileName', '$(OutDir)$(TargetName).pdb'),
             ('ExceptionHandling', 'false'),
             ('FloatingPointModel', 'Fast'),
