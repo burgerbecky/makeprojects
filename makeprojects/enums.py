@@ -775,44 +775,49 @@ class PlatformTypes(IntEnum):
     wiiu = 35
     ## Nintendo Switch
     switch = 36
+    ## Nintendo Switch 32 bit only
+    switch32 = 37
+    ## Nintendo Switch 64 bit only
+    switch64 = 38
+
     ## Nintendo 3DS
-    dsi = 37
+    dsi = 39
     ## Nintendo DS
-    ds = 38
+    ds = 40
 
     ## Generic Android
-    android = 39
+    android = 41
     ## nVidia SHIELD
-    shield = 40
+    shield = 42
     ## Intellivision Amico
-    amico = 41
+    amico = 43
     ## Ouya (Now Razor)
-    ouya = 42
+    ouya = 44
     ## Android Tegra
-    tegra = 43
+    tegra = 45
     ## Android Arm32
-    androidarm32 = 44
+    androidarm32 = 46
     ## Android Arm64
-    androidarm64 = 45
+    androidarm64 = 47
     ## Android Intel x32
-    androidintel32 = 46
+    androidintel32 = 48
     ## Android Intel / AMD 64
-    androidintel64 = 47
+    androidintel64 = 49
 
     ## Generic Linux
-    linux = 48
+    linux = 50
 
     ## MSDOS
-    msdos = 49
+    msdos = 51
     ## MSDOS Dos4GW
-    msdos4gw = 50
+    msdos4gw = 52
     ## MSDOS DosX32
-    msdosx32 = 51
+    msdosx32 = 53
 
     ## BeOS
-    beos = 52
+    beos = 54
     ## Apple IIgs
-    iigs = 53
+    iigs = 55
 
     def get_short_code(self):
         """
@@ -933,6 +938,16 @@ class PlatformTypes(IntEnum):
             PlatformTypes.androidarm32, PlatformTypes.androidarm64,
             PlatformTypes.androidintel32, PlatformTypes.androidintel64)
 
+    def is_switch(self):
+        """
+        Determine if the platform is Nintendo Switch.
+
+        Returns:
+            True if the platform is Nintendo Switch
+        """
+        return self in (PlatformTypes.switch,
+                        PlatformTypes.switch32, PlatformTypes.switch64)
+
     def get_platform_folder(self):
         """
         Return the name of a folder that would hold platform specific files.
@@ -953,8 +968,7 @@ class PlatformTypes(IntEnum):
             PlatformTypes.ds: 'ds',
             PlatformTypes.dsi: 'dsi',
             PlatformTypes.wii: 'wii',
-            PlatformTypes.wiiu: 'wiiu',
-            PlatformTypes.switch: 'switch'
+            PlatformTypes.wiiu: 'wiiu'
         }
 
         # Try the simple ones
@@ -972,6 +986,8 @@ class PlatformTypes(IntEnum):
                 platform_folder = 'mac'
             elif self.is_android():
                 platform_folder = 'shield'
+            elif self.is_switch():
+                platform_folder = 'switch'
             elif self is PlatformTypes.ouya:
                 platform_folder = 'ouya'
             else:
@@ -1197,6 +1213,8 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.wii: 'wii',
     PlatformTypes.wiiu: 'wiu',
     PlatformTypes.switch: 'swi',
+    PlatformTypes.switch32: 'swia32',
+    PlatformTypes.switch64: 'swia64',
     PlatformTypes.android: 'and',           # Google platforms
     PlatformTypes.shield: 'shi',
     PlatformTypes.amico: 'ami',
@@ -1245,7 +1263,9 @@ _PLATFORMTYPES_VS = {
     # Nintendo platforms
     PlatformTypes.wiiu: ('Cafe',),
     PlatformTypes.dsi: ('CTR',),
-    PlatformTypes.switch: ('Switch',),
+    PlatformTypes.switch: ('NX32', 'NX64'),
+    PlatformTypes.switch32: ('NX32',),
+    PlatformTypes.switch64: ('NX64',),
 
     # Google platforms
     PlatformTypes.android: ('Android',),
@@ -1320,6 +1340,8 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.wii: 'Nintendo Wii',
     PlatformTypes.wiiu: 'Nintendo WiiU',
     PlatformTypes.switch: 'Nintendo Switch',
+    PlatformTypes.switch32: 'Nintendo Switch 32 bit',
+    PlatformTypes.switch64: 'Nintendo Switch 64 bit',
 
     # Google platforms
     PlatformTypes.android: 'Google Android',
@@ -1394,7 +1416,11 @@ _PLATFORMTYPES_EXPANDED = {
         PlatformTypes.androidarm32,
         PlatformTypes.androidarm64,
         PlatformTypes.androidintel32,
-        PlatformTypes.androidintel64)
+        PlatformTypes.androidintel64),
+    PlatformTypes.switch: (
+        PlatformTypes.switch32,
+        PlatformTypes.switch64
+    )
 }
 
 
@@ -1463,6 +1489,10 @@ def add_burgerlib(command, **kargs):
         else:
             lib_name = '{}.lib'.format(lib_name)
         configuration.libraries_list.append(lib_name)
+
+        # Linux requires linking in OpenGL
+        if platform is PlatformTypes.linux:
+            configuration.libraries_list.append('GL')
 
         lib_dir = '$(BURGER_SDKS)/{}/burgerlib'.format(
             platform.get_platform_folder())

@@ -158,6 +158,33 @@ def do_configuration_settings(configuration):
                 'NN_BUILD_NOOPT',
                 'NN_DEBUGGER_KMC_PARTNER'])
 
+        # Nintendo Switch
+        if platform.is_switch():
+            configuration.include_folders_list.append(
+                '$(NINTENDO_SDK_ROOT)\\include')
+
+            if platform is PlatformTypes.switch32:
+                configuration.include_folders_list.append(
+                    '$(NINTENDO_SDK_ROOT)\\Common\\Configs\\'
+                    'Targets\\NX-NXFP2-a32\\Include')
+            else:
+                configuration.include_folders_list.append(
+                    '$(NINTENDO_SDK_ROOT)\\Common\\Configs\\'
+                    'Targets\\NX-NXFP2-a64\\Include')
+
+            define_list.append('NN_NINTENDO_SDK')
+            if configuration.debug:
+                define_list.append('NN_ENABLE_ASSERT')
+                define_list.append('NN_ENABLE_ABORT_MESSAGE')
+                if configuration.optimization:
+                    define_list.append('NN_SDK_BUILD_DEVELOP')
+                else:
+                    define_list.append('NN_SDK_BUILD_DEBUG')
+            else:
+                define_list.append('NN_SDK_BUILD_RELEASE')
+                define_list.append('NN_DISABLE_ASSERT')
+                define_list.append('NN_DISABLE_ABORT_MESSAGE')
+
         # Linux platform
         if platform is PlatformTypes.linux:
             define_list.append('__LINUX__')

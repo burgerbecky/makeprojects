@@ -74,7 +74,7 @@ def test(ide, platform_type):
             return True
 
     if ide >= IDETypes.vs2015:
-        if platform_type is PlatformTypes.switch:
+        if platform_type in (PlatformTypes.switch32, PlatformTypes.switch64):
             return True
 
     if ide >= IDETypes.vs2017:
@@ -733,6 +733,7 @@ class VS2010Configuration(VS2010XML):
         clr_support = None
         android_min_api = None
         android_target_api = None
+        nintendo_sdk_root = None
 
         if platform.is_windows():
             use_of_mfc = truefalse(configuration.use_mfc)
@@ -751,6 +752,10 @@ class VS2010Configuration(VS2010XML):
             else:
                 android_min_api = 'android-9'
 
+        # Nintendo Switch SDK location
+        if platform.is_switch():
+            nintendo_sdk_root = '$(NINTENDO_SDK_ROOT)\\'
+
         self.add_tags((
             ('ConfigurationType', configuration_type),
             # Enable debug libraries
@@ -764,7 +769,8 @@ class VS2010Configuration(VS2010XML):
             ('CharacterSet', 'Unicode'),
             ('UseOfMfc', use_of_mfc),
             ('UseOfAtl', use_of_atl),
-            ('CLRSupport', clr_support)
+            ('CLRSupport', clr_support),
+            ('NintendoSdkRoot', nintendo_sdk_root)
         ))
 
 ########################################
@@ -1013,6 +1019,8 @@ class VS2010ClCompile(VS2010XML):
         cpp_language_standard = None
         float_abi = None
         thumb_mode = None
+        inline_functions = None
+        char_unsigned = None
 
         if platform in (PlatformTypes.ps3, PlatformTypes.ps4):
             if configuration.optimization:
@@ -1052,6 +1060,14 @@ class VS2010ClCompile(VS2010XML):
                 float_abi = ''
                 thumb_mode = ''
 
+        # Switch
+        if platform.is_switch():
+            char_unsigned = 'false'
+            if configuration.optimization:
+                omit_frame_pointer = 'true'
+                optimization_level = 'O3'
+                inline_functions = 'true'
+
         self.add_tags((
             ('Optimization', optimization),
             ('RuntimeLibrary', runtime_library),
@@ -1090,7 +1106,9 @@ class VS2010ClCompile(VS2010XML):
             ('CppLanguageStandard', cpp_language_standard),
             ('FloatAbi', float_abi),
             ('ThumbMode', thumb_mode),
-            ('AdditionalOptions', additional_options)
+            ('Inlinefunctions', inline_functions),
+            ('AdditionalOptions', additional_options),
+            ('CharUnsigned', char_unsigned)
         ))
 
 

@@ -23,7 +23,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 from burger import save_text_file_if_newer, encapsulate_path_linux, \
-    convert_to_linux_slashes, convert_to_windows_slashes
+    convert_to_linux_slashes
 
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes, IDETypes
 
@@ -91,6 +91,9 @@ class Project(object):
             # Create sets of configuration names and projects
             for configuration in project.configuration_list:
 
+                configuration.make_name = configuration.name + \
+                    configuration.platform.get_short_code()
+
                 # Add only if not already present
                 for item in self.configuration_names:
                     if configuration.name == item.name:
@@ -112,7 +115,218 @@ class Project(object):
         line_list.extend([
             '#',
             '# Build ' + self.solution.name + ' with make',
+            '#',
+            '# Generated with makeprojects',
             '#'])
+        return 0
+
+    ########################################
+
+    def write_default_goal(self, line_list):
+        """
+        Write the default goal for the makefile
+        """
+
+        default_goal = 'all'
+
+        line_list.extend([
+            '',
+            '#',
+            '# Project to build without a goal',
+            '#',
+            '',
+            '.DEFAULT_GOAL := ' + default_goal])
+        return 0
+
+    ########################################
+
+    def write_phony_targets(self, line_list):
+        """
+        Output all of the .PHONY targets
+        """
+
+        # Generate list of build targets
+        target_list = ['all:']
+        for item in self.configuration_names:
+            target_list.append(item.name)
+
+        line_list.extend([
+            '',
+            '#',
+            '# List the names of all of the final binaries to build',
+            '#',
+            '',
+            '.PHONY: all',
+            ' '.join(target_list) + ' ;'
+        ])
+
+        # Generate the list of configurations
+        if self.configuration_names:
+            line_list.extend([
+                '',
+                '#',
+                '# Configurations',
+                '#'
+            ])
+
+            for configuration in self.configuration_names:
+                target_list = [configuration.name + ':']
+                for platform in self.platforms:
+                    target_list.append(
+                        configuration.name +
+                        platform.get_short_code())
+                line_list.extend(['',
+                                  '.PHONY: ' + configuration.name,
+                                  ' '.join(target_list) + ' ;'
+                                  ])
+
+        # Generate a list of platforms
+        if self.platforms:
+            line_list.extend([
+                '',
+                '#',
+                '# Platforms',
+                '#'
+            ])
+
+            for platform in self.platforms:
+                target_list = [platform.get_short_code() + ':']
+                for configuration in self.configuration_list:
+                    target_list.append(
+                        configuration.name +
+                        platform.get_short_code())
+                line_list.extend(['',
+                                  '.PHONY: ' + platform.get_short_code(),
+                                  ' '.join(target_list) + ' ;'])
+
+        # Generate the list of final binaries
+        if self.configuration_list:
+
+            line_list.extend([
+                '',
+                '#',
+                '# List the names of all of the final binaries to build',
+                '#'
+            ])
+
+            for configuration in self.configuration_list:
+                if configuration.project_type is ProjectTypes.library:
+                    template = 'lib{}.a'
+                else:
+                    template = '{}'
+
+                platform_short_code = configuration.platform.get_short_code()
+                target_name = configuration.name + platform_short_code
+                line_list.extend([
+                    '',
+                    '.PHONY: ' + target_name,
+                    target_name + ':',
+                    '\t@$(MAKE) -e --no-print-directory CONFIG=' +
+                    configuration.name +
+                    ' TARGET=' + platform_short_code +
+                    ' -f ' + self.solution.makefile_filename +
+                    ' bin/' + template.format(self.solution.name + 'mak' +
+                                              platform_short_code[-3:] +
+                                              configuration.short_code)
+                ])
+
+        # Generate the "clean" target
+        if self.configuration_list:
+            line_list.extend([
+                '',
+                '#',
+                '# Clean all binaries',
+                '#',
+                '',
+                '.PHONY: clean',
+                'clean:'
+            ])
+            remove_list = ['\t@-rm -rf']
+            for configuration in self.configuration_list:
+                remove_list.append(
+                    'temp/' + self.solution.name + 'mak' +
+                    configuration.platform.get_short_code()[-3:] +
+                    configuration.short_code)
+            line_list.append(' '.join(remove_list))
+
+            remove_list = ['\t@-rm -f']
+            for configuration in self.configuration_list:
+                if configuration.project_type is ProjectTypes.library:
+                    template = 'lib{}.a'
+                else:
+                    template = '{}'
+
+                remove_list.append(
+                    'bin/' +
+                    template.format(
+                        self.solution.name + 'mak' +
+                        configuration.platform.get_short_code()[-3:] +
+                        configuration.short_code))
+            line_list.append(' '.join(remove_list))
+
+            # Test if the directory is empty, if so, delete the directory
+            line_list.append('\t@if [ -d bin ] && files=$$(ls -qAL -- bin) '
+                             '&& [ -z "$$files" ]; then rm -fd bin; fi')
+        return 0
+
+    ########################################
+
+    def write_directory_targets(self, line_list):
+        """
+        Create directory and make file targets
+        """
+
+        line_list.extend([
+            '',
+            '#',
+            '# Create the folder for the binary output',
+            '#',
+            '',
+            'bin:',
+            '\t@-mkdir -p bin'
+        ])
+
+        line_list.extend([
+            '',
+            '#',
+            '# Disable building this make file',
+            '#',
+            '',
+            self.solution.makefile_filename + ': ;'])
+        return 0
+
+    ########################################
+
+    def write_test_variables(self, line_list):
+        """
+        Create tests for environment variables
+        """
+
+        variable_list = ['BURGER_SDKS']
+
+        if variable_list:
+            line_list.extend([
+                '',
+                '#',
+                '# Required environment variables',
+                '#'
+            ])
+            for variable in variable_list:
+                line_list.extend([
+                    '',
+                    'ifndef ' + variable,
+                    ('$(error the environment variable {} '
+                     'was not declared)').format(variable),
+                    'endif'
+                ])
+        return 0
+
+    ########################################
+
+    def write_configurations(self, line_list):
+        """
+        Write configuration list
+        """
 
         # Default configuration
         config = None
@@ -130,16 +344,14 @@ class Project(object):
             '# Default configuration',
             '#',
             '',
-            'ifndef $(CONFIG)',
-            'CONFIG = ' + config,
-            'endif'
+            'CONFIG ?= ' + config
         ])
 
         # Default platform
         target = None
         # Get all the configuration names
         for platform in self.platforms:
-            if platform is PlatformTypes.msdos4gw:
+            if platform is PlatformTypes.linux:
                 target = platform.get_short_code()
             elif target is None:
                 target = platform.get_short_code()
@@ -152,9 +364,7 @@ class Project(object):
             '# Default target',
             '#',
             '',
-            'ifndef $(TARGET)',
-            'TARGET = ' + target,
-            'endif'
+            'TARGET ?= ' + target
         ])
 
         line_list.extend([
@@ -164,30 +374,31 @@ class Project(object):
             '#',
         ])
 
+        # List all platforms
         line_list.append('')
         for platform in self.platforms:
             line_list.append(
-                'TARGET_SUFFIX_{0} = {1}'.format(
+                'TARGET_SUFFIX_{0} := {1}'.format(
                     platform.get_short_code(),
                     platform.get_short_code()[-3:]))
 
+        # List all configurations
         line_list.append('')
         for item in self.configuration_list:
             line_list.append(
-                'CONFIG_SUFFIX_{0} = {1}'.format(
+                'CONFIG_SUFFIX_{0} := {1}'.format(
                     item.name, item.short_code))
 
+        # Save the base name of the temp directory
         line_list.extend([
             '',
             '#',
-            '# Set the set of known files supported',
-            '# Note: They are in the reverse order of building. .c is '
-            'built first, then .x86',
-            '# until the .exe or .lib files are built',
+            '# Base name of the temp directory',
             '#',
             '',
-            '.SUFFIXES:',
-            '.SUFFIXES: .cpp .x86 .c .i86 .a .o .h'
+            'BASE_SUFFIX := mak$(TARGET_SUFFIX_$'
+            '(TARGET))$(CONFIG_SUFFIX_$(CONFIG))',
+            'TEMP_DIR := temp/{0}$(BASE_SUFFIX)'.format(self.solution.name)
         ])
         return 0
 
@@ -221,7 +432,7 @@ class Project(object):
                     include_folders.append(item)
 
         if source_folders:
-            colon = '='
+            colon = ':='
             for item in sorted(source_folders):
                 line_list.append(
                     'SOURCE_DIRS ' +
@@ -229,39 +440,7 @@ class Project(object):
                     encapsulate_path_linux(item))
                 colon = '+='
         else:
-            line_list.append('SOURCE_DIRS =')
-
-        # Save the project name
-        line_list.extend([
-            '',
-            '#',
-            '# Name of the output library',
-            '#',
-            '',
-            'PROJECT_NAME = ' + self.solution.name])
-
-        # Save the base name of the temp directory
-        line_list.extend([
-            '',
-            '#',
-            '# Base name of the temp directory',
-            '#',
-            '',
-            'BASE_TEMP_DIR = temp/$(PROJECT_NAME)',
-            'BASE_SUFFIX = mak$(TARGET_SUFFIX_$'
-            '(TARGET))$(CONFIG_SUFFIX_$(CONFIG))',
-            'TEMP_DIR = $(BASE_TEMP_DIR)$(BASE_SUFFIX)',
-        ])
-
-        # Save the final binary output directory
-        line_list.extend([
-            '',
-            '#',
-            '# Binary directory',
-            '#',
-            '',
-            'DESTINATION_DIR = bin'
-        ])
+            line_list.append('SOURCE_DIRS :=')
 
         # Extra include folders
         line_list.extend([
@@ -284,93 +463,107 @@ class Project(object):
         Output the default rules for building object code
         """
 
-        # Set the search directories for source files
-        line_list.extend([
-            '',
-            '#',
-            '# Tell WMAKE where to find the files to work with',
-            '#',
-            '',
-            'vpath %.c $(SOURCE_DIRS)',
-            'vpath %.cpp $(SOURCE_DIRS)',
-            'vpath %.x86 $(SOURCE_DIRS)',
-            'vpath %.i86 $(SOURCE_DIRS)',
-            'vpath %.o $(TEMP_DIR)'
-        ])
-
         # Global compiler flags
         line_list.extend([
             '',
             '#',
             '# Set the compiler flags for each of the build types',
             '#',
-            '',
-            'CFlagsDebug=-D_DEBUG -g -Og',
-            'CFlagsInternal=-D_DEBUG -g -O3',
-            'CFlagsRelease=-DNDEBUG -O3',
-            '',
-            '#',
-            '# Set the flags for each target operating system',
-            '#',
-            '',
-            'CFlagslnx= -D__LINUX__',
+            ''])
+
+        for configuration in self.configuration_list:
+            entries = ['CFlags' + configuration.make_name + ':=']
+
+            # Enable debug information
+            if configuration.debug:
+                entries.append('-g')
+
+            # Enable optimization
+            if configuration.optimization:
+                entries.append('-O3')
+            else:
+                entries.append('-Og')
+
+            # Add defines
+            define_list = configuration.get_chained_list('define_list')
+            for item in define_list:
+                entries.append('-D' + item)
+
+            line_list.append(' '.join(entries))
+
+        # Global assembler flags
+        line_list.extend([
             '',
             '#',
             '# Set the WASM flags for each of the build types',
             '#',
-            '',
-            'AFlagsDebug=-D_DEBUG -g',
-            'AFlagsInternal=-D_DEBUG -g',
-            'AFlagsRelease=-DNDEBUG',
+            ''])
+
+        for configuration in self.configuration_list:
+            entries = ['AFlags' + configuration.make_name + ':=']
+
+            # Enable debug information
+            if configuration.debug:
+                entries.append('-g')
+
+            # Add defines
+            define_list = configuration.get_chained_list('define_list')
+            for item in define_list:
+                entries.append('-D' + item)
+
+            line_list.append(' '.join(entries))
+
+        # Global linker flags
+        line_list.extend([
             '',
             '#',
-            '# Set the as flags for each operating system',
+            '# Set the Linker flags for each of the build types',
             '#',
-            '',
-            'AFlagslnx=-D__LINUX__=1',
-            '',
-            'LFlagsDebug=-g -lburgerlibmaklnxdbg',
-            'LFlagsInternal=-g -lburgerlibmaklnxint',
-            'LFlagsRelease=-lburgerlibmaklnxrel',
-            '',
-            'LFlagslnx=-lGL -L$(BURGER_SDKS)/linux/burgerlib',
+            ''])
+
+        for configuration in self.configuration_list:
+            entries = ['LFlags' + configuration.make_name + ':=']
+
+            # Enable debug information
+            if configuration.debug:
+                entries.append('-g')
+
+            # Add libraries
+
+            if not configuration.project_type.is_library():
+                lib_list = configuration.get_unique_chained_list(
+                    'libraries_list')
+
+                for item in lib_list:
+                    entries.append('-l' + item)
+
+                lib_list = configuration.get_unique_chained_list(
+                    'library_folders_list')
+                for item in lib_list:
+                    entries.append('-L' + item)
+
+            line_list.append(' '.join(entries))
+
+        # Build rules
+        line_list.extend([
             '',
             '# Now, set the compiler flags',
             '',
-            'C_INCLUDES=$(addprefix -I,$(INCLUDE_DIRS))',
-            'CL=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
-            'CP=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
-            'ASM=$(AS)',
-            'LINK=$(CXX)',
+            'C_INCLUDES:=$(addprefix -I,$(INCLUDE_DIRS))',
+            'CL:=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
+            'CP:=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
+            'ASM:=$(AS)',
+            'LINK:=$(CXX)',
             '',
-            '# Set the default build rules',
-            '# Requires ASM, CP to be set',
+            '#',
+            '# Default build recipes',
+            '#',
             '',
-            '# Macro expansion is GNU make User\'s Guide',
-            '# https://www.gnu.org/software/make/'
-            'manual/html_node/Automatic-Variables.html',
-            '',
-            '%.o: %.i86',
-            '\t@echo $(*F).i86 / $(CONFIG) / $(TARGET)',
-            '\t@$(ASM) $(AFlags$(CONFIG)) $(AFlags$(TARGET)) '
-            '$< -o $(TEMP_DIR)/$@ -MMD -MF $(TEMP_DIR)/$(*F).d',
-            '',
-            '%.o: %.x86',
-            '\t@echo $(*F).x86 / $(CONFIG) / $(TARGET)',
-            '\t@$(ASM) $(AFlags$(CONFIG)) $(AFlags$(TARGET)) '
-            '$< -o $(TEMP_DIR)/$@ -MMD -MF $(TEMP_DIR)/$(*F).d',
-            '',
-            '%.o: %.c',
-            '\t@echo $(*F).c / $(CONFIG) / $(TARGET)',
-            '\t@$(CP) $(CFlags$(CONFIG)) $(CFlags$(TARGET)) $< '
-            '-o $(TEMP_DIR)/$@ -MMD -MF $(TEMP_DIR)/$(*F).d',
-            '\t@sed -i "s:$(TEMP_DIR)/$@:$@:g" $(TEMP_DIR)/$(*F).d',
-            '',
-            '%.o: %.cpp',
-            '\t@echo $(*F).cpp / $(CONFIG) / $(TARGET)',
-            '\t@$(CP) $(CFlags$(CONFIG)) $(CFlags$(TARGET)) $< '
-            '-o $(TEMP_DIR)/$@ -MMD -MF $(TEMP_DIR)/$(*F).d',
-            '\t@sed -i "s:$(TEMP_DIR)/$@:$@:g" $(TEMP_DIR)/$(*F).d'
+            'define BUILD_CPP=',
+            '@echo $(<F) / $(CONFIG) / $(TARGET); \\',
+            '$(CP) $(CFlags$(CONFIG)$(TARGET)) $< -o $@ '
+            '-MT \'$@\' -MMD -MF \'$*.d\'',
+            'endef'
         ])
         return 0
 
@@ -412,19 +605,25 @@ class Project(object):
                 obj_list.append(entry)
 
         if obj_list:
-            colon = 'OBJS= '
+            colon = 'OBJS:= '
             for item in sorted(obj_list):
-                line_list.append(colon + item + '.o \\')
+                line_list.append(colon + '$(TEMP_DIR)/' + item + '.o \\')
+                colon = '\t'
+            # Remove the ' &' from the last line
+            line_list[-1] = line_list[-1][:-2]
+
+            line_list.append('')
+            colon = 'DEPS:= '
+            for item in sorted(obj_list):
+                line_list.append(colon + '$(TEMP_DIR)/' + item + '.d \\')
                 colon = '\t'
             # Remove the ' &' from the last line
             line_list[-1] = line_list[-1][:-2]
 
         else:
-            line_list.append('OBJS=')
+            line_list.append('OBJS:=')
+            line_list.append('DEPS:=')
 
-        line_list.append('')
-        line_list.append('TRUE_OBJS = $(addprefix $(TEMP_DIR)/,$(OBJS))')
-        line_list.append('DEPS = $(addprefix $(TEMP_DIR)/,$(OBJS:.o=.d))')
         return 0
 
     def write_all_target(self, line_list):
@@ -432,94 +631,68 @@ class Project(object):
         Output the "all" rule
         """
 
-        line_list.extend([
-            '',
-            '#',
-            '# List the names of all of the final binaries to build',
-            '#',
-            '',
-            '.PHONY: all'
-        ])
+        source_list = []
+        if self.solution.project_list:
+            codefiles = self.solution.project_list[0].codefiles
+        else:
+            codefiles = []
 
-        target_list = ['all:']
-        for item in self.configuration_names:
-            target_list.append(item.name)
-        line_list.append(' '.join(target_list))
-        line_list.append('\t@')
+        for item in codefiles:
+            if item.type is FileTypes.c or \
+                    item.type is FileTypes.cpp or \
+                    item.type is FileTypes.x86:
 
-        line_list.extend([
-            '',
-            '#',
-            '# Configurations',
-            '#'
-        ])
+                entry = convert_to_linux_slashes(
+                    item.relative_pathname)
+                source_list.append(entry)
 
-        # Build targets for configuations
-        for configuration in self.configuration_names:
-            line_list.append('')
-            line_list.append('.PHONY: ' + configuration.name)
-            target_list = [configuration.name + ':']
-            for platform in self.platforms:
-                target_list.append(
-                    configuration.name +
-                    platform.get_short_code())
-            line_list.append(' '.join(target_list))
-            line_list.append('\t@')
+        if source_list:
+            line_list.extend([
+                '',
+                '#',
+                '# Disable building the source files',
+                '#',
+                ''
+            ])
+            items = ' '.join(source_list)
+            line_list.append(items + ': ;')
 
-        for platform in self.platforms:
-            line_list.append('')
-            line_list.append('.PHONY: ' + platform.get_short_code())
-            target_list = [platform.get_short_code() + ':']
-            for configuration in self.configuration_list:
-                target_list.append(
-                    configuration.name +
-                    platform.get_short_code())
-            line_list.append(' '.join(target_list))
-            line_list.append('\t@')
+            line_list.extend([
+                '',
+                '#',
+                '# Build the object file folder',
+                '#',
+                '',
+                '$(OBJS): | $(TEMP_DIR)',
+                '',
+                '$(TEMP_DIR):',
+                '\t@-mkdir -p $(TEMP_DIR)'
+            ])
 
-        line_list.extend([
-            '',
-            '#',
-            '# List the names of all of the final binaries to build',
-            '#'
-        ])
+            line_list.extend([
+                '',
+                '#',
+                '# Build the object files',
+                '#',
+            ])
+            for item in source_list:
 
-        for configuration in self.configuration_list:
-            if configuration.project_type is ProjectTypes.library:
-                suffix = '.a'
-                prefix = 'lib'
-            else:
-                suffix = ''
-                prefix = ''
-            platform = configuration.platform
-            line_list.append('')
-            line_list.append(
-                '.PHONY: ' + configuration.name + platform.get_short_code())
-            line_list.append(
-                '{0}{1}:'.format(
-                    configuration.name,
-                    platform.get_short_code()))
-            line_list.append('\t@-mkdir -p "$(DESTINATION_DIR)"')
-            name = 'mak' + platform.get_short_code(
-            )[-3:] + configuration.short_code
-            line_list.append(
-                '\t@-mkdir -p "$(BASE_TEMP_DIR){0}"'.format(name))
-            line_list.append(
-                '\t@$(MAKE) -e CONFIG=' + configuration.name + ' TARGET=' +
-                platform.get_short_code() + ' -f ' +
-                self.solution.makefile_filename +
-                ' $(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' +
-                platform.get_short_code()[-3:] +
-                configuration.short_code + suffix)
+                # Hack off the .cpp extension
+                index = item.rfind('.')
+                if index == -1:
+                    entry = item
+                else:
+                    entry = item[:index]
 
-        line_list.extend([
-            '',
-            '#',
-            '# Disable building this make file',
-            '#',
-            '',
-            self.solution.makefile_filename + ':',
-            '\t@'])
+                # Hack off the directory prefix
+                index = entry.rfind('/')
+                if index != -1:
+                    entry = entry[index + 1:]
+
+                line_list.extend(
+                    ['',
+                     '$(TEMP_DIR)/{0}.o: {1} ; $(BUILD_CPP)'.format(entry, item)
+                     ])
         return 0
 
     def write_builds(self, line_list):
@@ -530,9 +703,9 @@ class Project(object):
         line_list.extend([
             '',
             '#',
-            '# A = The object file temp folder',
+            '# Create final binaries',
             '#'
-            ])
+        ])
 
         for configuration in self.configuration_list:
             if configuration.project_type == ProjectTypes.library:
@@ -544,45 +717,48 @@ class Project(object):
 
             line_list.append('')
             line_list.append(
-                '$(DESTINATION_DIR)/' + prefix + '$(PROJECT_NAME)mak' +
+                'bin/' + prefix + self.solution.name + 'mak' +
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code +
-                suffix + ': $(OBJS) ' + self.solution.makefile_filename)
+                suffix + ': $(OBJS) ' +
+                self.solution.makefile_filename + ' | bin')
             if configuration.project_type is ProjectTypes.library:
-                line_list.append('\t@ar -rcs $@ $(TRUE_OBJS)')
+                line_list.append('\t@ar -rcs $@ $(OBJS)')
                 if configuration.deploy_folder:
-                    deploy_folder = convert_to_windows_slashes(
+                    deploy_folder = convert_to_linux_slashes(
                         configuration.deploy_folder,
                         force_ending_slash=True)[:-1]
-                    line_list.extend([
-                        '\t@-p4 edit "{}/$(@F)"'.format(
-                            deploy_folder),
-                        '\t@-cp -T "$@" "{}/$(@F)"'.format(
-                            deploy_folder),
-                        '\t@-p4 revert -a "{}/$(@F)"'.format(
-                            deploy_folder)
-                        ])
+                    line_list.extend(
+                        [
+                            '\t@if [ -f /bin/wslpath ]; then \\',
+                            '\tp4.exe edit $$(wslpath -a -w \'{}/$(@F)\'); \\'.format(deploy_folder),
+                            '\tcp -T "$@" "{}/$(@F)"; \\'.format(deploy_folder),
+                            '\tp4.exe revert -a $$(wslpath -a -w \'{}/$(@F)\'); \\'.format(deploy_folder),
+                            '\telse \\',
+                            '\tp4 edit "{}/$(@F)"; \\'.format(deploy_folder),
+                            '\tcp -T "$@" "{}/$(@F)"; \\'.format(deploy_folder),
+                            '\tp4 revert -a "{}/$(@F)"; \\'.format(deploy_folder),
+                            '\tfi'])
             else:
                 line_list.append(
-                    '\t@$(LINK) -o $@ $(TRUE_OBJS) '
-                    '$(LFlags$(TARGET)) $(LFlags$(CONFIG))')
+                    '\t@$(LINK) -o $@ $(OBJS) '
+                    '$(LFlags$(CONFIG)$(TARGET))')
                 if configuration.deploy_folder:
-                    deploy_folder = convert_to_windows_slashes(
+                    deploy_folder = convert_to_linux_slashes(
                         configuration.deploy_folder,
                         force_ending_slash=True)[:-1]
                     line_list.extend([
-                        '\t@-p4 edit "{}/$(PROJECT_NAME)'.format(
-                            deploy_folder),
-                        '\t@-cp -T "$^@" "{}/$(PROJECT_NAME)'.format(
-                            deploy_folder),
-                        '\t@-p4 revert -a "{}/$(PROJECT_NAME)'.format(
-                            deploy_folder)
+                        '\t@-p4 edit "{}/{}'.format(
+                            deploy_folder, self.solution.name),
+                        '\t@-cp -T "$^@" "{}/{}'.format(
+                            deploy_folder, self.solution.name),
+                        '\t@-p4 revert -a "{}/{}'.format(
+                            deploy_folder, self.solution.name)
                     ])
 
         line_list.append('')
         line_list.extend([
-            '%.d:',
-            '\t@',
+            '%.d: ;',
             '',
             '%: %,v',
             '',
@@ -594,12 +770,14 @@ class Project(object):
             '',
             '%: SCCS/s.%',
             '',
-            '%.h:',
-            '\t@',
+            '%.h: ;',
             '',
+            '#',
             '# Include the generated dependencies',
-            '-include $(DEPS)',
-            ])
+            '#',
+            '',
+            '-include $(DEPS)'
+        ])
         return 0
 
     ########################################
@@ -616,11 +794,29 @@ class Project(object):
             line_list = []
 
         self.write_header(line_list)
+        self.write_default_goal(line_list)
+        self.write_phony_targets(line_list)
+        self.write_directory_targets(line_list)
+
+        line_list.extend(['',
+                          '#',
+                          '# Code below can only be invoked indirectly',
+                          '#',
+                          '',
+                          'ifneq (0,$(MAKELEVEL))'])
+
+        # Write out the records that are only value if
+        # TARGET and CONFIG are set
+        self.write_test_variables(line_list)
+        self.write_configurations(line_list)
         self.write_source_dir(line_list)
         self.write_rules(line_list)
         self.write_files(line_list)
         self.write_all_target(line_list)
         self.write_builds(line_list)
+
+        # Release the endif
+        line_list.extend(['', 'endif'])
         return 0
 
 

@@ -12,7 +12,7 @@ Package that contains version specific information for makeprojects
 from __future__ import unicode_literals
 
 ## Numeric version
-NUMVERSION = (0, 10, 0)
+NUMVERSION = (0, 10, 2)
 
 ## String version
 VERSION = '.'.join([str(num) for num in NUMVERSION])

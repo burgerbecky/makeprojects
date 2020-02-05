@@ -98,7 +98,8 @@ _VS_SDK_ENV_VARIABLE = {
     'Xbox 360': 'XEDK',             # Xbox 360
     'Xbox ONE': 'DurangoXDK',       # Xbox ONE
     'Wii': 'REVOLUTION_SDK_ROOT',   # Nintendo Wii
-    'Switch': 'NINTENDO_SDK_ROOT',  # Nintendo Switch
+    'NX32': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
+    'NX64': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
     'Android': 'ANDROID_NDK_ROOT',  # Generic Android tools
     'ARM-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
     'AArch64-Android-NVIDIA': 'NVPACK_ROOT',    # nVidia android tools
