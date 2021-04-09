@@ -5,7 +5,8 @@
 Build the egg file for makeprojects for python
 
 setup.py clean
-setup.py build sdist bdist_wheel upload
+setup.py sdist bdist_wheel
+twine upload --verbose dist/*
 setup.py flake8
 
 Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com

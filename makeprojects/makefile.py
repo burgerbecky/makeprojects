@@ -748,11 +748,11 @@ class Project(object):
                         configuration.deploy_folder,
                         force_ending_slash=True)[:-1]
                     line_list.extend([
-                        '\t@-p4 edit "{}/{}'.format(
+                        '\t@-p4 edit "{}/{}"'.format(
                             deploy_folder, self.solution.name),
-                        '\t@-cp -T "$^@" "{}/{}'.format(
+                        '\t@-cp -T "$^@" "{}/{}"'.format(
                             deploy_folder, self.solution.name),
-                        '\t@-p4 revert -a "{}/{}'.format(
+                        '\t@-p4 revert -a "{}/{}"'.format(
                             deploy_folder, self.solution.name)
                     ])
 

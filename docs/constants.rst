@@ -6,40 +6,40 @@ Setup strings
 
 These strings are used for version control and setup.py for distribution.
 
-NUMVERSION
-^^^^^^^^^^
+__numversion__
+^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__numversion__
 
-VERSION
-^^^^^^^
+__version__
+^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__version__
 
-AUTHOR
-^^^^^^
+__author__
+^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__author__
 
-TITLE
-^^^^^
+__title__
+^^^^^^^^^
 .. doxygenvariable:: makeprojects::__title__
 
-SUMMARY
-^^^^^^^
+__summary__
+^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__summary__
 
-URI
-^^^
+__uri__
+^^^^^^^
 .. doxygenvariable:: makeprojects::__uri__
 
-EMAIL
-^^^^^
+__email__
+^^^^^^^^^
 .. doxygenvariable:: makeprojects::__email__
 
-LICENSE
-^^^^^^^
+__license__
+^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__license__
 
-COPYRIGHT
-^^^^^^^^^
+__copyright__
+^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::__copyright__
 
 Internal constants

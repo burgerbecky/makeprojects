@@ -26,7 +26,7 @@ import burger
 
 from .core import Solution, Project, Configuration
 from .config import BUILD_RULES_PY, DEFAULT_BUILD_RULES
-from .__pkginfo__ import VERSION
+from .__init__ import __version__
 from .defaults import get_project_name, get_ide_list, get_platform_list, \
     fixup_ide_platform, get_project_type, get_configuration_list
 
@@ -202,7 +202,7 @@ def process(working_directory, args):
     # Find the build_rules.py file
     build_rules_list = get_build_rules(working_directory, args)
     if not build_rules_list:
-        print('Fatal error, no build_rules.py exist anywhere.')
+        print('Fatal error, no ' + BUILD_RULES_PY + ' exist anywhere.')
         return 10
 
     return get_project_list(args, build_rules_list, working_directory)
@@ -241,7 +241,7 @@ def main(working_directory=None, args=None):
             'CodeBlocks, Watcom, make, Codewarrior...'))
 
     parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + VERSION)
+                        version='%(prog)s ' + __version__)
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
                         default=False, help='Verbose output.')
     parser.add_argument('--generate-rules', dest='generate_build_rules',

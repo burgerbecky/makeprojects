@@ -52,8 +52,7 @@ import argparse
 from funcsigs import signature, Parameter
 from burger import import_py_script
 from .config import BUILD_RULES_PY, DEFAULT_BUILD_RULES
-from .__pkginfo__ import VERSION
-from .__init__ import _XCODEPROJ_MATCH
+from .__init__ import __version__, _XCODEPROJ_MATCH
 
 ########################################
 
@@ -233,7 +232,7 @@ def main(working_directory=None, args=None):
         'Copyright by Rebecca Ann Heineman')
 
     parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + VERSION)
+                        version='%(prog)s ' + __version__)
     parser.add_argument('-r', '-all', dest='recursive', action='store_true',
                         default=False, help='Perform a recursive clean')
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
@@ -262,7 +261,7 @@ def main(working_directory=None, args=None):
                 'Saving {}'.format(
                     os.path.join(
                         working_directory,
-                        'build_rules.py')))
+                        BUILD_RULES_PY)))
         save_default(working_directory)
         return 0
 

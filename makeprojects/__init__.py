@@ -41,41 +41,42 @@ from re import compile as re_compile
 from .core import SourceFile, Configuration, Project, Solution
 from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes, \
     add_burgerlib
-from .__pkginfo__ import NUMVERSION, VERSION, AUTHOR, TITLE, SUMMARY, \
-    URI, EMAIL, LICENSE, COPYRIGHT
 from .defaults import get_configuration_settings
 
 ########################################
 
 ## Current version of the library as a numeric tuple
-__numversion__ = NUMVERSION
+__numversion__ = (0, 11, 0)
 
 ## Current version of the library
-__version__ = VERSION
+__version__ = '.'.join([str(num) for num in __numversion__])
 
 ## Author's name
-__author__ = AUTHOR
+__author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
 
 ## Name of the module
-__title__ = TITLE
+__title__ = 'makeprojects'
 
 ## Summary of the module's use
-__summary__ = SUMMARY
+__summary__ = 'IDE project generator for Visual Studio, XCode, etc...'
 
 ## Home page
-__uri__ = URI
+__uri__ = 'http://makeprojects.readthedocs.io'
 
 ## Email address for bug reports
-__email__ = EMAIL
+__email__ = 'becky@burgerbecky.com'
 
 ## Type of license used for distribution
-__license__ = LICENSE
+__license__ = 'MIT License'
 
 ## Copyright owner
-__copyright__ = COPYRIGHT
+__copyright__ = 'Copyright 2013-2019 Rebecca Ann Heineman'
 
 ## Match *.xcodeproj
 _XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
+
+## 'project.pbxproj'
+_XCODEPROJECT_FILE = 'project.pbxproj'
 
 ## Match *.hlsl
 _HLSL_MATCH = re_compile('(?ms).*\\.hlsl\\Z')

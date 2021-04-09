@@ -18,23 +18,23 @@ on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 CWD = os.path.dirname(os.path.abspath(__file__))
 
 # Add this folder to python so it can find the new file
-sys.path.append(os.path.join(os.path.dirname(CWD), 'makeprojects'))
+sys.path.append(os.path.dirname(CWD))
 
-tempmodule = __import__('__pkginfo__')
+tempmodule = __import__('makeprojects')
 
 # Restore the pathnames
 sys.path.pop()
 
 # -- Project information -----------------------------------------------------
 
-project = tempmodule.TITLE
-copyright = tempmodule.COPYRIGHT
-author = tempmodule.AUTHOR
+project = tempmodule.__title__
+copyright = tempmodule.__copyright__
+author = tempmodule.__author__
 
 # The short X.Y version
-version = '.'.join([str(num) for num in tempmodule.NUMVERSION[:2]])
+version = '.'.join([str(num) for num in tempmodule.__numversion__[:2]])
 # The full version, including alpha/beta/rc tags
-release = tempmodule.VERSION
+release = tempmodule.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -166,7 +166,7 @@ man_pages = [
 # dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, project, project + ' Documentation',
-     author, project, tempmodule.SUMMARY,
+     author, project, tempmodule.__summary__,
      'Miscellaneous'),
 ]
 

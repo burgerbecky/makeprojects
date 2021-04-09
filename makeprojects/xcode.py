@@ -31,6 +31,7 @@ from burger import create_folder_if_needed, save_text_file_if_newer, \
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
 from .core import SourceFile, Configuration
 from .core import Project as CoreProject
+from .__init__ import _XCODEPROJECT_FILE
 
 # pylint: disable=useless-object-inheritance, too-few-public-methods
 # pylint: disable=invalid-name
@@ -2827,7 +2828,7 @@ def generate(solution):
     xcode_filename = os.path.join(
         solution.working_directory,
         solution.xcode_folder_name,
-        'project.pbxproj')
+        _XCODEPROJECT_FILE)
 
     save_text_file_if_newer(
         xcode_filename,

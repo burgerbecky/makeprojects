@@ -101,9 +101,9 @@ buildme.build_codewarrior
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::build_codewarrior
 
-buildme.parse_xcodeproj_dir
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::parse_xcodeproj_dir
+buildme.parse_xcodeproj_file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::parse_xcodeproj_file
 
 buildme.build_xcode
 ^^^^^^^^^^^^^^^^^^^

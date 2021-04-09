@@ -20,7 +20,7 @@ import sys
 import os
 import argparse
 from makeprojects import buildme, cleanme
-from .__pkginfo__ import VERSION
+from .__init__ import __version__
 from .config import BUILD_RULES_PY, save_default
 
 ########################################
@@ -63,7 +63,7 @@ def main(working_directory=None, args=None):
         'Invokes cleanme and then buildme.')
 
     parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + VERSION)
+                        version='%(prog)s ' + __version__)
     parser.add_argument('-r', '-all', dest='recursive', action='store_true',
                         default=False, help='Perform a recursive rebuild')
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
