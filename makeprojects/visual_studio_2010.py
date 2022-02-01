@@ -659,7 +659,14 @@ class VS2010Globals(VS2010XML):
         if ide >= IDETypes.vs2019:
             platform_version = '10.0'
         elif ide >= IDETypes.vs2015:
-            platform_version = '10.0.18362.0'
+
+            # Special case if using the Xbox ONE toolset
+            for configuration in project.configuration_list:
+                if configuration.platform is PlatformTypes.xboxone:
+                    platform_version = '8.1'
+                    break
+            else:
+                platform_version = '10.0.18362.0'
 
         self.add_tags((
             ('ProjectName', project.name),
@@ -727,6 +734,15 @@ class VS2010Configuration(VS2010XML):
                     if platform in (PlatformTypes.winarm32,
                                     PlatformTypes.winarm64):
                         platform_toolset = platform_toolset[:-3]
+
+            # Xbox ONE uses this tool chain
+            elif platform is PlatformTypes.xboxone:
+                platformtoolsets_one = {
+                    IDETypes.vs2017: 'v141',
+                    IDETypes.vs2019: 'v142'
+                }
+                platform_toolset = platformtoolsets_one.get(
+                    configuration.ide, 'v141')
 
         use_of_mfc = None
         use_of_atl = None
@@ -917,6 +933,20 @@ class VS2010PropertyGroup(VS2010XML):
             ('OutputFile', '$(OutDir)$(TargetName)$(TargetExt)')
         ))
 
+        # For the love of all that is holy, the Xbox ONE requires
+        # these entries as is.
+        if platform is PlatformTypes.xboxone:
+            self.add_tags(
+                (('ExecutablePath',
+                  '$(Console_SdkRoot)bin;$(VCInstallDir)bin\\x86_amd64;$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);$(VSInstallDir)Common7\\Tools\\bin;$(VSInstallDir)Common7\\tools;$(VSInstallDir)Common7\\ide;$(ProgramFiles)\\HTML Help Workshop;$(MSBuildToolsPath32);$(FxCopDir);$(PATH);'),
+                 ('IncludePath', '$(Console_SdkIncludeRoot)'),
+                 ('ReferencePath',
+                  '$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)'),
+                 ('LibraryPath', '$(Console_SdkLibPath)'),
+                 ('LibraryWPath',
+                  '$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)'),
+                 ('GenerateManifest', 'false')
+                 ))
 
 ########################################
 
@@ -971,7 +1001,10 @@ class VS2010ClCompile(VS2010XML):
 
         if configuration.debug:
             optimization = 'Disabled'
-            runtime_library = 'MultiThreadedDebug'
+            if platform is PlatformTypes.xboxone:
+                runtime_library = 'MultiThreadedDebugDLL'
+            else:
+                runtime_library = 'MultiThreadedDebug'
             omit_frame_pointers = 'false'
             basic_runtime_checks = 'EnableFastChecks'
             inline_function_expansion = 'OnlyExplicitInline'
@@ -980,7 +1013,10 @@ class VS2010ClCompile(VS2010XML):
             inline_assembly_optimization = None
         else:
             optimization = 'MinSpace'
-            runtime_library = 'MultiThreaded'
+            if platform is PlatformTypes.xboxone:
+                runtime_library = 'MultiThreadedDLL'
+            else:
+                runtime_library = 'MultiThreaded'
             omit_frame_pointers = 'true'
             basic_runtime_checks = None
             inline_function_expansion = 'AnySuitable'
@@ -1152,8 +1188,12 @@ class VS2010Link(VS2010XML):
         additional_libraries = configuration.get_unique_chained_list(
             'libraries_list')
         if additional_libraries:
-            additional_libraries = '{};%(AdditionalDependencies)'.format(
-                packed_paths(additional_libraries))
+            if platform is PlatformTypes.xboxone:
+                additional_libraries = '{}'.format(
+                    packed_paths(additional_libraries))
+            else:
+                additional_libraries = '{};%(AdditionalDependencies)'.format(
+                    packed_paths(additional_libraries))
         else:
             additional_libraries = None
 
@@ -1486,6 +1526,13 @@ class VS2010Files(VS2010XML):
                 (('ObjectFileName',
                   '%(RootDir)%(Directory)Generated\\%(FileName).h'),))
 
+        for item in source_file_filter(project.codefiles, FileTypes.appxmanifest):
+            self.add_element(
+                VS2010XML(
+                    'AppxManifest', {
+                        'Include': convert_to_windows_slashes(
+                            item.relative_pathname)}))
+
         if self.project.ide >= IDETypes.vs2015:
             chunkname = 'Image'
         else:
@@ -1655,6 +1702,7 @@ class VS2010vcprojfilter(VS2010XML):
         self.write_filter_group(FileTypes.x360sl, groups, 'X360SL')
         self.write_filter_group(FileTypes.vitacg, groups, 'VitaCGCompile')
         self.write_filter_group(FileTypes.glsl, groups, 'GLSL')
+        self.write_filter_group(FileTypes.appxmanifest, groups, 'AppxManifest')
 
         # Visual Studio 2015 and later have a "compiler" for ico files
         if ide >= IDETypes.vs2015:
@@ -1795,7 +1843,8 @@ def generate(solution):
                                FileTypes.hlsl,
                                FileTypes.glsl,
                                FileTypes.x360sl,
-                               FileTypes.vitacg])
+                               FileTypes.vitacg,
+                               FileTypes.appxmanifest])
 
         # Create the project file template
         exporter = VS2010vcproj(project)

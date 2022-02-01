@@ -10,7 +10,7 @@ All enumerations are stored in this package
 
 ## \package makeprojects.enums
 
-# Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 #
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -22,6 +22,9 @@ from enum import IntEnum
 import os
 from burger import get_mac_host_type, get_windows_host_type, \
     where_is_visual_studio, where_is_codeblocks, where_is_watcom, where_is_xcode
+
+# pylint: disable=invalid-name
+# pylint: disable=consider-using-f-string
 
 ########################################
 
@@ -87,6 +90,8 @@ class FileTypes(IntEnum):
     ico = 24
     ## MacOSX icon files
     icns = 25
+    ## Windows AppXManifest files
+    appxmanifest = 26
 
     @staticmethod
     def lookup(test_name):
@@ -179,7 +184,8 @@ _FILETYPES_LOOKUP = {
     'pdf': FileTypes.generic,
     'sh': FileTypes.generic,
     'cmd': FileTypes.generic,
-    'bat': FileTypes.generic
+    'bat': FileTypes.generic,
+    'appxmanifest': FileTypes.appxmanifest
 }
 
 ## List of human readable strings
@@ -214,7 +220,8 @@ _FILETYPES_READABLE = {
     FileTypes.a68: '680x0 assembly file',
     FileTypes.image: 'Image file',
     FileTypes.ico: 'Windows Icon file',
-    FileTypes.icns: 'macOS Icon file'
+    FileTypes.icns: 'macOS Icon file',
+    FileTypes.appxmanifest: 'Windows AppX Manifest file'
 }
 
 ########################################
@@ -1253,7 +1260,7 @@ _PLATFORMTYPES_VS = {
     # Microsoft Xbox versions
     PlatformTypes.xbox: ('Xbox',),
     PlatformTypes.xbox360: ('Xbox 360',),
-    PlatformTypes.xboxone: ('Xbox ONE',),
+    PlatformTypes.xboxone: ('Durango',),
 
     # Sony platforms
     PlatformTypes.ps3: ('PS3',),

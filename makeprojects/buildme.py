@@ -2,17 +2,19 @@
 # -*- coding: utf-8 -*-
 
 """
-Module that contains the code for the command line "buildme".
+Module that contains the code for the command line ``buildme``.
 
 Scan the current directory and all project files will be built.
 
-If BUILD_RULES_PY is found, it will be checked for a function entry point of
-``rules`` and the commands in BUILD_LIST will be called in priority order.
+If BUILD_RULES_PY is found, it will be checked for function entry points
+``prebuild``, ``build`` and ``postbuild`` will be called in that order.
 
 If ``prebuild.py``, ``postbuild.py``, or ``custom_build.py`` files are found
 then function ``main`` is called.
 
 Build commands are performed from lowest priority value to highest value.
+
+Full documentation is here, @subpage md_buildme_man
 
 See Also:
     main, makeprojects.cleanme, makeprojects.rebuildme
@@ -22,6 +24,7 @@ See Also:
 ## \package makeprojects.buildme
 
 # pylint: disable=useless-object-inheritance
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -36,7 +39,7 @@ from burger import where_is_doxygen, create_folder_if_needed, \
     load_text_file, run_command, read_zero_terminated_string, \
     where_is_watcom, host_machine, import_py_script, where_is_visual_studio, \
     is_codewarrior_mac_allowed, where_is_codeblocks, run_py_script, \
-    where_is_xcode
+    where_is_xcode, convert_to_array
 from .config import BUILD_RULES_PY
 from .__init__ import _XCODEPROJ_MATCH, __version__, _XCODEPROJECT_FILE
 
@@ -137,6 +140,7 @@ def create_parser():
     - version boolean if version is requested
     - recursive boolean for directory recursion
     - verbose boolean for verbose output
+    - preview boolean for previewing the build process
     - generate_build_rules boolean create build rules and exit
     - rules_file string override build_rules.py
     - directories string array of directories to process
@@ -164,6 +168,9 @@ def create_parser():
 
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
                         default=False, help='Verbose output.')
+
+    parser.add_argument('-n', '-preview', dest='preview', action='store_true',
+                        default=False, help='Preview build commands.')
 
     parser.add_argument('--generate-rules', dest='generate_build_rules',
                         action='store_true', default=False,
@@ -226,6 +233,23 @@ def remove_os_sep(input_list):
 ########################################
 
 
+def was_processed(processed, file_name):
+    """
+    Check if a file or directory has already been processed.
+    """
+
+    # Test for recursion
+    if file_name in processed:
+        print('{} has already been processed'.format(file_name))
+        return True
+
+    # Mark this list as "processed" to prevent recursion
+    processed.add(file_name)
+    return False
+
+########################################
+
+
 def fixup_args(args):
     """
     Check unused args if they are directories, files or configurations
@@ -234,6 +258,7 @@ def fixup_args(args):
         args: args class from argparser
     """
 
+    # Remove trailing os seperator
     args.args = remove_os_sep(args.args)
     args.directories = remove_os_sep(args.directories)
 
@@ -726,7 +751,7 @@ class BuildRezFile(BuildObject):
         Class to handle .rezfile.
 
         Args:
-            full_pathname: Pathname to the *.rezscript to build
+            file_name: Pathname to the *.rezscript to build
             priority: Priority to build this object
             verbose: True if verbose output
         """
@@ -769,7 +794,7 @@ class BuildSlicerFile(BuildObject):
         Class to handle .slicerscript files
 
         Args:
-            full_pathname: Pathname to the *.slicerscript to build
+            file_name: Pathname to the *.slicerscript to build
             priority: Priority to build this object
             verbose: True if verbose output
         """
@@ -810,7 +835,7 @@ class BuildDoxygenFile(BuildObject):
         Class to handle Doxyfile files
 
         Args:
-            full_pathname: Pathname to the Doxyfile to build
+            file_name: Pathname to the Doxyfile to build
             priority: Priority to build this object
             verbose: True if verbose output
         """
@@ -902,8 +927,9 @@ class BuildWatcomFile(BuildObject):
         Class to handle watcom make files
 
         Args:
-            full_pathname: Pathname to the *.wmk to build
+            file_name: Pathname to the *.wmk to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
         """
 
@@ -928,10 +954,6 @@ class BuildWatcomFile(BuildObject):
 
         The default target built is ``all``.
 
-        Args:
-            full_pathname: Pathname to the doxygen config file
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         """
@@ -981,6 +1003,7 @@ def add_watcom_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildWatcomFile classes
     """
@@ -1011,8 +1034,9 @@ class BuildMakeFile(BuildObject):
         Class to handle Linux make files
 
         Args:
-            full_pathname: Pathname to the makefile to build
+            file_name: Pathname to the makefile to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
         """
 
@@ -1033,10 +1057,6 @@ class BuildMakeFile(BuildObject):
 
         The default target built is ``all``.
 
-        Args:
-            full_pathname: Pathname to the makefile
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         """
@@ -1064,6 +1084,7 @@ def add_make_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildMakeFile classes
     """
@@ -1094,8 +1115,9 @@ class BuildNinjaFile(BuildObject):
         Class to handle Ninja make files
 
         Args:
-            full_pathname: Pathname to the makefile to build
+            file_name: Pathname to the makefile to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
         """
 
@@ -1114,10 +1136,6 @@ class BuildNinjaFile(BuildObject):
 
         The default target built is ``all``.
 
-        Args:
-            full_pathname: Pathname to the makefile
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         """
@@ -1139,6 +1157,7 @@ def add_ninja_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildNinjaFile classes
     """
@@ -1171,9 +1190,11 @@ class BuildVisualStudioFile(BuildObject):
         Class to handle Visual Studio solution files
 
         Args:
-            full_pathname: Pathname to the *.sln to build
+            file_name: Pathname to the *.sln to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
+            vs_version: Integer Visual Studio version
         """
 
         ## Save the verbose flag
@@ -1196,10 +1217,6 @@ class BuildVisualStudioFile(BuildObject):
         Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
         Xbox ONE, Switch, Wii
 
-        Args:
-            full_pathname: Pathname to the Visual Studio .sln file
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         See Also:
@@ -1222,18 +1239,20 @@ class BuildVisualStudioFile(BuildObject):
         # verify that the SDK is installed before trying to build
 
         targettypes = self.configuration.rsplit('|')
-        test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
-        if test_env:
-            if os.getenv(test_env, default=None) is None:
-                msg = (
-                    'Target {} was detected but the environment variable {} '
-                    'was not found.').format(targettypes[1], test_env)
-                print(msg, file=sys.stderr)
-                return BuildError(
-                    0,
-                    self.file_name,
-                    configuration=self.configuration,
-                    msg=msg)
+        if len(targettypes) >= 2:
+            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
+            if test_env:
+                if os.getenv(test_env, default=None) is None:
+                    msg = (
+                        'Target {} was detected but the environment variable {}'
+                        ' was not found.').format(
+                        targettypes[1], test_env)
+                    print(msg, file=sys.stderr)
+                    return BuildError(
+                        0,
+                        self.file_name,
+                        configuration=self.configuration,
+                        msg=msg)
 
         # Create the build command
         # Note: Use the single line form, because Windows will not
@@ -1263,6 +1282,7 @@ def add_vs_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildMakeFile classes
     """
@@ -1307,9 +1327,11 @@ class BuildCodeWarriorFile(BuildObject):
         Class to handle CodeWarrior files
 
         Args:
-            full_pathname: Pathname to the *.mcp to build
+            file_name: Pathname to the *.mcp to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
+            linkers: List of linkers required
         """
 
         ## Save the verbose flag
@@ -1330,10 +1352,6 @@ class BuildCodeWarriorFile(BuildObject):
 
         Supports .mcp files for Windows, Mac, Wii and DSI.
 
-        Args:
-            full_pathname: Pathname to the Visual Studio .sln file
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         See Also:
@@ -1465,6 +1483,7 @@ def add_cw_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildMakeFile classes
     """
@@ -1492,14 +1511,14 @@ def add_cw_configurations(file_name, args):
     if get_windows_host_type():
         if '68K Linker' in linkers:
             print(
-                file_name +
-                "Requires a 68k linker which Windows doesn't support.")
+                ('"{}" requires a 68k linker '
+                'which Windows doesn\'t support.').format(file_name))
             return []
 
         if 'PPC Linker' in linkers:
             print(
-                file_name +
-                "Requires a PowerPC linker which Windows doesn't support.")
+                ('"{}" requires a PowerPC linker '
+                'which Windows doesn\'t support.').format(file_name))
             return []
 
     # If everything is requested, then only build 'Everything'
@@ -1542,8 +1561,9 @@ class BuildXCodeFile(BuildObject):
         Class to handle XCode files
 
         Args:
-            full_pathname: Pathname to the *.xcodeproj to build
+            file_name: Pathname to the *.xcodeproj to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
         """
 
@@ -1562,10 +1582,6 @@ class BuildXCodeFile(BuildObject):
 
         Supports .xcodeproj files from Xcode 3 and later.
 
-        Args:
-            full_pathname: Pathname to the Visual Studio .sln file
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         See Also:
@@ -1632,12 +1648,15 @@ def add_xcode_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildXCodeFile classes
     """
 
     # Don't build if not running on macOS
     if not get_mac_host_type():
+        if args.verbose:
+            print('{} can only be built on macOS hosts'.format(file_name))
         return []
 
     targetlist = parse_xcodeproj_file(file_name)
@@ -1676,8 +1695,9 @@ class BuildCodeBlocksFile(BuildObject):
         Class to handle Codeblocks files
 
         Args:
-            full_pathname: Pathname to the *.cbp to build
+            file_name: Pathname to the *.cbp to build
             priority: Priority to build this object
+            configuration: Build configuration
             verbose: True if verbose output
         """
 
@@ -1696,10 +1716,6 @@ class BuildCodeBlocksFile(BuildObject):
 
         Support .cbp files for Codeblocks on all host platforms.
 
-        Args:
-            full_pathname: Pathname to the Codeblocks .cbp file
-            verbose: True for verbose output
-            fatal: If True, abort on the first failed build
         Returns:
             List of BuildError objects
         See Also:
@@ -1769,6 +1785,7 @@ def add_codeblocks_configurations(file_name, args):
 
     Args:
         file_name: Full pathname to the make file
+        args: parser argument list
     Returns:
         list of BuildCodeBlocksFile classes
     """
@@ -1827,9 +1844,11 @@ class BuildPythonFile(BuildObject):
         Class to handle Python files
 
         Args:
-            full_pathname: Pathname to the *.py to build
+            file_name: Pathname to the *.py to build
             priority: Priority to build this object
             verbose: True if verbose output
+            function_ref: Python function pointer
+            command: Command to issue to the function
         """
 
         ## Save the verbose flag
@@ -1855,6 +1874,15 @@ class BuildPythonFile(BuildObject):
         """
         return callable(self.function_ref)
 
+    def create_parm_string(self):
+        """
+        Merge the command parameters into a single string.
+        """
+        parms = []
+        for item in self.command:
+            parms.append('{}="{}"'.format(item, self.command[item]))
+        return ','.join(parms)
+
     def build(self):
         if not self.has_python_function():
             if self.verbose:
@@ -1864,20 +1892,40 @@ class BuildPythonFile(BuildObject):
         else:
             if self.verbose:
                 print(
-                    'Calling {}(command="{}") in {}'.format(
+                    'Calling {}({}) in {}'.format(
                         self.function_ref.__name__,
-                        self.command,
+                        self.create_parm_string(),
                         self.file_name))
-            error = self.function_ref(
-                self.command,
-                working_directory=os.path.dirname(
-                    self.file_name))
+            error = self.function_ref(**self.command)
         return BuildError(error, self.file_name)
+
+    def __repr__(self):
+        """
+        Convert the object into a string.
+
+        Returns:
+            A full string.
+        """
+
+        result = (
+            '{} for file "{}" with priority {}').format(
+                type(self).__name__,
+                self.file_name,
+                self.priority)
+        if self.function_ref:
+            result += ', function {}'.format(self.function_ref.__name__)
+        if self.command:
+            result += '({})'.format(self.create_parm_string())
+        else:
+            result += '()'
+        return result
+
+    __str__ = __repr__
 
 ########################################
 
 
-def add_build_rules(projects, file_name, args):
+def add_build_rules(projects, file_name, args, build_rules=None):
     """
     Add a build_rules.py to the build list.
 
@@ -1891,38 +1939,58 @@ def add_build_rules(projects, file_name, args):
         projects: List of projects to build.
         file_name: Pathname to the build_rules.py file.
         args: Args for determining verbosity for output.
+        build_rules: Preloaded build_rules.py object.
     See Also:
-       add_project, get_projects
+       add_project
     """
 
     file_name = os.path.abspath(file_name)
-    build_rules = import_py_script(file_name)
+
+    # Was the build_rules already loaded?
+    if not build_rules:
+        build_rules = import_py_script(file_name)
+
+    dependencies = []
+
+    # Was a build_rules.py file found?
     if build_rules:
         if args.verbose:
             print('Using configuration file {}'.format(file_name))
 
         # Test for functions and append all that are found
-        rules = getattr(build_rules, 'rules', None)
+        working_directory = os.path.dirname(file_name)
+        command = {
+            'working_directory': working_directory,
+            'configuration': 'all'}
+
+        item = getattr(build_rules, 'BUILDME_DEPENDENCIES', None)
+        if item:
+            # Ensure it's an iterable of strings
+            dependencies = convert_to_array(item)
+
         for item in BUILD_LIST:
             # Only add if it's a function
-            projects.append(
-                BuildPythonFile(
-                    file_name,
-                    item[0],
-                    args.verbose,
-                    function_ref=rules,
-                    command=item[1]))
-
+            function_ref = getattr(build_rules, item[1], None)
+            if function_ref:
+                projects.append(
+                    BuildPythonFile(
+                        file_name,
+                        item[0],
+                        args.verbose,
+                        function_ref=function_ref,
+                        command=command))
+    return dependencies
 
 ########################################
 
 
-def add_project(projects, file_name, args):
+def add_project(projects, processed, file_name, args):
     """
     Detect the project type and add it to the list.
 
     Args:
         projects: List of projects to build.
+        processed: List of directories already processed.
         file_name: Pathname to the build_rules.py file.
         args: Args for determining verbosity for output.
     Returns:
@@ -1931,6 +1999,10 @@ def add_project(projects, file_name, args):
 
     # pylint: disable=too-many-return-statements
     # pylint: disable=too-many-branches
+
+    # Test for recursion
+    if was_processed(processed, file_name):
+        return True
 
     # Only process project files
     base_name = os.path.basename(file_name)
@@ -1962,10 +2034,6 @@ def add_project(projects, file_name, args):
                 99,
                 args.verbose,
                 command='main'))
-        return True
-
-    if base_name == args.rules_file:
-        add_build_rules(projects, file_name, args)
         return True
 
     # Test for simple build files
@@ -2022,27 +2090,6 @@ def add_project(projects, file_name, args):
 ########################################
 
 
-def get_projects(projects, working_directory, args):
-    """
-    Scan a folder for files that need to be 'built'.
-
-    Args:
-        projects: List of projects to build.
-        working_directory: Directory to scan.
-        args: Args for determining verbosity for output.
-    """
-
-    # Get the list of files in this directory
-    try:
-        for base_name in os.listdir(working_directory):
-            file_name = os.path.join(working_directory, base_name)
-            add_project(projects, file_name, args)
-    except OSError as error:
-        print(error)
-
-########################################
-
-
 def process_projects(results, projects, args):
     """
     Process a list of projects
@@ -2052,6 +2099,13 @@ def process_projects(results, projects, args):
     # Sort the list by priority (The third parameter is priority from 1-99)
     error = 0
     projects = sorted(projects, key=attrgetter('priority'))
+
+    # If in preview mode, just show the generated build objects
+    # and exit
+    if args.preview:
+        for project in projects:
+            print(project)
+        return False
 
     # Build all the projects
     for project in projects:
@@ -2069,50 +2123,138 @@ def process_projects(results, projects, args):
 ########################################
 
 
-def process_files(results, files, args):
+def process_files(results, processed, files, args):
     """
     Process a list of files.
     """
     projects = []
     for item in files:
-        if not add_project(projects, item, args):
-            print('"{}" is not supported.'.format(item))
+        full_name = os.path.abspath(item)
+        base_name = os.path.basename(full_name)
+        if base_name == args.rules_file:
+            if not was_processed(processed, full_name):
+                process_dependencies(
+                    results, processed, add_build_rules(
+                        projects, full_name, args), args)
+        elif not add_project(projects, processed, full_name, args):
+            print('"{}" is not supported.'.format(full_name))
             return True
     return process_projects(results, projects, args)
 
 ########################################
 
 
-def process_directories(results, directories, args):
+def process_directories(results, processed, directories, args):
     """
     Process a list of directories.
+
+    Args:
+        results: list object to append BuildError objects
+        processed: List of directories already processed.
+        directories: iterable list of directories to process
+        args: parsed argument list for verbosity
+    Returns:
+        True if processing should abort, False if not.
     """
-    for item in directories:
 
+    # pylint: disable=too-many-branches
+
+    # Process the directory list
+    for working_directory in directories:
+
+        # Sanitize the directory
+        working_directory = os.path.abspath(working_directory)
+
+        # Was this directory already processed?
+        if was_processed(processed, working_directory):
+            # Technically not an error to abort processing, so skip
+            continue
+
+        # Pass one, create a list of all projects to build
         projects = []
-        # Iterate over the directory
-        for entry in os.listdir(item):
 
-            full_name = os.path.join(item, entry)
-            # Ignore xcode project directories
-            if _XCODEPROJ_MATCH.match(entry):
-                if not add_project(projects, full_name, args):
-                    print('"{}" is not supported.'.format(full_name))
-                    return True
-                continue
+        # Are there build rules?
+        build_rules_name = os.path.join(working_directory, args.rules_file)
+        build_rules = import_py_script(build_rules_name)
+        allow_recursion = True
+        if build_rules:
+            # Check for recursion override
+            if getattr(build_rules, 'BUILDME_NO_RECURSE', False):
+                allow_recursion = False
 
+            if not was_processed(processed, build_rules_name):
+                process_dependencies(results, processed, add_build_rules(
+                    projects, build_rules_name, args, build_rules), args)
+
+        # Iterate over the directory to find all the other files
+        for entry in os.listdir(working_directory):
+
+            full_name = os.path.join(working_directory, entry)
+
+            # If it's a directory, check for recursion
             if os.path.isdir(full_name):
-                if args.recursive:
-                    if process_directories(results, [full_name], args):
+
+                # Special case for xcode, if it's a *.xcodeproj
+                if _XCODEPROJ_MATCH.match(entry):
+
+                    # Check if it's an xcode project file, if so, add it
+                    if not add_project(projects, processed, os.path.join(
+                            full_name, _XCODEPROJECT_FILE), args):
+                        print(
+                            '"{}" is not supported on this platform.'.format(
+                                full_name))
+                        return True
+                    continue
+
+                if args.recursive and allow_recursion:
+                    # Process the directory first
+                    if process_directories(
+                            results, processed, [full_name],
+                            args):
+                        # Abort?
                         return True
                 continue
 
-            add_project(projects, full_name, args)
+            # It's a file, process it, if possible
+            # Don't double process the rules file
+            if args.rules_file != entry:
+                add_project(projects, processed, full_name, args)
 
+        # The list is ready, process it in priority order
+        # and then loop to the next directory to process
         temp = process_projects(results, projects, args)
         if temp:
             return temp
     return False
+
+########################################
+
+
+def process_dependencies(results, processed, dependencies, args):
+    """
+    Process a mixed string list of both directories and files.
+
+    Iterate over the dependencies list and test each object if it's a directory,
+    and if so, dispatch to the directory handler, otherwise, process as a file.
+
+    Args:
+        results: list object to append BuildError objects
+        processed: List of directories already processed.
+        dependencies: iterable list of files/directories to process
+        args: parsed argument list for verbosity
+    Returns:
+        True if processing should abort, False if not.
+    """
+
+    if dependencies:
+        for item in dependencies:
+            if os.path.isdir(item):
+                error = process_directories(results, processed, [item], args)
+            else:
+                error = process_files(results, processed, [item], args)
+            if error:
+                return error
+    return 0
 
 ########################################
 
@@ -2171,13 +2313,18 @@ def main(working_directory=None, args=None):
     if not args.directories and not args.files:
         args.directories = [working_directory]
 
-    # Process the directories
+    # List of errors created during building
     results = []
+    processed = set()
 
-    if not process_files(results, args.files, args):
-        process_directories(results, args.directories, args)
+    # Try building all individual files first
+    if not process_files(results, processed, args.files, args):
 
-    # List all the projects that failed
+        # If successful, process all directories
+        process_directories(results, processed, args.directories, args)
+
+    # Was there a build error?
+    error = 0
     for item in results:
         if item.error:
             print('Errors detected in the build.', file=sys.stderr)
@@ -2186,9 +2333,8 @@ def main(working_directory=None, args=None):
     else:
         if args.verbose:
             print('Build successful!')
-        error = 0
 
-    # Dump the error log
+    # Dump the error log if requested or an error
     if args.verbose or error:
         for item in results:
             if args.verbose or item.error:

@@ -55,9 +55,6 @@ def add_build_rules(build_rules_list, file_name, args):
     if not build_rules:
         return False
 
-    if args.verbose:
-        print('Using configuration file {}'.format(file_name))
-
     # Find the entry point
     rules = getattr(build_rules, 'rules', None)
     if rules:
@@ -69,8 +66,11 @@ def add_build_rules(build_rules_list, file_name, args):
         if parm_root:
             if parm_root.default is True:
                 args.version = True
-    build_rules_list.append(rules)
-    return True
+        build_rules_list.append(rules)
+        if args.verbose:
+            print('Using configuration file {}'.format(file_name))
+        return True
+    return False
 
 ########################################
 

@@ -23,6 +23,8 @@ from .enums import platformtype_short_code
 from .defaults import get_configuration_settings
 from .build_rules import rules as default_rules
 
+# pylint: disable=consider-using-f-string
+
 ########################################
 
 

@@ -8,6 +8,7 @@ Validation objects for project data generators.
 ## \package makeprojects.validators
 
 # pylint: disable=no-name-in-module,useless-object-inheritance
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 

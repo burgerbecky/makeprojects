@@ -44,157 +44,281 @@ See Also:
 
 ## \package makeprojects.cleanme
 
+# pylint: disable=useless-object-inheritance
+# pylint: disable=consider-using-f-string
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import sys
 import argparse
-from funcsigs import signature, Parameter
-from burger import import_py_script
+from burger import import_py_script, convert_to_array
 from .config import BUILD_RULES_PY, DEFAULT_BUILD_RULES
 from .__init__ import __version__, _XCODEPROJ_MATCH
+from .buildme import remove_os_sep, was_processed
 
 ########################################
 
 
-def dispatch(file_name, working_directory, args):
+def add_build_rules(build_rules_list, file_name, args, is_root):
     """
-    Dispatch to ``rules('clean')``.
+    Load in the file build_rules.py
 
-    Dispatch to the build_rules.py file to the cleanme
-    function of ``rules('clean')`` and return the error code
-    if found. If the parameter ``root`` was found in the
-    parameter list, check if the default argument is ``True`` to
-    abort after execution.
+    Load the build_rules.py file. If the variable ``CLEANME_CONTINUE`` was found
+    in the file, check if it is set to ``True``. If so, continue searching for
+    more build_rules.py files until the root folder is reached. Append the
+    default rules file to the end of the list.
 
     Args:
-        file_name: full path of the build_rules.py file
-        working_directory: directory to pass to the ``rules('clean')`` function
-        args: Args for determining verbosity for output
-
+        build_rules_list: List to append a valid build_rules file instance.
+        file_name: Full path name of the build_rules.py to load.
+        args: Args for determining verbosity for output.
+        is_root: True if CLEANME_GENERIC is ignored.
     Returns:
         Zero on no error, non zero integer on error
-
     """
-    # Too many branches
-    # pylint: disable=R0912
 
+    # Ensure the absolute path is used.
+    file_name = os.path.abspath(file_name)
     build_rules = import_py_script(file_name)
-    found_root = False
-    error = 0
-    while build_rules:
-        if args.verbose:
-            print('Using configuration file {}'.format(file_name))
 
-        # Perform the clean on this folder, if there's a clean function
-        rules = getattr(build_rules, 'rules', None)
-        if rules:
+    # Not found? Continue parsing folders.
+    if not build_rules:
+        return True
 
-            # Get the function signature
-            sig = signature(rules)
-
-            parm_root = sig.parameters.get('root')
-            if parm_root:
-                if parm_root.default is True:
-                    found_root = True
-
-            # Test for working directory
-            parm_working_directory = sig.parameters.get('working_directory')
-            if not parm_working_directory:
-                if args.verbose:
-                    print('function rules() doesn\'t have a parameter for '
-                          'working_directory ')
-                error = 10
-                break
-
-            if parm_working_directory.default is Parameter.empty:
-                temp_dir = os.path.dirname(file_name)
-            else:
-                temp_dir = parm_working_directory.default
-            if temp_dir:
-                if working_directory != temp_dir:
-                    if args.verbose:
-                        print(
-                            'function rules() not called '
-                            'due to directory mismatch. '
-                            'Expected {}, found {}'.format(
-                                temp_dir, working_directory))
-                    break
-
-            # rules is not callable (Actually it is)
-            # pylint: disable=E1102
-            error = rules(command='clean', working_directory=working_directory)
-        break
-    return error, found_root
-
-########################################
-
-
-def process(working_directory, args):
-    """
-    Clean a specific directory.
-
-    Args:
-        working_directory: Directory to pass to the ``clean_rules`` function
-        args: Args for determining verbosity for output
-    Returns:
-        Zero on no error, non zero integer on error
-    """
-
-    # Too many branches
-    # pylint: disable=R0912
+    if is_root or getattr(build_rules, 'CLEANME_GENERIC', False):
+        # Add to the list
+        build_rules_list.append(build_rules)
 
     if args.verbose:
-        print('Cleaning "{}".'.format(working_directory))
+        print('Using configuration file {}'.format(file_name))
 
-    # Simplest method, a hard coded rules file
-    if args.rules_file:
-        error = dispatch(
-            os.path.abspath(args.rules_file), working_directory, args)[0]
-    else:
+    # Test if this is considered the last one in the chain.
+    return getattr(build_rules, 'CLEANME_CONTINUE', False)
 
-        # Load the configuration file at the current directory
-        temp_dir = working_directory
-        while True:
-            error, found_root = dispatch(
-                os.path.join(temp_dir, BUILD_RULES_PY),
-                working_directory, args)
-            # Abort on error
-            if error:
-                break
-            # Abort on ROOT = True
-            if found_root:
-                break
+########################################
 
-            # Pop a folder to check for higher level build_rules.py
-            temp_dir2 = os.path.dirname(temp_dir)
 
-            # Already at the top of the directory?
-            if temp_dir2 is None or temp_dir2 == temp_dir:
+def get_build_rules(working_directory, args):
+    """
+    Find all build_rules.py that apply to this directory.
 
-                # Dispatch to the home directory rules
-                error, _ = dispatch(
-                    DEFAULT_BUILD_RULES, working_directory, args)
-                if error:
-                    return error
-                break
-            # Use the new folder
-            temp_dir = temp_dir2
+    Args:
+        working_directory: Directory to scan for build_rules.py
+        args: Args for determining verbosity for output
+    Returns:
+        List of loaded build_rules.py files.
+    """
 
-    # If recursive, process all the sub folders
-    if args.recursive and not error:
-        # Iterate over the directory
-        for item in os.listdir(working_directory):
+    # Test if there is a specific build rule
+    build_rules_list = []
 
-            # Ignore xcode project directories
-            if _XCODEPROJ_MATCH.match(item):
-                continue
+    # Load the configuration file at the current directory
+    temp_dir = os.path.abspath(working_directory)
 
-            path_name = os.path.join(working_directory, item)
-            if os.path.isdir(path_name):
-                error = process(path_name, args)
+    # Is this the first pass?
+    is_root = True
+    while True:
+
+        # Attempt to load in the build rules.
+        if not add_build_rules(
+            build_rules_list, os.path.join(
+                temp_dir, args.rules_file), args, is_root):
+            # Abort if CLEANME_CONTINUE = False
+            break
+
+        # Directory traversal is active, require CLEANME_GENERIC
+        is_root = False
+
+        # Pop a folder to check for higher level build_rules.py
+        temp_dir2 = os.path.dirname(temp_dir)
+
+        # Already at the top of the directory?
+        if temp_dir2 is None or temp_dir2 == temp_dir:
+            add_build_rules(build_rules_list, DEFAULT_BUILD_RULES, args, True)
+            break
+        # Use the new folder
+        temp_dir = temp_dir2
+    return build_rules_list
+
+########################################
+
+
+def getattr_build_rules(build_rules_list, attribute, default):
+    """
+    Find an attribute in a list of build rules.
+
+    Iterate over the build rules list until an entry has an attribute value.
+    It will return the first one found.
+
+    Args:
+        build_rules_list: List of build_rules.py instances.
+        attribute: Attribute name to check for.
+        default: Value to return if the attribute was not found.
+    Returns:
+        default or attribute value.
+    """
+
+    for build_rules in build_rules_list:
+        # Does the entry have this attribute?
+        try:
+            return getattr(build_rules, attribute)
+        except AttributeError:
+            pass
+    # Return the default value
+    return default
+
+########################################
+
+
+def create_parser():
+    """
+    Create the parser to process the command line for buildme
+
+    The returned object has these member variables
+
+    - version boolean if version is requested
+    - recursive boolean for directory recursion
+    - verbose boolean for verbose output
+    - generate_build_rules boolean create build rules and exit
+    - rules_file string override build_rules.py
+    - directories string array of directories to process
+
+    Returns:
+        argparse.ArgumentParser() object
+    """
+
+    # Parse the command line
+    parser = argparse.ArgumentParser(
+        description='Remove project output files. '
+        'Copyright by Rebecca Ann Heineman')
+
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + __version__)
+
+    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
+                        default=False, help='Perform a recursive clean')
+
+    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
+                        default=False, help='Verbose output.')
+
+    parser.add_argument('--generate-rules', dest='generate_build_rules',
+                        action='store_true', default=False,
+                        help='Generate a sample configuration file and exit.')
+
+    parser.add_argument(
+        '--rules-file',
+        dest='rules_file',
+        metavar='<file>',
+        default=BUILD_RULES_PY,
+        help='Specify a configuration file.')
+
+    parser.add_argument('-d', dest='directories', action='append',
+                        metavar='<directory>', default=[],
+                        help='List of directories to clean.')
+
+    return parser
+
+########################################
+
+
+def fixup_args(args):
+    """
+    Perform argument cleanup
+
+    Args:
+        args: args class from argparser
+    """
+
+    # Remove trailing os seperator
+    args.directories = remove_os_sep(args.directories)
+    args.directories = [os.path.abspath(item) for item in args.directories]
+
+########################################
+
+
+def process_directories(processed, directories, args):
+    """
+    Clean a list of directories.
+
+    Args:
+        processed: Set of directories already processed.
+        directories: iterable list of directories to process
+        args: parsed argument list for verbosity
+    Returns:
+        Zero on no error, non zero integer on error
+    """
+
+    error = 0
+
+    # Process the directory list
+    for working_directory in directories:
+
+        # Sanitize the directory
+        working_directory = os.path.abspath(working_directory)
+
+        # Was this directory already processed?
+        if was_processed(processed, working_directory):
+            # Technically not an error to abort processing, so skip
+            continue
+
+        if args.verbose:
+            print('Cleaning "{}".'.format(working_directory))
+
+        # Are there build rules?
+        build_rules_list = get_build_rules(working_directory, args)
+
+        # Is recursion allowed?
+        allow_recursion = not getattr_build_rules(
+            build_rules_list, 'CLEANME_NO_RECURSE', False)
+
+        # Process all files needed.
+
+        for build_rules in build_rules_list:
+
+            item = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
+            if item:
+                # Ensure it's an iterable of strings
+                dir_list = []
+                item = convert_to_array(item)
+                for i in item:
+                    if not os.path.isabs(i):
+                        i = os.path.join(working_directory, i)
+                        # Ensure there is a directory
+                        # This prevents recursion issues
+                        if not os.path.isdir(i):
+                            continue
+                    dir_list.append(i)
+                error = process_directories(
+                    processed, dir_list, args)
                 if error:
                     break
+
+            clean_proc = getattr(build_rules, 'clean', None)
+            if callable(clean_proc):
+                # pylint: disable=not-callable
+                error = clean_proc(working_directory=working_directory)
+                if error:
+                    break
+
+        # If recursive, process all the sub folders
+        if args.recursive and not error and allow_recursion:
+            # Iterate over the directory
+            for item in os.listdir(working_directory):
+
+                # Ignore xcode project directories
+                if _XCODEPROJ_MATCH.match(item):
+                    continue
+
+                # Ignore the build_rules.py file
+                if item == args.rules_file:
+                    continue
+
+                path_name = os.path.join(working_directory, item)
+                if os.path.isdir(path_name):
+                    error = process_directories(processed, [path_name], args)
+                    if error:
+                        break
 
     return error
 
@@ -222,39 +346,19 @@ def main(working_directory=None, args=None):
         Zero on no error, non-zero on error
     """
 
-    # Make sure working_directory is properly set
-    if working_directory is None:
-        working_directory = os.getcwd()
-
-    # Parse the command line
-    parser = argparse.ArgumentParser(
-        description='Remove project output files. '
-        'Copyright by Rebecca Ann Heineman')
-
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + __version__)
-    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
-                        default=False, help='Perform a recursive clean')
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
-                        default=False, help='Verbose output.')
-    parser.add_argument('--generate-rules', dest='generate_build_rules',
-                        action='store_true', default=False,
-                        help='Generate a sample configuration file and exit.')
-    parser.add_argument(
-        '--rules-file',
-        dest='rules_file',
-        metavar='<file>',
-        default=None,
-        help='Specify a configuration file.')
-    parser.add_argument('-d', dest='directories', action='append',
-                        metavar='<directory>', default=[],
-                        help='List of directories to clean.')
+    # Create the parser
+    parser = create_parser()
 
     # Parse everything
     args = parser.parse_args(args=args)
 
+    # Make sure working_directory is properly set
+    if working_directory is None:
+        working_directory = os.getcwd()
+
     # Output default configuration
     if args.generate_build_rules:
+        # pylint: disable=import-outside-toplevel
         from .config import save_default
         if args.verbose:
             print(
@@ -265,15 +369,16 @@ def main(working_directory=None, args=None):
         save_default(working_directory)
         return 0
 
+    # Handle extra arguments
+    fixup_args(args)
+
     # Make a list of directories to process
     if not args.directories:
         args.directories = [working_directory]
 
-    # Clean the directories
-    for item in args.directories:
-        error = process(os.path.abspath(item), args)
-        if error:
-            break
+    # Process the list of directories.
+    # Pass an empty set for recursion testing
+    error = process_directories(set(), args.directories, args)
 
     # Wrap up!
     if args.verbose:

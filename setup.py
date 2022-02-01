@@ -9,7 +9,7 @@ setup.py sdist bdist_wheel
 twine upload --verbose dist/*
 setup.py flake8
 
-Copyright 2013-2019 by Rebecca Ann Heineman becky@burgerbecky.com
+Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
@@ -84,7 +84,9 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 3.4',
     'Programming Language :: Python :: 3.5',
     'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7'
+    'Programming Language :: Python :: 3.7',
+    'Programming Language :: Python :: 3.8',
+    'Programming Language :: Python :: 3.9'
 ]
 
 # Entry points for the generated command line tools

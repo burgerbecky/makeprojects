@@ -19,6 +19,13 @@ Root namespace for the makeprojects tool
 #
 # \htmlinclude README.html
 #
+# Chapter list
+# ============
+#
+# - \subpage md_buildme_man
+# - \subpage md_cleanme_man
+# - \subpage md_rebuildme_man
+#
 # \par To use in your own script:
 #
 # \code
@@ -70,7 +77,7 @@ __email__ = 'becky@burgerbecky.com'
 __license__ = 'MIT License'
 
 ## Copyright owner
-__copyright__ = 'Copyright 2013-2019 Rebecca Ann Heineman'
+__copyright__ = 'Copyright 2013-2022 Rebecca Ann Heineman'
 
 ## Match *.xcodeproj
 _XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
@@ -127,6 +134,8 @@ def build(working_directory=None, args=None):
         makeprojects.buildme
     """
     from .buildme import main
+    if args is None:
+        args = []
     return main(working_directory, args)
 
 ########################################
@@ -146,6 +155,8 @@ def clean(working_directory=None, args=None):
     """
 
     from .cleanme import main
+    if args is None:
+        args = []
     return main(working_directory, args)
 
 ########################################
@@ -165,6 +176,8 @@ def rebuild(working_directory=None, args=None):
     """
 
     from .rebuildme import main
+    if args is None:
+        args = []
     return main(working_directory, args)
 
 ########################################
@@ -183,6 +196,8 @@ def makeprojects(working_directory=None, args=None):
         makeprojects.buildme
     """
     from .__main__ import main
+    if args is None:
+        args = []
     return main(working_directory, args)
 
 ########################################

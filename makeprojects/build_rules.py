@@ -2,13 +2,16 @@
 # -*- coding: utf-8 -*-
 
 """
-Configuration file on how to build and clean projects in a specific folder.
+Build rules for the makeprojects suite of build tools.
 
 This file is parsed by the cleanme, buildme, rebuildme and makeprojects
 command line tools to clean, build and generate project files.
+
+When any of these tools are invoked, this file is loaded and parsed to
+determine special rules on how to handle building the code and / or data.
 """
 
-## \package makeprojects.build_rules
+# pylint: disable=unused-argument
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -17,6 +20,125 @@ import os
 
 from makeprojects.enums import PlatformTypes, ProjectTypes, IDETypes
 
+# If set to True, ``buildme -r``` will not parse directories in this folder.
+BUILDME_NO_RECURSE = None
+
+# ``buildme``` will build these files and folders first.
+BUILDME_DEPENDENCIES = []
+
+# Process any child directory with the clean() function if True.
+CLEANME_GENERIC = False
+
+# ``cleanme`` will process build_rules.py in the parent folder if True.
+CLEANME_CONTINUE = False
+
+# If set to True, ``cleanme -r``` will not parse directories in this folder.
+CLEANME_NO_RECURSE = True
+
+# ``cleanme`` will clean the listed folders using their rules before cleaning.
+# this folder.
+CLEANME_DEPENDENCIES = []
+
+# ``cleanme`` will assume only the function ``clean()`` is used if True.
+CLEANME_PROCESS_PROJECT_FILES = True
+
+########################################
+
+
+def prebuild(working_directory, configuration):
+    """
+    Perform actions before building any IDE based projects.
+
+    This function is called before any IDE or other script is invoked. This is
+    perfect for creating headers or other data that the other build projects
+    need before being invoked.
+
+    On exit, return 0 for no error, or a non zero error code if there was an
+    error to report.
+
+    Args:
+        working_directory
+            Directory this script resides in.
+
+        configuration
+            Configuration to build, ``all`` if no configuration was requested.
+
+    Returns:
+        None if not implemented, otherwise an integer error code.
+    """
+    return None
+
+########################################
+
+
+def build(working_directory, configuration):
+    """
+    Build code or data before building IDE project but after data generation.
+
+    Commands like ``makerez`` and ``slicer`` are called before this function is
+    invoked so it can assume headers and / or data has been generated before
+    issuing custom build commands.
+
+    On exit, return 0 for no error, or a non zero error code if there was an
+    error to report.
+
+    Args:
+        working_directory
+            Directory this script resides in.
+
+        configuration
+            Configuration to build, ``all`` if no configuration was requested.
+
+    Returns:
+        None if not implemented, otherwise an integer error code.
+    """
+    return None
+
+########################################
+
+
+def postbuild(working_directory, configuration):
+    """
+    Issue build commands after all IDE projects have been built.
+
+    This function can assume all other build projects have executed for final
+    deployment or cleanup
+
+    On exit, return 0 for no error, or a non zero error code if there was an
+    error to report.
+
+    Args:
+        working_directory
+            Directory this script resides in.
+
+        configuration
+            Configuration to build, ``all`` if no configuration was requested.
+
+    Returns:
+        None if not implemented, otherwise an integer error code.
+    """
+    return None
+
+########################################
+
+
+def clean(working_directory):
+    """
+    Delete temporary files.
+
+    This function is called by ``cleanme`` to remove temporary files.
+
+    On exit, return 0 for no error, or a non zero error code if there was an
+    error to report.
+
+    Args:
+        working_directory
+            Directory this script resides in.
+
+    Returns:
+        None if not implemented, otherwise an integer error code.
+    """
+    return None
 
 ########################################
 
@@ -117,7 +239,7 @@ def do_configuration_settings(configuration):
             libraries_list.extend(['android', 'EGL', 'GLESv1_CM'])
 
         # Xbox 360
-        if platform == PlatformTypes.xbox360:
+        if platform is PlatformTypes.xbox360:
             define_list.extend(['_XBOX', 'XBOX'])
             libraries_list.extend(['xbdm.lib', 'xboxkrnl.lib'])
             if configuration.get_chained_value('profile'):
@@ -134,6 +256,12 @@ def do_configuration_settings(configuration):
                     ['d3d9ltcg.lib', 'd3dx9.lib', 'xgraphics.lib',
                      'xapilib.lib', 'xaudio2.lib', 'x3daudioltcg.lib',
                      'xmcoreltcg.lib'])
+
+        # Xbox ONE
+        if platform is PlatformTypes.xboxone:
+            libraries_list.extend(
+                ['pixEvt.lib', 'd3d11_x.lib', 'combase.lib', 'kernelx.lib',
+                 'uuid.lib', '%(XboxExtensionsDependencies)'])
 
         # Mac Carbon
         if platform.is_macos_carbon():
@@ -308,30 +436,8 @@ def rules(command, working_directory, root=True, **kargs):
     # Too many return statements
     # pylint: disable=W0613,R0911
 
-    # Commands for cleanme.
-    if command == 'clean':
-        # Call functions to delete files and / or folders
-        # Return non zero integer on error.
-        pass
-
-    # Commands for buildme.
-    elif command == 'prebuild':
-        # Perform actions before building any IDE based projects
-        # Return non zero integer on error.
-        pass
-
-    elif command == 'build':
-        # Perform actions to build
-        # Return non zero integer on error.
-        pass
-
-    elif command == 'postbuild':
-        # Perform actions after all IDE based projects
-        # Return non zero integer on error.
-        pass
-
     # Commands for makeprojects.
-    elif command == 'default_project_name':
+    if command == 'default_project_name':
         # Return the default name of the project to create.
         return os.path.basename(working_directory)
 

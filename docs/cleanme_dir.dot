@@ -1,0 +1,25 @@
+// Graph for cleanme directory traversal
+
+graph {
+	"C:\\" [shape=folder];
+	Windows [shape=folder];
+	Users [shape=folder];
+	Projects [shape=folder];
+	Tools [shape=folder];
+	App1 [shape=folder];
+	App2 [shape=folder];
+	App3 [shape=folder];
+	br1 [shape=box3d, label="build_rules.py\nCLEANME_GENERIC=True", style=filled, fillcolor=green1];
+	br2 [shape=box3d, label="build_rules.py\nCLEANME_GENERIC=False", style=filled, fillcolor=green1];
+	br3 [shape=box3d, label="build_rules.py\nCLEANME_GENERIC=False", style=filled, fillcolor=green1];
+	"C:\\" -- Windows;
+	"C:\\" -- Users;
+	"C:\\" -- Projects;
+	Projects -- br1;
+	Projects -- Tools;
+	Tools -- App1;
+	Tools -- App2;
+	Tools -- App3;
+	Tools -- br2;
+	App2 -- br3;
+}
