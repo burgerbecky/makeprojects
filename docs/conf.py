@@ -233,7 +233,7 @@ def generate_doxygen_xml(app):
     sys.path.append(CWD)
     build_rules = __import__('build_rules')
     sys.path.pop()
-    build_rules.build_readme(CWD)
+    build_rules.build(CWD, 'all')
 
     # Call Doxygen to build the documentation
     try:
