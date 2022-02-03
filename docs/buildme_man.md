@@ -59,6 +59,7 @@ These are the supported versions of Visual Studio:
 - Visual Studio 2015
 - Visual Studio 2017
 - Visual Studio 2019
+- Visual Studio 2022
 
 These are the supported Visual Studio plug ins.
 

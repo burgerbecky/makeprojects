@@ -28,7 +28,8 @@ SUPPORTED_IDES = (
     IDETypes.vs2013,
     IDETypes.vs2015,
     IDETypes.vs2017,
-    IDETypes.vs2019)
+    IDETypes.vs2019,
+    IDETypes.vs2022)
 
 ########################################
 

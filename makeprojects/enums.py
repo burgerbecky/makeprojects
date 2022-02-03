@@ -369,50 +369,52 @@ class IDETypes(IntEnum):
     vs2017 = 7
     ## Visual studio 2019
     vs2019 = 8
+    ## Visual studio 2022
+    vs2022 = 9
 
     ## Open Watcom 1.9 or later
-    watcom = 9
+    watcom = 10
 
     ## Metrowerks Codewarrior 9 / 5.0 (Windows/Mac OS)
-    codewarrior50 = 10
+    codewarrior50 = 11
     ## Metrowerks Codewarrior 10 / 5.8 (Mac OS Carbon)
-    codewarrior58 = 11
+    codewarrior58 = 12
     ## Freescale Codewarrior 5.9 (Nintendo DSi)
-    codewarrior59 = 12
+    codewarrior59 = 13
 
     ## XCode 3 (PowerPC 3.1.4 is the target version)
-    xcode3 = 13
+    xcode3 = 14
     ## XCode 4
-    xcode4 = 14
+    xcode4 = 15
     ## XCode 5
-    xcode5 = 15
+    xcode5 = 16
     ## XCode 6
-    xcode6 = 16
+    xcode6 = 17
     ## XCode 7
-    xcode7 = 17
+    xcode7 = 18
     ## XCode 8
-    xcode8 = 18
+    xcode8 = 19
     ## XCode 9
-    xcode9 = 19
+    xcode9 = 20
     ## XCode 10
-    xcode10 = 20
+    xcode10 = 21
     ## XCode 11
-    xcode11 = 21
+    xcode11 = 22
 
     ## Codeblocks
-    codeblocks = 22
+    codeblocks = 23
 
     ## nmake
-    nmake = 23
+    nmake = 24
 
     ## make
-    make = 24
+    make = 25
 
     ## bazel
-    bazel = 25
+    bazel = 26
 
     ## MPW
-    mpw = 26
+    mpw = 27
 
     def get_short_code(self):
         """
@@ -440,7 +442,7 @@ class IDETypes(IntEnum):
         return self in (
             IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010,
             IDETypes.vs2012, IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017,
-            IDETypes.vs2019)
+            IDETypes.vs2019, IDETypes.vs2022)
 
     def is_xcode(self):
         """
@@ -575,6 +577,7 @@ _IDETYPES_CODES = {
     IDETypes.vs2015: 'v15',
     IDETypes.vs2017: 'v17',
     IDETypes.vs2019: 'v19',
+    IDETypes.vs2022: 'v22',
     IDETypes.watcom: 'wat',                 # Watcom MAKEFILE
     IDETypes.codewarrior50: 'c50',          # Metrowerks / Freescale CodeWarrior
     IDETypes.codewarrior58: 'c58',
@@ -611,6 +614,7 @@ _IDETYPES_READABLE = {
     IDETypes.vs2015: 'Visual Studio 2015',
     IDETypes.vs2017: 'Visual Studio 2017',
     IDETypes.vs2019: 'Visual Studio 2019',
+    IDETypes.vs2022: 'Visual Studio 2022',
     IDETypes.watcom: 'Open Watcom 1.9 wmake',
     IDETypes.codewarrior50: 'CodeWarrior 9',
     IDETypes.codewarrior58: 'CodeWarrior 10',
@@ -646,6 +650,7 @@ def get_installed_visual_studio():
     """
 
     vs_studio_table = (
+        (2022, IDETypes.vs2022),
         (2019, IDETypes.vs2019),
         (2017, IDETypes.vs2017),
         (2015, IDETypes.vs2015),

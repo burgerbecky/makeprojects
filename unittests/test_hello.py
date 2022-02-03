@@ -35,7 +35,8 @@ def test_visual_studio(tmpdir):
         (IDETypes.vs2013, 'hellov13win.sln'),
         (IDETypes.vs2015, 'hellov15win.sln'),
         (IDETypes.vs2017, 'hellov17win.sln'),
-        (IDETypes.vs2019, 'hellov19win.sln')
+        (IDETypes.vs2019, 'hellov19win.sln'),
+        (IDETypes.vs2022, 'hellov22win.sln')
     ]
 
     # Create a source code folder

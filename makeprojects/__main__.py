@@ -305,6 +305,8 @@ def main(working_directory=None, args=None):
                         default=False, help='Build for Visual Studio 2017.')
     parser.add_argument('-vs2019', dest='vs2019', action='store_true',
                         default=False, help='Build for Visual Studio 2019.')
+    parser.add_argument('-vs2022', dest='vs2022', action='store_true',
+                        default=False, help='Build for Visual Studio 2022.')
 
     parser.add_argument('-codeblocks', dest='codeblocks', action='store_true',
                         default=False, help='Build for CodeBlocks 16.01')

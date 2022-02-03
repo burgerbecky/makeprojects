@@ -82,7 +82,8 @@ _VS_VERSION_YEARS = {
     '2013': 2013,
     '14': 2015,
     '15': 2017,
-    '16': 2019
+    '16': 2019,
+    '17': 2022
 }
 
 ## Lookup for Visual Studio year in SLN file pre-2012.
@@ -1213,7 +1214,7 @@ class BuildVisualStudioFile(BuildObject):
         """
         Build a visual studio .sln file.
 
-        Supports Visual Studio 2005 - 2019. Supports platforms Win32, x64,
+        Supports Visual Studio 2005 - 2022. Supports platforms Win32, x64,
         Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
         Xbox ONE, Switch, Wii
 

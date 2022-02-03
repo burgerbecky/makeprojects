@@ -342,7 +342,7 @@ def BoolOptimizeForWindowsApplication(configuration):
         None or BooleanProperty
     """
     if configuration.ide is IDETypes.vs2003:
-        # Default to True because it's 2019.
+        # Default to True because it's 2022.
         return BooleanProperty.vs_validate(
             'OptimizeForWindowsApplication', configuration,
             True,

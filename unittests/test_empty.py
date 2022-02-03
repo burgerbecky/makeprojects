@@ -34,7 +34,8 @@ def test_visual_studio(tmpdir):
         (IDETypes.vs2013, 'emptyv13.sln'),
         (IDETypes.vs2015, 'emptyv15.sln'),
         (IDETypes.vs2017, 'emptyv17.sln'),
-        (IDETypes.vs2019, 'emptyv19.sln')
+        (IDETypes.vs2019, 'emptyv19.sln'),
+        (IDETypes.vs2022, 'emptyv22.sln')
     ]
 
     for item in empty_tests:
