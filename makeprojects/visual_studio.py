@@ -10,6 +10,9 @@ by Microsoft's Visual Studio 2003, 2005 and 2008.
 
 ## \package makeprojects.visual_studio
 
+# pylint: disable=consider-using-f-string
+# pylint: disable=invalid-name
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
@@ -24,8 +27,6 @@ from .validators import BooleanProperty, StringProperty, EnumProperty, \
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
-
-# pylint: disable=invalid-name
 
 SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
 
@@ -77,18 +78,19 @@ def convert_file_name_vs2010(item):
 
 
 def BoolUseUnicodeResponseFiles(configuration):
-    """ UseUnicodeResponseFiles
+    """
+    Entry for UseUnicodeResponseFiles
 
     Instructs the project system to generate UNICODE response files when
     spawning the librarian.  Set this property to True when files in the project
     have UNICODE paths.
 
     Note:
-        Not available on Visual Studio 2003 and earlier
+        Not available on Visual Studio 2003 and earlier.
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
 
     if configuration.ide > IDETypes.vs2003:
@@ -111,7 +113,7 @@ def BoolGlobalOptimizations(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide is IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -131,7 +133,7 @@ def BoolRegisterOutput(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate('RegisterOutput', configuration)
 
@@ -147,7 +149,7 @@ def BoolPerUserRedirection(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2005:
         return BooleanProperty.vs_validate('PerUserRedirection', configuration)
@@ -163,7 +165,7 @@ def BoolIgnoreImportLibrary(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate('IgnoreImportLibrary', configuration)
 
@@ -179,7 +181,7 @@ def BoolLinkLibraryDependencies(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -199,7 +201,7 @@ def BoolUseLibraryDependencyInputs(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -218,7 +220,7 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide < IDETypes.vs2008:
         return BooleanProperty.vs_validate(
@@ -237,7 +239,7 @@ def BoolEnableIntrinsicFunctions(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'EnableIntrinsicFunctions', configuration,
@@ -258,7 +260,7 @@ def BoolImproveFloatingPointConsistency(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide is IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -278,7 +280,7 @@ def BoolOmitFramePointers(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'OmitFramePointers', configuration,
@@ -298,7 +300,7 @@ def BoolEnableFiberSafeOptimizations(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'EnableFiberSafeOptimizations', configuration,
@@ -318,7 +320,7 @@ def BoolWholeProgramOptimization(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'WholeProgramOptimization', configuration,
@@ -339,7 +341,7 @@ def BoolOptimizeForWindowsApplication(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide is IDETypes.vs2003:
         # Default to True because it's 2022.
@@ -361,7 +363,7 @@ def BoolIgnoreStandardIncludePath(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'IgnoreStandardIncludePath', configuration,
@@ -380,7 +382,7 @@ def BoolKeepComments(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'KeepComments', configuration,
@@ -398,7 +400,7 @@ def BoolStringPooling(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'StringPooling', configuration, True,
@@ -417,7 +419,7 @@ def BoolMinimalRebuild(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'MinimalRebuild', configuration,
@@ -438,7 +440,7 @@ def BoolExceptionHandling(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide is IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -460,7 +462,7 @@ def BoolSmallerTypeCheck(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SmallerTypeCheck', configuration,
@@ -480,7 +482,7 @@ def BoolBufferSecurityCheck(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'BufferSecurityCheck', configuration,
@@ -499,7 +501,7 @@ def BoolEnableFunctionLevelLinking(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'EnableFunctionLevelLinking', configuration,
@@ -520,7 +522,7 @@ def BoolFloatingPointExceptions(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -540,7 +542,7 @@ def BoolDisableLanguageExtensions(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'DisableLanguageExtensions', configuration,
@@ -558,7 +560,7 @@ def BoolDefaultCharIsUnsigned(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'DefaultCharIsUnsigned', configuration,
@@ -576,7 +578,7 @@ def BoolTreatWChar_tAsBuiltInType(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'TreatWChar_tAsBuiltInType', configuration, True,
@@ -594,7 +596,7 @@ def BoolForceConformanceInForLoopScope(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'ForceConformanceInForLoopScope', configuration,
@@ -613,7 +615,7 @@ def BoolRuntimeTypeInfo(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'RuntimeTypeInfo', configuration, False,
@@ -633,7 +635,7 @@ def BoolOpenMP(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
 
     if configuration.ide > IDETypes.vs2003:
@@ -654,7 +656,7 @@ def BoolExpandAttributedSource(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'ExpandAttributedSource', configuration,
@@ -674,7 +676,7 @@ def BoolGenerateXMLDocumentationFiles(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -694,7 +696,7 @@ def BoolWarnAsError(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'WarnAsError', configuration,
@@ -713,7 +715,7 @@ def BoolSuppressStartupBanner(configuration, options_key):
         configuration: Project configuration to scan for overrides.
         options_key: Options
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SuppressStartupBanner', configuration,
@@ -731,7 +733,7 @@ def BoolDetect64BitPortabilityProblems(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'Detect64BitPortabilityProblems', configuration,
@@ -749,7 +751,7 @@ def BoolShowIncludes(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'ShowIncludes', configuration,
@@ -767,7 +769,7 @@ def BoolUndefineAllPreprocessorDefinitions(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'UndefineAllPreprocessorDefinitions',
@@ -788,7 +790,7 @@ def BoolUseFullPaths(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -811,7 +813,7 @@ def BoolOmitDefaultLibName(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -833,7 +835,7 @@ def BoolGenerateManifest(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -855,7 +857,7 @@ def BoolEnableUAC(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2005:
         return BooleanProperty.vs_validate(
@@ -880,7 +882,7 @@ def BoolUACUIAccess(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2005:
         return BooleanProperty.vs_validate(
@@ -900,7 +902,7 @@ def BoolIgnoreAllDefaultLibraries(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'IgnoreAllDefaultLibraries', configuration,
@@ -917,7 +919,7 @@ def BoolIgnoreEmbeddedIDL(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'IgnoreEmbeddedIDL', configuration,
@@ -934,7 +936,7 @@ def BoolGenerateDebugInformation(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'GenerateDebugInformation', configuration, bool(configuration.debug),
@@ -951,7 +953,7 @@ def BoolMapExports(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'MapExports', configuration,
@@ -968,7 +970,7 @@ def BoolGenerateMapFile(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'GenerateMapFile', configuration,
@@ -987,7 +989,7 @@ def BoolMapLines(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
 
     if configuration.ide is IDETypes.vs2003:
@@ -1007,7 +1009,7 @@ def BoolSwapRunFromCD(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SwapRunFromCD', configuration,
@@ -1024,7 +1026,7 @@ def BoolSwapRunFromNet(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SwapRunFromNet', configuration,
@@ -1042,7 +1044,7 @@ def BoolResourceOnlyDLL(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'ResourceOnlyDLL', configuration,
@@ -1059,7 +1061,7 @@ def BoolSetChecksum(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SetChecksum', configuration,
@@ -1077,7 +1079,7 @@ def BoolTurnOffAssemblyGeneration(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'TurnOffAssemblyGeneration', configuration,
@@ -1094,7 +1096,7 @@ def BoolSupportUnloadOfDelayLoadedDLL(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty.vs_validate(
         'SupportUnloadOfDelayLoadedDLL', configuration,
@@ -1113,7 +1115,7 @@ def BoolDelaySign(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -1134,7 +1136,7 @@ def BoolAllowIsolation(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -1156,7 +1158,7 @@ def BoolProfile(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -1178,7 +1180,7 @@ def BoolCLRUnmanagedCodeCheck(configuration):
     Args:
         configuration: Project configuration to scan for overrides.
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2003:
         return BooleanProperty.vs_validate(
@@ -1194,7 +1196,7 @@ def BoolExcludedFromBuild(default=None):
     Ignore from build.
 
     Returns:
-        None or BooleanProperty
+        None or BooleanProperty object.
     """
     return BooleanProperty('ExcludedFromBuild', default=default)
 

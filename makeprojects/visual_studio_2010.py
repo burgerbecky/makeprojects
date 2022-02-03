@@ -11,6 +11,8 @@ Microsoft's Visual Studio IDE
 
 ## \package makeprojects.visual_studio_2010
 
+# pylint: disable=consider-using-f-string
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
@@ -158,6 +160,12 @@ def generate_solution_file(solution_lines, solution):
             '# Visual Studio Version 16',
             'VisualStudioVersion = 16.0.28803.452',
             'MinimumVisualStudioVersion = 10.0.40219.1'),
+        IDETypes.vs2022: (
+            '',
+            'Microsoft Visual Studio Solution File, Format Version 12.00',
+            '# Visual Studio Version 17',
+            'VisualStudioVersion = 17.0.32112.339',
+            'MinimumVisualStudioVersion = 10.0.40219.1')
     }
 
     # Insert the header to the output stream
@@ -295,6 +303,13 @@ def generate_solution_file(solution_lines, solution):
                 '\tGlobalSection(ExtensibilityGlobals) = postSolution')
             solution_lines.append(
                 '\t\tSolutionGuid = {6B996D51-9872-4B32-A08B-EBDBC2A3151F}')
+            solution_lines.append('\tEndGlobalSection')
+
+        if solution.ide == IDETypes.vs2022:
+            solution_lines.append(
+                '\tGlobalSection(ExtensibilityGlobals) = postSolution')
+            solution_lines.append(
+                '\t\tSolutionGuid = {B6FA54F0-2622-4700-BD43-73EB0EBEFE41}')
             solution_lines.append('\tEndGlobalSection')
 
     # Close it up!
@@ -693,6 +708,8 @@ class VS2010Configuration(VS2010XML):
         """
 
         ## Parent configuration
+
+        # pylint: disable=too-many-branches
         self.configuration = configuration
 
         vs_configuration_name = configuration.vs_configuration_name
@@ -939,7 +956,13 @@ class VS2010PropertyGroup(VS2010XML):
         if platform is PlatformTypes.xboxone:
             self.add_tags(
                 (('ExecutablePath',
-                  '$(Console_SdkRoot)bin;$(VCInstallDir)bin\\x86_amd64;$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);$(VSInstallDir)Common7\\Tools\\bin;$(VSInstallDir)Common7\\tools;$(VSInstallDir)Common7\\ide;$(ProgramFiles)\\HTML Help Workshop;$(MSBuildToolsPath32);$(FxCopDir);$(PATH);'),
+                  ('$(Console_SdkRoot)bin;$(VCInstallDir)bin\\x86_amd64;'
+                   '$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);'
+                   '$(VSInstallDir)Common7\\Tools\\bin;'
+                   '$(VSInstallDir)Common7\\tools;'
+                   '$(VSInstallDir)Common7\\ide;'
+                   '$(ProgramFiles)\\HTML Help Workshop;'
+                   '$(MSBuildToolsPath32);$(FxCopDir);$(PATH);')),
                  ('IncludePath', '$(Console_SdkIncludeRoot)'),
                  ('ReferencePath',
                   '$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)'),
@@ -1527,7 +1550,8 @@ class VS2010Files(VS2010XML):
                 (('ObjectFileName',
                   '%(RootDir)%(Directory)Generated\\%(FileName).h'),))
 
-        for item in source_file_filter(project.codefiles, FileTypes.appxmanifest):
+        for item in source_file_filter(
+            project.codefiles, FileTypes.appxmanifest):
             self.add_element(
                 VS2010XML(
                     'AppxManifest', {
