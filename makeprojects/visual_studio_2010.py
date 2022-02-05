@@ -742,7 +742,8 @@ class VS2010Configuration(VS2010XML):
                     IDETypes.vs2013: 'v120_xp',
                     IDETypes.vs2015: 'v140_xp',
                     IDETypes.vs2017: 'v141_xp',
-                    IDETypes.vs2019: 'v142'
+                    IDETypes.vs2019: 'v142',
+                    IDETypes.vs2022: 'v143'
                 }
                 platform_toolset = platformtoolsets.get(
                     configuration.ide, 'v141_xp')
@@ -757,7 +758,8 @@ class VS2010Configuration(VS2010XML):
             elif platform is PlatformTypes.xboxone:
                 platformtoolsets_one = {
                     IDETypes.vs2017: 'v141',
-                    IDETypes.vs2019: 'v142'
+                    IDETypes.vs2019: 'v142',
+                    IDETypes.vs2022: 'v143'
                 }
                 platform_toolset = platformtoolsets_one.get(
                     configuration.ide, 'v141')
