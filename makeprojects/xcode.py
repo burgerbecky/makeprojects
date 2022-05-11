@@ -19,6 +19,8 @@ Handler for Apple Computer XCode projects
 # project files intended for use by Apple's XCode IDE
 #
 
+# pylint: disable=consider-using-f-string
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import hashlib
@@ -58,7 +60,9 @@ SUPPORTED_IDES = (
     IDETypes.xcode8,
     IDETypes.xcode9,
     IDETypes.xcode10,
-    IDETypes.xcode11)
+    IDETypes.xcode11,
+    IDETypes.xcode12,
+    IDETypes.xcode13)
 
 ## Version values
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
@@ -71,7 +75,9 @@ OBJECT_VERSIONS = {
     IDETypes.xcode8: ('48', '0800', 'Xcode 8.0', None),
     IDETypes.xcode9: ('50', '0900', 'Xcode 9.3', None),
     IDETypes.xcode10: ('51', '1030', 'Xcode 10.0', None),
-    IDETypes.xcode11: ('52', '1100', 'Xcode 11.0', None)
+    IDETypes.xcode11: ('52', '1100', 'Xcode 11.0', None),
+    IDETypes.xcode12: ('53', '1200', 'Xcode 12.0', None),
+    IDETypes.xcode13: ('54', '1300', 'Xcode 13.0', None)
 }
 
 ## Order of XCode objects
@@ -2501,8 +2507,8 @@ class Project(JSONDict):
             #
 
             sdkroot = None
-            if project.platform is PlatformTypes.ios:
-                sdkroot = 'iphoneos'
+            if project.platform.is_ios():
+                sdkroot = "iphoneos"
 
             if project.project_type is ProjectTypes.library:
                 outputtype = 'com.apple.product-type.library.static'

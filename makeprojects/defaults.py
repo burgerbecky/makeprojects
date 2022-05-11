@@ -6,6 +6,7 @@ Module that contains the code to generate defaults.
 """
 
 ## \package makeprojects.defaults
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -395,6 +396,9 @@ def fixup_ide_platform(ide_list, platform_list):
 
         elif PlatformTypes.switch in platform_list:
             ide_list.append(IDETypes.vs2017)
+
+        elif PlatformTypes.android in platform_list:
+            ide_list.append(IDETypes.vs2022)
 
         # Unknown, punt on the IDE
         else:

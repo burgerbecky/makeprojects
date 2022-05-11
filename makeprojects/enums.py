@@ -117,6 +117,8 @@ class FileTypes(IntEnum):
         """
         Convert the enumeration into a human readable file description
 
+        Args:
+            self: FileTypes instance
         Returns:
             Human readable string or None if the enumeration is invalid
         See Also:
@@ -400,21 +402,25 @@ class IDETypes(IntEnum):
     xcode10 = 21
     ## XCode 11
     xcode11 = 22
+    ## XCode 12
+    xcode12 = 23
+    ## XCode 13
+    xcode13 = 24
 
     ## Codeblocks
-    codeblocks = 23
+    codeblocks = 25
 
     ## nmake
-    nmake = 24
+    nmake = 26
 
     ## make
-    make = 25
+    make = 27
 
     ## bazel
-    bazel = 26
+    bazel = 28
 
     ## MPW
-    mpw = 27
+    mpw = 29
 
     def get_short_code(self):
         """
@@ -455,7 +461,7 @@ class IDETypes(IntEnum):
         return self in (
             IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
             IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
-            IDETypes.xcode11)
+            IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13)
 
     def is_codewarrior(self):
         """
@@ -591,6 +597,8 @@ _IDETYPES_CODES = {
     IDETypes.xcode9: 'xc9',
     IDETypes.xcode10: 'x10',
     IDETypes.xcode11: 'x11',
+    IDETypes.xcode12: 'x12',
+    IDETypes.xcode13: 'x13',
     IDETypes.codeblocks: 'cdb',             # Codeblocks
     IDETypes.nmake: 'nmk',                  # nmake
     IDETypes.make: 'mak',                   # make
@@ -628,6 +636,8 @@ _IDETYPES_READABLE = {
     IDETypes.xcode9: 'XCode 9',
     IDETypes.xcode10: 'XCode 10',
     IDETypes.xcode11: 'XCode 11',
+    IDETypes.xcode12: 'XCode 12',
+    IDETypes.xcode13: 'XCode 13',
     IDETypes.codeblocks: 'CodeBlocks 13.12',
     IDETypes.nmake: 'GNU make',
     IDETypes.make: 'Linux make',
@@ -682,6 +692,8 @@ def get_installed_xcode():
     """
 
     xcode_table = (
+        (13, IDETypes.xcode13),
+        (12, IDETypes.xcode12),
         (11, IDETypes.xcode11),
         (10, IDETypes.xcode10),
         (9, IDETypes.xcode9),
@@ -897,6 +909,16 @@ class PlatformTypes(IntEnum):
                         PlatformTypes.ios64, PlatformTypes.iosemu,
                         PlatformTypes.iosemu32, PlatformTypes.iosemu64)
 
+    def is_darwin(self):
+        """
+        Determine if the platform supports Darwin.
+
+        Returns:
+            True if the platform is Apple iOS or macOS X.
+        """
+
+        return self.is_ios() or self.is_macosx()
+
     def is_macos(self):
         """
         Determine if the platform is MacOS classic or Carbon.
@@ -996,12 +1018,14 @@ class PlatformTypes(IntEnum):
                 platform_folder = 'ios'
             elif self.is_macos():
                 platform_folder = 'mac'
-            elif self.is_android():
-                platform_folder = 'shield'
-            elif self.is_switch():
-                platform_folder = 'switch'
             elif self is PlatformTypes.ouya:
                 platform_folder = 'ouya'
+            elif self is PlatformTypes.shield:
+                platform_folder = 'shield'
+            elif self.is_android():
+                platform_folder = 'android'
+            elif self.is_switch():
+                platform_folder = 'switch'
             else:
                 platform_folder = 'linux'
         return platform_folder
@@ -1025,31 +1049,31 @@ class PlatformTypes(IntEnum):
             return True
 
         # Test using the windows wildcard
-        if self == PlatformTypes.windows or second == PlatformTypes.windows:
+        if PlatformTypes.windows in (self, second):
             return self.is_windows() == second.is_windows()
 
         # Test macosx
-        if self == PlatformTypes.macosx or second == PlatformTypes.macosx:
+        if PlatformTypes.macosx in (self, second):
             return self.is_macosx() == second.is_macosx()
 
         # Test macos 1.0 - 9.2.2
-        if self == PlatformTypes.macos9 or second == PlatformTypes.macos9:
+        if PlatformTypes.macos9 in (self, second):
             return self.is_macos_classic() == second.is_macos_classic()
 
         # Test macos Carbon
-        if self == PlatformTypes.maccarbon or second == PlatformTypes.maccarbon:
+        if PlatformTypes.maccarbon in (self, second):
             return self.is_macos_carbon() == second.is_macos_carbon()
 
         # Test iOS
-        if self == PlatformTypes.ios or second == PlatformTypes.ios:
+        if PlatformTypes.ios in (self, second):
             return self.is_ios() == second.is_ios()
 
         # Test MSDos
-        if self == PlatformTypes.msdos or second == PlatformTypes.msdos:
+        if PlatformTypes.msdos in (self, second):
             return self.is_msdos() == second.is_msdos()
 
         # Test Android
-        if self == PlatformTypes.android or second == PlatformTypes.android:
+        if PlatformTypes.android in (self, second):
             return self.is_android() == second.is_android()
         return False
 
@@ -1461,9 +1485,9 @@ def platformtype_short_code(configurations):
     for configuration in configurations:
         codes.append(configuration.platform)
 
-    for item in _PLATFORMTYPES_EXPANDED:
-        if all(x in codes for x in _PLATFORMTYPES_EXPANDED[item]):
-            return item.get_short_code()
+    for item in _PLATFORMTYPES_EXPANDED.items():
+        if all(x in codes for x in item[1]):
+            return item[0].get_short_code()
 
     # Return the first entry's short code.
     return codes[0].get_short_code()

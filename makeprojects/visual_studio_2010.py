@@ -164,7 +164,7 @@ def generate_solution_file(solution_lines, solution):
             '',
             'Microsoft Visual Studio Solution File, Format Version 12.00',
             '# Visual Studio Version 17',
-            'VisualStudioVersion = 17.0.32112.339',
+            'VisualStudioVersion = 17.1.32210.238',
             'MinimumVisualStudioVersion = 10.0.40219.1')
     }
 

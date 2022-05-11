@@ -18,6 +18,8 @@ Please? It's not like I'm asking you for money!
 
 """
 
+# pylint: disable=import-outside-toplevel
+
 from __future__ import absolute_import, print_function, unicode_literals
 import io
 import os
@@ -61,7 +63,7 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 INSTALL_REQUIRES = [
     'setuptools >= 17.1',
     'enum34 >= 1.0.0',
-    'burger >= 1.1.36',
+    'burger >= 1.2.2',
     'argparse >= 1.0',
     'glob2 >= 0.6',
     'funcsigs >= 1.0'
@@ -86,7 +88,8 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 3.6',
     'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9'
+    'Programming Language :: Python :: 3.9',
+    'Programming Language :: Python :: 3.10'
 ]
 
 # Entry points for the generated command line tools
@@ -188,6 +191,7 @@ def myunlock(working_directory, recursive):
     """
     Unlock files locked by Perforce
     """
+
     result = []
     try:
         import burger

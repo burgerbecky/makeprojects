@@ -96,14 +96,7 @@ def build(working_directory, configuration):
     if is_source_newer(source, dest):
 
         # Load pandoc if needed to do the conversion
-        if hasattr(pypandoc, 'ensure_pandoc_installed'):
-            # pylint: disable=E1101
-            pypandoc.ensure_pandoc_installed(quiet=True, delete_installer=True)
-        else:
-            try:
-                pypandoc.get_pandoc_path()
-            except OSError:
-                pypandoc.download_pandoc()
+        pypandoc.ensure_pandoc_installed(delete_installer=True)
         pypandoc.convert_file(source, to='html', outputfile=dest)
     return 0
 

@@ -237,6 +237,8 @@ def do_configuration_settings(configuration):
         if platform.is_android():
             define_list.append('DISABLE_IMPORTGL')
             libraries_list.extend(['android', 'EGL', 'GLESv1_CM'])
+            if ide is IDETypes.vs2022:
+                define_list.append('__ANDROID_API__=$(AndroidAPILevelNumber)')
 
         # Xbox 360
         if platform is PlatformTypes.xbox360:

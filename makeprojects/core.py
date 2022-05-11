@@ -1088,7 +1088,8 @@ class Project(Attributes):
 
         Args:
             working_directory: Directory to scan
-            file_list: list to store SourceFile records
+            recurse: Enable recursion
+            acceptable_list: list to store SourceFile records
         """
 
         # Absolute or relative?
