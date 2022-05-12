@@ -2,40 +2,50 @@
 # Read the Docs configuration file
 # See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
 
-# makeprojects needs doxypypy to build the docs. The version of doxypypy that's
-# in pypi.org is outdated, so the most recent version must be pulled from
-# github and installed manually.
+# makeprojects needs doxypypy, graphviz, and doxygen to build the docs.
+
+# The version of doxypypy that's in pypi.org is outdated, so the most recent
+# version must be pulled from github and installed manually.
 #
 # Since Python 3.9, commonmark, setuptools and distlib have issues so they
 # too need to be updated to the latest version to work. Thankfully, they
 # simply need to be pulled down using pip without any issues.
 #
+# graphviz is not version dependent, so the version supplied by apt-get will
+# suffice.
+#
+# Doxygen is needed to be at least version 1.9.4. conf.py will download and
+# install it manually since it appears that apt-get only can obtain version
+# 1.8.7 which has issues that are fixed in 1.9.4
 
 # Required
 version: 2
 
-# If using Sphinx, optionally build your docs in additional formats such as PDF
+# Build all sphinx docs
 formats: all
 
-# Optionally declare the Python requirements required to build your docs
+# Set up all the requirements for python building
 python:
   install:
     - requirements: docs/requirements.txt
 
-# Set the version of Python and other tools you might need
+# Use latest Ubuntu, python and graphviz
 build:
   os: ubuntu-20.04
   tools:
     python: "3"
+  apt_packages:
+    - graphviz
   jobs:
     post_checkout:
       - git clone https://github.com/Feneric/doxypypy.git
+
     # Python requires these modules updated
     # doxypypy needs to be updated manually
     post_install:
       - /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/latest/bin/python -m pip install -U setuptools distlib commonmark recommonmark
       - /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/latest/bin/python -m pip install ./doxypypy
-      - /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/latest/bin/python -m pip list --format freeze
-# Build documentation in the docs/ directory with Sphinx
+
+# Point to the conf.py file
 sphinx:
   configuration: docs/conf.py
