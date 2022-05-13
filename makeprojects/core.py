@@ -227,8 +227,8 @@ class Attributes:
         self.custom_rules = {}
 
         # Set all the variables
-        for key in kargs:
-            setattr(self, key, kargs[key])
+        for key in kargs.items():
+            setattr(self, key[0], key[1])
 
     ########################################
 
@@ -297,13 +297,11 @@ class Attributes:
     # Attribute defined outside __init__
     # pylint: disable=W0201
 
-    @property
-    def platform(self):
+    def _getplatform(self):
         """ Get the enums.PlatformTypes """
         return self.get_chained_value('_platform')
 
-    @platform.setter
-    def platform(self, value):
+    def _setplatform(self, value):
         """
         Set the enums.PlatformTypes with validation
         Args:
@@ -314,15 +312,15 @@ class Attributes:
         ## Private enums.PlatformTypes value
         self._platform = validate_enum_type(value, PlatformTypes)
 
+    platform = property(_getplatform, _setplatform)
+
     ########################################
 
-    @property
-    def project_type(self):
+    def _getproject_type(self):
         """ Get the enums.ProjectTypes """
         return self.get_chained_value('_project_type')
 
-    @project_type.setter
-    def project_type(self, value):
+    def _setproject_type(self, value):
         """
         Set the enums.ProjectTypes with validation
         Args:
@@ -333,15 +331,15 @@ class Attributes:
         ## Private enums.ProjectTypes value
         self._project_type = validate_enum_type(value, ProjectTypes)
 
+    project_type = property(_getproject_type, _setproject_type)
+
     ########################################
 
-    @property
-    def debug(self):
+    def _getdebug(self):
         """ Get debug boolean """
         return self.get_chained_value('_debug')
 
-    @debug.setter
-    def debug(self, value):
+    def _setdebug(self, value):
         """
         Set the boolean with validation
         Args:
@@ -352,15 +350,15 @@ class Attributes:
         ## Private boolean for debug
         self._debug = validate_boolean(value)
 
+    debug = property(_getdebug, _setdebug)
+
     ########################################
 
-    @property
-    def link_time_code_generation(self):
+    def _getlink_time_code_generation(self):
         """ Get link time code generation boolean """
         return self.get_chained_value('_link_time_code_generation')
 
-    @link_time_code_generation.setter
-    def link_time_code_generation(self, value):
+    def _setlink_time_code_generation(self, value):
         """
         Set the boolean with validation
         Args:
@@ -371,15 +369,17 @@ class Attributes:
         ## Private boolean for link_time_code_generation
         self._link_time_code_generation = validate_boolean(value)
 
+    link_time_code_generation = property(
+        _getlink_time_code_generation,
+        _setlink_time_code_generation)
+
     ########################################
 
-    @property
-    def optimization(self):
+    def _getoptimization(self):
         """ Get optimization boolean """
         return self.get_chained_value('_optimization')
 
-    @optimization.setter
-    def optimization(self, value):
+    def _setoptimization(self, value):
         """
         Set the boolean with validation
         Args:
@@ -390,15 +390,15 @@ class Attributes:
         ## Private boolean for optimization
         self._optimization = validate_boolean(value)
 
+    optimization = property(_getoptimization, _setoptimization)
+
     ########################################
 
-    @property
-    def analyze(self):
+    def _getanalyze(self):
         """ Get code analysis boolean """
         return self.get_chained_value('_analyze')
 
-    @analyze.setter
-    def analyze(self, value):
+    def _setanalyze(self, value):
         """
         Set the boolean with validation
         Args:
@@ -409,15 +409,15 @@ class Attributes:
         ## Private boolean for analyze
         self._analyze = validate_boolean(value)
 
+    analyze = property(_getanalyze, _setanalyze)
+
     ########################################
 
-    @property
-    def use_mfc(self):
+    def _getuse_mfc(self):
         """ Get use of Microsoft Foundation class boolean """
         return self.get_chained_value('_use_mfc')
 
-    @use_mfc.setter
-    def use_mfc(self, value):
+    def _setuse_mfc(self, value):
         """
         Set the boolean with validation
         Args:
@@ -428,15 +428,15 @@ class Attributes:
         ## Private boolean for use_mfc
         self._use_mfc = validate_boolean(value)
 
+    use_mfc = property(_getuse_mfc, _setuse_mfc)
+
     ########################################
 
-    @property
-    def use_atl(self):
+    def _getuse_atl(self):
         """ Get Microsoft Active Template Library boolean """
         return self.get_chained_value('_use_atl')
 
-    @use_atl.setter
-    def use_atl(self, value):
+    def _setuse_atl(self, value):
         """
         Set the boolean with validation
         Args:
@@ -447,13 +447,15 @@ class Attributes:
         ## Private boolean for use_atl
         self._use_atl = validate_boolean(value)
 
-    @property
-    def clr_support(self):
+    use_atl = property(_getuse_atl, _setuse_atl)
+
+    ########################################
+
+    def _getclr_support(self):
         """ Get Common Language Runtime boolean """
         return self.get_chained_value('_clr_support')
 
-    @clr_support.setter
-    def clr_support(self, value):
+    def _setclr_support(self, value):
         """
         Set the boolean with validation
         Args:
@@ -464,15 +466,15 @@ class Attributes:
         ## Private boolean for clr_support
         self._clr_support = validate_boolean(value)
 
+    clr_support = property(_getclr_support, _setclr_support)
+
     ########################################
 
-    @property
-    def name(self):
+    def _getname(self):
         """ Get name string """
         return self.get_chained_value('_name')
 
-    @name.setter
-    def name(self, value):
+    def _setname(self, value):
         """
         Set the string with validation
         Args:
@@ -483,13 +485,15 @@ class Attributes:
         ## Private string for name
         self._name = validate_string(value)
 
-    @property
-    def working_directory(self):
+    name = property(_getname, _setname)
+
+    ########################################
+
+    def _getworking_directory(self):
         """ Get working directory string """
         return self.get_chained_value('_working_directory')
 
-    @working_directory.setter
-    def working_directory(self, value):
+    def _setworking_directory(self, value):
         """
         Set the string with validation
         Args:
@@ -500,13 +504,15 @@ class Attributes:
         ## Private string for working_directory
         self._working_directory = validate_string(value)
 
-    @property
-    def deploy_folder(self):
+    working_directory = property(_getworking_directory, _setworking_directory)
+
+    ########################################
+
+    def _getdeploy_folder(self):
         """ Get deployment folder string """
         return self.get_chained_value('_deploy_folder')
 
-    @deploy_folder.setter
-    def deploy_folder(self, value):
+    def _setdeploy_folder(self, value):
         """
         Set the string with validation
         Args:
@@ -516,6 +522,8 @@ class Attributes:
 
         ## Private string for deploy_folder
         self._deploy_folder = validate_string(value)
+
+    deploy_folder = property(_getdeploy_folder, _setdeploy_folder)
 
 ########################################
 
@@ -714,8 +722,7 @@ class Configuration(Attributes):
     # Attribute defined outside __init__
     # pylint: disable=W0201
 
-    @property
-    def ide(self):
+    def _getide(self):
         """
         Return the preferred IDE
         """
@@ -723,8 +730,11 @@ class Configuration(Attributes):
             return self.parent.ide
         return None
 
-    @property
-    def short_code(self):
+    ide = property(_getide)
+
+    ########################################
+
+    def _getshort_code(self):
         """
         Return the short code
         """
@@ -734,8 +744,7 @@ class Configuration(Attributes):
             return self.name
         return short_code
 
-    @short_code.setter
-    def short_code(self, value):
+    def _setshort_code(self, value):
         """
         Set the filename suffix
         Args:
@@ -743,6 +752,8 @@ class Configuration(Attributes):
             value: New short code
         """
         self._short_code = validate_string(value)
+
+    short_code = property(_getshort_code, _setshort_code)
 
     ########################################
 
@@ -810,19 +821,19 @@ class Configuration(Attributes):
         """
 
         result_list = []
-        for item in self.__dict__:
-            if item == 'parent':
+        for item in self.__dict__.items():
+            if item[0] == 'parent':
                 continue
-            if item == 'project':
+            if item[0] == 'project':
                 result_list.append(
                     'Project: "{}"'.format(
-                        self.__dict__[item].name))
+                        item[1].name))
                 continue
-            item_name = item[1:] if item.startswith('_') else item
+            item_name = item[0][1:] if item[0].startswith('_') else item[0]
             result_list.append(
                 '{0}: {1!s}'.format(
                     item_name,
-                    self.__dict__[item]))
+                    item[1]))
         return 'Configuration: ' + ', '.join(result_list)
 
     ## Allow str() to work.
@@ -927,14 +938,15 @@ class Project(Attributes):
 
     ########################################
 
-    @property
-    def ide(self):
+    def _getide(self):
         """
         Return the preferred IDE
         """
         if self.parent is not None:
             return self.parent.ide
         return None
+
+    ide = property(_getide)
 
     ########################################
 
@@ -1240,19 +1252,21 @@ class Project(Attributes):
         """
 
         result_list = []
-        for item in self.__dict__:
-            if item == 'parent':
+        for item in self.__dict__.items():
+            if item[0] == 'parent':
                 continue
-            if item == 'solution':
+            if item[0] == 'solution':
+                if item[1] is None:
+                    continue
                 result_list.append(
                     'Solution: "{}"'.format(
-                        self.__dict__[item].name))
+                        item[1].name))
                 continue
-            item_name = item[1:] if item.startswith('_') else item
+            item_name = item[0][1:] if item[0].startswith('_') else item[0]
             result_list.append(
                 '{0}: {1!s}'.format(
                     item_name,
-                    self.__dict__[item]))
+                    item[1]))
         return 'Project: ' + ', '.join(result_list)
 
     ## Allow str() to work.
@@ -1356,15 +1370,13 @@ class Solution(Attributes):
 
     ########################################
 
-    @property
-    def ide(self):
+    def _getide(self):
         """
         Return the ide type
         """
         return self._ide
 
-    @ide.setter
-    def ide(self, value):
+    def _setide(self, value):
         """
         Set the IDE type with validation
         Args:
@@ -1372,6 +1384,8 @@ class Solution(Attributes):
             value: None or new IDE type
         """
         self._ide = validate_enum_type(value, IDETypes)
+
+    ide = property(_getide, _setide)
 
     ########################################
 
@@ -1583,14 +1597,14 @@ class Solution(Attributes):
             Human readable string or None if the solution is invalid
         """
         result_list = []
-        for item in self.__dict__:
-            if item == 'parent':
+        for item in self.__dict__.items():
+            if item[0] == 'parent':
                 continue
-            item_name = item[1:] if item.startswith('_') else item
+            item_name = item[0][1:] if item[0].startswith('_') else item[0]
             result_list.append(
                 '{0}: {1!s}'.format(
                     item_name,
-                    self.__dict__[item]))
+                    item[1]))
         return 'Solution: ' + ', '.join(result_list)
 
     ## Allow str() to work.

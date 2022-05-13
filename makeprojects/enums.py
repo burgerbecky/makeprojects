@@ -21,7 +21,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum
 import os
 from burger import get_mac_host_type, get_windows_host_type, \
-    where_is_visual_studio, where_is_codeblocks, where_is_watcom, where_is_xcode
+    where_is_visual_studio, where_is_codeblocks, where_is_watcom, \
+    where_is_xcode, is_string
 
 # pylint: disable=invalid-name
 # pylint: disable=consider-using-f-string
@@ -497,6 +498,12 @@ class IDETypes(IntEnum):
         # Already a IDETypes?
         if isinstance(ide_name, IDETypes):
             return ide_name
+
+        # Non-strings are bad
+        if not is_string(ide_name):
+            msg = '"{}" cannot be a number".'.format(
+                ide_name)
+            raise TypeError(msg)
 
         if ide_name:
             # Try the member name as is.
