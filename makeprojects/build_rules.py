@@ -20,27 +20,30 @@ import os
 
 from makeprojects.enums import PlatformTypes, ProjectTypes, IDETypes
 
+# ``cleanme`` will process any child directory with the clean() function if
+# True.
+CLEANME_GENERIC = False
+
+# ``cleanme`` will process build_rules.py in the parent folder if True.
+CLEANME_CONTINUE = False
+
+# ``cleanme`` will clean the listed folders using their rules before cleaning.
+# this folder.
+CLEANME_DEPENDENCIES = []
+
+# If set to True, ``cleanme -r``` will not parse directories in this folder.
+CLEANME_NO_RECURSE = True
+
+# ``cleanme`` will assume only the function ``clean()`` is used if True.
+CLEANME_PROCESS_PROJECT_FILES = True
+
 # If set to True, ``buildme -r``` will not parse directories in this folder.
 BUILDME_NO_RECURSE = None
 
 # ``buildme``` will build these files and folders first.
 BUILDME_DEPENDENCIES = []
 
-# Process any child directory with the clean() function if True.
-CLEANME_GENERIC = False
 
-# ``cleanme`` will process build_rules.py in the parent folder if True.
-CLEANME_CONTINUE = False
-
-# If set to True, ``cleanme -r``` will not parse directories in this folder.
-CLEANME_NO_RECURSE = True
-
-# ``cleanme`` will clean the listed folders using their rules before cleaning.
-# this folder.
-CLEANME_DEPENDENCIES = []
-
-# ``cleanme`` will assume only the function ``clean()`` is used if True.
-CLEANME_PROCESS_PROJECT_FILES = True
 
 ########################################
 
