@@ -37,13 +37,21 @@ CLEANME_NO_RECURSE = True
 # ``cleanme`` will assume only the function ``clean()`` is used if True.
 CLEANME_PROCESS_PROJECT_FILES = True
 
-# If set to True, ``buildme -r``` will not parse directories in this folder.
-BUILDME_NO_RECURSE = None
+# ``buildme`` will process any child directory with the prebuild(), build(),
+# and postbuild() functions if True.
+BUILDME_GENERIC = False
+
+# ``buildme`` will process build_rules.py in the parent folder if True.
+BUILDME_CONTINUE = False
 
 # ``buildme``` will build these files and folders first.
 BUILDME_DEPENDENCIES = []
 
+# If set to True, ``buildme -r``` will not parse directories in this folder.
+BUILDME_NO_RECURSE = None
 
+# ``buildme`` will assume only the three functions are used if True.
+BUILDME_PROCESS_PROJECT_FILES = True
 
 ########################################
 
