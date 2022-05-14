@@ -1,4 +1,4 @@
-# 👀 Build Rules
+# 🐍 Build Rules
 
 Makeprojects is controlled by a configuration file called ``build_rules.py``. It's a python script with global variables and functions that will control how ``buildme``, ``cleanme``, ``rebuildme``, and ``makeprojects`` behave. Since it's a python script, there is no limit to what the script can do to perform any build or clean operation for any project.
 
@@ -11,6 +11,8 @@ Below, are the functions and variables that the ``build_rule.py`` may or may not
 ## 🧹 Cleanme rules
 
 ``cleanme`` and ``rebuildme`` check for several global variables and the existence of a single function that will perform cleaning operations.
+
+Full documentation on the operation of [cleanme is here](cleanme_man.md).
 
 ### CLEANME_GENERIC
 
@@ -70,11 +72,13 @@ This function should delete all temporary files that were created after a projec
 
 If the variable ``CLEANME_GENERIC`` is ``False``, the working_directory is guaranteed to only be the directory that the ``build_rules.py`` resides in. If ``CLEANME_GENERIC`` is ``False`` then the directory could be any of the child folders the ``build_rules.py`` file resides in.
 
-Returning ``None`` alerts ``cleanme`` that this function is not implemented and no action was performed.
+Returning ``None`` alerts ``cleanme`` and ``rebuildme`` that this function is not implemented and no action was performed.
 
 ## 👷 Buildme rules
 
-``buildme`` checks for several global variables and the existence of three functions that will perform building operations.
+``buildme`` and ``rebuildme`` checks for several global variables and the existence of three functions that will perform building operations.
+
+Full documentation on the operation of [buildme is here](buildme_man.md).
 
 ### BUILDME_GENERIC
 
@@ -85,6 +89,15 @@ BUILDME_GENERIC = False
 ```
 
 If set to ``True``, ``buildme`` will assume this ``build_rules.py`` file is designed to be generic and if invoked from a child directory, it will be given the child's directory for processing. If ``False`` it will only be invoked with the directory that the ``build_rules.py`` files resides in. This is needed to prevent a ``build_rules.py`` file from processing directories that it was not meant to handle when parent directory traversal is active. If this does not exist, the default of ``False`` is used.
+
+### BUILDME_CONTINUE
+
+``` python
+# ``buildme`` will process build_rules.py in the parent folder if True.
+BUILDME_CONTINUE = False
+```
+
+If set to ``True``, ``buildme`` and ``rebuildme`` will process this file and then traverse the parent directory looking for another ``build_rules.py`` file to continue the ``buildme`` operation. This is useful when there's a generic build operation in a root folder and this function performs custom operations unknown to the parent rules file. If this doesn't exist, the default of ``False`` is assumed.
 
 ### BUILDME_DEPENDENCIES
 
@@ -104,14 +117,40 @@ BUILDME_NO_RECURSE = True
 
 Set ``BUILDME_NO_RECURSE`` to True if all subdirectories below this folder are not to be processed due to them not having any build project files. This defaults to ``False``, but set this to ``True`` to prevent parsing folders that don't need processing.
 
+### BUILDME_PROCESS_PROJECT_FILES
+
+``` python
+# ``buildme`` will assume only the three functions are used if True.
+BUILDME_PROCESS_PROJECT_FILES = True
+```
+
+If set to ``False``, ``buildme`` will disable scanning for project files and assume that the functions ``prebuild()``, ``build()``, and ``postbuild()`` in build_rules.py perform all the actions to build the files in this directory. If this doesn't exist, the default of ``True`` is assumed.
+
 ### prebuild(working_directory, configuration)
 
-If this function exists, it will be called **FIRST** with the directory that the build_rules.py file exists in and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules.
+``` python
+def prebuild(working_directory, configuration)
+    return None
+```
+
+If this optional function exists, it will be called **FIRST** with the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
 
 ### build(working_directory, configuration)
 
-If this function exists, it will be called with the directory that the build_rules.py file exists in and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules.
+``` python
+def build(working_directory, configuration)
+    return None
+```
+
+If this optional function exists, it will be called after ``prebuild()`` is called but before any other the IDE project files are processed. It will passed the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
 
 ### postbuild(working_directory, configuration)
 
-If this function exists, it will be called **LAST** with the directory that the build_rules.py file exists in and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules.
+``` python
+def postbuild(working_directory, configuration)
+    return None
+```
+
+If this optional function exists, it will be called **LAST** with the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
+
+## 👩‍🍳 Makeprojects rules
