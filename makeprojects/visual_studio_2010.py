@@ -7,9 +7,9 @@ Project file generator for Microsoft Visual Studio.
 This module contains classes needed to generate
 project files intended for use by
 Microsoft's Visual Studio IDE
-"""
 
-## \package makeprojects.visual_studio_2010
+@package makeprojects.visual_studio_2010
+"""
 
 # pylint: disable=consider-using-f-string
 
@@ -21,7 +21,7 @@ from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     packed_paths, truefalse
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .core import source_file_filter
+from .util import source_file_filter
 from .visual_studio import get_uuid, create_deploy_script
 
 SUPPORTED_IDES = (
@@ -671,24 +671,43 @@ class VS2010Globals(VS2010XML):
 
         ide = project.ide
 
-        platform_version = None
-        if ide >= IDETypes.vs2019:
-            platform_version = '10.0'
-        elif ide >= IDETypes.vs2015:
-
-            # Special case if using the Xbox ONE toolset
+        # Check for the special case of Android for VS2022
+        found_android = False
+        if ide >= IDETypes.vs2022:
             for configuration in project.configuration_list:
-                if configuration.platform is PlatformTypes.xboxone:
-                    platform_version = '8.1'
+                if configuration.platform.is_android():
+                    found_android = True
                     break
-            else:
-                platform_version = '10.0.18362.0'
 
         self.add_tags((
             ('ProjectName', project.name),
-            ('ProjectGuid', '{{{}}}'.format(project.vs_uuid)),
-            ('WindowsTargetPlatformVersion', platform_version)
+            ('ProjectGuid', '{{{}}}'.format(project.vs_uuid))
         ))
+
+        if found_android:
+            self.add_tags((
+                ('Keyword', 'Android'),
+                ('MinimumVisualStudioVersion', '14.0'),
+                ('ApplicationType', 'Android'),
+                ('ApplicationTypeRevision', '3.0')
+            ))
+        else:
+            platform_version = None
+            if ide >= IDETypes.vs2019:
+                platform_version = '10.0'
+            elif ide >= IDETypes.vs2015:
+
+                # Special case if using the Xbox ONE toolset
+                for configuration in project.configuration_list:
+                    if configuration.platform is PlatformTypes.xboxone:
+                        platform_version = '8.1'
+                        break
+                else:
+                    platform_version = '10.0.18362.0'
+
+            self.add_tags((
+                ('WindowsTargetPlatformVersion', platform_version),
+            ))
 
 
 ########################################
@@ -1130,6 +1149,17 @@ class VS2010ClCompile(VS2010XML):
                 optimization_level = 'O3'
                 inline_functions = 'true'
 
+        # Not used for Android Targets
+        warning_level = 'Level4'
+        debug_information_format = 'OldStyle'
+        exception_handling = 'false'
+        if platform.is_android() and configuration.ide >= IDETypes.vs2022:
+            debug_information_format = None
+            warning_level = 'EnableAllWarnings'
+            exception_handling = 'Disabled'
+            if not configuration.debug:
+                optimization = 'Full'
+
         self.add_tags((
             ('Optimization', optimization),
             ('RuntimeLibrary', runtime_library),
@@ -1143,10 +1173,10 @@ class VS2010ClCompile(VS2010XML):
             ('GenerateDebugInformation', 'true'),
             ('AdditionalIncludeDirectories', include_folders),
             ('PreprocessorDefinitions', define_list),
-            ('WarningLevel', 'Level4'),
-            ('DebugInformationFormat', 'OldStyle'),
+            ('WarningLevel', warning_level),
+            ('DebugInformationFormat', debug_information_format),
             ('ProgramDataBaseFileName', '$(OutDir)$(TargetName).pdb'),
-            ('ExceptionHandling', 'false'),
+            ('ExceptionHandling', exception_handling),
             ('FloatingPointModel', 'Fast'),
             ('RuntimeTypeInfo', 'false'),
             ('StringPooling', 'true'),
@@ -1610,10 +1640,11 @@ class VS2010vcproj(VS2010XML):
         # Add all the sub chunks
 
         # Special case if using the nVidia Tegra toolset
-        for configuration in project.configuration_list:
-            if configuration.platform.is_android():
-                self.add_element(VS2010NsightTegraProject(project))
-                break
+        if ide < IDETypes.vs2022:
+            for configuration in project.configuration_list:
+                if configuration.platform.is_android():
+                    self.add_element(VS2010NsightTegraProject(project))
+                    break
 
         ## VS2010ProjectConfigurations
         self.projectconfigurations = VS2010ProjectConfigurations(project)
@@ -1833,6 +1864,11 @@ def generate(solution):
 
         for configuration in project.configuration_list:
             vs_platform = configuration.platform.get_vs_platform()[0]
+            if solution.ide >= IDETypes.vs2022:
+                vs_platform = {'x86-Android-NVIDIA': 'x86',
+                'x64-Android-NVIDIA': 'x64',
+               'ARM-Android-NVIDIA': 'ARM',
+               'AArch64-Android-NVIDIA': 'ARM64'}.get(vs_platform, vs_platform)
             configuration.vs_platform = vs_platform
             configuration.vs_configuration_name = '{}|{}'.format(
                 configuration.name, vs_platform)

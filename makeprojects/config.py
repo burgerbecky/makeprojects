@@ -3,9 +3,9 @@
 
 """
 Package that reads, parses and processes the configuration file
-"""
 
-## \package makeprojects.config
+@package makeprojects.config
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 

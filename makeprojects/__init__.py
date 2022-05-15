@@ -4,43 +4,38 @@
 """
 Root namespace for the makeprojects tool
 
+@package makeprojects
+
+Makeprojects is a set of functions to generate project files
+for the most popular IDEs and build systems. Included are
+tools to automate building, cleaning and rebuilding projects.
+
+@mainpage
+
+@htmlinclude README.html
+
+Chapter list
+============
+
+- @subpage md_buildme_man Instructions for buildme
+- @subpage md_cleanme_man Instructions for cleanme
+- @subpage md_rebuildme_man Instructions for rebuildme
+- @subpage md_build_rules_man Layout of build_rules.py
+
+@par To use in your own script:
+
+from makeprojects import *
+
+solution = newsolution(name='myproject')
+project = newproject(name='myproject')
+solution.add_project(project=project)
+
+project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
+solution.save(solution.xcode3)
+
 """
 
-#
-## \package makeprojects
-#
-# Makeprojects is a set of functions to generate project files
-# for the most popular IDEs and build systems. Included are
-# tools to automate building, cleaning and rebuilding projects.
-#
-
-#
-## \mainpage
-#
-# \htmlinclude README.html
-#
-# Chapter list
-# ============
-#
-# - \subpage md_buildme_man Instructions for buildme
-# - \subpage md_cleanme_man Instructions for cleanme
-# - \subpage md_rebuildme_man Instructions for rebuildme
-# - \subpage md_build_rules_man Layout of build_rules.py
-#
-# \par To use in your own script:
-#
-# \code
-# from makeprojects import *
-#
-# solution = newsolution(name='myproject')
-# project = newproject(name='myproject')
-# solution.add_project(project=project)
-#
-# project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
-# solution.save(solution.xcode3)
-#
-# \endcode
-#
+# pylint: disable=import-outside-toplevel
 
 from __future__ import absolute_import, print_function, unicode_literals
 

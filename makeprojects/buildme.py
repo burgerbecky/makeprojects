@@ -19,9 +19,8 @@ Full documentation is here, @subpage md_buildme_man
 See Also:
     main, makeprojects.cleanme, makeprojects.rebuildme
 
+@package makeprojects.buildme
 """
-
-## \package makeprojects.buildme
 
 # pylint: disable=useless-object-inheritance
 # pylint: disable=consider-using-f-string
@@ -222,7 +221,7 @@ def remove_os_sep(input_list):
     Args:
         input_list: list of strings
 
-    Return:
+    Returns:
         Processed list of strings
     """
 

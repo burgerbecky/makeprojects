@@ -135,6 +135,8 @@ def prebuild(working_directory, configuration)
 
 If this optional function exists, it will be called **FIRST** with the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
 
+This function will perform build functions and return either 0 for no error, or non-zero for an error that will be reported once ``buildme`` is finished processing. Return ``None`` if this function does no operation.
+
 ### build(working_directory, configuration)
 
 ``` python
@@ -143,6 +145,8 @@ def build(working_directory, configuration)
 ```
 
 If this optional function exists, it will be called after ``prebuild()`` is called but before any other the IDE project files are processed. It will passed the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
+
+This function will perform build functions and return either 0 for no error, or non-zero for an error that will be reported once ``buildme`` is finished processing. Return ``None`` if this function does no operation.
 
 ### postbuild(working_directory, configuration)
 
@@ -153,4 +157,25 @@ def postbuild(working_directory, configuration)
 
 If this optional function exists, it will be called **LAST** with the directory requested to build and the configuration requested to build. Normally the configuration is set to "all", but can be ignored if it isn't relevant to the custom build rules. If ``BUILDME_GENERIC`` is ``False``, only the directory that the ``build_rules.py`` file resides in will be passed as the ``working_directory``.
 
+This function will perform build functions and return either 0 for no error, or non-zero for an error that will be reported once ``buildme`` is finished processing. Return ``None`` if this function does no operation.
+
 ## 👩‍🍳 Makeprojects rules
+
+### DEFAULT_PROJECT_NAME
+
+``` python
+# Default project name to use instead of the name of the working directory
+# DEFAULT_PROJECT_NAME = os.path.basename(working_directory)
+```
+
+When ``makeprojects`` is invoked, if a project name is not specified, this variable will declare the default project name. The default is the name of the folder that is being processed.
+
+## 👩‍🔧 Main
+
+``` python
+# If called as a command line and not a class, perform the build
+if __name__ == "__main__":
+    sys.exit(build(os.path.dirname(os.path.abspath(__file__)), 'all'))
+```
+
+The ``build_rules.py`` file can be run as a standalone script. If the line above exists in the script, it will call whatever function is declared and exit to the operating system. The example above will call the ``build()`` function with the current directory, however, it's up to the programmer to decide what is the default action and if parameters should be passed and what to do with them.

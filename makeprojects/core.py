@@ -3,155 +3,27 @@
 
 """
 Module contains the core classes for makeproject.
-"""
 
-## \package makeprojects.core
+@package makeprojects.core
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
-import re
-import fnmatch
 from operator import attrgetter
 from copy import deepcopy
 from burger import get_windows_host_type, convert_to_windows_slashes, \
     convert_to_linux_slashes, is_string, translate_to_regex_match, \
-    string_to_bool, StringListProperty, BooleanProperty, NoneProperty
+    StringListProperty, BooleanProperty, NoneProperty
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .enums import platformtype_short_code
 from .defaults import get_configuration_settings
 from .build_rules import rules as default_rules
+from .util import validate_enum_type, regex_dict, validate_boolean, \
+    validate_string
 
 # pylint: disable=consider-using-f-string
-
-########################################
-
-
-def validate_enum_type(value, data_type):
-    """
-    Verify a value is a specific data type.
-
-    Check if the value is either None or an instance of a
-    specfic data type. If so, return immediately. If the value is a string,
-    call the lookup() function of the data type for conversion.
-
-    Args:
-        value: Value to check.
-        data_type: Type instance of the class type to match.
-
-    Returns:
-        Value converted to data_type or None.
-
-    Exception:
-        TypeError if lookup() failed.
-    """
-
-    if value is not None:
-        # Perform the lookup
-        new_value = data_type.lookup(value)
-        if new_value is None:
-            msg = '"{}" must be of type "{}".'.format(
-                value, data_type.__name__)
-            raise TypeError(msg)
-        # Save the converted type
-        value = new_value
-    return value
-
-########################################
-
-
-def regex_dict(item):
-    """ Convert *.cpp keys to regex keys
-
-    Args:
-        item: dict to convert
-    Returns:
-        dict with keys converted to regexes
-    """
-
-    output = {}
-    for key in item:
-        output[re.compile(fnmatch.translate(key)).match] = item[key]
-    return output
-
-########################################
-
-
-def validate_boolean(value):
-    """
-    Verify a value is a boolean.
-
-    Check if the value can be converted to a bool, if so,
-    return the value as bool. None is converted to False.
-
-    Args:
-        value: Value to check.
-
-    Returns:
-        Value converted to data_type or None.
-
-    Exception:
-        ValueError if conversion failed.
-    """
-
-    if value is not None:
-        # Convert to bool
-        value = string_to_bool(value)
-    return value
-
-########################################
-
-
-def validate_string(value):
-    """
-    Verify a value is a string.
-
-    Check if the value is a string, if so,
-    return the value as is or None.
-
-    Args:
-        value: Value to check.
-
-    Returns:
-        Value is string or None.
-
-    Exception:
-        ValueError if conversion failed.
-    """
-
-    if value is not None:
-        # Convert to bool
-        if not is_string(value):
-            raise ValueError('"{}" must be a string.'.format(value))
-    return value
-
-########################################
-
-
-def source_file_filter(file_list, file_type_list):
-    """
-    Prune the file list for a specific type.
-
-    Args:
-        file_list: list of SourceFile entries.
-        file_type_list: FileTypes to match.
-    Returns:
-        list of matching SourceFile entries.
-    """
-
-    result_list = []
-
-    # Convert to an iterable if a single item was passed
-    if isinstance(file_type_list, FileTypes):
-        for item in file_list:
-            if item.type is file_type_list:
-                result_list.append(item)
-    else:
-        for item in file_list:
-            if item.type in file_type_list:
-                result_list.append(item)
-    return result_list
 
 ########################################
 
@@ -239,7 +111,7 @@ class Attributes:
         Args:
             self: The 'this' reference.
             name: Name of the attribute
-        Return:
+        Returns:
             None or the value.
         """
         value = getattr(self, name, None)
@@ -260,7 +132,7 @@ class Attributes:
 
         Args:
             name: Name of the attribute key
-        Return:
+        Returns:
             A list of all items found. The list can be empty.
         """
 
@@ -284,7 +156,7 @@ class Attributes:
 
         Args:
             name: Name of the attribute key
-        Return:
+        Returns:
             A list of all items found. The list can be empty.
         See Also:
             get_chained_list
@@ -960,8 +832,8 @@ class Project(Attributes):
         Args:
             self: The 'this' reference.
             configuration: Reference to an instance of a Configuration.
-        Exception:
-            TypeError if ``configuration`` is not a Configuration
+        Raises:
+            TypeError
         """
 
         if configuration is None or is_string(configuration):
@@ -996,8 +868,8 @@ class Project(Attributes):
 
         Args:
             project: Project to depend on.
-        Exception:
-            TypeError if project is not a Project
+        Raises:
+            TypeError
         """
 
         if project is None or is_string(project):

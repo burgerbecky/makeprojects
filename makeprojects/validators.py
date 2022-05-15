@@ -3,12 +3,13 @@
 
 """
 Validation objects for project data generators.
-"""
 
-## \package makeprojects.validators
+@package makeprojects.validators
+"""
 
 # pylint: disable=no-name-in-module,useless-object-inheritance
 # pylint: disable=consider-using-f-string
+# pylint: disable=raise-missing-from
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -206,9 +207,12 @@ def lookup_booleans(cmd, boolean_lookup, command_dict):
 class BooleanProperty(object):
     """
     Value can only be true or false.
+
+    Attributes:
+        name: Name of the validator
+        value: Boolean value
     """
 
-    ## Boolean value
     value = BooleanProp('_value')
 
     def __init__(self, name, default=None):
@@ -220,10 +224,9 @@ class BooleanProperty(object):
             default: Default value, ``None`` is acceptable
         """
 
-        ## Name of the validator
         self.name = name
 
-        ## Init the default value
+        # Init the default value
         self.value = default
 
     ########################################
@@ -299,9 +302,14 @@ class BooleanProperty(object):
             return 'None'
         return truefalse(self.value)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert to string.
 
+        Returns:
+            Value as a string
+        """
+        return self.__repr__()
 
 ########################################
 
@@ -309,9 +317,13 @@ class BooleanProperty(object):
 class IntegerProperty(object):
     """
     Value can only be integer or None
+
+    Attributes:
+        name: Name of the validator
+        switch: Value if enabled
+        value: Integer value
     """
 
-    ## Integer value
     value = IntegerProp('_value')
 
     def __init__(self, name, default=None, switch=None):
@@ -324,10 +336,7 @@ class IntegerProperty(object):
             switch: Switch for integer found
         """
 
-        ## Name of the validator
         self.name = name
-
-        ## Value if enabled
         self.switch = switch
 
         # Init the default value
@@ -358,8 +367,15 @@ class IntegerProperty(object):
             return 'None'
         return str(self.value)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert to string.
+
+        Returns:
+            Value as a string
+        """
+        return self.__repr__()
+
 
 ########################################
 
@@ -367,9 +383,12 @@ class IntegerProperty(object):
 class StringProperty():
     """
     Value can be any string.
+
+    Attributes:
+        name: Name of the validator
+        value: String value
     """
 
-    ## String value
     value = StringProp('_value')
 
     def __init__(self, name, default=None):
@@ -381,10 +400,9 @@ class StringProperty():
             default: Default value, ``None`` is acceptable
         """
 
-        ## Name of the validator
         self.name = name
 
-        ## Active value
+        # Active value
         self.value = default
 
     ########################################
@@ -407,8 +425,14 @@ class StringProperty():
 
         return '{}'.format(self.value)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert to string.
+
+        Returns:
+            Value as a string
+        """
+        return self.__repr__()
 
 
 ########################################
@@ -417,9 +441,16 @@ class StringProperty():
 class StringListProperty():
     """
     List of strings or directories.
+
+    Attributes:
+        name: Name of the validator
+        default: Default values of the validator
+        slashes: Slashes for directory
+        seperator: Seperator character instead of ';'
+        force_ending_slash: True if an endling slash is needed for a directory
+        value: String list value
     """
 
-    ## String list value
     value = StringListProp('_value')
 
     # pylint: disable=too-many-arguments
@@ -440,22 +471,13 @@ class StringListProperty():
         if default is None:
             default = []
 
-        ## Name of the validator
         self.name = name
-
-        ## Default values of the validator
         self.default = default
-
-        ## Slashes for directory
         self.slashes = slashes
-
-        ## Seperator character instead of ';'
         self.seperator = seperator
-
-        ## True if an endling slash is needed for a directory
         self.force_ending_slash = force_ending_slash
 
-        ## Active value
+        # Initial value
         self.value = []
 
         # Check if the default value is valid
@@ -506,8 +528,14 @@ class StringListProperty():
 
         return '{}'.format(self.value)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert to string.
+
+        Returns:
+            Value as a string
+        """
+        return self.__repr__()
 
 ########################################
 
@@ -515,6 +543,12 @@ class StringListProperty():
 class EnumProperty():
     """
     Enumeration integer value.
+
+    Attributes:
+        name: Name of the validator
+        default: Default value of the validator
+        value: Active value
+        enumerations: Enumeration alias list
     """
 
     def __init__(self, name, default, enumerations):
@@ -527,16 +561,9 @@ class EnumProperty():
             enumerations: List of enumeration alias tuples.
         """
 
-        ## Name of the validator
         self.name = name
-
-        ## Default value of the validator
         self.default = default
-
-        ## Active value
         self.value = None
-
-        ## Enumeration alias list
         self.enumerations = enumerations
 
         # Check if the default value is valid
@@ -618,5 +645,11 @@ class EnumProperty():
 
         return '{}'.format(self.value)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert to string.
+
+        Returns:
+            Value as a string
+        """
+        return self.__repr__()

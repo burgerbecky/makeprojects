@@ -4,6 +4,11 @@
 """
 Sub file for makeprojects.
 Handler for Codeblocks projects
+
+This module contains classes needed to generate
+project files intended for use by Codeblocks
+
+@package makeprojects.codeblocks
 """
 
 # Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
@@ -13,11 +18,7 @@ Handler for Codeblocks projects
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-#
-## \package makeprojects.codeblocks
-# This module contains classes needed to generate
-# project files intended for use by Codeblocks
-#
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -53,6 +54,13 @@ class Project(object):
     Root object for a Codeblocks IDE project file
     Created with the name of the project, the IDE code
     the platform code (4gw, x32, win)
+
+    Attributes:
+        solution: Parent solution
+        platforms: List of all platform types
+        configuration_list: List of all configurations
+        configuration_names: List of configuration names
+
     """
 
     def __init__(self, solution):
@@ -60,16 +68,9 @@ class Project(object):
         Initialize the exporter.
         """
 
-        ## Parent solution
         self.solution = solution
-
-        ## List of all platform types
         self.platforms = []
-
-        ## List of all configurations
         self.configuration_list = []
-
-        ## List of configuration names
         self.configuration_names = []
 
         # Process all the projects and configurations
@@ -129,7 +130,8 @@ class Project(object):
         # Output the per target build settings
         line_list.append('\t\t<Build>')
         for configuration in self.configuration_list:
-            target_name = configuration.name + '_' + configuration.platform.get_short_code()
+            target_name = configuration.name + '_' + \
+                configuration.platform.get_short_code()
 
             line_list.append('\t\t\t<Target title="' + target_name + '">')
 
@@ -142,7 +144,9 @@ class Project(object):
                 binary_name = binary_name + '.exe'
 
             line_list.append(
-                '\t\t\t\t<Option output="' + binary_name + '" prefix_auto="0" extension_auto="0" />')
+                '\t\t\t\t<Option output="' +
+                binary_name +
+                '" prefix_auto="0" extension_auto="0" />')
             line_list.append('\t\t\t\t<Option working_dir="" />')
 
             intdirectory = 'temp/{}{}/'.format(
@@ -193,8 +197,9 @@ class Project(object):
             line_list.append('\t\t\t</Target>')
 
         line_list.append('\t\t\t<Environment>')
-        line_list.append(
-            '\t\t\t\t<Variable name="ERROR_FILE" value="$(TARGET_OBJECT_DIR)foo.err" />')
+        line_list.append((
+            '\t\t\t\t<Variable name="ERROR_FILE" '
+            'value="$(TARGET_OBJECT_DIR)foo.err" />'))
         line_list.append('\t\t\t</Environment>')
         line_list.append('\t\t</Build>')
 
@@ -202,7 +207,8 @@ class Project(object):
         line_list.append('\t\t<VirtualTargets>')
         target_list = []
         for configuration in self.configuration_list:
-            target_name = configuration.name + '_' + configuration.platform.get_short_code()
+            target_name = configuration.name + '_' + \
+                configuration.platform.get_short_code()
             target_list.append(target_name)
         line_list.append(
             '\t\t\t<Add alias="Everything" targets="' +
@@ -234,8 +240,9 @@ class Project(object):
 
         if not self.solution.project_list[0].project_type.is_library() or \
                 self.solution.name != 'burger':
-            line_list.append(
-                '\t\t\t<Add directory=\'&quot;$(BURGER_SDKS)/windows/burgerlib&quot;\' />')
+            line_list.append((
+                '\t\t\t<Add directory=\'&quot;'
+                '$(BURGER_SDKS)/windows/burgerlib&quot;\' />'))
         line_list.append('\t\t</Compiler>')
 
         # Output the list of source files

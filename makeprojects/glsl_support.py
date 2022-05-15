@@ -6,9 +6,9 @@ Data and code to support GLSL targets
 
 This module contains data, classes and functions to support
 building GLSL files
-"""
 
-## \package makeprojects.glsl_support
+@package makeprojects.glsl_support
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 

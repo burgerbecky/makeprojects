@@ -6,9 +6,8 @@ Enumeration types for makeprojects
 
 All enumerations are stored in this package
 
+@package makeprojects.enums
 """
-
-## \package makeprojects.enums
 
 # Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 #
@@ -1512,7 +1511,7 @@ def add_burgerlib(command, **kargs):
     Args:
         command: command parameter from rules()
         kargs: kargs parameter from rules()
-    Return:
+    Returns:
         Zero
 
     """

@@ -27,6 +27,10 @@ class Root(object):
     Every build/clean/generation object derives from this object
     to allow the command line functions to be extended for all
     supported IDEs and tools.
+
+    Attributes:
+        name: Module's name
+        priority: Module's priority for invocation
     """
 
     def __init__(self, name, priority):
@@ -38,14 +42,10 @@ class Root(object):
             priority: Integer priority from 0-100
         """
 
-        ## Module's name
         self.name = name
-
-        ## Module's priority for invocation
         self.priority = priority
 
     ########################################
-
 
     def __repr__(self):
         """
@@ -58,11 +58,16 @@ class Root(object):
         return 'Build module for {} with priority {}'.format(
             self.name, self.priority)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Prints the type of object this is.
+
+        Returns:
+            String object with user readable name of the object
+        """
+        return self.__repr__()
 
     ########################################
-
 
     def build(self, working_directory, file_name=None, configuration=None):
         """
@@ -70,23 +75,19 @@ class Root(object):
 
         When this module is called for building, the file that is to be built
         is passed in and the module will invoke the tool with the appropriate
-        command line parameters to build using an optional configuration
+        command line parameters to build using an optional configuration.
 
         On exit, return 0 for no error, or a non zero error code if there was an
-        error to report. None if not implemented
+        error to report. None if not implemented.
+
         Args:
-            working_directory
-                Directory this script resides in.
-
-            file_name
-                Project file to build.
-
-            configuration
-                Configuration build, ``all`` if no configuration was requested.
+            working_directory: Directory this script resides in.
+            file_name: Project file to build.
+            configuration: Configuration build, ``all`` if no
+                configuration was requested.
 
         Returns:
             None if not implemented, otherwise an integer error code.
-
         """
 
         return None
@@ -103,11 +104,8 @@ class Root(object):
         error to report. None if not implemented or not applicable.
 
         Args:
-            working_directory
-                Directory this script resides in.
-
-            file_name
-                Project file to invoke clean
+            working_directory: Directory this script resides in.
+            file_name: Project file to invoke clean
 
         Returns:
             None if not implemented, otherwise an integer error code.

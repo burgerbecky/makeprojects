@@ -10,9 +10,9 @@ The command ``rebuildme`` calls ``cleanme`` and then ``buildme`` in that order.
 
 See Also:
     main, makeprojects.buildme, makeprojects.cleanme
-"""
 
-## \package makeprojects.rebuildme
+@package makeprojects.rebuildme
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 

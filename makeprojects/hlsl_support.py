@@ -6,9 +6,9 @@ Data and code to support HLSL targets
 
 This module contains data, classes and functions to support
 building HLSL files
-"""
 
-## \package makeprojects.hlsl_support
+@package makeprojects.hlsl_support
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 

@@ -6,9 +6,9 @@ Project file generator for Microsoft Visual Studio 2003-2008.
 
 This module contains classes needed to generate project files intended for use
 by Microsoft's Visual Studio 2003, 2005 and 2008.
-"""
 
-## \package makeprojects.visual_studio
+@package makeprojects.visual_studio
+"""
 
 # pylint: disable=consider-using-f-string
 # pylint: disable=invalid-name
@@ -1396,7 +1396,7 @@ def create_deploy_script(configuration):
 
     Args:
         configuration: Configuration record.
-    Return:
+    Returns:
         None, None or description and batch file string.
 
     See Also:

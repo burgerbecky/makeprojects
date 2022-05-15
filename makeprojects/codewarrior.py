@@ -3,14 +3,17 @@
 
 """
 Sub file for makeprojects.
-Handler for Codewarrior projects
-"""
 
-#
-# Version 5.0 is MacOS Codewarrior 9 and Windows Codewarrior 9
-# Version 5.8 is MacOS Codewarrior 10
-# Version 5.9 is Freescale Codewarrior for Nintendo
-#
+This module contains classes needed to generate
+project files intended for use by Metrowerks /
+Freescale Codewarrior
+
+- Version 5.0 is MacOS Codewarrior 9 and Windows Codewarrior 9
+- Version 5.8 is MacOS Codewarrior 10
+- Version 5.9 is Freescale Codewarrior for Nintendo
+
+@package makeprojects.codewarrior
+"""
 
 # Copyright 2019-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -19,12 +22,10 @@ Handler for Codewarrior projects
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-#
-## \package makeprojects.codewarrior
-# This module contains classes needed to generate
-# project files intended for use by Metrowerks /
-# Freescale Codewarrior
-#
+# pylint: disable=invalid-name
+# pylint: disable=consider-using-f-string
+# pylint: disable=too-few-public-methods
+# pylint: disable=useless-object-inheritance
 
 from __future__ import absolute_import, print_function, unicode_literals
 import os
@@ -33,7 +34,7 @@ import subprocess
 from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
     convert_to_linux_slashes, convert_to_windows_slashes, truefalse
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .core import source_file_filter
+from .util import source_file_filter
 
 if not PY2:
     unicode = str
@@ -64,23 +65,28 @@ def test(ide, platform_type):
 
 TAB = '\t'
 
-#
-## Class for a simple setting entry
-# This class handles the Name, Value and sub entries
-#
-
 
 class SETTING(object):
+    """
+    Class for a simple setting entry
+
+    This class handles the Name, Value and sub entries
+
+    Attributes:
+        name: Name of the setting
+        value: Value of the setting
+        subsettings: Child settings
+    """
+
     def __init__(self, name=None, value=None):
         self.name = name
         self.value = value
         self.subsettings = []
 
-    #
-    # Add a sub setting
-    #
-
     def addsetting(self, name=None, value=None):
+        """
+        Add a sub setting
+        """
         entry = SETTING(name, value)
         self.subsettings.append(entry)
         return entry
@@ -223,12 +229,25 @@ class MWProject_X86(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class MWFrontEnd_C(object):
+    """
+    MWFrontEnd_C generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self):
+        """
+        Initialize
+        """
         self.settings = [
             SETTING('MWFrontEnd_C_cplusplus', '1'),
             SETTING('MWFrontEnd_C_templateparser', '0'),
@@ -257,12 +276,25 @@ class MWFrontEnd_C(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class C_CPP_Preprocessor(object):
+    """
+    C_CPP_Preprocessor generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self, defines):
+        """
+        Initialize
+        """
         definestring = []
         for item in defines:
             definestring.append('#define ' + item)
@@ -280,12 +312,25 @@ class C_CPP_Preprocessor(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class MWWarning_C(object):
+    """
+    MWWarning_C generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self):
+        """
+        Initialize
+        """
         self.settings = [
             SETTING('MWWarning_C_warn_illpragma', '1'),
             SETTING('MWWarning_C_warn_possunwant', '1'),
@@ -314,12 +359,25 @@ class MWWarning_C(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class MWCodeGen_X86(object):
+    """
+    MWCodeGen_X86 generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self, configuration):
+        """
+        Initialize
+        """
         if configuration == 'Debug':
             disableopt = '1'
             optimizeasm = '0'
@@ -349,12 +407,25 @@ class MWCodeGen_X86(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class GlobalOptimizer_X86(object):
+    """
+    GlobalOptimizer_X86 generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self, configuration):
+        """
+        Initialize
+        """
         if configuration == 'Debug':
             level = 'Level0'
         else:
@@ -366,12 +437,25 @@ class GlobalOptimizer_X86(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class PDisasmX86(object):
+    """
+    PDisasmX86 generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self):
+        """
+        Initialize
+        """
         self.settings = [
             SETTING('PDisasmX86_showHeaders', 'true'),
             SETTING('PDisasmX86_showSectHeaders', 'true'),
@@ -394,12 +478,25 @@ class PDisasmX86(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class MWLinker_X86(object):
+    """
+    MWLinker_X86 generator
+
+    Attributes:
+        settings: List of setting objects for this generator
+    """
+
     def __init__(self):
+        """
+        Initialize
+        """
         self.settings = [
             SETTING('MWLinker_X86_runtime', 'Custom'),
             SETTING('MWLinker_X86_linksym', '0'),
@@ -424,12 +521,26 @@ class MWLinker_X86(object):
         ]
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         for item in self.settings:
             item.generate(line_list, level)
 
 
 class FILE(object):
+    """
+    File name object
+
+    Attributes:
+        filename: Name of the file
+        format: Windows or linux slashes
+    """
+
     def __init__(self, platform, configuration, filename):
+        """
+        Initialize
+        """
         if platform.is_windows():
             self.filename = convert_to_windows_slashes(filename)
             self.format = 'Windows'
@@ -447,6 +558,9 @@ class FILE(object):
                 self.flags = 'Debug'
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         tabs = TAB * level
         tabs2 = tabs + TAB
         line_list.append(tabs + '<FILE>')
@@ -459,7 +573,19 @@ class FILE(object):
 
 
 class FILEREF(object):
+    """
+    File reference object
+
+    Attributes:
+        configuration: Attached configuration
+        filename: Name of the file
+        format: Slash format
+    """
+
     def __init__(self, platform, configuration, filename):
+        """
+        Initialize
+        """
         self.configuration = configuration
         if platform.is_windows():
             self.filename = convert_to_windows_slashes(filename)
@@ -469,6 +595,9 @@ class FILEREF(object):
             self.format = 'Unix'
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         tabs = TAB * level
         tabs2 = tabs + TAB
         line_list.append(tabs + '<FILEREF>')
@@ -482,18 +611,27 @@ class FILEREF(object):
         line_list.append(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>')
         line_list.append(tabs + '</FILEREF>')
 
-#
-# Each file group
-#
-
 
 class GROUP(object):
+    """
+    Each file group
+
+    Attributes:
+        name: Name of the group
+        groups: Sub groups
+        filerefs: List of files in this group
+    """
+
     def __init__(self, name):
+        """ Initialize """
         self.name = name
         self.groups = []
         self.filerefs = []
 
     def addfileref(self, platform, configuration, filename):
+        """
+        Add a file reference
+        """
         # Was this filename already in the list?
         for item in self.filerefs:
             if item.filename == filename:
@@ -502,6 +640,9 @@ class GROUP(object):
         self.filerefs.append(FILEREF(platform, configuration, filename))
 
     def addgroup(self, name):
+        """
+        Add group
+        """
         for item in self.groups:
             if item.name == name:
                 return item
@@ -538,12 +679,21 @@ class GROUP(object):
 class SUBTARGET(object):
     """
     Class for a sub target entry for the master target list.
+
+    Attributes:
+        target: Sub target to build first
     """
 
     def __init__(self, target):
+        """
+        Initialize
+        """
         self.target = target
 
     def generate(self, line_list, level=4):
+        """
+        Generate text
+        """
         tabs = TAB * level
         tabs2 = tabs + TAB
         line_list.append(tabs + '<SUBTARGET>')
@@ -553,14 +703,23 @@ class SUBTARGET(object):
                          '</TARGETNAME>')
         line_list.append(tabs + '</SUBTARGET>')
 
-#
-## Each TARGET entry
-# One entry is needed for each configuration to generate
-# in a project file
-#
-
 
 class TARGET(object):
+    """
+    Each TARGET entry
+
+    One entry is needed for each configuration to generate
+    in a project file
+
+    Attribute:
+        name: Name of the target
+        linker: Linker used for the target
+        settinglist: List of settings
+        filelist: List of files
+        linkorder: Order of linkage
+        subtargetlist: List of sub targets
+    """
+
     def __init__(self, name, linker):
         self.name = name
         self.linker = linker
@@ -572,20 +731,18 @@ class TARGET(object):
         self.linkorder = []
         self.subtargetlist = []
 
-    #
-    # Add a generic setting to this target
-    #
-
     def addsetting(self, name=None, value=None):
+        """
+        Add a generic setting to this target
+        """
         entry = SETTING(name, value)
         self.settinglist.append(entry)
         return entry
 
-    #
-    # Add a sub target reference to this target
-    #
-
     def addsubtarget(self, target):
+        """
+        Add a sub target reference to this target
+        """
         entry = SUBTARGET(target)
         self.subtargetlist.append(entry)
 
@@ -620,16 +777,25 @@ class TARGET(object):
 
         line_list.append(tabs + '</TARGET>')
 
-#
-# Each TARGETORDER entry
-#
-
 
 class ORDEREDTARGET(object):
+    """
+    Each TARGETORDER entry
+
+    Attributes:
+        target: Target to build
+    """
+
     def __init__(self, target):
+        """
+        Initialize
+        """
         self.target = target
 
     def generate(self, line_list, level=2):
+        """
+        Generate the text
+        """
         tabs = TAB * level
         line_list.append(tabs +
                          '<ORDEREDTARGET><NAME>' +
@@ -643,7 +809,20 @@ class Project(object):
 
     Created with the name of the project, the IDE code (c50, c58)
     the platform code (win,mac)
+
+    Attributes:
+        solution: Parent solution
+        configuration_list: List of all configurations
+        projectname: Name of the project
+        idecode: IDE code for the project
+        platformcode: Ascii code for the platform
+        projectnamecode: projectname + idecode + platformcode
+        project_list: List of sub projects
+        orderedtargets: Target order
+        group: Group list
     """
+
+    # pylint: disable=too-many-instance-attributes
 
     def __init__(self, solution, projectname=None,
                  idecode=None, platformcode=None):
@@ -651,13 +830,14 @@ class Project(object):
         Initialize the exporter.
         """
 
-        ## Parent solution
-        self.solution = solution
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-nested-blocks
+        # pylint: disable=too-many-locals
 
-        ## List of all configurations
+        self.solution = solution
         self.configuration_list = []
 
-        self.solution = solution
         self.projectname = projectname
         self.idecode = idecode
         self.platformcode = platformcode
@@ -709,7 +889,8 @@ class Project(object):
                 if not configuration.library_folders_list:
                     if project.platform.is_windows():
                         configuration.library_folders_list = [
-                            '$(CodeWarrior)/MSL', '$(CodeWarrior)/Win32-x86 Support']
+                            '$(CodeWarrior)/MSL',
+                            '$(CodeWarrior)/Win32-x86 Support']
                         if not configuration.project_type.is_library():
                             if configuration.debug:
                                 configuration.libraries_list.append(
@@ -871,6 +1052,9 @@ class Project(object):
         return entry
 
     def addtogroups(self, platform, configuration, parts):
+        """
+        Add a new group
+        """
         # Discard any .. or . directory prefixes
         while parts and (parts[0] == '.' or parts[0] == '..'):
             parts.pop(0)
@@ -920,24 +1104,29 @@ class Project(object):
         line_list.extend([
             '',
             '<!DOCTYPE PROJECT [',
-            '<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, GROUPLIST, DESIGNLIST?)>',
+            ('<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, '
+                'GROUPLIST, DESIGNLIST?)>'),
             '<!ELEMENT TARGETLIST (TARGET+)>',
-            '<!ELEMENT TARGET (NAME, SETTINGLIST, FILELIST?, LINKORDER?, SEGMENTLIST?, '
-            'OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>',
+            ('<!ELEMENT TARGET (NAME, SETTINGLIST, FILELIST?, '
+                'LINKORDER?, SEGMENTLIST?, '
+                'OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, '
+                'FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>'),
             '<!ELEMENT NAME (#PCDATA)>',
             '<!ELEMENT USERSOURCETREETYPE (#PCDATA)>',
             '<!ELEMENT PATH (#PCDATA)>',
             '<!ELEMENT FILELIST (FILE*)>',
-            '<!ELEMENT FILE (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?, '
-            'ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>',
+            ('<!ELEMENT FILE (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, '
+                'PATHFORMAT?, ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>'),
             '<!ELEMENT PATHTYPE (#PCDATA)>',
             '<!ELEMENT PATHROOT (#PCDATA)>',
             '<!ELEMENT ACCESSPATH (#PCDATA)>',
             '<!ELEMENT PATHFORMAT (#PCDATA)>',
-            '<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>',
+            ('<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, '
+                'ACCESSPATH?, PATH, PATHFORMAT?)>'),
             '<!ELEMENT FILEKIND (#PCDATA)>',
             '<!ELEMENT FILEFLAGS (#PCDATA)>',
-            '<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, PATHFORMAT?)>',
+            ('<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, '
+                'ACCESSPATH?, PATH, PATHFORMAT?)>'),
             '<!ELEMENT TARGETNAME (#PCDATA)>',
             '<!ELEMENT SETTINGLIST ((SETTING|PANELDATA)+)>',
             '<!ELEMENT SETTING (NAME?, (VALUE|(SETTING+)))>',

@@ -48,10 +48,13 @@ BUILDME_CONTINUE = False
 BUILDME_DEPENDENCIES = []
 
 # If set to True, ``buildme -r``` will not parse directories in this folder.
-BUILDME_NO_RECURSE = None
+BUILDME_NO_RECURSE = True
 
 # ``buildme`` will assume only the three functions are used if True.
 BUILDME_PROCESS_PROJECT_FILES = True
+
+# Default project name to use instead of the name of the working directory
+# DEFAULT_PROJECT_NAME = "project"
 
 ########################################
 
@@ -441,7 +444,7 @@ def rules(command, working_directory, root=True, **kargs):
         working_directory: Directory for this function to operate on.
         root: If True, stop execution upon completion of this function
         kargs: Extra arguments specific to each command.
-    Return:
+    Returns:
         Zero on no error or no action.
     """
 
@@ -450,11 +453,8 @@ def rules(command, working_directory, root=True, **kargs):
     # pylint: disable=W0613,R0911
 
     # Commands for makeprojects.
-    if command == 'default_project_name':
-        # Return the default name of the project to create.
-        return os.path.basename(working_directory)
 
-    elif command == 'default_project_type':
+    if command == 'default_project_type':
         # Return the default type of project to create.
         return ProjectTypes.tool
 

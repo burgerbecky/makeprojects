@@ -3,9 +3,10 @@
 
 """
 Module that contains the code to generate defaults.
+
+@package makeprojects.defaults
 """
 
-## \package makeprojects.defaults
 # pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
@@ -58,7 +59,8 @@ def get_configuration_settings(name, setting_name=None):
     Args:
         name: Name of the configuration
         setting_name: Default settings name override.
-    Return:
+    Returns:
+        settings or None.
 
     """
 

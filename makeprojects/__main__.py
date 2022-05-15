@@ -12,9 +12,11 @@ to generate the IDE for different platforms and configurations if needed.
 
 See Also:
     makeprojects.cleanme, makeprojects.buildme, makeprojects.rebuildme
+
+@package makeprojects.__main__
 """
 
-## \package makeprojects.__main__
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 

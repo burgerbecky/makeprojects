@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-Sub file for makeprojects.
-Handler for Watcom WMAKE projects
+This module contains classes needed to generate
+project files intended for use by Open Watcom
+WMAKE 1.9 or higher
+
+@package makeprojects.watcom
 """
 
 # Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
@@ -13,12 +16,7 @@ Handler for Watcom WMAKE projects
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
-#
-## \package makeprojects.watcom
-# This module contains classes needed to generate
-# project files intended for use by Open Watcom
-# WMAKE 1.9 or higher
-#
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -50,18 +48,17 @@ def test(ide, platform_type):
         PlatformTypes.win32, PlatformTypes.msdos4gw, PlatformTypes.msdosx32)
 
 
-#
-## \package makeprojects.watcom
-# This module contains classes needed to generate
-# project files intended for use by OpenWatcom WMAKE
-#
-
-
 class Project(object):
     """
     Root object for a Watcom IDE project file
     Created with the name of the project, the IDE code
     the platform code (4gw, x32, win)
+
+    Attributes:
+        solution: Parent solution
+        platforms: List of all platform types
+        configuration_list: List of all configurations
+        configuration_names: List of configuration names
     """
 
     def __init__(self, solution):
@@ -69,16 +66,9 @@ class Project(object):
         Initialize the exporter.
         """
 
-        ## Parent solution
         self.solution = solution
-
-        ## List of all platform types
         self.platforms = []
-
-        ## List of all configurations
         self.configuration_list = []
-
-        ## List of configuration names
         self.configuration_names = []
 
         # Process all the projects and configurations
@@ -589,7 +579,6 @@ class Project(object):
             '# A = The object file temp folder',
             '#'
         ])
-
 
         for configuration in self.configuration_list:
             if configuration.project_type is ProjectTypes.library:

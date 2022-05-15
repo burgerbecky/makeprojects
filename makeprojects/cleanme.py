@@ -40,9 +40,8 @@ def clean_rules(working_directory, root=True):
 See Also:
     main, makeprojects.buildme, makeprojects.rebuildme
 
+@package makeprojects.cleanme
 """
-
-## \package makeprojects.cleanme
 
 # pylint: disable=useless-object-inheritance
 # pylint: disable=consider-using-f-string
@@ -52,49 +51,11 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
 import argparse
-from burger import import_py_script, convert_to_array
+from burger import convert_to_array
 from .config import BUILD_RULES_PY, DEFAULT_BUILD_RULES
 from .__init__ import __version__, _XCODEPROJ_MATCH
 from .buildme import remove_os_sep, was_processed
-
-########################################
-
-
-def add_build_rules(build_rules_list, file_name, args, is_root):
-    """
-    Load in the file build_rules.py
-
-    Load the build_rules.py file. If the variable ``CLEANME_CONTINUE`` was found
-    in the file, check if it is set to ``True``. If so, continue searching for
-    more build_rules.py files until the root folder is reached. Append the
-    default rules file to the end of the list.
-
-    Args:
-        build_rules_list: List to append a valid build_rules file instance.
-        file_name: Full path name of the build_rules.py to load.
-        args: Args for determining verbosity for output.
-        is_root: True if CLEANME_GENERIC is ignored.
-    Returns:
-        Zero on no error, non zero integer on error
-    """
-
-    # Ensure the absolute path is used.
-    file_name = os.path.abspath(file_name)
-    build_rules = import_py_script(file_name)
-
-    # Not found? Continue parsing folders.
-    if not build_rules:
-        return True
-
-    if is_root or getattr(build_rules, 'CLEANME_GENERIC', False):
-        # Add to the list
-        build_rules_list.append(build_rules)
-
-    if args.verbose:
-        print('Using configuration file {}'.format(file_name))
-
-    # Test if this is considered the last one in the chain.
-    return getattr(build_rules, 'CLEANME_CONTINUE', False)
+from .util import add_build_rules
 
 ########################################
 
@@ -123,7 +84,7 @@ def get_build_rules(working_directory, args):
         # Attempt to load in the build rules.
         if not add_build_rules(
             build_rules_list, os.path.join(
-                temp_dir, args.rules_file), args, is_root):
+                temp_dir, args.rules_file), args.verbose, is_root, "CLEANME"):
             # Abort if CLEANME_CONTINUE = False
             break
 
@@ -135,7 +96,12 @@ def get_build_rules(working_directory, args):
 
         # Already at the top of the directory?
         if temp_dir2 is None or temp_dir2 == temp_dir:
-            add_build_rules(build_rules_list, DEFAULT_BUILD_RULES, args, True)
+            add_build_rules(
+                build_rules_list,
+                DEFAULT_BUILD_RULES,
+                args.verbose,
+                True,
+                "CLEANME")
             break
         # Use the new folder
         temp_dir = temp_dir2

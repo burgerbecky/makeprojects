@@ -4,6 +4,10 @@
 """
 Sub file for makeprojects.
 Handler for Linux make projects
+
+@package makeprojects.makefile
+This module contains classes needed to generate
+project files intended for use by make
 """
 
 # Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
@@ -12,12 +16,6 @@ Handler for Linux make projects
 # for license details. Yes, you can use it in a
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
-
-#
-## \package makeprojects.makefile
-# This module contains classes needed to generate
-# project files intended for use by make
-#
 
 from __future__ import absolute_import, print_function, unicode_literals
 

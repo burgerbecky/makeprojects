@@ -159,9 +159,29 @@ enums.platformtype_short_code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::enums::platformtype_short_code
 
-Core
+Util
 ----
 
-core.source_file_filter
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::core::source_file_filter
+util.validate_enum_type
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::validate_enum_type
+
+util.regex_dict
+^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::regex_dict
+
+util.validate_boolean
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::validate_boolean
+
+util.validate_string
+^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::validate_string
+
+util.source_file_filter
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::source_file_filter
+
+util.add_build_rules
+^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::add_build_rules

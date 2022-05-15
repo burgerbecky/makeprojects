@@ -4,6 +4,10 @@
 """
 Sub file for makeprojects.
 Handler for Apple Computer XCode projects
+
+@package makeprojects.xcode
+This module contains classes needed to generate
+project files intended for use by Apple's XCode IDE
 """
 
 # Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
@@ -12,12 +16,6 @@ Handler for Apple Computer XCode projects
 # for license details. Yes, you can use it in a
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
-
-#
-## \package makeprojects.xcode
-# This module contains classes needed to generate
-# project files intended for use by Apple's XCode IDE
-#
 
 # pylint: disable=consider-using-f-string
 
@@ -688,7 +686,7 @@ def calcuuid(input_str):
 
     Args:
         input_str: string to hash
-    Return:
+    Returns:
         96 bit hash string in upper case.
     """
 
@@ -2768,7 +2766,7 @@ class Project(JSONDict):
         Args:
             line_list: Line list to append new lines.
             indent: number of tabs to insert (For recursion)
-        Return:
+        Returns:
             Non-zero on error.
         """
 
