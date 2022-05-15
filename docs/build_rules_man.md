@@ -170,6 +170,28 @@ This function will perform build functions and return either 0 for no error, or 
 
 When ``makeprojects`` is invoked, if a project name is not specified, this variable will declare the default project name. The default is the name of the folder that is being processed.
 
+## 😺 Global rules
+
+These rules act like the ones that are specific to each tool, except they affect all of the tools.
+
+### GENERIC
+
+``` python
+# Process any child directory if True.
+GENERIC = False
+```
+
+If set to ``True``, all tools will assume this ``build_rules.py`` file is designed to be generic and if invoked from a child directory, it will be given the child's directory for processing. If ``False`` it will only be invoked with the directory that the build_rules files resides in. This is needed to prevent a ``build_rules.py`` file from processing directories that it was not meant to handle when parent directory traversal is active. If this does not exist, the default of ``False`` is used.
+
+### CONTINUE
+
+``` python
+# Process ``build_rules.py`` in the parent folder if True.
+CONTINUE = False
+```
+
+If set to ``True``, all tools will process this file and then traverse the parent directory looking for another ``build_rules.py`` file to continue the their operations. This is useful when there's a generic ``build_rules.py`` file in a root folder and this function performs custom operations unknown to the parent rules file. If this doesn't exist, the default of ``False`` is assumed.
+
 ## 👩‍🔧 Main
 
 ``` python

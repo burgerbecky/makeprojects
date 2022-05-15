@@ -42,11 +42,6 @@ config.find_default_build_rules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::config::find_default_build_rules
 
-config.import_configuration
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::config::import_configuration
-
-
 Clean
 -----
 
@@ -185,3 +180,7 @@ util.source_file_filter
 util.add_build_rules
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::add_build_rules
+
+util.get_build_rules
+^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::get_build_rules

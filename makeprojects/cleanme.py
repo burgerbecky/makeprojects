@@ -52,60 +52,10 @@ import os
 import sys
 import argparse
 from burger import convert_to_array
-from .config import BUILD_RULES_PY, DEFAULT_BUILD_RULES
+from .config import BUILD_RULES_PY
 from .__init__ import __version__, _XCODEPROJ_MATCH
 from .buildme import remove_os_sep, was_processed
-from .util import add_build_rules
-
-########################################
-
-
-def get_build_rules(working_directory, args):
-    """
-    Find all build_rules.py that apply to this directory.
-
-    Args:
-        working_directory: Directory to scan for build_rules.py
-        args: Args for determining verbosity for output
-    Returns:
-        List of loaded build_rules.py files.
-    """
-
-    # Test if there is a specific build rule
-    build_rules_list = []
-
-    # Load the configuration file at the current directory
-    temp_dir = os.path.abspath(working_directory)
-
-    # Is this the first pass?
-    is_root = True
-    while True:
-
-        # Attempt to load in the build rules.
-        if not add_build_rules(
-            build_rules_list, os.path.join(
-                temp_dir, args.rules_file), args.verbose, is_root, "CLEANME"):
-            # Abort if CLEANME_CONTINUE = False
-            break
-
-        # Directory traversal is active, require CLEANME_GENERIC
-        is_root = False
-
-        # Pop a folder to check for higher level build_rules.py
-        temp_dir2 = os.path.dirname(temp_dir)
-
-        # Already at the top of the directory?
-        if temp_dir2 is None or temp_dir2 == temp_dir:
-            add_build_rules(
-                build_rules_list,
-                DEFAULT_BUILD_RULES,
-                args.verbose,
-                True,
-                "CLEANME")
-            break
-        # Use the new folder
-        temp_dir = temp_dir2
-    return build_rules_list
+from .util import get_build_rules
 
 ########################################
 
@@ -232,7 +182,8 @@ def process_directories(processed, directories, args):
             print('Cleaning "{}".'.format(working_directory))
 
         # Are there build rules?
-        build_rules_list = get_build_rules(working_directory, args)
+        build_rules_list = get_build_rules(
+            working_directory, args.verbose, args.rules_file, "CLEANME")
 
         # Is recursion allowed?
         allow_recursion = not getattr_build_rules(

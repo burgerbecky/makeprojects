@@ -11,7 +11,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 from shutil import copyfile
-from burger import get_windows_host_type, import_py_script
+from burger import get_windows_host_type
 
 ## build_rules.py file to detect secondly
 BUILD_RULES_PY = 'build_rules.py'
@@ -117,42 +117,3 @@ def find_default_build_rules():
 
 ## Full pathname of the configuration file
 DEFAULT_BUILD_RULES = find_default_build_rules()
-
-########################################
-
-
-def import_configuration(file_name=None, verbose=True):
-    """
-    Load in the configuration file
-
-    Using the file PROJECTSRC, load it in and parse it as an INI
-    file using the configparser python class.
-
-    Args:
-        file_name: File to load for configuration
-        verbose: If True, print the loaded file''s name.
-
-    Returns:
-        An empty parser object or filled with a successfully loaded file
-    """
-
-    if file_name is None:
-        file_name = DEFAULT_BUILD_RULES
-
-    build_rules = None
-    if file_name and os.path.exists(file_name):
-        build_rules = import_py_script(file_name)
-        if verbose:
-            if build_rules:
-                print('Using configuration file {}'.format(file_name))
-            else:
-                print('build_rules.py was corrupt.')
-    else:
-        if verbose:
-            print('No configuration file found, using defaults')
-        build_rules = import_py_script(
-            os.path.join(
-                os.path.dirname(
-                    os.path.abspath(__file__)),
-                BUILD_RULES_PY))
-    return build_rules
