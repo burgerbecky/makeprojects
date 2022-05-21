@@ -62,7 +62,7 @@ def regex_dict(item):
     Given a dict where the keys are all filenames with wildcards, convert only
     the keys into equivalent regexes and leave the values intact.
 
-    Example:
+    Examples:
 
     rules = {
         '*.cpp':
@@ -270,3 +270,107 @@ def get_build_rules(working_directory, verbose, build_rules_name, basename):
         # Use the new folder
         temp_dir = temp_dir2
     return build_rules_list
+
+########################################
+
+
+def getattr_build_rules(build_rules_list, attributes, value):
+    """
+    Find an attribute in a list of build rules.
+
+    Iterate over the build rules list until an entry has an attribute value.
+    It will return the first one found. If none are found, or there were no
+    entries in ``build_rules_list``, this function returns ``value``.
+
+    Args:
+        build_rules_list: List of ``build_rules.py`` instances.
+        attributes: Attribute name(s) to check for.
+        value: Value to return if the attribute was not found.
+
+    Returns:
+        Attribute value found in ``build_rules_list`` entry, or ``value``.
+    """
+
+    # Ensure if it is a single string
+
+    if is_string(attributes):
+        for build_rules in build_rules_list:
+            # Does the entry have this attribute?
+            try:
+                return getattr(build_rules, attributes)
+            except AttributeError:
+                pass
+    else:
+        # Assume attributes is an iterable of strings
+        for build_rules in build_rules_list:
+            # Does the rules file have this attribute?
+            for attribute in attributes:
+                try:
+                    return getattr(build_rules, attribute)
+                except AttributeError:
+                    pass
+
+    # Return the default value
+    return value
+
+########################################
+
+
+def remove_ending_os_sep(input_list):
+    """
+    Iterate over a string list and remove trailing os seperator characters.
+
+    Each string is tested if its length is greater than one and if the last
+    character is the pathname seperator. If so, the pathname seperator character
+    is removed.
+
+    Args:
+        input_list: list of strings
+
+    Returns:
+        Processed list of strings
+
+    Raises:
+        TypeError
+    """
+
+    # Input could be None, so test for that case
+    if input_list is None:
+        return []
+
+    return [item[:-1] if len(item) >= 2 and item.endswith(os.sep)
+            else item for item in input_list]
+
+########################################
+
+
+def was_processed(processed, path_name, verbose):
+    """
+    Check if a file or directory has already been processed.
+
+    To prevent recursion, expand the path name to an absolution path
+    call this function with a set that will store all the entries and
+    the entry to test. If the entry is already in the set, report the issue
+    and return ``True``. Otherwise, add the entry to the set and return
+    ``False`` to allow the path to be processed.
+
+    Args:
+        processed: Set to store processed pathnames
+        path_name: Path to a directory or file
+        verbose: True if verbose output is requested
+
+    Returns:
+        True if it's already in the set. False if not.
+    """
+
+    # Test for recursion
+    if path_name in processed:
+        if verbose:
+            print('{} has already been processed'.format(path_name))
+        return True
+
+    # Mark this list as "processed" to prevent recursion
+    if verbose:
+        print('Processing {}.'.format(path_name))
+    processed.add(path_name)
+    return False

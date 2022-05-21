@@ -1,4 +1,4 @@
-# Buildme
+# 👷 Buildme
 
 ``buildme`` is a build system launcher that by using a single command, multiple build systems could be launched using a singluar command line. The tool has the ability to build all projects in a single directory, or even recursively through subdirectories with the ``-r`` parameter.
 
@@ -11,6 +11,8 @@ The tool has the ability to parse all project files to determine which version o
 ## build_rules.py
 
 A ``build_rules.py`` file can control the behavior of buildme by listing dependencies and custom build rules.
+
+Full documentation on the operation of [``build_rules.py`` is here](build_rules_man.md).
 
 ### BUILDME_DEPENDENCIES
 

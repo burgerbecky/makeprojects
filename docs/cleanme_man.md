@@ -1,6 +1,6 @@
-# Cleanme
+# 🧹 Cleanme
 
-``cleanme`` is a tools to quickly and easily remove all temporary and generated files to force a full rebuild of a project on the next time a build is invoked. The tool has the ability to clean all projects in a single directory, or recursively through subdirectories with the ``-r`` parameter.
+``cleanme`` is a tool to quickly and easily remove all temporary and generated files to force a full rebuild of a project on the next time a build is invoked. The tool has the ability to clean all projects in a single directory, or recursively through subdirectories with the ``-r`` parameter.
 
 The tool has the ability to parse all project files to determine which version of Visual Studio, XCode, etc. to invoke so there is no needed to determine what build system to use, since it has the ability to determine the proper IDE/build tool to invoke. Custom clean rules are defined in the file ``build_rules.py`` <*see below*>
 
@@ -43,85 +43,7 @@ In this example, the folders ``.``, ``data``, and ``source`` will be processed b
 
 A build_rules file contains both static variables and a function to process a folder for cleaning. The static variables are checked first to guide the behavior of the ``cleanme`` tool, and if present, the function ``clean(working_directory)`` is called for custom clean rules. The function can return an error code which is returned to the command shell that invoked ``cleanme``. Returning ``None`` acts if no error occured.
 
-### Functions
-
-Below is a sample of the function that is called during ``cleanme``. The directory passed is the directory being cleaned.
-
-#### clean(working_directory)
-
-``` python
-def clean(working_directory):
-    """
-    Delete temporary files.
-
-    This function is called by ``cleanme`` to remove temporary files.
-
-    On exit, return 0 for no error, or a non zero error code if there was an
-    error to report.
-
-    Args:
-        working_directory
-            Directory this script resides in.
-
-    Returns:
-        None if not implemented, otherwise an integer error code.
-    """
-
-    # Perform operations that delete temporary files
-    os.remove(os.path.join(working_directory, "file.tmp"))
-
-    # 0 no error, non-zero error code, None = not implemented.
-    return 0
-```
-
-### Variables
-
-These optional global variables will modify the behavior of ``cleanme`` when processing a folder.
-
-#### CLEANME_GENERIC
-
-If set to ``True``, ``cleanme`` will assume this build_rules file is designed to be generic and if invoked from a child directory, it will be given the child's directory for processing. If ``False`` it will only be invoked with the directory that the build_rules files resides in. This is needed to prevent a build_rules file from processing directories that it was not meant to handle when parent directory traversal is active. If this does not exist, the default of ``False`` is used.
-
-``` python
-# Process any child directory with the clean() function if True.
-CLEANME_GENERIC = False
-```
-
-#### CLEANME_CONTINUE
-
-If set to ``True``, ``cleanme`` will process this file and then traverse the parent directory looking for another ``build_rules.py`` to continue the ``cleanme`` operation. This is useful when there's a generic clean operation in a root folder and this function performs custom operations unknown to the parent rules file. If this doesn't exist, the default of ``False`` is assumed.
-
-``` python
-# Process build_rules.py in parent folder if True.
-CLEANME_CONTINUE = False
-```
-
-#### CLEANME_DEPENDENCIES
-
-``cleanme`` will clean the listed folders using their rules before cleaning this folder. If this doesn't exist, the default of an empty list is assumed.
-
-``` python
-# Clean the folders assets and generated before processing this folder.
-CLEANME_DEPENDENCIES = ["assets", "generated"]
-```
-
-#### CLEANME_NO_RECURSE
-
-If set to ``True``, "cleanme -r" will not parse directories in this folder. If this does not exist, the default of ``False`` is used.
-
-``` python
-# Disable recursion in all directories found in this directory.
-CLEANME_NO_RECURSE = True
-```
-
-#### CLEANME_PROCESS_PROJECT_FILES
-
-If set to ``False``, ``cleanme`` will disable scanning for project files and assume that the function ``clean()`` in build_rules.py performs all actions to clean the directory. If this doesn't exist, the default of ``False`` is assumed.
-
-``` python
-# Disable parsing project files.
-CLEANME_PROCESS_PROJECT_FILES = False
-```
+Full documentation on the operation of [``build_rules.py`` is here](build_rules_man.md).
 
 ## Visual Studio
 

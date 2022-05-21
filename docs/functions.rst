@@ -184,3 +184,15 @@ util.add_build_rules
 util.get_build_rules
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::get_build_rules
+
+util.getattr_build_rules
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::getattr_build_rules
+
+util.remove_ending_os_sep
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::remove_ending_os_sep
+
+util.was_processed
+^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::was_processed

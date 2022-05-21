@@ -20,7 +20,7 @@ Chapter list
 - @subpage md_buildme_man Instructions for buildme
 - @subpage md_cleanme_man Instructions for cleanme
 - @subpage md_rebuildme_man Instructions for rebuildme
-- @subpage md_build_rules_man Layout of build_rules.py
+- @subpage md_build_rules_man Layout of ``build_rules.py``
 
 @par To use in your own script:
 

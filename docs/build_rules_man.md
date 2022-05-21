@@ -192,6 +192,24 @@ CONTINUE = False
 
 If set to ``True``, all tools will process this file and then traverse the parent directory looking for another ``build_rules.py`` file to continue the their operations. This is useful when there's a generic ``build_rules.py`` file in a root folder and this function performs custom operations unknown to the parent rules file. If this doesn't exist, the default of ``False`` is assumed.
 
+### DEPENDENCIES
+
+``` python
+# Process listed folders using their rules before processing this folder.
+DEPENDENCIES = []
+```
+
+Process the listed folders using their rules before this folder. Only folders are allowed, files generate an error. If this doesn’t exist, the default of an empty list is assumed.
+
+### NO_RECURSE
+
+``` python
+# If set to True, ``-r``` will not parse sub directories in this folder.
+NO_RECURSE = False
+```
+
+If set to True, ``-r`` will not parse sub directories in this folder. If this does not exist, the default of ``False`` is used. The main purpose of this is to prevent scanning child folders when it is already known that there are no child folders that need processing or that ``DEPENDENCIES`` lists every child folder of interest, so recursion is not necessary.
+
 ## 👩‍🔧 Main
 
 ``` python

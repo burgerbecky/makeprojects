@@ -41,6 +41,7 @@ from burger import where_is_doxygen, create_folder_if_needed, \
     where_is_xcode, convert_to_array
 from .config import BUILD_RULES_PY
 from .__init__ import _XCODEPROJ_MATCH, __version__, _XCODEPROJECT_FILE
+from .util import remove_ending_os_sep, was_processed
 
 ## Default build_rules.py command list, priority / entrypoint
 BUILD_LIST = (
@@ -206,47 +207,6 @@ def create_parser():
 
     return parser
 
-
-########################################
-
-
-def remove_os_sep(input_list):
-    """
-    Iterate over a string list and remove trailing os seperator characters
-
-    Each string is tested if its length is greater than one and if the last
-    character is the pathname seperator. If so, the pathname seperator character
-    is removed.
-
-    Args:
-        input_list: list of strings
-
-    Returns:
-        Processed list of strings
-    """
-
-    if input_list:
-        return [item[:-1] if len(item) >= 2 and item.endswith(os.sep)
-                else item for item in input_list]
-    return list()
-
-########################################
-
-
-def was_processed(processed, file_name):
-    """
-    Check if a file or directory has already been processed.
-    """
-
-    # Test for recursion
-    if file_name in processed:
-        print('{} has already been processed'.format(file_name))
-        return True
-
-    # Mark this list as "processed" to prevent recursion
-    processed.add(file_name)
-    return False
-
 ########################################
 
 
@@ -259,8 +219,8 @@ def fixup_args(args):
     """
 
     # Remove trailing os seperator
-    args.args = remove_os_sep(args.args)
-    args.directories = remove_os_sep(args.directories)
+    args.args = remove_ending_os_sep(args.args)
+    args.directories = remove_ending_os_sep(args.directories)
 
     if not args.configurations:
         args.configurations = list()
@@ -2001,7 +1961,7 @@ def add_project(projects, processed, file_name, args):
     # pylint: disable=too-many-branches
 
     # Test for recursion
-    if was_processed(processed, file_name):
+    if was_processed(processed, file_name, args.verbose):
         return True
 
     # Only process project files
@@ -2132,7 +2092,7 @@ def process_files(results, processed, files, args):
         full_name = os.path.abspath(item)
         base_name = os.path.basename(full_name)
         if base_name == args.rules_file:
-            if not was_processed(processed, full_name):
+            if not was_processed(processed, full_name, args.verbose):
                 process_dependencies(
                     results, processed, add_build_rules(
                         projects, full_name, args), args)
@@ -2166,7 +2126,7 @@ def process_directories(results, processed, directories, args):
         working_directory = os.path.abspath(working_directory)
 
         # Was this directory already processed?
-        if was_processed(processed, working_directory):
+        if was_processed(processed, working_directory, args.verbose):
             # Technically not an error to abort processing, so skip
             continue
 
@@ -2182,7 +2142,7 @@ def process_directories(results, processed, directories, args):
             if getattr(build_rules, 'BUILDME_NO_RECURSE', False):
                 allow_recursion = False
 
-            if not was_processed(processed, build_rules_name):
+            if not was_processed(processed, build_rules_name, args.verbose):
                 process_dependencies(results, processed, add_build_rules(
                     projects, build_rules_name, args, build_rules), args)
 

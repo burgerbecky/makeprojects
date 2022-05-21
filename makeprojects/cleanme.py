@@ -5,37 +5,9 @@
 Remove all temporary files in a project's folder.
 
 Scan the current directory for the file build_rules.py and look for
-the function ``clean_rules`` and call it.
+the function ``clean`` and call it.
 
-This is the default function prototype for directory cleaning. It will
-only be called in the directory that the file build_rules.py resides.
-@code
-def clean_rules(working_directory):
-    return 0
-@endcode
-
-This version will be called from any directory, it's preferred for generic
-cleaning functions that check for specific files for removal.
-@code
-def clean_rules(working_directory=None):
-    return 0
-@endcode
-
-This version will be called from a specific directory. It's useful for generic
-cleaning functions that are limited to a specific folder.
-@code
-def clean_rules(working_directory='C:\\projects\\mygreatapplication'):
-    return 0
-@endcode
-
-If the parameter ``root`` exists, the default parameter will be checked for
-``True`` to determine if this cleaning function is the last one to execute and
-no more build_rules.py files will be searched for. The value ``root`` is not
-set by cleanme and is not expected to be used by ``clean_rules``.
-@code
-def clean_rules(working_directory, root=True):
-    return 0
-@endcode
+Full documentation on the operation of [``cleanme`` is here](cleanme_man.md).
 
 See Also:
     main, makeprojects.buildme, makeprojects.rebuildme
@@ -54,35 +26,8 @@ import argparse
 from burger import convert_to_array
 from .config import BUILD_RULES_PY
 from .__init__ import __version__, _XCODEPROJ_MATCH
-from .buildme import remove_os_sep, was_processed
-from .util import get_build_rules
-
-########################################
-
-
-def getattr_build_rules(build_rules_list, attribute, default):
-    """
-    Find an attribute in a list of build rules.
-
-    Iterate over the build rules list until an entry has an attribute value.
-    It will return the first one found.
-
-    Args:
-        build_rules_list: List of build_rules.py instances.
-        attribute: Attribute name to check for.
-        default: Value to return if the attribute was not found.
-    Returns:
-        default or attribute value.
-    """
-
-    for build_rules in build_rules_list:
-        # Does the entry have this attribute?
-        try:
-            return getattr(build_rules, attribute)
-        except AttributeError:
-            pass
-    # Return the default value
-    return default
+from .util import get_build_rules, getattr_build_rules, remove_ending_os_sep, \
+    was_processed
 
 ########################################
 
@@ -147,7 +92,7 @@ def fixup_args(args):
     """
 
     # Remove trailing os seperator
-    args.directories = remove_os_sep(args.directories)
+    args.directories = remove_ending_os_sep(args.directories)
     args.directories = [os.path.abspath(item) for item in args.directories]
 
 ########################################
@@ -157,6 +102,11 @@ def process_directories(processed, directories, args):
     """
     Clean a list of directories.
 
+    The ``args`` parameter list is an object with these attributes:
+    * ``verbose`` If True, verbose output will be printed to the console
+    * ``rules_file`` Name of the rules file, should be ``build_rules.py``
+    * ``recursive`` If True, recursively process all directories
+
     Args:
         processed: Set of directories already processed.
         directories: iterable list of directories to process
@@ -164,6 +114,9 @@ def process_directories(processed, directories, args):
     Returns:
         Zero on no error, non zero integer on error
     """
+
+    # pylint: disable=too-many-nested-blocks
+    # pylint: disable=too-many-branches
 
     error = 0
 
@@ -174,43 +127,52 @@ def process_directories(processed, directories, args):
         working_directory = os.path.abspath(working_directory)
 
         # Was this directory already processed?
-        if was_processed(processed, working_directory):
+        if was_processed(processed, working_directory, args.verbose):
             # Technically not an error to abort processing, so skip
             continue
 
-        if args.verbose:
-            print('Cleaning "{}".'.format(working_directory))
+        # Only process directories
+        if not os.path.isdir(working_directory):
+            print("{} is not a directory.".format(working_directory))
+            error = 10
+            break
 
-        # Are there build rules?
+        # Are there build rules in this directory?
         build_rules_list = get_build_rules(
             working_directory, args.verbose, args.rules_file, "CLEANME")
 
         # Is recursion allowed?
         allow_recursion = not getattr_build_rules(
-            build_rules_list, 'CLEANME_NO_RECURSE', False)
+            build_rules_list, ("CLEANME_NO_RECURSE", "NO_RECURSE"), False)
 
-        # Process all files needed.
-
+        # Process all of the dependencies first, then this folder
         for build_rules in build_rules_list:
 
-            item = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
-            if item:
+            # Check if there is dependency list
+            dependencies = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
+            if dependencies is None:
+                dependencies = getattr(build_rules, 'DEPENDENCIES', None)
+
+            if dependencies:
                 # Ensure it's an iterable of strings
                 dir_list = []
-                item = convert_to_array(item)
-                for i in item:
-                    if not os.path.isabs(i):
-                        i = os.path.join(working_directory, i)
+                dependencies = convert_to_array(dependencies)
+                for item in dependencies:
+                    if not os.path.isabs(item):
+                        item = os.path.join(working_directory, item)
                         # Ensure there is a directory
                         # This prevents recursion issues
-                        if not os.path.isdir(i):
+                        if not os.path.isdir(item):
                             continue
-                    dir_list.append(i)
+                    dir_list.append(item)
+
+                # Process these directories first.
                 error = process_directories(
                     processed, dir_list, args)
                 if error:
                     break
 
+            # Call the clean() proc in the build_rules.py file, if it exists
             clean_proc = getattr(build_rules, 'clean', None)
             if callable(clean_proc):
                 # pylint: disable=not-callable
@@ -231,11 +193,15 @@ def process_directories(processed, directories, args):
                 if item == args.rules_file:
                     continue
 
+                # Only deal with directories, ignore all files
                 path_name = os.path.join(working_directory, item)
                 if os.path.isdir(path_name):
-                    error = process_directories(processed, [path_name], args)
-                    if error:
-                        break
+                    # Prevent double processing
+                    if path_name not in processed:
+                        error = process_directories(
+                            processed, [path_name], args)
+                        if error:
+                            break
 
     return error
 

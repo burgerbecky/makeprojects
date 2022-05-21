@@ -23,8 +23,8 @@ import os
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.enums import PlatformTypes, ProjectTypes, IDETypes
 from makeprojects.core import Attributes, Configuration, Project, Solution
+from makeprojects.enums import PlatformTypes, ProjectTypes, IDETypes
 
 ########################################
 
@@ -326,11 +326,11 @@ class TestCore(unittest.TestCase):
         s.ide = IDETypes.xcode11
         self.assertIs(s.ide, IDETypes.xcode11)
         s.ide = 'codeblocks'
-        self.assertIs(s.ide, IDETypes.codeblocks)        
+        self.assertIs(s.ide, IDETypes.codeblocks)
         with self.assertRaises(TypeError):
             s.ide = False
         with self.assertRaises(TypeError):
-           s.ide = 5.0
+            s.ide = 5.0
         with self.assertRaises(TypeError):
             s.ide = self
         s.ide = None
