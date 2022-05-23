@@ -458,7 +458,7 @@ def rules(command, working_directory, root=True, **kargs):
         # Return the default type of project to create.
         return ProjectTypes.tool
 
-    elif command == 'default_platform_ide':
+    elif command == 'default_ide':
         # Return the default IDE to build for.
         return IDETypes.default()
 

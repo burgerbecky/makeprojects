@@ -1995,8 +1995,15 @@ class VS2003XML():
 
         return '\n'.join(self.generate())
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert the solultion record into a human readable description
+
+        Returns:
+            Human readable string or None if the solution is invalid
+        """
+
+        return self.__repr__()
 
 
 ########################################

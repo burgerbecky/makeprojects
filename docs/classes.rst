@@ -27,6 +27,11 @@ enums.ProjectTypes
 Project Classes
 ---------------
 
+core.Attributes
+^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::core::Attributes
+    :members:
+
 core.SourceFile
 ^^^^^^^^^^^^^^^
 .. doxygenclass:: makeprojects::core::SourceFile
@@ -50,12 +55,12 @@ core.Solution
 Build Classes
 -------------
 
-buildme.BuildError
-^^^^^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::buildme::BuildError
+core.BuildError
+^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::core::BuildError
     :members:
 
-buildme.BuildObject
-^^^^^^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::buildme::BuildObject
+core.BuildObject
+^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::core::BuildObject
     :members:

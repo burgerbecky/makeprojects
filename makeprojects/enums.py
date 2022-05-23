@@ -1,20 +1,100 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Enumeration types for makeprojects
-
-All enumerations are stored in this package
-
-@package makeprojects.enums
-"""
-
 # Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 #
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
+
+"""
+Enumeration types for makeprojects
+
+All enumerations are stored in this package
+
+@package makeprojects.enums
+
+
+@var makeprojects.enums._FILETYPES_LOOKUP
+Dictionary of default file extensions and mapped types
+
+When the directory is scanned for input files, the files will be tested
+against this list with a forced lowercase filename and determine the type of
+compiler to assign to an input file
+
+This list can be appended or modified to allow other file types to be
+processed
+
+@sa makeprojects.enums.FileTypes.lookup()
+
+
+@var makeprojects.enums._FILETYPES_READABLE
+List of human readable strings
+
+Dictionary to map FileTypes enumerations into an human readable string
+
+@sa makeprojects.enums.FileTypes.__repr__()
+
+
+@var makeprojects.enums._PROJECTTYPES_READABLE
+List of human readable strings
+
+Dictionary to map ProjectTypes enumerations into an human readable string
+
+@sa makeprojects.enums.ProjectTypes.__repr__()
+
+
+@var makeprojects.enums._IDETYPES_CODES
+List of IDE short codes
+
+Dictionary to map IDETypes enumerations into a
+three letter code to append to a project filename
+
+@sa makeprojects.enums.IDETypes.get_short_code()
+
+
+@var makeprojects.enums._IDETYPES_READABLE
+List of human readable strings
+
+Dictionary to map IDETypes enumerations into an human readable string
+
+@sa makeprojects.enums.IDETypes.__repr__()
+
+
+@var makeprojects.enums._PLATFORMTYPES_CODES
+List of platform short codes.
+
+Dictionary to map PlatformTypes enumerations into a
+three or six letter code to append to a project filename
+
+@sa makeprojects.enums.PlatformTypes.get_short_code
+
+
+@var makeprojects.enums._PLATFORMTYPES_VS
+List of Visual Studio platform codes
+
+Visual Studio uses specific codes for tool chains used for
+video game consoles or CPUs
+
+@sa makeprojects.enums.PlatformTypes.get_vs_platform
+
+
+@var makeprojects.enums._PLATFORMTYPES_READABLE
+List of human readable strings
+
+Dictionary to map PlatformTypes enumerations into an human readable string
+
+@sa makeprojects.enums.PlatformTypes.__repr__
+
+
+@var makeprojects.enums._PLATFORMTYPES_EXPANDED
+List of platforms that expand to multiple targets.
+
+Dictionary to map generic PlatformTypes enumerations into lists.
+
+@sa makeprojects.enums.PlatformTypes.get_expanded
+"""
 
 from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum
@@ -36,61 +116,63 @@ class FileTypes(IntEnum):
     Each file that is to be added to a project has specific build rules,
     this enumeration helps determine which compiler to invoke to build the file
     if a build step is necessary.
+
+    Attributes:
+        user: User file type (Unknown)
+        generic: Non compiling file type
+        c: Compile as C
+        cpp: Compile as C++
+        h: C/C++ header
+        m: Objective-C
+        xml: XML text file
+        rc: Windows resource file
+        r: Mac OS resource file
+        hlsl: HLSL DirectX Shader
+        glsl: GLSL OpenGL Shader
+        x360sl: Xbox 360 DirectX Shader
+        vitacg: Playstation Vita CG Shader
+        frameworks: Mac OSX Framework
+        library: Static libary
+        object: Object code
+        exe: Executable file
+        xcconfig: XCode configuration file
+        x86: X86 assembly source
+        x64: X64 assembly source
+        a65: 6502/65812 assembly source
+        ppc: PowerPC assembly source
+        a68: 680x0 assembly source
+        image: Image files
+        ico: Windows icon files
+        icns: MacOSX icon files
+        appxmanifest: Windows AppXManifest files
     """
 
-    ## User file type (Unknown)
     user = 0
-    ## Non compiling file type
     generic = 1
-    ## Compile as C
     c = 2
-    ## Compile as C++
     cpp = 3
-    ## C/C++ header
     h = 4
-    ## Objective-C
     m = 5
-    ## XML text file
     xml = 6
-    ## Windows resource file
     rc = 7
-    ## Mac OS resource file
     r = 8
-    ## HLSL DirectX Shader
     hlsl = 9
-    ## GLSL OpenGL Shader
     glsl = 10
-    ## Xbox 360 DirectX Shader
     x360sl = 11
-    ## Playstation Vita CG Shader
     vitacg = 12
-    ## Mac OSX Framework
     frameworks = 13
-    ## Static libary
     library = 14
-    ## Object code
     object = 15
-    ## Executable file
     exe = 16
-    ## XCode configuration file
     xcconfig = 17
-    ## X86 assembly source
     x86 = 18
-    ## X64 assembly source
     x64 = 19
-    ## 6502/65812 assembly source
     a65 = 20
-    ## PowerPC assembly source
     ppc = 21
-    ## 680x0 assembly source
     a68 = 22
-    ## Image files
     image = 23
-    ## Windows icon files
     ico = 24
-    ## MacOSX icon files
     icns = 25
-    ## Windows AppXManifest files
     appxmanifest = 26
 
     @staticmethod
@@ -127,20 +209,20 @@ class FileTypes(IntEnum):
 
         return _FILETYPES_READABLE.get(self, None)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert the enumeration into a human readable file description
 
+        Args:
+            self: FileTypes instance
+        Returns:
+            Human readable string or None if the enumeration is invalid
+        See Also:
+            makeprojects.enums._FILETYPES_READABLE
+        """
 
-## Dictionary of default file extensions and mapped types
-#
-# When the directory is scanned for input files, the files will be tested
-# against this list with a forced lowercase filename and determine the type of
-# compiler to assign to an input file
-#
-# This list can be appended or modified to allow other file types to be
-# processed
-#
-# @sa makeprojects.enums.FileTypes.lookup()
+        return self.__repr__()
+
 
 _FILETYPES_LOOKUP = {
     'c': FileTypes.c,                   # C/C++ source code
@@ -190,12 +272,6 @@ _FILETYPES_LOOKUP = {
     'appxmanifest': FileTypes.appxmanifest
 }
 
-## List of human readable strings
-#
-# Dictionary to map FileTypes enumerations into an human readable string
-#
-# @sa makeprojects.enums.FileTypes.__repr__()
-
 _FILETYPES_READABLE = {
     FileTypes.user: 'User',
     FileTypes.generic: 'Generic',
@@ -235,19 +311,21 @@ class ProjectTypes(IntEnum):
 
     Each configuration can build a specific type of file, this enumeration
     lists out the types of files that can be built.
+
+    Attributes:
+        library: Code library
+        tool: Command line tool
+        app: Application
+        screensaver: Screen saver
+        sharedlibrary: Shared library (DLL)
+        empty: Empty project
     """
 
-    ## Code library
     library = 0
-    ## Command line tool
     tool = 1
-    ## Application
     app = 2
-    ## Screen saver
     screensaver = 3
-    ## Shared library (DLL)
     sharedlibrary = 4
-    ## Empty project
     empty = 5
 
     def is_library(self):
@@ -309,6 +387,7 @@ class ProjectTypes(IntEnum):
         """
         Determine the ProjectTypes default.
         """
+
         return ProjectTypes.tool
 
     def __repr__(self):
@@ -323,14 +402,17 @@ class ProjectTypes(IntEnum):
 
         return _PROJECTTYPES_READABLE.get(self, None)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert the enumeration into a human readable file description
 
-## List of human readable strings
-#
-# Dictionary to map ProjectTypes enumerations into an human readable string
-#
-# @sa makeprojects.enums.ProjectTypes.__repr__()
+        Returns:
+            Human readable string or None if the enumeration is invalid
+        See Also:
+            makeprojects.enums._PROJECTTYPES_READABLE
+        """
+
+        return self.__repr__()
 
 
 _PROJECTTYPES_READABLE = {
@@ -351,76 +433,96 @@ class IDETypes(IntEnum):
     Enumeration of supported IDEs
 
     All supported IDEs and makefile formats are enumerated here.
+
+    Attributes:
+        vs2003: Visual studio 2003
+        vs2005: Visual studio 2005
+        vs2008: Visual studio 2008
+        vs2010: Visual studio 2010
+        vs2012: Visual studio 2012
+        vs2013: Visual studio 2013
+        vs2015: Visual studio 2015
+        vs2017: Visual studio 2017
+        vs2019: Visual studio 2019
+        vs2022: Visual studio 2022
+
+        watcom: Open Watcom 1.9 or later
+
+        codewarrior50: Metrowerks Codewarrior 9 / 5.0 (Windows/Mac OS)
+        codewarrior58: Metrowerks Codewarrior 10 / 5.8 (Mac OS Carbon)
+        codewarrior59: Freescale Codewarrior 5.9 (Nintendo DSi)
+
+        xcode3: XCode 3 (PowerPC 3.1.4 is the target version)
+        xcode4: XCode 4
+        xcode5: XCode 5
+        xcode6: XCode 6
+        xcode7: XCode 7
+        xcode8: XCode 8
+        xcode9: XCode 9
+        xcode10: XCode 10
+        xcode11: XCode 11
+        xcode12: XCode 12
+        xcode13: XCode 13
+
+        codeblocks: Codeblocks
+
+        nmake: nmake
+
+        make: Linux/GNU make
+
+        bazel: Bazel build
+
+        mpw: Apple MPW
+
+        buck: Buck builder
+
+        ninja: Google ninja
     """
 
-    ## Visual studio 2003
     vs2003 = 0
-    ## Visual studio 2005
     vs2005 = 1
-    ## Visual studio 2008
     vs2008 = 2
-    ## Visual studio 2010
     vs2010 = 3
-    ## Visual studio 2012
     vs2012 = 4
-    ## Visual studio 2013
     vs2013 = 5
-    ## Visual studio 2015
     vs2015 = 6
-    ## Visual studio 2017
     vs2017 = 7
-    ## Visual studio 2019
     vs2019 = 8
-    ## Visual studio 2022
     vs2022 = 9
 
-    ## Open Watcom 1.9 or later
     watcom = 10
 
-    ## Metrowerks Codewarrior 9 / 5.0 (Windows/Mac OS)
     codewarrior50 = 11
-    ## Metrowerks Codewarrior 10 / 5.8 (Mac OS Carbon)
     codewarrior58 = 12
-    ## Freescale Codewarrior 5.9 (Nintendo DSi)
     codewarrior59 = 13
 
-    ## XCode 3 (PowerPC 3.1.4 is the target version)
     xcode3 = 14
-    ## XCode 4
     xcode4 = 15
-    ## XCode 5
     xcode5 = 16
-    ## XCode 6
     xcode6 = 17
-    ## XCode 7
     xcode7 = 18
-    ## XCode 8
     xcode8 = 19
-    ## XCode 9
     xcode9 = 20
-    ## XCode 10
     xcode10 = 21
-    ## XCode 11
     xcode11 = 22
-    ## XCode 12
     xcode12 = 23
-    ## XCode 13
     xcode13 = 24
 
-    ## Codeblocks
     codeblocks = 25
 
-    ## nmake
     nmake = 26
 
-    ## make
     make = 27
 
-    ## bazel
     bazel = 28
 
-    ## MPW
     mpw = 29
+
+    buck = 30
+
+    ninja = 31
+
+    ########################################
 
     def get_short_code(self):
         """
@@ -437,6 +539,8 @@ class IDETypes(IntEnum):
 
         return _IDETYPES_CODES.get(self, None)
 
+    ########################################
+
     def is_visual_studio(self):
         """
         Determine if the IDE is Microsoft Visual Studio.
@@ -449,6 +553,8 @@ class IDETypes(IntEnum):
             IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008, IDETypes.vs2010,
             IDETypes.vs2012, IDETypes.vs2013, IDETypes.vs2015, IDETypes.vs2017,
             IDETypes.vs2019, IDETypes.vs2022)
+
+    ########################################
 
     def is_xcode(self):
         """
@@ -463,6 +569,8 @@ class IDETypes(IntEnum):
             IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
             IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13)
 
+    ########################################
+
     def is_codewarrior(self):
         """
         Determine if the IDE is Metrowerks / Freescale Codewarrior.
@@ -473,6 +581,8 @@ class IDETypes(IntEnum):
 
         return self in (IDETypes.codewarrior50,
                         IDETypes.codewarrior58, IDETypes.codewarrior59)
+
+    ########################################
 
     @staticmethod
     def lookup(ide_name):
@@ -491,8 +601,7 @@ class IDETypes(IntEnum):
             A @ref IDETypes member or None on failure.
         """
 
-        # Too many return statements
-        # pylint: disable=R0911
+        # pylint: disable=too-many-return-statements
 
         # Already a IDETypes?
         if isinstance(ide_name, IDETypes):
@@ -530,6 +639,8 @@ class IDETypes(IntEnum):
 
         return None
 
+    ########################################
+
     @staticmethod
     def default():
         """
@@ -556,6 +667,8 @@ class IDETypes(IntEnum):
             return IDETypes.watcom
         return IDETypes.make
 
+    ########################################
+
     def __repr__(self):
         """
         Convert the enumeration into a human readable file description.
@@ -568,16 +681,18 @@ class IDETypes(IntEnum):
 
         return _IDETYPES_READABLE.get(self, None)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert the enumeration into a human readable file description.
 
+        Returns:
+            Human readable string or None if the enumeration is invalid
+        See Also:
+            makeprojects.enums._IDETYPES_READABLE
+        """
 
-## List of IDE short codes
-#
-# Dictionary to map IDETypes enumerations into a
-# three letter code to append to a project filename
-#
-# @sa makeprojects.enums.IDETypes.get_short_code()
+        return self.__repr__()
+
 
 _IDETYPES_CODES = {
     IDETypes.vs2003: 'vc7',                 # Microsoft Visual Studio
@@ -609,14 +724,10 @@ _IDETYPES_CODES = {
     IDETypes.nmake: 'nmk',                  # nmake
     IDETypes.make: 'mak',                   # make
     IDETypes.bazel: 'bzl',                  # Bazel
-    IDETypes.mpw: 'mpw'                     # MPW Make
+    IDETypes.mpw: 'mpw',                    # Apple MPW Make
+    IDETypes.buck: 'bck',                   # Facebook buck
+    IDETypes.ninja: 'nin'                   # Google ninja
 }
-
-## List of human readable strings
-#
-# Dictionary to map IDETypes enumerations into an human readable string
-#
-# @sa makeprojects.enums.IDETypes.__repr__()
 
 _IDETYPES_READABLE = {
     IDETypes.vs2003: 'Visual Studio 2003',
@@ -648,7 +759,9 @@ _IDETYPES_READABLE = {
     IDETypes.nmake: 'GNU make',
     IDETypes.make: 'Linux make',
     IDETypes.bazel: 'Bazel build',
-    IDETypes.mpw: 'Apple MPW make'
+    IDETypes.mpw: 'Apple MPW make',
+    IDETypes.buck: 'Facebook buck',
+    IDETypes.ninja: 'Google ninja'
 }
 
 ########################################
@@ -723,131 +836,147 @@ class PlatformTypes(IntEnum):
     Enumeration of supported target platforms.
 
     All supported tool chains for specific platforms are enumerated here.
+
+    Attributes:
+        windows: Windows 32 and 64 bit Intel and arm64
+        windowsintel: Windows 32 and 64 bit Intel
+        windowsarm: Windows 32 and 64 bit arm
+        win32: Windows 32 bit intel only
+        win64: Window 64 bit intel only
+        winarm32: Windows 32 bit arm only
+        winarm64: Windows 64 bit arm only
+        winitanium: Windows 64 bit itanium only
+
+        macosx: Mac OSX, all CPUs
+        macosxppc32: Mac OSX PowerPC 32 bit only
+        macosxppc64: Mac OSX PowerPC 64 bit only
+        macosxintel32: Mac OSX Intel 32 bit only
+        macosxintel64: Mac OSX Intel 64 bit only
+
+        macos9: Mac OS 9, all CPUs
+        macos968k: Mac OS 9 680x0 only
+        macos9ppc: Mac OS 9 PowerPC 32 bit only
+        maccarbon: Mac OS Carbon, all CPUs
+        maccarbon68k: Mac OS Carbon 680x0 only (CFM)
+        maccarbonppc: Mac OS Carbon PowerPC 32 bit only
+
+        ios: iOS, all CPUs
+        ios32: iOS 32 bit ARM only
+        ios64: iOS 64 bit ARM only
+        iosemu: iOS emulator, all CPUs
+        iosemu32: iOS emulator 32 bit Intel only
+        iosemu64: iOS emulator 64 bit Intel only
+
+        xbox: Microsoft Xbox classic
+        xbox360: Microsoft Xbox 360
+        xboxone: Microsoft Xbox ONE
+
+        ps1: Sony PS1
+        ps2: Sony PS2
+        ps3: Sony PS3
+        ps4: Sony PS4
+        ps5: Sony PS5
+        psp: Sony Playstation portable
+        vita: Sony Playstation VITA
+
+        wii: Nintendi Wii
+        wiiu: Nintendo WiiU
+        switch: Nintendo Switch
+        switch32: Nintendo Switch 32 bit only
+        switch64: Nintendo Switch 64 bit only
+
+        dsi: Nintendo 3DS
+        ds: Nintendo DS
+
+        android: Generic Android
+        shield: nVidia SHIELD
+        amico: Intellivision Amico
+        ouya: Ouya (Now Razor)
+        tegra: Android Tegra
+        androidarm32: Android Arm32
+        androidarm64: Android Arm64
+        androidintel32: Android Intel x32
+        androidintel64: Android Intel / AMD 64
+
+        linux: Generic Linux
+
+        msdos: MSDOS
+        msdos4gw: MSDOS Dos4GW
+        msdosx32: MSDOS DosX32
+
+        beos: BeOS
+        iigs: Apple IIgs
     """
 
-    ## Windows 32 and 64 bit Intel and arm64
     windows = 0
-    ## Windows 32 and 64 bit Intel
     windowsintel = 1
-    ## Windows 32 and 64 bit arm
     windowsarm = 2
-    ## Windows 32 bit intel only
     win32 = 3
-    ## Window 64 bit intel only
     win64 = 4
-    ## Windows 32 bit arm only
     winarm32 = 5
-    ## Windows 64 bit arm only
     winarm64 = 6
-    ## Windows 64 bit itanium only
     winitanium = 7
 
-    ## Mac OSX, all CPUs
     macosx = 8
-    ## Mac OSX PowerPC 32 bit only
     macosxppc32 = 9
-    ## Mac OSX PowerPC 64 bit only
     macosxppc64 = 10
-    ## Mac OSX Intel 32 bit only
     macosxintel32 = 11
-    ## Mac OSX Intel 64 bit only
     macosxintel64 = 12
 
-    ## Mac OS 9, all CPUs
     macos9 = 13
-    ## Mac OS 9 680x0 only
     macos968k = 14
-    ## Mac OS 9 PowerPC 32 bit only
     macos9ppc = 15
-    ## Mac OS Carbon, all CPUs
     maccarbon = 16
-    ## Mac OS Carbon 680x0 only (CFM)
     maccarbon68k = 17
-    ## Mac OS Carbon PowerPC 32 bit only
     maccarbonppc = 18
 
-    ## iOS, all CPUs
     ios = 19
-    ## iOS 32 bit ARM only
     ios32 = 20
-    ## iOS 64 bit ARM only
     ios64 = 21
-    ## iOS emulator, all CPUs
     iosemu = 22
-    ## iOS emulator 32 bit Intel only
     iosemu32 = 23
-    ## iOS emulator 64 bit Intel only
     iosemu64 = 24
 
-    ## Microsoft Xbox classic
     xbox = 25
-    ## Microsoft Xbox 360
     xbox360 = 26
-    ## Microsoft Xbox ONE
     xboxone = 27
 
-    ## Sony PS1
     ps1 = 28
-    ## Sony PS2
     ps2 = 29
-    ## Sony PS3
     ps3 = 30
-    ## Sony PS4
     ps4 = 31
-    ## Sony Playstation portable
-    psp = 32
-    ## Sony Playstation VITA
-    vita = 33
+    ps5 = 32
+    psp = 33
+    vita = 34
 
-    ## Nintendi Wii
-    wii = 34
-    ## Nintendo WiiU
-    wiiu = 35
-    ## Nintendo Switch
-    switch = 36
-    ## Nintendo Switch 32 bit only
-    switch32 = 37
-    ## Nintendo Switch 64 bit only
-    switch64 = 38
+    wii = 35
+    wiiu = 36
+    switch = 37
+    switch32 = 38
+    switch64 = 39
 
-    ## Nintendo 3DS
-    dsi = 39
-    ## Nintendo DS
-    ds = 40
+    dsi = 40
+    ds = 41
 
-    ## Generic Android
-    android = 41
-    ## nVidia SHIELD
-    shield = 42
-    ## Intellivision Amico
-    amico = 43
-    ## Ouya (Now Razor)
-    ouya = 44
-    ## Android Tegra
-    tegra = 45
-    ## Android Arm32
-    androidarm32 = 46
-    ## Android Arm64
-    androidarm64 = 47
-    ## Android Intel x32
-    androidintel32 = 48
-    ## Android Intel / AMD 64
-    androidintel64 = 49
+    android = 42
+    shield = 43
+    amico = 44
+    ouya = 45
+    tegra = 46
+    androidarm32 = 47
+    androidarm64 = 48
+    androidintel32 = 49
+    androidintel64 = 50
 
-    ## Generic Linux
-    linux = 50
+    linux = 51
 
-    ## MSDOS
-    msdos = 51
-    ## MSDOS Dos4GW
-    msdos4gw = 52
-    ## MSDOS DosX32
-    msdosx32 = 53
+    msdos = 52
+    msdos4gw = 53
+    msdosx32 = 54
 
-    ## BeOS
-    beos = 54
-    ## Apple IIgs
-    iigs = 55
+    beos = 55
+
+    iigs = 56
 
     def get_short_code(self):
         """
@@ -1000,6 +1129,7 @@ class PlatformTypes(IntEnum):
             PlatformTypes.ps2: 'ps2',
             PlatformTypes.ps3: 'ps3',
             PlatformTypes.ps4: 'ps4',
+            PlatformTypes.ps5: 'ps5',
             PlatformTypes.psp: 'psp',
             PlatformTypes.vita: 'vita',
             PlatformTypes.xbox: 'xbox',
@@ -1048,9 +1178,8 @@ class PlatformTypes(IntEnum):
             True if the types are compatible.
         """
 
-        # Too many return statements
-        # Too many branches
-        # pylint: disable=R0911, R0912
+        # pylint: disable=too-many-return-statements
+
         if self == second:
             return True
 
@@ -1204,16 +1333,17 @@ class PlatformTypes(IntEnum):
 
         return _PLATFORMTYPES_READABLE.get(self, None)
 
-    ## Allow str() to work.
-    __str__ = __repr__
+    def __str__(self):
+        """
+        Convert the enumeration into a human readable file description.
 
+        Returns:
+            Human readable string or None if the enumeration is invalid
+        See Also:
+            makeprojects.enums._PLATFORMTYPES_READABLE
+        """
 
-## List of platform short codes.
-#
-# Dictionary to map PlatformTypes enumerations into a
-# three or six letter code to append to a project filename
-#
-# @sa makeprojects.enums.PlatformTypes.get_short_code
+        return self.__repr__()
 
 _PLATFORMTYPES_CODES = {
     PlatformTypes.windows: 'win10',         # Windows targets
@@ -1248,6 +1378,7 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.ps2: 'ps2',
     PlatformTypes.ps3: 'ps3',
     PlatformTypes.ps4: 'ps4',
+    PlatformTypes.ps5: 'ps5',
     PlatformTypes.psp: 'psp',
     PlatformTypes.vita: 'vit',
     PlatformTypes.ds: '2ds',                 # Nintendo platforms
@@ -1274,13 +1405,6 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.iigs: '2gs'               # Apple IIgs
 }
 
-## List of Visual Studio platform codes
-#
-# Visual Studio uses specific codes for tool chains used for
-# video game consoles or CPUs
-#
-# @sa makeprojects.enums.PlatformTypes.get_vs_platform
-
 _PLATFORMTYPES_VS = {
     # Windows targets
     PlatformTypes.windows: ('Win32', 'x64', 'ARM', 'ARM64'),
@@ -1300,6 +1424,7 @@ _PLATFORMTYPES_VS = {
     # Sony platforms
     PlatformTypes.ps3: ('PS3',),
     PlatformTypes.ps4: ('ORBIS',),
+    PlatformTypes.ps5: ('ORBIS',),
     PlatformTypes.vita: ('PSVita',),
 
     # Nintendo platforms
@@ -1323,12 +1448,6 @@ _PLATFORMTYPES_VS = {
     PlatformTypes.androidintel32: ('x86-Android-NVIDIA',),
     PlatformTypes.androidintel64: ('x64-Android-NVIDIA',)
 }
-
-## List of human readable strings
-#
-# Dictionary to map PlatformTypes enumerations into an human readable string
-#
-# @sa makeprojects.enums.PlatformTypes.__repr__
 
 _PLATFORMTYPES_READABLE = {
     # Windows targets
@@ -1373,6 +1492,7 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.ps2: 'Sony PS2',
     PlatformTypes.ps3: 'Sony PS3',
     PlatformTypes.ps4: 'Sony PS4',
+    PlatformTypes.ps5: 'Sony PS5',
     PlatformTypes.psp: 'Sony Playstation Portable',
     PlatformTypes.vita: 'Sony Playstation Vita',
 
@@ -1409,12 +1529,6 @@ _PLATFORMTYPES_READABLE = {
     # Apple IIgs
     PlatformTypes.iigs: 'Apple IIgs'
 }
-
-## List of platforms that expand to multiple targets.
-#
-# Dictionary to map generic PlatformTypes enumerations into lists.
-#
-# @sa makeprojects.enums.PlatformTypes.get_expanded
 
 _PLATFORMTYPES_EXPANDED = {
     PlatformTypes.windows: (
