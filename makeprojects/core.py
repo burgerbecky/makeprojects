@@ -799,7 +799,7 @@ class Configuration(Attributes):
         """
 
         # Init the base class
-        super().__init__()
+        super(Configuration, self).__init__()
 
         self._short_code = None
 
@@ -1011,7 +1011,7 @@ class Project(Attributes):
         """
 
         # Init the base class
-        super().__init__()
+        super(Project, self).__init__()
 
         self.source_folders_list = ['.', 'source', 'src']
         self.source_files_list = []
@@ -1436,7 +1436,7 @@ class Solution(Attributes):
         """
 
         # Init the base class
-        super().__init__()
+        super(Solution, self).__init__()
 
         self._ide = None
         self.source_folders_list = []
