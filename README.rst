@@ -2,7 +2,7 @@
 Makeprojects for Python
 =======================
 
-|PyPi| |License| |Travis| |Docs| |Versions|
+|PyPi| |License| |GithubActions| |Docs| |Versions|
 
 The ``makeprojects`` module makes it easy to autogenerate project files for
 several popular Integrated Development Enviroments (IDEs)
@@ -40,9 +40,9 @@ size (32 bit or 64 bit) and what platform was used (Windows / Mac OSX / Linux).
 .. |License| image:: https://img.shields.io/pypi/l/makeprojects.svg
     :target: https://github.com/burgerbecky/makeprojects/blob/master/LICENSE.txt
     :alt: License
-.. |Travis| image:: https://img.shields.io/travis/burgerbecky/makeprojects.svg
-    :target: https://travis-ci.org/burgerbecky/makeprojects
-    :alt: Travis Status
+.. |GithubActions| image:: https://github.com/burgerbecky/makeprojects/actions/workflows/python-build.yml/badge.svg
+    :target: https://github.com/burgerbecky/makeprojects/actions
+    :alt: Github Actions Status
 .. |Docs| image:: https://img.shields.io/readthedocs/makeprojects.svg
     :target: http://makeprojects.readthedocs.io
     :alt: Documentation Status
