@@ -16,19 +16,307 @@ by Microsoft's Visual Studio 2003, 2005 and 2008.
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+import sys
 import operator
 from uuid import NAMESPACE_DNS, UUID
+from re import compile as re_compile
 from hashlib import md5
 from burger import save_text_file_if_newer, convert_to_windows_slashes, \
-    escape_xml_cdata, escape_xml_attribute, is_string
+    escape_xml_cdata, escape_xml_attribute, is_string, where_is_visual_studio, \
+    load_text_file
 
 from .validators import BooleanProperty, StringProperty, EnumProperty, \
     StringListProperty, IntegerProperty
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
+from .core import BuildObject, BuildError
 
 SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
+
+_SLNFILE_MATCH = re_compile('(?is).*\\.sln\\Z')
+
+_VS_VERSION_YEARS = {
+    '2012': 2012,
+    '2013': 2013,
+    '14': 2015,
+    '15': 2017,
+    '16': 2019,
+    '17': 2022
+}
+
+_VS_OLD_VERSION_YEARS = {
+    '8.00': 2003,
+    '9.00': 2005,
+    '10.00': 2008,
+    '11.00': 2010,
+    '12.00': 2012
+}
+
+_VS_SDK_ENV_VARIABLE = {
+    'PSP': 'SCE_ROOT_DIR',          # PSP
+    'PS3': 'SCE_PS3_ROOT',          # PS3
+    'ORBIS': 'SCE_ORBIS_SDK_DIR',   # PS4
+    'PSVita': 'SCE_PSP2_SDK_DIR',   # PS Vita
+    'Xbox': 'XDK',                  # Xbox classic
+    'Xbox 360': 'XEDK',             # Xbox 360
+    'Xbox ONE': 'DurangoXDK',       # Xbox ONE
+    'Wii': 'REVOLUTION_SDK_ROOT',   # Nintendo Wii
+    'NX32': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
+    'NX64': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
+    'Android': 'ANDROID_NDK_ROOT',  # Generic Android tools
+    'ARM-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
+    'AArch64-Android-NVIDIA': 'NVPACK_ROOT',    # nVidia android tools
+    'x86-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
+    'x64-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
+    'Tegra-Android': 'NVPACK_ROOT'              # nVidia android tools
+}
+
+########################################
+
+
+def parse_sln_file(full_pathname):
+    """
+    Find build targets in .sln file.
+
+    Given a .sln file for Visual Studio 2003, 2005, 2008, 2010,
+    2012, 2013, 2015, 2017 or 2019, locate and extract all of the build
+    targets available and return the list.
+
+    It will also determine which version of Visual
+    Studio this solution file requires.
+
+    Args:
+        full_pathname: Pathname to the .sln file
+    Returns:
+        tuple(list of configuration strings, integer Visual Studio version year)
+    See Also:
+        build_visual_studio
+    """
+
+    # Load in the .sln file, it's a text file
+    file_lines = load_text_file(full_pathname)
+
+    # Version not known yet
+    vs_version = 0
+
+    # Start with an empty list
+    target_list = []
+
+    if file_lines:
+        # Not looking for 'Visual Studio'
+        looking_for_visual_studio = False
+
+        # Not looking for EndGlobalSection
+        looking_for_end_global_section = False
+
+        # Parse
+        for line in file_lines:
+
+            # Scanning for 'EndGlobalSection'?
+
+            if looking_for_end_global_section:
+
+                # Once the end of the section is reached, end
+                if 'EndGlobalSection' in line:
+                    looking_for_end_global_section = False
+                else:
+
+                    # The line contains 'Debug|Win32 = Debug|Win32'
+                    # Split it in half at the equals sign and then
+                    # remove the whitespace and add to the list
+                    target = line.split('=')[-1].strip()
+                    if target not in target_list:
+                        target_list.append(target)
+                continue
+
+            # Scanning for the secondary version number in Visual Studio 2012 or
+            # higher
+
+            if looking_for_visual_studio and '# Visual Studio' in line:
+                # The line contains '# Visual Studio 15' or '# Visual Studio
+                # Version 16'
+
+                # Use the version number to determine which visual studio to
+                # launch
+                vs_version = _VS_VERSION_YEARS.get(line.rsplit()[-1], 0)
+                looking_for_visual_studio = False
+                continue
+
+            # Get the version number
+            if 'Microsoft Visual Studio Solution File' in line:
+                # The line contains
+                # 'Microsoft Visual Studio Solution File, Format Version 12.00'
+                # The number is in the last part of the line
+                # Use the version string to determine which visual studio to
+                # launch
+                vs_version = _VS_OLD_VERSION_YEARS.get(line.split()[-1], 0)
+                if vs_version == 2012:
+                    # 2012 or higher requires a second check
+                    looking_for_visual_studio = True
+                continue
+
+            # Look for this section, it contains the configurations
+            if '(SolutionConfigurationPlatforms)' in line or \
+                    '(ProjectConfiguration)' in line:
+                looking_for_end_global_section = True
+
+    # Exit with the results
+    if not vs_version:
+        print(
+            ('The visual studio solution file {} '
+             'is corrupt or an unknown version!').format(full_pathname),
+            file=sys.stderr)
+    return (target_list, vs_version)
+
+########################################
+
+
+class BuildVisualStudioFile(BuildObject):
+    """
+    Class to build Visual Studio files
+
+    Attributes:
+        verbose: The verbose flag
+        vs_version: The required version of Visual Studio
+    """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, file_name, priority, configuration,
+                 verbose=False, vs_version=0):
+        """
+        Class to handle Visual Studio solution files
+
+        Args:
+            file_name: Pathname to the *.sln to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+            vs_version: Integer Visual Studio version
+        """
+
+        super().__init__(file_name, priority, configuration=configuration)
+        self.verbose = verbose
+        self.vs_version = vs_version
+
+    def build(self):
+        """
+        Build a visual studio .sln file.
+
+        Supports Visual Studio 2005 - 2022. Supports platforms Win32, x64,
+        Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
+        Xbox ONE, Switch, Wii
+
+        Returns:
+            List of BuildError objects
+        See Also:
+            parse_sln_file
+        """
+
+        # Locate the proper version of Visual Studio for this .sln file
+        vstudiopath = where_is_visual_studio(self.vs_version)
+
+        # Is Visual studio installed?
+        if vstudiopath is None:
+            msg = (
+                '{} requires Visual Studio version {}'
+                ' to be installed to build!').format(
+                self.file_name, self.vs_version)
+            print(msg, file=sys.stderr)
+            return BuildError(0, self.file_name, msg=msg)
+
+        # Certain targets require an installed SDK
+        # verify that the SDK is installed before trying to build
+
+        targettypes = self.configuration.rsplit('|')
+        if len(targettypes) >= 2:
+            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
+            if test_env:
+                if os.getenv(test_env, default=None) is None:
+                    msg = (
+                        'Target {} was detected but the environment variable {}'
+                        ' was not found.').format(
+                        targettypes[1], test_env)
+                    print(msg, file=sys.stderr)
+                    return BuildError(
+                        0,
+                        self.file_name,
+                        configuration=self.configuration,
+                        msg=msg)
+
+        # Create the build command
+        # Note: Use the single line form, because Windows will not
+        # process the target properly due to the presence of the | character
+        # which causes piping.
+
+        # Visual Studio 2003 doesn't support setting platforms, just use the
+        # configuration name
+        if self.vs_version == 2003:
+            target = targettypes[0]
+        else:
+            target = self.configuration
+
+        cmd = [vstudiopath, self.file_name, '/Build', target]
+        if self.verbose:
+            print(' '.join(cmd))
+        sys.stdout.flush()
+
+        return self.run_command(cmd, self.verbose)
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    return _SLNFILE_MATCH.match(filename)
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildMakeFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildMakeFile classes
+    """
+
+    # Get the list of build targets
+    targetlist, vs_version = parse_sln_file(file_name)
+
+    # Was the file corrupted?
+    if not vs_version:
+        print(file_name + ' is corrupt!')
+        return []
+
+    results = []
+    for target in targetlist:
+        if configurations:
+            targettypes = target.rsplit('|')
+            if targettypes[0] not in configurations and \
+                    targettypes[1] not in configurations:
+                continue
+        results.append(
+            BuildVisualStudioFile(
+                file_name,
+                priority,
+                target,
+                verbose,
+                vs_version))
+
+    return results
 
 ########################################
 
@@ -1752,6 +2040,12 @@ class VS2003XML():
         RelativePath=".\source\Win32Console.cpp">
     </File>
     @endcode
+
+    Attributes:
+        name: Name of this XML chunk.
+        force_pair: Disable ``<foo/>`` syntax
+        elements: List of elements in this element.
+        attributes: List of valid attributes and defaults
     """
 
     def __init__(self, name, attributes=None, force_pair=False):
@@ -1763,16 +2057,9 @@ class VS2003XML():
             force_pair: If True, disable the use of /> XML suffix usage.
         """
 
-        ## Name of this XML chunk.
         self.name = name
-
-        ## Disable ``<foo/>`` syntax
         self.force_pair = force_pair
-
-        ## List of elements in this element.
         self.elements = []
-
-        ## List of valid attributes and defaults
         self.attributes = []
         if attributes:
             for item in attributes:
@@ -2036,6 +2323,9 @@ class VS2003Tool(VS2003XML):
 class VCCLCompilerTool(VS2003Tool):
     """
     Visual Studio 2003-2008 VCCLCompilerTool record.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -2050,7 +2340,6 @@ class VCCLCompilerTool(VS2003Tool):
         # Too many statements
         # pylint: disable=R0912,R0915
 
-        ## Parent configuration
         self.configuration = configuration
 
         # Set the tag
@@ -2424,6 +2713,9 @@ class VCCLCompilerTool(VS2003Tool):
 class VCCLCompilerToolFile(VS2003Tool):
     """
     Visual Studio 2003-2008 VCCLCompilerTool record for file
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -2434,7 +2726,6 @@ class VCCLCompilerToolFile(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         # Set the tag
@@ -2446,6 +2737,9 @@ class VCCLCompilerToolFile(VS2003Tool):
 class VCCustomBuildTool(VS2003Tool):
     """
     Visual Studio 2003-2008 VCCustomBuildTool record.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -2456,7 +2750,6 @@ class VCCustomBuildTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, name='VCCustomBuildTool')
@@ -2479,6 +2772,9 @@ class VCCustomBuildTool(VS2003Tool):
 class VCLinkerTool(VS2003Tool):
     """
     Visual Studio 2003-2008 VCLinkerTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -2493,7 +2789,6 @@ class VCLinkerTool(VS2003Tool):
         # Too many statements
         # pylint: disable=R0912,R0915
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCLinkerTool')
@@ -2924,6 +3219,9 @@ class VCLinkerTool(VS2003Tool):
 class VCLibrarianTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCLibrarianTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -2934,7 +3232,6 @@ class VCLibrarianTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCLibrarianTool')
@@ -3011,6 +3308,9 @@ class VCLibrarianTool(VS2003Tool):
 class VCMIDLTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for the MIDL tool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3021,7 +3321,6 @@ class VCMIDLTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCMIDLTool')
 
@@ -3031,6 +3330,9 @@ class VCMIDLTool(VS2003Tool):
 class VCALinkTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCALinkTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3041,7 +3343,6 @@ class VCALinkTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCALinkTool')
 
@@ -3052,6 +3353,9 @@ class VCALinkTool(VS2003Tool):
 class VCManifestTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCManifestTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3062,7 +3366,6 @@ class VCManifestTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManifestTool')
 
@@ -3073,6 +3376,9 @@ class VCManifestTool(VS2003Tool):
 class VCXDCMakeTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCXDCMakeTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3083,7 +3389,6 @@ class VCXDCMakeTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCXDCMakeTool')
 
@@ -3093,6 +3398,9 @@ class VCXDCMakeTool(VS2003Tool):
 class VCBscMakeTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCBscMakeTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3103,7 +3411,6 @@ class VCBscMakeTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCBscMakeTool')
 
@@ -3113,6 +3420,9 @@ class VCBscMakeTool(VS2003Tool):
 class VCFxCopTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCFxCopTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3123,7 +3433,6 @@ class VCFxCopTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCFxCopTool')
 
@@ -3133,6 +3442,9 @@ class VCFxCopTool(VS2003Tool):
 class VCAppVerifierTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCAppVerifierTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3143,7 +3455,6 @@ class VCAppVerifierTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCAppVerifierTool')
 
@@ -3153,6 +3464,9 @@ class VCAppVerifierTool(VS2003Tool):
 class VCManagedResourceCompilerTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCManagedResourceCompilerTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3163,7 +3477,6 @@ class VCManagedResourceCompilerTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManagedResourceCompilerTool')
 
@@ -3173,6 +3486,9 @@ class VCManagedResourceCompilerTool(VS2003Tool):
 class VCPostBuildEventTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCPostBuildEventTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3183,7 +3499,6 @@ class VCPostBuildEventTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCPostBuildEventTool')
@@ -3206,6 +3521,9 @@ class VCPostBuildEventTool(VS2003Tool):
 class VCPreBuildEventTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCPreBuildEventTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3216,7 +3534,6 @@ class VCPreBuildEventTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCPreBuildEventTool')
 
@@ -3236,6 +3553,9 @@ class VCPreBuildEventTool(VS2003Tool):
 class VCPreLinkEventTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCPreLinkEventTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3246,7 +3566,6 @@ class VCPreLinkEventTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCPreLinkEventTool')
@@ -3266,6 +3585,9 @@ class VCPreLinkEventTool(VS2003Tool):
 class VCResourceCompilerTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCResourceCompilerTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3276,7 +3598,6 @@ class VCResourceCompilerTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCResourceCompilerTool')
@@ -3290,6 +3611,9 @@ class VCResourceCompilerTool(VS2003Tool):
 class XboxDeploymentTool(VS2003Tool):
     """
     XboxDeploymentTool for Xbox Classic.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3300,7 +3624,6 @@ class XboxDeploymentTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'XboxDeploymentTool')
 
@@ -3310,6 +3633,9 @@ class XboxDeploymentTool(VS2003Tool):
 class XboxImageTool(VS2003Tool):
     """
     XboxImageTool for Xbox Classic.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3320,7 +3646,6 @@ class XboxImageTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'XboxImageTool')
 
@@ -3330,6 +3655,9 @@ class XboxImageTool(VS2003Tool):
 class VCWebServiceProxyGeneratorTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCWebServiceProxyGeneratorTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3340,7 +3668,6 @@ class VCWebServiceProxyGeneratorTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCWebServiceProxyGeneratorTool')
 
@@ -3350,6 +3677,9 @@ class VCWebServiceProxyGeneratorTool(VS2003Tool):
 class VCXMLDataGeneratorTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCXMLDataGeneratorTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3360,7 +3690,6 @@ class VCXMLDataGeneratorTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003Tool.__init__(self, 'VCXMLDataGeneratorTool')
@@ -3371,6 +3700,9 @@ class VCXMLDataGeneratorTool(VS2003Tool):
 class VCWebDeploymentTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCWebDeploymentTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3381,7 +3713,6 @@ class VCWebDeploymentTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCWebDeploymentTool')
 
@@ -3391,6 +3722,9 @@ class VCWebDeploymentTool(VS2003Tool):
 class VCManagedWrapperGeneratorTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCManagedWrapperGeneratorTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3401,7 +3735,6 @@ class VCManagedWrapperGeneratorTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCManagedWrapperGeneratorTool')
 
@@ -3411,6 +3744,9 @@ class VCManagedWrapperGeneratorTool(VS2003Tool):
 class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
     """
     Visual Studio 2003-2008 for VCAuxiliaryManagedWrapperGeneratorTool.
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration):
@@ -3421,7 +3757,6 @@ class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        ## Parent configuration
         self.configuration = configuration
         VS2003Tool.__init__(self, 'VCAuxiliaryManagedWrapperGeneratorTool')
 
@@ -3432,6 +3767,9 @@ class VCAuxiliaryManagedWrapperGeneratorTool(VS2003Tool):
 class VS2003Platform(VS2003XML):
     """
     Visual Studio 2003-2008 Platform record.
+
+    Attributes:
+        platform: PlatformTypes
     """
 
     def __init__(self, platform):
@@ -3442,7 +3780,6 @@ class VS2003Platform(VS2003XML):
             platform: PlatformTypes of the platform to build
         """
 
-        ## PlatformTypes
         self.platform = platform
 
         VS2003XML.__init__(
@@ -3456,6 +3793,9 @@ class VS2003Platform(VS2003XML):
 class VS2003Platforms(VS2003XML):
     """
     Visual Studio 2003-2008 Platforms record
+
+    Attributes:
+        project: Parent project
     """
 
     def __init__(self, project):
@@ -3466,7 +3806,6 @@ class VS2003Platforms(VS2003XML):
             project: Project record to extract defaults.
         """
 
-        ## Parent platform
         self.project = project
         VS2003XML.__init__(self, 'Platforms')
 
@@ -3519,6 +3858,9 @@ class VS2003DefaultToolFile(VS2003XML):
 class VS2003ToolFiles(VS2003XML):
     """
     Visual Studio 2003-2008 ToolFiles record
+
+    Attributes:
+        platform: Parent project
     """
 
     def __init__(self, project):
@@ -3529,7 +3871,6 @@ class VS2003ToolFiles(VS2003XML):
             project: Project record to extract defaults.
         """
 
-        ## Parent project
         self.platform = project
         VS2003XML.__init__(self, 'ToolFiles')
 
@@ -3558,6 +3899,9 @@ class VS2003Globals(VS2003XML):
 class VS2003Configuration(VS2003XML):
     """
     Visual Studio 2003-2008 Configuration record
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     # Too many instance attributes
@@ -3574,7 +3918,6 @@ class VS2003Configuration(VS2003XML):
         # Too many statements
         # pylint: disable=R0912,R0915
 
-        ## Parent configuration
         self.configuration = configuration
 
         ide = configuration.ide
@@ -3702,6 +4045,9 @@ class VS2003Configuration(VS2003XML):
 class VS2003Configurations(VS2003XML):
     """
     Visual Studio 2003-2008 Configurations record
+
+    Attributes:
+        project: Parent project
     """
 
     def __init__(self, project):
@@ -3712,7 +4058,6 @@ class VS2003Configurations(VS2003XML):
             project: Project record to extract defaults.
         """
 
-        ## Parent project
         self.project = project
 
         VS2003XML.__init__(self, 'Configurations')
@@ -3725,6 +4070,9 @@ class VS2003Configurations(VS2003XML):
 class VS2003FileConfiguration(VS2003XML):
     """
     Visual Studio 2003-2008 Configurations record
+
+    Attributes:
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration, base_name, source_file):
@@ -3742,7 +4090,6 @@ class VS2003FileConfiguration(VS2003XML):
         # pylint: disable=too-many-branches
         # pylint: disable=too-many-statements
 
-        ## Parent configuration
         self.configuration = configuration
 
         VS2003XML.__init__(self, 'FileConfiguration', [
@@ -3852,6 +4199,10 @@ class VS2003FileConfiguration(VS2003XML):
 class VS2003File(VS2003XML):
     """
     Visual Studio 2003-2008 File record
+
+    Attributes:
+        source_file: SourceFile record
+        project: Parent project
     """
 
     def __init__(self, source_file, project):
@@ -3863,12 +4214,8 @@ class VS2003File(VS2003XML):
             project: parent Project
         """
 
-        ## SourceFile record
         self.source_file = source_file
-
-        ## Parent project
         self.project = project
-
         vs_name = source_file.vs_name
         VS2003XML.__init__(
             self, 'File', [
@@ -3895,6 +4242,10 @@ class VS2003File(VS2003XML):
 class VS2003Filter(VS2003XML):
     """
     Visual Studio 2003-2008 File record
+
+    Attributes:
+        name: Name of the filter
+        project: Parent project
     """
 
     def __init__(self, name, project):
@@ -3906,18 +4257,17 @@ class VS2003Filter(VS2003XML):
             project: Parent Project
         """
 
-        ## Name of the filter
         self.name = name
-
-        ## Parent project
         self.project = project
-
         VS2003XML.__init__(self, 'Filter', [StringProperty('Name', name)])
 
 
 class VS2003Files(VS2003XML):
     """
     Visual Studio 2003-2008 Files record
+
+    Attributes:
+        project: Parent project
     """
 
     def __init__(self, project):
@@ -3928,12 +4278,11 @@ class VS2003Files(VS2003XML):
             project: Project record to extract defaults.
         """
 
-        ## Parent project
         self.project = project
         VS2003XML.__init__(self, 'Files')
 
         # Create group names and attach all files that belong to that group
-        groups = dict()
+        groups = {}
         for item in project.codefiles:
             groupname = item.get_group_name()
 
@@ -3946,7 +4295,7 @@ class VS2003Files(VS2003XML):
                 group.append(item)
 
         # Convert from a flat tree into a hierarchical tree
-        tree = dict()
+        tree = {}
         for group in groups:
 
             # Get the depth of the tree needed
@@ -3957,7 +4306,7 @@ class VS2003Files(VS2003XML):
             for item, _ in enumerate(parts):
                 # Already declared?
                 if not parts[item] in nexttree:
-                    nexttree[parts[item]] = dict()
+                    nexttree[parts[item]] = {}
                 # Step into the tree
                 nexttree = nexttree[parts[item]]
 
@@ -3973,6 +4322,15 @@ class VS2003vcproj(VS2003XML):
 
     This record instructs how to write a Visual Studio 2003-2008 format
     vcproj file.
+
+    Attributes:
+        project: Parent project
+        platforms: VS2003Platforms
+        toolfiles: VS2003ToolFiles
+        configuration_list: VS2003Configurations
+        references: VS2003References
+        files: VS2003Files
+        globals: VS2003Globals
     """
 
     def __init__(self, project):
@@ -3983,7 +4341,6 @@ class VS2003vcproj(VS2003XML):
             project: Project record to extract defaults.
         """
 
-        ## Parent project
         self.project = project
 
         # Which project type?
@@ -4014,29 +4371,22 @@ class VS2003vcproj(VS2003XML):
                 StringProperty('TargetFrameworkVersion', '196613'))
 
         # Add all the sub chunks
-
-        ## VS2003Platforms
         self.platforms = VS2003Platforms(project)
         self.add_element(self.platforms)
 
-        ## VS2003ToolFiles
         self.toolfiles = VS2003ToolFiles(project)
         if ide is not IDETypes.vs2003:
             self.add_element(self.toolfiles)
 
-        ## VS2003Configurations
         self.configuration_list = VS2003Configurations(project)
         self.add_element(self.configuration_list)
 
-        ## VS2003References
         self.references = VS2003References()
         self.add_element(self.references)
 
-        ## VS2003Files
         self.files = VS2003Files(project)
         self.add_element(self.files)
 
-        ## VS2003Globals
         self.globals = VS2003Globals()
         self.add_element(self.globals)
 

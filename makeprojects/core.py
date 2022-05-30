@@ -9,6 +9,7 @@ Module contains the core classes for makeproject.
 
 # pylint: disable=consider-using-f-string
 # pylint: disable=useless-object-inheritance
+# pylint: disable=super-with-arguments
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -127,7 +128,6 @@ class BuildObject(object):
             file_name: Name of the file to build.
             priority: Integer priority, lower will be built first.
             configuration: Configuration to build
-
         """
 
         self.file_name = file_name
@@ -146,6 +146,22 @@ class BuildObject(object):
 
         return BuildError(10, self.file_name, self.configuration,
                           msg="Unimplemented build")
+
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return None
 
     ########################################
 

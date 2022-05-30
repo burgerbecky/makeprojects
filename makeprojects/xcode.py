@@ -1,15 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Sub file for makeprojects.
-Handler for Apple Computer XCode projects
-
-@package makeprojects.xcode
-This module contains classes needed to generate
-project files intended for use by Apple's XCode IDE
-"""
-
 # Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
@@ -17,38 +8,100 @@ project files intended for use by Apple's XCode IDE
 # commercial title without paying anything, just give me a credit.
 # Please? It's not like I'm asking you for money!
 
+"""
+Sub file for makeprojects.
+Handler for Apple Computer XCode projects
+
+@package makeprojects.xcode
+This module contains classes needed to generate
+project files intended for use by Apple's XCode IDE
+
+@var makeprojects.xcode.TABS
+Default tab format for XCode
+
+@var makeprojects.xcode.TEMP_EXE_NAME
+Build executable pathname
+
+@var makeprojects.xcode._XCODESAFESET
+Valid characters for XCode strings without quoting
+
+@var makeprojects.xcode._PERFORCE_PATH
+Path of the perforce executable
+
+@var makeprojects.xcode.SUPPORTED_IDES
+Supported IDE codes for the XCode exporter
+
+@var makeprojects.xcode.OBJECT_VERSIONS
+Version values
+
+@var makeprojects.xcode.OBJECT_ORDER
+Order of XCode objects
+
+@var makeprojects.xcode.FLATTENED_OBJECTS
+List of XCode objects that flatten their children
+
+@var makeprojects.xcode.XCBUILD_FLAGS
+List of XCBuildConfiguration settings for compilation
+
+@var makeprojects.xcode.FILE_REF_LAST_KNOWN
+Dictionary for mapping FileTypes to XCode file types
+
+@var makeprojects.xcode.FILE_REF_DIR
+Map of root directories
+"""
+
 # pylint: disable=consider-using-f-string
+# pylint: disable=useless-object-inheritance
+# pylint: disable=too-few-public-methods
+# pylint: disable=invalid-name
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import hashlib
 import os
+import sys
 import operator
 import string
+from re import compile as re_compile
 
 from burger import create_folder_if_needed, save_text_file_if_newer, \
-    convert_to_windows_slashes, convert_to_linux_slashes
+    convert_to_windows_slashes, convert_to_linux_slashes, PY2, \
+    get_mac_host_type, where_is_xcode, run_command
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import SourceFile, Configuration
+from .core import SourceFile, Configuration, BuildObject, BuildError
 from .core import Project as CoreProject
 from .__init__ import _XCODEPROJECT_FILE
 
-# pylint: disable=useless-object-inheritance, too-few-public-methods
-# pylint: disable=invalid-name
+_PBXPROJFILE_MATCH = re_compile('(?is).*\\.pbxproj\\Z')
+_XCODEPROJFILE_MATCH = re_compile('(?is).*\\.xcodeproj\\Z')
 
-## Default tab format for XCode
+_XCODE_SUFFIXES = (
+    ('xc3', 3),
+    ('xc4', 4),
+    ('xc5', 5),
+    ('xc6', 6),
+    ('xc7', 7),
+    ('xc8', 8),
+    ('xc9', 9),
+    ('x10', 10),
+    ('x11', 11),
+    ('x12', 12),
+    ('x13', 13)
+)
+
+# Default tab format for XCode
 TABS = '\t'
 
-## Build executable pathname
+# Build executable pathname
 TEMP_EXE_NAME = '${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}'
 
-## Valid characters for XCode strings without quoting
+# Valid characters for XCode strings without quoting
 _XCODESAFESET = frozenset(string.ascii_letters + string.digits + '_$./')
 
-## Path of the perforce executable
+# Path of the perforce executable
 _PERFORCE_PATH = '/opt/local/bin/p4'
 
-## Supported IDE codes for the XCode exporter
+# Supported IDE codes for the XCode exporter
 SUPPORTED_IDES = (
     IDETypes.xcode3,
     IDETypes.xcode4,
@@ -62,7 +115,6 @@ SUPPORTED_IDES = (
     IDETypes.xcode12,
     IDETypes.xcode13)
 
-## Version values
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
 OBJECT_VERSIONS = {
     IDETypes.xcode3: ('45', None, 'Xcode 3.1', 'English'),
@@ -78,7 +130,6 @@ OBJECT_VERSIONS = {
     IDETypes.xcode13: ('54', '1300', 'Xcode 13.0', None)
 }
 
-## Order of XCode objects
 # This is the order of XCode chunks that match the way
 # that XCode outputs them.
 OBJECT_ORDER = (
@@ -101,14 +152,13 @@ OBJECT_ORDER = (
     'XCConfigurationList'
 )
 
-## List of XCode objects that flatten their children
+# List of XCode objects that flatten their children
 FLATTENED_OBJECTS = (
     'PBXBuildFile',
     'PBXFileReference'
 )
 
-## List of XCBuildConfiguration settings for compilation
-# Name, type, default
+# Name / type / default
 XCBUILD_FLAGS = (
     # Locations of any sparse SDKs
     ('ADDITIONAL_SDKS', 'string', None),
@@ -660,6 +710,212 @@ XCBUILD_FLAGS = (
 ########################################
 
 
+def parse_xcodeproj_file(full_pathname):
+    """
+    Extract configurations from an XCode project file.
+
+    Given a .xcodeproj directory for XCode for macOS
+    locate and extract all of the build targets
+    available and return the list.
+
+    Args:
+        full_pathname: Pathname to the .xcodeproj folder
+    Returns:
+        list of configuration strings
+    See Also:
+        build_xcode
+    """
+
+    # Start with an empty list
+
+    targetlist = []
+    try:
+        if PY2:
+            # pylint: disable=unspecified-encoding
+            with open(full_pathname, "r") as filep:
+                projectfile = filep.read().splitlines()
+        else:
+            with open(full_pathname, "r", encoding="utf-8") as filep:
+                projectfile = filep.read().splitlines()
+
+    except IOError as error:
+        print(str(error), file=sys.stderr)
+        return targetlist
+
+    configurationfound = False
+    for line in projectfile:
+        # Look for this section. Immediately after it
+        # has the targets
+        if configurationfound is False:
+            if 'buildConfigurations' in line:
+                configurationfound = True
+        else:
+            # Once the end of the section is reached, end
+            if ');' in line:
+                break
+            # Format 1DEB923608733DC60010E9CD /* Debug */,
+            # The third entry is the data needed
+            targetlist.append(line.rsplit()[2])
+
+    # Exit with the results
+    return targetlist
+
+########################################
+
+
+class BuildXCodeFile(BuildObject):
+    """
+    Class to build Apple XCode files
+
+    Attributes:
+        verbose: The verbose flag
+    """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, file_name, priority, configuration,
+                 verbose=False):
+        """
+        Class to handle XCode files
+
+        Args:
+            file_name: Pathname to the *.xcodeproj to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+        """
+
+        super().__init__(file_name, priority, configuration=configuration)
+        self.verbose = verbose
+
+    def build(self):
+        """
+        Build a macOS XCode file.
+
+        Supports .xcodeproj files from Xcode 3 and later.
+
+        Returns:
+            List of BuildError objects
+        See Also:
+            parse_xcodeproj_file
+        """
+
+        # Get the list of build targets
+        file_dir_name = os.path.dirname(self.file_name)
+        file_name_lower = file_dir_name.lower()
+
+        for item in _XCODE_SUFFIXES:
+            if item[0] in file_name_lower:
+                version = item[1]
+                break
+        else:
+            version = None
+
+        # Find XCode for the version needed
+        xcode = where_is_xcode(version)
+
+        # Is this version of XCode installed?
+        if not xcode or not os.path.isfile(xcode[0]):
+            msg = ('Can\'t build {}, the proper version '
+                'of XCode is not installed').format(file_dir_name)
+            print(msg)
+            return BuildError(0, file_dir_name,
+                            msg=msg)
+
+        xcodebuild = xcode[0]
+        # Create the build command
+        cmd = [
+            xcodebuild,
+            '-project',
+            os.path.basename(file_dir_name),
+            '-alltargets',
+            '-parallelizeTargets',
+            '-configuration',
+            self.configuration]
+
+        if self.verbose:
+            print(' '.join(cmd))
+
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(file_dir_name),
+                quiet=not self.verbose)[0]
+            msg = None
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+
+        return BuildError(
+            error_code,
+            file_dir_name,
+            configuration=self.configuration)
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    if _PBXPROJFILE_MATCH.match(filename):
+        return True
+    return _XCODEPROJFILE_MATCH.match(filename)
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildXCodeFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildXCodeFile classes
+    """
+
+    # Don't build if not running on macOS
+    if not get_mac_host_type():
+        if verbose:
+            print('{} can only be built on macOS hosts'.format(file_name))
+        return []
+
+    # If it's the directory, convert to project filename
+    if _XCODEPROJFILE_MATCH.match(file_name):
+        file_name = os.path.join(file_name, _XCODEPROJECT_FILE)
+
+    targetlist = parse_xcodeproj_file(file_name)
+
+    # Was the file corrupted?
+    if not targetlist:
+        print(file_name + ' is corrupt!')
+        return []
+
+    results = []
+    for target in targetlist:
+        if configurations:
+            if target not in configurations:
+                continue
+        results.append(
+            BuildXCodeFile(
+                file_name,
+                priority,
+                target,
+                verbose))
+
+    return results
+
+########################################
+
+
 def test(ide, platform_type):
     """ Filter for supported platforms
 
@@ -736,6 +992,14 @@ class JSONRoot(object):
 
     Every JSON entry for XCode derives from this object and has a minimum of a
     name, comment, uuid and an enabled flag.
+
+    Attributes:
+        name: Object's name (Can also be the uuid)
+        comment: Optional object's comment field
+        uuid: Optional uuid
+        enabled: If True, output this object in generated output.
+        suffix: Optional suffix used in generated output.
+        value: Value
     """
 
     def __init__(self, name, comment=None, uuid=None,
@@ -754,22 +1018,11 @@ class JSONRoot(object):
 
         # pylint: disable=too-many-arguments
 
-        ## Object's name (Can also be the uuid)
         self.name = name
-
-        ## Optional object's comment field
         self.comment = comment
-
-        ## Optional uuid
         self.uuid = uuid
-
-        ## If True, output this object in generated output.
         self.enabled = enabled
-
-        ## Optional suffix used in generated output.
         self.suffix = suffix
-
-        ## Value
         self.value = value
 
     def add_item(self, item):
@@ -872,6 +1125,9 @@ class JSONArray(JSONRoot):
 
     Each JSON entry for XCode consists of the name followed by an optional
     comment, and an optional value and then a mandatory suffix.
+
+    Attributes:
+        disable_if_empty: True if output is disabled if the list is empty
     """
 
     def __init__(self, name, comment=None, value=None, suffix=';',
@@ -901,7 +1157,6 @@ class JSONArray(JSONRoot):
             enabled=enabled,
             value=value)
 
-        ## True if output is disabled if the list is empty
         self.disable_if_empty = disable_if_empty
 
     def generate(self, line_list, indent=0):
@@ -963,6 +1218,10 @@ class JSONDict(JSONRoot):
 
     Each JSON entry for XCode consists of the name followed by an optional
     comment, and an optional value and then a mandatory suffix.
+
+    Attributes:
+        disable_if_empty: True if output is disabled if the list is empty
+        isa: "Is a" name
     """
 
     # pylint: disable=too-many-arguments
@@ -997,10 +1256,7 @@ class JSONDict(JSONRoot):
             enabled=enabled,
             value=value)
 
-        ## True if output is disabled if the list is empty
         self.disable_if_empty = disable_if_empty
-
-        ## "Is a" name
         self.isa = isa
 
         if isa is not None:
@@ -1149,6 +1405,9 @@ class JSONObjects(JSONDict):
 class PBXBuildFile(JSONDict):
     """
     Create a PBXBuildFile entry
+
+    Attributes:
+        file_reference: PBXFileReference of the file being compiled
     """
 
     def __init__(self, file_reference, output_reference):
@@ -1196,7 +1455,7 @@ class PBXBuildFile(JSONDict):
                 value=file_reference.uuid,
                 comment=basename))
 
-        ## PBXFileReference of the file being compiled
+        # PBXFileReference of the file being compiled
         self.file_reference = file_reference
 
 ########################################
@@ -1250,6 +1509,9 @@ class BuildGLSL(JSONDict):
 class PBXContainerItemProxy(JSONDict):
     """
     Each PBXContainerItemProxy entry
+
+    Attributes:
+        native_target: PBXNativeTarget to build.
     """
 
     def __init__(self, native_target, project_uuid):
@@ -1289,13 +1551,13 @@ class PBXContainerItemProxy(JSONDict):
                 value='"{}"'.format(
                     native_target.target_name)))
 
-        ## PBXNativeTarget to build.
+        # PBXNativeTarget to build.
         self.native_target = native_target
 
 
 ########################################
 
-## Dictionary for mapping FileTypes to XCode file types
+# Dictionary for mapping FileTypes to XCode file types
 FILE_REF_LAST_KNOWN = {
     FileTypes.library: None,
     FileTypes.exe: None,
@@ -1307,7 +1569,7 @@ FILE_REF_LAST_KNOWN = {
     FileTypes.h: 'sourcecode.c.h'
 }
 
-## Map of root directories
+# Map of root directories
 FILE_REF_DIR = {
     FileTypes.library: 'BUILT_PRODUCTS_DIR',
     FileTypes.exe: 'BUILT_PRODUCTS_DIR',
@@ -1321,6 +1583,9 @@ class PBXFileReference(JSONDict):
     Each PBXFileReference entry.
 
     Get the filename path and XCode type
+
+    Attributes:
+        source_file: core.SourceFile record
     """
 
     def __init__(self, source_file, ide):
@@ -1391,7 +1656,7 @@ class PBXFileReference(JSONDict):
                 name='sourceTree',
                 value=FILE_REF_DIR.get(source_file.type, 'SOURCE_ROOT')))
 
-        ## core.SourceFile record
+        # core.SourceFile record
         self.source_file = source_file
 
 
@@ -1401,6 +1666,9 @@ class PBXFileReference(JSONDict):
 class PBXFrameworksBuildPhase(JSONDict):
     """
     Each PBXFrameworksBuildPhase entry
+
+    Attributes:
+        files: JSONArray of PBXBuildFile records
     """
 
     def __init__(self, file_reference):
@@ -1436,7 +1704,7 @@ class PBXFrameworksBuildPhase(JSONDict):
                 name='runOnlyForDeploymentPostprocessing',
                 value='0'))
 
-        ## JSONArray of PBXBuildFile records
+        # JSONArray of PBXBuildFile records
         self.files = files
 
     def add_build_file(self, build_file):
@@ -1473,6 +1741,13 @@ class PBXFrameworksBuildPhase(JSONDict):
 class PBXGroup(JSONDict):
     """
     Each PBXGroup entry
+
+    Attributes:
+        children: Children list
+        group_name: Name of this group
+        path: Root path for this group
+        group_list: List of child groups
+        file_list: List of child files
     """
 
     def __init__(self, group_name, path):
@@ -1507,19 +1782,10 @@ class PBXGroup(JSONDict):
         value = 'SOURCE_ROOT' if path is not None else '<group>'
         self.add_item(JSONEntry('sourceTree', value=value))
 
-        ## Children list
         self.children = children
-
-        ## Name of this group
         self.group_name = group_name
-
-        ## Root path for this group
         self.path = path
-
-        ## List of child groups
         self.group_list = []
-
-        ## List of child files
         self.file_list = []
 
     def is_empty(self):
@@ -1596,6 +1862,10 @@ class PBXGroup(JSONDict):
 class PBXNativeTarget(JSONDict):
     """
     Each PBXNative entry
+
+    Attributes:
+        parent: Objects record (Parent)
+        target_name: Name of the target
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -1643,10 +1913,7 @@ class PBXNativeTarget(JSONDict):
                 'productType',
                 value=producttype))
 
-        ## Objects record (Parent)
         self.parent = parent
-
-        ## Name of the target
         self.target_name = name
 
     def add_build_phase(self, build_phase):
@@ -2203,6 +2470,9 @@ class Project(JSONDict):
     Root object for an XCode IDE project file
     Created with the name of the project, the IDE code (xc3, xc5)
     the platform code (ios, osx)
+
+    Attributes:
+        solution: Parent solution
     """
 
     def __init__(self, solution):
@@ -2218,7 +2488,7 @@ class Project(JSONDict):
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
 
-        ## Parent solution
+        # Parent solution
         self.solution = solution
 
         uuid = calcuuid('PBXProjectRoot' + solution.xcode_folder_name)

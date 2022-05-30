@@ -5,6 +5,9 @@
 Module that contains the code to generate defaults.
 
 @package makeprojects.defaults
+
+@var makeprojects.defaults._CONFIGURATION_DEFAULTS
+Default settings for each configuration type
 """
 
 # pylint: disable=consider-using-f-string
@@ -16,7 +19,7 @@ from burger import convert_to_array
 from .enums import IDETypes, PlatformTypes, ProjectTypes
 from .build_rules import rules as default_rules
 
-## Default settings for each configuration type
+
 # Each key must be lower case
 _CONFIGURATION_DEFAULTS = {
     'debug': {

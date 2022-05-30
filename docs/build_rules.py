@@ -36,7 +36,7 @@ CLEANME_NO_RECURSE = True
 # this folder.
 CLEANME_DEPENDENCIES = []
 
-## Match *.dot
+# Match *.dot
 _DOT_MATCH = re_compile('(?ms).*\\.dot\\Z')
 
 ########################################

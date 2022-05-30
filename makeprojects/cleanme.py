@@ -174,11 +174,16 @@ def process_directories(processed, directories, args):
 
             # Call the clean() proc in the build_rules.py file, if it exists
             clean_proc = getattr(build_rules, 'clean', None)
-            if callable(clean_proc):
-                # pylint: disable=not-callable
-                error = clean_proc(working_directory=working_directory)
-                if error:
-                    break
+            if not callable(clean_proc):
+                print(
+                    "Function clean in {} is not a callable function".format(
+                        build_rules.__file__))
+                error = 12
+                break
+
+            error = clean_proc(working_directory=working_directory)
+            if error is not None:
+                break
 
         # If recursive, process all the sub folders
         if args.recursive and not error and allow_recursion:

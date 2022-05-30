@@ -8,13 +8,16 @@ This module contains data, classes and functions to support
 building GLSL files
 
 @package makeprojects.glsl_support
+
+@var makeprojects.glsl_support.GLSL_BOOLEANS
+Boolean list for GLSL, Name, Default, switches
 """
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 from .validators import lookup_booleans, lookup_strings
 
-## Boolean list for GLSL, Name, Default, switches
+# Boolean list for GLSL, Name, Default, switches
 GLSL_BOOLEANS = {
     'CPP': (True, {'/c': True})
 }

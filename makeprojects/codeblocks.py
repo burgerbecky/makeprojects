@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+
+# It is released under an MIT Open Source license. Please see LICENSE
+# for license details. Yes, you can use it in a
+# commercial title without paying anything, just give me a credit.
+# Please? It's not like I'm asking you for money!
+
 """
 Sub file for makeprojects.
 Handler for Codeblocks projects
@@ -11,22 +18,240 @@ project files intended for use by Codeblocks
 @package makeprojects.codeblocks
 """
 
-# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
-
 # pylint: disable=consider-using-f-string
+# pylint: disable=useless-object-inheritance
+# pylint: disable=super-with-arguments
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
-from burger import save_text_file_if_newer, convert_to_linux_slashes
+import sys
+from re import compile as re_compile
+import xml.etree.ElementTree as ET
+from burger import save_text_file_if_newer, convert_to_linux_slashes, \
+    where_is_codeblocks, get_windows_host_type
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+from .core import BuildObject, BuildError
+
+_CBPFILE_MATCH = re_compile('(?is).*\\.cbp\\Z')
 
 SUPPORTED_IDES = (IDETypes.codeblocks,)
+
+########################################
+
+
+def parse_codeblocks_file(full_pathname):
+    """
+    Extract configurations from a Codeblocks project file.
+
+    Given a .cbp file for Codeblocks
+    locate and extract all of the build targets
+    available and return the list.
+
+    Args:
+        full_pathname: Pathname to the .cdp file
+    Returns:
+        list of configuration strings
+    See Also:
+        build_codeblocks
+    """
+
+    # Too many nested blocks
+    # pylint: disable=R0101
+
+    # Start with an empty list
+    targetlist = []
+
+    # Parse the XML file
+    try:
+        tree = ET.parse(full_pathname)
+    except IOError as error:
+        print(str(error), file=sys.stderr)
+        return targetlist
+
+    # Traverse the tree and extract the targets
+    root = tree.getroot()
+    for child in root:
+        if child.tag == 'Project':
+            for item in child:
+                if item.tag == 'Build':
+                    for item2 in item:
+                        if item2.tag == 'Target':
+                            target = item2.attrib.get('title')
+                            if target:
+                                targetlist.append(target)
+                elif item.tag == 'VirtualTargets':
+                    for item2 in item:
+                        if item2.tag == 'Add':
+                            target = item2.attrib.get('alias')
+                            if target:
+                                targetlist.append(target)
+
+    # Exit with the results
+    return targetlist
+
+########################################
+
+
+class BuildCodeBlocksFile(BuildObject):
+    """
+    Class to build Codeblocks files
+
+    Attributes:
+        verbose: The verbose flag
+    """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, file_name, priority, configuration,
+                 verbose=False):
+        """
+        Class to handle Codeblocks files
+
+        Args:
+            file_name: Pathname to the *.cbp to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+        """
+
+        super(BuildCodeBlocksFile, self).__init__(
+            file_name, priority, configuration=configuration)
+        self.verbose = verbose
+
+    def build(self):
+        """
+        Build a Codeblocks project.
+
+        Support .cbp files for Codeblocks on all host platforms.
+
+        Returns:
+            List of BuildError objects
+        See Also:
+        parse_codeblocks_file
+        """
+
+        # Commands available as of 13.12
+        # --safe-mode
+        # --no-check-associations
+        # --no-dde
+        # --no-splash-screen
+        # --multiple-instance
+        # --debug-log
+        # --no-crash-handler
+        # --verbose
+        # --no-log
+        # --log-to-file
+        # --debug-log-to-file
+        # --rebuild
+        # --build
+        # --clean
+        # --target=
+        # --no-batch-window-close
+        # --batch-build-notify
+        # --script=
+        # --file=
+
+        # Is Codeblocks installed?
+        codeblocks_path = where_is_codeblocks()
+        if codeblocks_path is None:
+            return BuildError(
+                0, self.file_name,
+                msg='Requires Codeblocks to be installed to build!')
+
+        if get_windows_host_type():
+            if self.file_name.endswith('osx.cbp'):
+                return BuildError(0, self.file_name,
+                                msg="Can only be built on macOS")
+            codeblocksflags = ['--no-check-associations', '--no-dde']
+        else:
+            if not self.file_name.endswith('osx.cbp'):
+                return BuildError(0, self.file_name,
+                                  msg="Can not be built on macOS")
+            codeblocksflags = ['--no-ipc']
+
+        # Parse the CBP file to get the build targets and detected linkers
+
+        # Create the build command
+        cmd = [codeblocks_path]
+        cmd.extend(codeblocksflags)
+        cmd.extend(['--no-splash-screen',
+                    '--no-batch-window-close',
+                    '--build', self.file_name,
+                    '--target=' + self.configuration])
+
+        if self.verbose:
+            print(' '.join(cmd))
+
+        return self.run_command(cmd, self.verbose)
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    return _CBPFILE_MATCH.match(filename)
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildCodeBlocksFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildCodeBlocksFile classes
+    """
+
+    # pylint: disable=too-many-branches
+
+    codeblocks_path = where_is_codeblocks()
+    if codeblocks_path is None:
+        print('Requires Codeblocks to be installed to build!')
+        return []
+
+    # Parse the CBP file to get the build targets and detected linkers
+    targetlist = parse_codeblocks_file(file_name)
+
+    # Was the file corrupted?
+    if targetlist is None:
+        print(file_name + ' is corrupt')
+        return []
+
+    # If everything is requested, then only build 'Everything'
+    if not configurations and 'Everything' in targetlist:
+        targetlist = ['Everything']
+
+    results = []
+    for target in targetlist:
+        # Check if
+        accept = True
+        if configurations:
+            accept = False
+            for item in configurations:
+                if item in target:
+                    accept = True
+                    break
+        if accept:
+            results.append(
+                BuildCodeBlocksFile(
+                    file_name,
+                    priority,
+                    target,
+                    verbose))
+
+    return results
 
 ########################################
 
@@ -62,6 +287,8 @@ class Project(object):
         configuration_names: List of configuration names
 
     """
+
+    # pylint: disable=too-few-public-methods
 
     def __init__(self, solution):
         """
@@ -109,6 +336,9 @@ class Project(object):
         Args:
             line_list: string list to save the XML text
         """
+
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
 
         if line_list is None:
             line_list = []

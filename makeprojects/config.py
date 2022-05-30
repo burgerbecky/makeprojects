@@ -5,6 +5,21 @@
 Package that reads, parses and processes the configuration file
 
 @package makeprojects.config
+
+@var makeprojects.config.BUILD_RULES_PY
+build_rules.py file to detect secondly
+
+@var makeprojects.config._BUILD_RULES_VAR
+BUILD_RULES_PY location environment variable
+
+@var makeprojects.config.USER_HOME
+Location of the user's home directory
+
+@var makeprojects.config.PROJECTS_HOME
+Location of makeprojects home directory if redirected
+
+@var makeprojects.config.DEFAULT_BUILD_RULES
+Full pathname of the configuration file
 """
 
 from __future__ import absolute_import, print_function, unicode_literals
@@ -13,17 +28,17 @@ import os
 from shutil import copyfile
 from burger import get_windows_host_type
 
-## build_rules.py file to detect secondly
+# build_rules.py file to detect secondly
 BUILD_RULES_PY = 'build_rules.py'
 
-## BUILD_RULES_PY location environment variable
+# BUILD_RULES_PY location environment variable
 _BUILD_RULES_VAR = 'BUILD_RULES'
 
-## Location of the user's home directory
+# Location of the user's home directory
 USER_HOME = os.path.expanduser('~')
 
 if 'MAKE_PROJECTS_HOME' in os.environ:
-    ## Location of makeprojects home directory if redirected
+    # Location of makeprojects home directory if redirected
     PROJECTS_HOME = os.environ['MAKE_PROJECTS_HOME']
 else:
     PROJECTS_HOME = USER_HOME
@@ -115,5 +130,5 @@ def find_default_build_rules():
     return result
 
 
-## Full pathname of the configuration file
+# Full pathname of the configuration file
 DEFAULT_BUILD_RULES = find_default_build_rules()

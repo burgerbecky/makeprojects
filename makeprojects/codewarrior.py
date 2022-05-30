@@ -28,13 +28,22 @@ Freescale Codewarrior
 # pylint: disable=useless-object-inheritance
 
 from __future__ import absolute_import, print_function, unicode_literals
+
 import os
 import operator
 import subprocess
+import sys
+from struct import unpack as struct_unpack
+from re import compile as re_compile
 from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
-    convert_to_linux_slashes, convert_to_windows_slashes, truefalse
+    convert_to_linux_slashes, convert_to_windows_slashes, truefalse, \
+    read_zero_terminated_string, get_windows_host_type, run_command, \
+    create_folder_if_needed, get_mac_host_type, is_codewarrior_mac_allowed
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .util import source_file_filter
+from .core import BuildObject, BuildError
+
+_MCPFILE_MATCH = re_compile('(?is).*\\.mcp\\Z')
 
 if not PY2:
     unicode = str
@@ -43,6 +52,369 @@ SUPPORTED_IDES = (
     IDETypes.codewarrior50,
     IDETypes.codewarrior58,
     IDETypes.codewarrior59)
+
+CODEWARRIOR_ERRORS = (
+    None,
+    'error opening file',
+    'project not open',
+    'IDE is already building',
+    'invalid target name (for /t flag)',
+    'error changing current target',
+    'error removing objects',
+    'build was cancelled',
+    'build failed',
+    'process aborted',
+    'error importing project',
+    'error executing debug script',
+    'attempted use of /d together with /b and/or /r'
+)
+
+_CW_SUPPORTED_LINKERS = (
+    'MW ARM Linker Panel',      # ARM for Nintendo DSI
+    'x86 Linker',               # Windows
+    'PPC Linker',               # macOS PowerPC
+    '68K Linker',               # macOS 68k
+    'PPC EABI Linker'           # PowerPC for Nintendo Wii
+)
+
+########################################
+
+
+def parse_mcp_file(full_pathname):
+    """
+    Extract configurations from a Metrowerks CodeWarrior project file.
+
+    Given an .mcp file for Metrowerks Codewarrior, determine
+    which version of Codewarrrior was used to build it.
+
+    It will parse Freescale Codewarrior for Nintendo (59), Metrowerks
+    Codewarrior 9.0 for Windows (50) and Metrowerks Codewarrior 10.0
+    for macOS (58)
+
+    Args:
+        full_pathname: Pathname to the .mcp file
+    Returns:
+        tuple(list of configuration strings, integer CodeWarrior Version)
+    See Also:
+        build_codewarrior
+    """
+
+    # Handle ../../
+    full_pathname = os.path.abspath(full_pathname)
+
+    try:
+        # Load in the .mcp file, it's a binary file
+        with open(full_pathname, 'rb') as filep:
+
+            # Get the signature and the endian
+            cool = filep.read(4)
+            if cool == b'cool':
+                # Big endian
+                endian = '>'
+            elif cool == b'looc':
+                # Little endian
+                endian = '<'
+            else:
+                print(
+                    'Codewarrior "cool" signature not found!',
+                    file=sys.stderr)
+                return None, None, None
+
+            # Get the offset to the strings
+            filep.seek(16)
+            index_offset = struct_unpack(endian + 'I', filep.read(4))[0]
+            filep.seek(index_offset)
+            string_offset = struct_unpack(endian + 'I', filep.read(4))[0]
+
+            # Read in the version
+            filep.seek(28)
+            cw_version = bytearray(filep.read(4))
+
+            # Load the string 'CodeWarrior Project'
+            filep.seek(40)
+            if filep.read(19) != b'CodeWarrior Project':
+                print(
+                    '"Codewarrior Project" signature not found!',
+                    file=sys.stderr)
+                return None, None, None
+
+            # Read in the strings for the targets
+            filep.seek(string_offset)
+            targets = []
+            linkers = []
+            # Scan for known linkers
+            while True:
+                item = read_zero_terminated_string(filep)
+                if not item:
+                    break
+
+                # Only strings with a colon are parsed
+                parts = item.split(':')
+                if len(parts) == 2:
+                    # Target:panel
+                    target = parts[0]
+                    panel = parts[1]
+
+                    # Add the target
+                    if target not in targets:
+                        targets.append(target)
+
+                    # Add the linker if supported
+                    if panel in _CW_SUPPORTED_LINKERS:
+                        if panel not in linkers:
+                            linkers.append(panel)
+
+            return targets, linkers, cw_version
+
+    except IOError as error:
+        print(str(error), file=sys.stderr)
+
+    return None, None, None
+
+########################################
+
+
+class BuildCodeWarriorFile(BuildObject):
+    """
+    Class to build CodeWarrior files
+
+    Attributes:
+        verbose: The verbose flag
+        linkers: The linker list
+    """
+
+    # pylint: disable=too-many-arguments
+    def __init__(self, file_name, priority, configuration,
+                 verbose=False, linkers=None):
+        """
+        Class to handle CodeWarrior files
+
+        Args:
+            file_name: Pathname to the *.mcp to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+            linkers: List of linkers required
+        """
+
+        super().__init__(file_name, priority, configuration=configuration)
+        self.verbose = verbose
+        self.linkers = linkers
+
+    def build(self):
+        """
+        Build a Metrowerks Codewarrior file.
+
+        Supports .mcp files for Windows, Mac, Wii and DSI.
+
+        Returns:
+            List of BuildError objects
+        See Also:
+            parse_mcp_file
+        """
+
+        # pylint: disable=too-many-branches
+
+        # Test which version of the CodeWarrior IDE that should be launched to
+        # build a project with specific linkers.
+
+        cw_path = None
+        if get_windows_host_type():
+            # Determine which version of CodeWarrior to run.
+            # Test for 3DS or DSI
+            if 'MW ARM Linker Panel' in self.linkers:
+                cw_path = os.getenv('CWFOLDER_NITRO', default=None)
+                if cw_path is None:
+                    cw_path = os.getenv('CWFOLDER_TWL', default=None)
+
+            # Test for Nintendo Wii
+            elif 'PPC EABI Linker' in self.linkers:
+                cw_path = os.getenv('CWFOLDER_RVL', default=None)
+
+            # Test for Windows
+            elif 'x86 Linker' in self.linkers:
+                cw_path = os.getenv('CWFolder', default=None)
+
+            if cw_path is None:
+                return BuildError(
+                    0, self.file_name,
+                    msg="CodeWarrior with propler linker is not installed.")
+
+            # Note: CmdIDE is preferred, however, Codewarrior 9.4 has a bug
+            # that it will die horribly if the pathname to it
+            # has a space, so ide is used instead.
+            cw_path = os.path.join(cw_path, 'Bin', 'IDE.exe')
+        else:
+
+            # Handle mac version
+
+            # Only CodeWarrior 9 has the Windows linker
+            if 'x86 Linker' in self.linkers:
+                cw_path = (
+                    '/Applications/Metrowerks CodeWarrior 9.0'
+                    '/Metrowerks CodeWarrior/CodeWarrior IDE')
+                if not os.path.isfile(cw_path):
+                    # Try an alternate path
+                    cw_path = (
+                        '/Applications/Metrowerks CodeWarrior 9.0'
+                        '/Metrowerks CodeWarrior/CodeWarrior IDE 9.6')
+
+            # Build with CodeWarrior 10
+            elif any(i in ('68K Linker', 'PPC Linker') for i in self.linkers):
+                cw_path = (
+                    '/Applications/Metrowerks CodeWarrior 10.0'
+                    '/Metrowerks CodeWarrior/CodeWarrior IDE')
+                if not os.path.isfile(cw_path):
+                    # Alternate path
+                    cw_path = (
+                        '/Applications/Metrowerks CodeWarrior 10.0'
+                        '/Metrowerks CodeWarrior/CodeWarrior IDE 10')
+            if cw_path is None:
+                return BuildError(
+                    0, self.file_name,
+                    msg="CodeWarrior with proper linker is not installed.")
+
+        # Create the temp folder in case there's an error file generated
+        mytempdir = os.path.join(os.path.dirname(self.file_name), 'temp')
+        create_folder_if_needed(mytempdir)
+
+        # Use the proper dispatcher
+        if get_windows_host_type():
+            # Create the build command
+            # /s New instance
+            # /t Project name
+            # /b Build
+            # /c close the project after completion
+            # /q Close Codewarrior on completion
+            cmd = [
+                cw_path,
+                self.file_name,
+                '/t',
+                self.configuration,
+                '/s',
+                '/c',
+                '/q',
+                '/b']
+        else:
+            # Create the folder for the error log
+            error_file = os.path.join(
+                mytempdir,
+                '{}-{}.err'.format(
+                    os.path.splitext(
+                        os.path.basename(
+                            self.file_name))[0],
+                    self.configuration))
+            cmd = ['cmdide', '-proj', '-bcwef', error_file,
+                '-y', cw_path, '-z', self.configuration, self.file_name]
+
+        if self.verbose:
+            print(' '.join(cmd))
+
+        try:
+            error_code = run_command(
+                cmd, working_dir=os.path.dirname(self.file_name),
+                quiet=not self.verbose)[0]
+            msg = None
+            if error_code and error_code < len(CODEWARRIOR_ERRORS):
+                msg = CODEWARRIOR_ERRORS[error_code]
+        except OSError as error:
+            error_code = getattr(error, 'winerror', error.errno)
+            msg = str(error)
+            print(msg, file=sys.stderr)
+
+        return BuildError(
+            error_code,
+            self.file_name,
+            configuration=self.configuration,
+            msg=msg)
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    return _MCPFILE_MATCH.match(filename)
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildMakeFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildMakeFile classes
+    """
+
+    # pylint: disable=too-many-branches
+
+    # Test for older macOS or Windows
+    if get_mac_host_type():
+        if not is_codewarrior_mac_allowed():
+            print('Codewarrior is not compatible with this version of macOS')
+            return []
+    elif not get_windows_host_type():
+        print('Codewarrior is not compatible with this operating system')
+        return []
+
+    # Parse the MCP file to get the build targets and detected linkers
+    targetlist, linkers, _ = parse_mcp_file(file_name)
+
+    # Was the file corrupted?
+    if targetlist is None:
+        print(file_name + ' is corrupt')
+        return []
+
+    # Test for linkers that are not available on Windows
+    if get_windows_host_type():
+        if '68K Linker' in linkers:
+            print(
+                ('"{}" requires a 68k linker '
+                'which Windows doesn\'t support.').format(file_name))
+            return []
+
+        if 'PPC Linker' in linkers:
+            print(
+                ('"{}" requires a PowerPC linker '
+                'which Windows doesn\'t support.').format(file_name))
+            return []
+
+    # If everything is requested, then only build 'Everything'
+    if not configurations and 'Everything' in targetlist:
+        targetlist = ['Everything']
+
+    results = []
+    for target in targetlist:
+        # Check if
+        accept = True
+        if configurations:
+            accept = False
+            for item in configurations:
+                if item in target:
+                    accept = True
+                    break
+        if accept:
+            results.append(
+                BuildCodeWarriorFile(
+                    file_name,
+                    priority,
+                    target,
+                    verbose,
+                    linkers))
+
+    return results
 
 ########################################
 

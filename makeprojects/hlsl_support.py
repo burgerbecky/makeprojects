@@ -8,29 +8,55 @@ This module contains data, classes and functions to support
 building HLSL files
 
 @package makeprojects.hlsl_support
+
+@var makeprojects.hlsl_support.HLSL_OPTIMIZATION
+Enumerations for HLSL Optimization
+
+@var makeprojects.hlsl_support.HLSL_MATRICES
+Enumerations for HLSL MatricesPacking
+
+@var makeprojects.hlsl_support.HLSL_FLOW_CONTROL
+Enumerations for HLSL FlowControl
+
+@var makeprojects.hlsl_support.HLSL_TARGET_PROFILES
+Enumerations for HLSL TargetProfile
+
+@var makeprojects.hlsl_support.HLSL_ENUMS
+Names, default, lookup tables for HLSL enums
+
+@var makeprojects.hlsl_support.HLSL_BOOLEANS
+Boolean list for HLSL, Name, Default, switches
+
+@var makeprojects.hlsl_support.HLSL_STRINGS
+String entries for HLSL
+
+@var makeprojects.hlsl_support.HLSL_STRING_LISTS
+String list entries for HLSL, switch, quote parameters
 """
+
+# pylint: disable=consider-using-f-string
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 from .validators import lookup_enums, lookup_booleans, lookup_strings, \
     lookup_string_lists
 
-## Enumerations for HLSL Optimization
+# Enumerations for HLSL Optimization
 HLSL_OPTIMIZATION = {
     '/Od': 0, '/O0': 1, '/O1': 2, '/O2': 3, '/O3': 4
 }
 
-## Enumerations for HLSL MatricesPacking
+# Enumerations for HLSL MatricesPacking
 HLSL_MATRICES = {
     '/Zpr': 0, 'Row': 0, '/Zpc': 1, 'Column': 1
 }
 
-## Enumerations for HLSL FlowControl
+# Enumerations for HLSL FlowControl
 HLSL_FLOW_CONTROL = {
     '/Gfa': 0, 'Avoid': 0, '/Gfp': 1, 'Prefer': 1
 }
 
-## Enumerations for HLSL TargetProfile
+# Enumerations for HLSL TargetProfile
 HLSL_TARGET_PROFILES = {
     '/Tvs_1_1': 0, 'vs_1_1': 0,
     '/Tvs_2_0': 1, 'vs_2_0': 1,
@@ -56,7 +82,7 @@ HLSL_TARGET_PROFILES = {
     '/Tfx_4_1': 21, 'fx_4_1': 21
 }
 
-## Names, default, lookup tables for HLSL enums
+# Names, default, lookup tables for HLSL enums
 HLSL_ENUMS = {
     'Optimization': (4, HLSL_OPTIMIZATION),
     'MatricesPacking': (1, HLSL_MATRICES),
@@ -64,7 +90,7 @@ HLSL_ENUMS = {
     'TargetProfile': (8, HLSL_TARGET_PROFILES)
 }
 
-## Boolean list for HLSL, Name, Default, switches
+# Boolean list for HLSL, Name, Default, switches
 HLSL_BOOLEANS = {
     'GenerateDebugInformation': (None, {'/Zi': True}),
     'NoLogo': (True, {'/nologo': True}),
@@ -99,8 +125,7 @@ HLSL_STRINGS = {
     'VariableName': (
         'g_%(FileName)', '/Vn', False, False)}
 
-## String list entries for HLSL, switch, quote parameters
-
+# String list entries for HLSL, switch, quote parameters
 HLSL_STRING_LISTS = {
     'PreprocessorDefinitions': ('/D', False),
     'AdditionalIncludeDirectories': ('/I ', True)

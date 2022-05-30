@@ -33,6 +33,53 @@ solution.add_project(project=project)
 project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
 solution.save(solution.xcode3)
 
+@var makeprojects.__numversion__
+Current version of the library as a numeric tuple
+
+@var makeprojects.__version__
+Current version of the library
+
+@var makeprojects.__author__
+Author's name
+
+@var makeprojects.__title__
+Name of the module
+
+@var makeprojects.__summary__
+Summary of the module's use
+
+@var makeprojects.__uri__
+Home page
+
+@var makeprojects.__email__
+Email address for bug reports
+
+@var makeprojects.__license__
+Type of license used for distribution
+
+@var makeprojects.__copyright__
+Copyright owner
+
+@var makeprojects._XCODEPROJ_MATCH
+Match *.xcodeproj
+
+@var makeprojects._XCODEPROJECT_FILE
+The filename project.pbxproj
+
+@var makeprojects._HLSL_MATCH
+Match *.hlsl
+
+@var makeprojects._GLSL_MATCH
+Match *.glsl
+
+@var makeprojects._X360SL_MATCH
+Match *.x360sl
+
+@var makeprojects._VITACG_MATCH
+Match *.vitacg
+
+@var makeprojects.__all__
+Items to import on "from makeprojects import *"
 """
 
 # pylint: disable=import-outside-toplevel
@@ -48,53 +95,52 @@ from .defaults import get_configuration_settings
 
 ########################################
 
-## Current version of the library as a numeric tuple
+# Current version of the library as a numeric tuple
 __numversion__ = (0, 12, 2)
 
-## Current version of the library
+# Current version of the library
 __version__ = '.'.join([str(num) for num in __numversion__])
 
-## Author's name
+# Author's name
 __author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
 
-## Name of the module
+# Name of the module
 __title__ = 'makeprojects'
 
-## Summary of the module's use
+# Summary of the module's use
 __summary__ = 'IDE project generator for Visual Studio, XCode, etc...'
 
-## Home page
+# Home page
 __uri__ = 'http://makeprojects.readthedocs.io'
 
-## Email address for bug reports
+# Email address for bug reports
 __email__ = 'becky@burgerbecky.com'
 
-## Type of license used for distribution
+# Type of license used for distribution
 __license__ = 'MIT License'
 
-## Copyright owner
+# Copyright owner
 __copyright__ = 'Copyright 2013-2022 Rebecca Ann Heineman'
 
-## Match *.xcodeproj
+# Match *.xcodeproj
 _XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
 
-## 'project.pbxproj'
+# 'project.pbxproj'
 _XCODEPROJECT_FILE = 'project.pbxproj'
 
-## Match *.hlsl
+# Match *.hlsl
 _HLSL_MATCH = re_compile('(?ms).*\\.hlsl\\Z')
 
-## Match *.glsl
+# Match *.glsl
 _GLSL_MATCH = re_compile('(?ms).*\\.glsl\\Z')
 
-## Match *.x360sl
+# Match *.x360sl
 _X360SL_MATCH = re_compile('(?ms).*\\.x360sl\\Z')
 
-## Match *.vitacg
+# Match *.vitacg
 _VITACG_MATCH = re_compile('(?ms).*\\.vitacg\\Z')
 
-## Items to import on "from makeprojects import *"
-
+# Items to import on "from makeprojects import *"
 __all__ = [
     'build',
     'clean',

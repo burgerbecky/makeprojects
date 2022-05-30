@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+
+# It is released under an MIT Open Source license. Please see LICENSE
+# for license details. Yes, you can use it in a
+# commercial title without paying anything, just give me a credit.
+# Please? It's not like I'm asking you for money!
+
 """
 This module contains classes needed to generate
 project files intended for use by Open Watcom
@@ -9,25 +16,147 @@ WMAKE 1.9 or higher
 @package makeprojects.watcom
 """
 
-# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
-
 # pylint: disable=consider-using-f-string
+# pylint: disable=super-with-arguments
+# pylint: disable=useless-object-inheritance
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+from re import compile as re_compile
 from burger import save_text_file_if_newer, encapsulate_path_linux, \
-    convert_to_linux_slashes, convert_to_windows_slashes
+    convert_to_linux_slashes, convert_to_windows_slashes, where_is_watcom, \
+    get_windows_host_type
 
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+from .core import BuildObject, BuildError
 
+_WATCOMFILE_MATCH = re_compile('(?is).*\\.wmk\\Z')
 
 SUPPORTED_IDES = (IDETypes.watcom,)
+
+########################################
+
+
+class BuildWatcomFile(BuildObject):
+    """
+    Class to build watcom make files
+
+    Attribute:
+        verbose: Save the verbose flag
+    """
+
+    def __init__(self, file_name, priority, configuration, verbose=False):
+        """
+        Class to handle watcom make files
+
+        Args:
+            file_name: Pathname to the *.wmk to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+        """
+
+        super(BuildWatcomFile, self).__init__(
+            file_name,
+            priority,
+            configuration=configuration)
+        self.verbose = verbose
+
+    def build(self):
+        """
+        Build Watcom MakeFile.
+        @details
+        On Linux and Windows hosts, this function will invoke the ``wmake``
+        tool to build the watcom make file.
+
+        The PATH will be temporarily adjusted to include the watcom tools so
+        wmake can find its shared libraries.
+
+        The default target built is ``all``.
+
+        Returns:
+            List of BuildError objects
+        """
+
+        # Is Watcom installed?
+        watcom_path = where_is_watcom(verbose=self.verbose)
+        if watcom_path is None:
+            return BuildError(
+                0, self.file_name,
+                msg='{} requires Watcom to be installed to build!'.format(
+                    self.file_name))
+
+        # Watcom requires the path set up so it can access link files
+        saved_path = os.environ['PATH']
+        if get_windows_host_type():
+            new_path = os.pathsep.join(
+                (os.path.join(
+                    watcom_path, 'binnt'), os.path.join(
+                        watcom_path, 'binw')))
+        else:
+            new_path = os.path.join(watcom_path, 'binl')
+
+        exe_name = where_is_watcom('wmake', verbose=self.verbose)
+        os.environ['PATH'] = new_path + os.pathsep + saved_path
+
+        # Set the configuration target
+        cmd = [exe_name, '-e', '-h', '-f', self.file_name, self.configuration]
+
+        # Iterate over the commands
+        if self.verbose:
+            print(' '.join(cmd))
+
+        result = self.run_command(cmd, self.verbose)
+
+        # Restore the path variable
+        os.environ['PATH'] = saved_path
+
+        # Return the error code
+        return result
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    return _WATCOMFILE_MATCH.match(filename)
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildWatcomFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildWatcomFile classes
+    """
+
+    if not configurations:
+        return [BuildWatcomFile(file_name, priority, 'all', verbose)]
+
+    results = []
+    for configuration in configurations:
+        results.append(
+            BuildWatcomFile(
+                file_name,
+                priority,
+                configuration,
+                verbose))
+    return results
 
 ########################################
 
@@ -312,7 +441,8 @@ class Project(object):
 
         return 0
 
-    def write_rules(self, line_list):
+    @staticmethod
+    def write_rules(line_list):
         """
         Output the default rules for building object code
         """

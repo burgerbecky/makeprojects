@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+
+# It is released under an MIT Open Source license. Please see LICENSE
+# for license details. Yes, you can use it in a
+# commercial title without paying anything, just give me a credit.
+# Please? It's not like I'm asking you for money!
+
 """
 Sub file for makeprojects.
 Handler for Linux make projects
@@ -10,24 +17,123 @@ This module contains classes needed to generate
 project files intended for use by make
 """
 
-# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
-
-# It is released under an MIT Open Source license. Please see LICENSE
-# for license details. Yes, you can use it in a
-# commercial title without paying anything, just give me a credit.
-# Please? It's not like I'm asking you for money!
+# pylint: disable=consider-using-f-string
+# pylint: disable=useless-object-inheritance
+# pylint: disable=super-with-arguments
 
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
+from re import compile as re_compile
 from burger import save_text_file_if_newer, encapsulate_path_linux, \
-    convert_to_linux_slashes
+    convert_to_linux_slashes, host_machine
 
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+from .core import BuildObject, BuildError
 
-# pylint: disable=C0302
+_MAKEFILE_MATCH = re_compile('(?is).*\\.mak\\Z')
 
 SUPPORTED_IDES = (IDETypes.make,)
+
+########################################
+
+
+class BuildMakeFile(BuildObject):
+    """
+    Class to build Linux make files
+
+    Attributes:
+        verbose: Save the verbose flag
+    """
+
+    def __init__(self, file_name, priority, configuration, verbose=False):
+        """
+        Class to handle Linux make files
+
+        Args:
+            file_name: Pathname to the makefile to build
+            priority: Priority to build this object
+            configuration: Build configuration
+            verbose: True if verbose output
+        """
+
+        super(BuildMakeFile, self).__init__(
+            file_name, priority, configuration=configuration)
+        self.verbose = verbose
+
+    def build(self):
+        """
+        Build MakeFile using ``make``.
+
+        For Linux hosts, invoke ``make`` for building a makefile.
+
+        The default target built is ``all``.
+
+        Returns:
+            List of BuildError objects
+        """
+
+        # Running under Linux?
+        if host_machine() != 'linux':
+            return BuildError(
+                0, self.file_name, msg='{} can only build on Linux!'.format(
+                    self.file_name))
+
+        # Build the requested target configuration
+        cmd = ['make', '-s', '-j', '-f', self.file_name, self.configuration]
+        if self.verbose:
+            # Have makerez be verbose
+            cmd.insert(1, '--debug=v')
+            print(' '.join(cmd))
+
+        return self.run_command(cmd, self.verbose)
+
+########################################
+
+
+def match(filename):
+    """
+    Check if the filename is a type that this module supports
+
+    Args:
+        filename: Filename to match
+    Returns:
+        False if not a match, True if supported
+    """
+
+    if _MAKEFILE_MATCH.match(filename):
+        return True
+    base_name = os.path.basename(filename)
+    base_name_lower = base_name.lower()
+    return base_name_lower == 'makefile'
+
+########################################
+
+
+def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildMakeFile build records for every desired configuration
+
+    Args:
+        file_name: Full pathname to the make file
+        args: parser argument list
+    Returns:
+        list of BuildMakeFile classes
+    """
+
+    if not configurations:
+        return [BuildMakeFile(file_name, priority, 'all', verbose)]
+
+    results = []
+    for configuration in configurations:
+        results.append(
+            BuildMakeFile(
+                file_name,
+                priority,
+                configuration,
+                verbose))
+    return results
 
 ########################################
 
@@ -54,6 +160,12 @@ class Project(object):
     Root object for a Watcom IDE project file
     Created with the name of the project, the IDE code
     the platform code (4gw, x32, win)
+
+    Attributes:
+        solution: Parent solution
+        platforms: List of all platform types
+        configuration_list: List of all configurations
+        configuration_names: List of configuration names
     """
 
     def __init__(self, solution):
@@ -61,16 +173,9 @@ class Project(object):
         Initialize the exporter.
         """
 
-        ## Parent solution
         self.solution = solution
-
-        ## List of all platform types
         self.platforms = []
-
-        ## List of all configurations
         self.configuration_list = []
-
-        ## List of configuration names
         self.configuration_names = []
 
         # Process all the projects and configurations
@@ -120,7 +225,8 @@ class Project(object):
 
     ########################################
 
-    def write_default_goal(self, line_list):
+    @staticmethod
+    def write_default_goal(line_list):
         """
         Write the default goal for the makefile
         """
@@ -142,6 +248,8 @@ class Project(object):
         """
         Output all of the .PHONY targets
         """
+
+        # pylint: disable=too-many-branches
 
         # Generate list of build targets
         target_list = ['all:']
@@ -295,7 +403,8 @@ class Project(object):
 
     ########################################
 
-    def write_test_variables(self, line_list):
+    @staticmethod
+    def write_test_variables(line_list):
         """
         Create tests for environment variables
         """
@@ -460,6 +569,8 @@ class Project(object):
         """
         Output the default rules for building object code
         """
+
+        # pylint: disable=too-many-branches
 
         # Global compiler flags
         line_list.extend([
