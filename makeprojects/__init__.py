@@ -96,7 +96,7 @@ from .defaults import get_configuration_settings
 ########################################
 
 # Current version of the library as a numeric tuple
-__numversion__ = (0, 12, 2)
+__numversion__ = (0, 12, 3)
 
 # Current version of the library
 __version__ = '.'.join([str(num) for num in __numversion__])
