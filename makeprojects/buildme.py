@@ -24,9 +24,6 @@ See Also:
 @var makeprojects.buildme.MODULES
 List of build modules
 
-@var makeprojects.buildme.BUILD_LIST
-Default build_rules.py command list, priority / entrypoint
-
 @var makeprojects.buildme.CODEWARRIOR_ERRORS
 Error code messages from Codewarrior
 
@@ -56,31 +53,15 @@ import os
 import sys
 import argparse
 from operator import attrgetter
-from burger import import_py_script, run_py_script, convert_to_array
+from burger import import_py_script, convert_to_array
 from .config import BUILD_RULES_PY
 from .__init__ import _XCODEPROJ_MATCH, __version__, _XCODEPROJECT_FILE
 from .util import get_build_rules, remove_ending_os_sep, was_processed, \
     getattr_build_rules
-from .core import BuildError, BuildObject
-from . import makerez, slicer, doxygen, watcom, makefile, ninja, \
-    visual_studio, codewarrior, codeblocks, xcode
-
-MODULES = [
-    slicer,
-    makerez,
-    watcom,
-    makefile,
-    ninja,
-    visual_studio,
-    codewarrior,
-    codeblocks,
-    xcode]
-
-BUILD_LIST = (
-    (1, 'prebuild'),
-    (40, 'build'),
-    (99, 'postbuild')
-)
+from .core import BuildError
+from .modules import add_documentation_modules, MODULES
+from .python import create_simple_script_object, create_build_rules_objects
+from .python import match as python_match
 
 ########################################
 
@@ -208,105 +189,6 @@ def fixup_args(args):
         temp_list.append(item)
     args.directories = temp_list
 
-########################################
-
-
-class BuildPythonFile(BuildObject):
-    """
-    Class to build with python scripts
-
-    Attributes:
-        verbose: the verbose flag
-        command: Command for function
-        function_ref: Function pointer
-    """
-
-    # pylint: disable=too-many-arguments
-    def __init__(self, file_name, priority, verbose=False,
-                 function_ref=None, command=None):
-        """
-        Class to handle Python files
-
-        Args:
-            file_name: Pathname to the *.py to build
-            priority: Priority to build this object
-            verbose: True if verbose output
-            function_ref: Python function pointer
-            command: Command to issue to the function
-        """
-
-        super().__init__(file_name, priority)
-        self.verbose = verbose
-        self.command = command
-        self.function_ref = function_ref
-
-    def has_python_function(self):
-        """
-        Return True if there's a callable python function.
-
-        Returns:
-            True if there is a callable python function.
-        """
-        return callable(self.function_ref)
-
-    def create_parm_string(self):
-        """
-        Merge the command parameters into a single string.
-        """
-        parms = []
-        for item in self.command:
-            parms.append('{}="{}"'.format(item, self.command[item]))
-        return ','.join(parms)
-
-    def build(self):
-        """
-        Invoke a python function
-        """
-        if not self.has_python_function():
-            if self.verbose:
-                print('Invoking ' + self.file_name)
-            error = run_py_script(
-                self.file_name, 'main', os.path.dirname(self.file_name))
-        else:
-            if self.verbose:
-                print(
-                    'Calling {}({}) in {}'.format(
-                        self.function_ref.__name__,
-                        self.create_parm_string(),
-                        self.file_name))
-            error = self.function_ref(**self.command)
-        return BuildError(error, self.file_name)
-
-    def __repr__(self):
-        """
-        Convert the object into a string.
-
-        Returns:
-            A full string.
-        """
-
-        result = (
-            '{} for file "{}" with priority {}').format(
-                type(self).__name__,
-                self.file_name,
-                self.priority)
-        if self.function_ref:
-            result += ', function {}'.format(self.function_ref.__name__)
-        if self.command:
-            result += '({})'.format(self.create_parm_string())
-        else:
-            result += '()'
-        return result
-
-    def __str__(self):
-        """
-        Convert the object into a string.
-
-        Returns:
-            A full string.
-        """
-
-        return self.__repr__()
 
 ########################################
 
@@ -317,7 +199,7 @@ def add_build_rules(projects, file_name, args, build_rules=None):
 
     Given a build_rules.py to parse, check it for a BUILD_LIST
     and use that for scanning for functions to call. If BUILD_LIST
-    doesn't exist, use @ref buildme.BUILD_LIST instead.
+    doesn't exist, use @ref python.BUILD_LIST instead.
 
     All valid entries will be appended to the projects list.
 
@@ -345,7 +227,7 @@ def add_build_rules(projects, file_name, args, build_rules=None):
 
         # Test for functions and append all that are found
         working_directory = os.path.dirname(file_name)
-        command = {
+        parms = {
             'working_directory': working_directory,
             'configuration': 'all'}
 
@@ -361,17 +243,13 @@ def add_build_rules(projects, file_name, args, build_rules=None):
         else:
             dependencies = []
 
-        for item in BUILD_LIST:
-            # Only add if it's a function
-            function_ref = getattr(build_rules, item[1], None)
-            if function_ref:
-                projects.append(
-                    BuildPythonFile(
-                        file_name,
-                        item[0],
-                        args.verbose,
-                        function_ref=function_ref,
-                        command=command))
+        # Add build object found in the build_rules.py file
+        projects.extend(
+            create_build_rules_objects(
+                file_name,
+                build_rules,
+                parms,
+                args.verbose))
     return dependencies
 
 ########################################
@@ -393,40 +271,19 @@ def add_project(projects, processed, file_name, args):
     # pylint: disable=too-many-return-statements
     # pylint: disable=too-many-branches
 
-    # Test for recursion
-    if was_processed(processed, file_name, args.verbose):
-        return True
+    # Python scripts are a special case
+    if python_match(file_name):
 
-    # Only process project files
-    base_name = os.path.basename(file_name)
-    base_name_lower = base_name.lower()
-
-    # Test for python scripts.
-    if base_name_lower == 'prebuild.py':
-        projects.append(
-            BuildPythonFile(
+        # Test for recursion
+        if was_processed(processed, file_name, args.verbose):
+            return True
+        # Since it is a special case script, create a buildobject
+        # for it
+        projects.extend(
+            create_simple_script_object(
                 file_name,
-                1,
-                args.verbose,
-                command='main'))
-        return True
-
-    if base_name_lower == 'custombuild.py':
-        projects.append(
-            BuildPythonFile(
-                file_name,
-                40,
-                args.verbose,
-                command='main'))
-        return True
-
-    if base_name_lower == 'postbuild.py':
-        projects.append(
-            BuildPythonFile(
-                file_name,
-                99,
-                args.verbose,
-                command='main'))
+                entry="main",
+                verbose=args.verbose))
         return True
 
     # Check if the file is accepted by a build module
@@ -434,6 +291,10 @@ def add_project(projects, processed, file_name, args):
 
         # Match the file?
         if module.match(file_name):
+
+            # Test for recursion
+            if was_processed(processed, file_name, args.verbose):
+                return True
 
             # Create the build objects
             projects.extend(
@@ -696,7 +557,7 @@ def main(working_directory=None, args=None):
 
     # If documentation is allowed, add the module
     if args.documentation:
-        MODULES.append(doxygen)
+        add_documentation_modules()
 
     # Try building all individual files first
     if not process_files(results, processed, files, args):

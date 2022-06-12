@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 """
-Module handles Rezfile
+Module that handles slicer script files.
 
-Build and clean rezfile data
+Build and clean slicer data
 
 See Also:
     makeprojects.cleanme, makeprojects.buildme
@@ -32,7 +32,7 @@ class BuildSlicerFile(BuildObject):
         verbose: Save the verbose flag
     """
 
-    def __init__(self, file_name, priority=20, verbose=False):
+    def __init__(self, file_name, priority=None, verbose=False):
         """
         Class to handle .slicerscript files
 
@@ -43,6 +43,11 @@ class BuildSlicerFile(BuildObject):
         """
 
         # pylint: disable=super-with-arguments
+
+        if priority is None:
+            # Make sure this number is lower than makerez, because makerez
+            # usually needs the output of this tool as input
+            priority = 20
 
         super(BuildSlicerFile, self).__init__(file_name, priority)
         self.verbose = verbose
@@ -65,28 +70,14 @@ class BuildSlicerFile(BuildObject):
         # Issue it
         return self.run_command(cmd, self.verbose)
 
-    ########################################
-
-    def clean(self):
-        """
-        Delete temporary files.
-
-        This function is called by ``cleanme`` to remove temporary files.
-
-        On exit, return 0 for no error, or a non zero error code if there was an
-        error to report. None if not implemented or not applicable.
-
-        Returns:
-            None if not implemented, otherwise an integer error code.
-        """
-        return None
-
 ########################################
 
 
 def match(filename):
     """
     Check if the filename is a type that this module supports
+
+    Slicer scripts end with .slicerscript.
 
     Args:
         filename: Filename to match
@@ -99,15 +90,18 @@ def match(filename):
 ########################################
 
 
-def create_build_object(file_name, priority=20,
+def create_build_object(file_name, priority=None,
                  configurations=None, verbose=False):
     """
     Return an array of BuildSlicerFile build objects
 
+    Given a filename to a slicer script, create a BuildObject that will
+    invoke the tool and slicer the art as needed.
+
     Args:
-        file_name: Pathname to the *.rezscript to build
+        file_name: Pathname to the *.slicerscript to build
         priority: Priority to build this object
-        configurations: Configuration list to build
+        configurations: Configuration list to build (Not used)
         verbose: True if verbose output
     """
 

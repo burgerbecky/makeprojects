@@ -17,19 +17,16 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import sys
-from burger import import_py_script, run_command
+from burger import import_py_script, run_command, clean_directories
 
 # If set to True, ``buildme -r``` will not parse directories in this folder.
 BUILDME_NO_RECURSE = False
 
 # ``buildme``` will build these files and folders first.
-BUILDME_DEPENDENCIES = []
+DEPENDENCIES = []
 
 # If set to True, ``cleanme -r``` will not parse directories in this folder.
 CLEANME_NO_RECURSE = True
-
-# ``cleanme`` will clean the listed folders before cleaning this folder.
-CLEANME_DEPENDENCIES = []
 
 CLEANME_CONTINUE = True
 
@@ -79,6 +76,9 @@ def clean(working_directory):
     Returns:
         None if not implemented, otherwise an integer error code.
     """
+
+    # Clean up tox, or pylint
+    clean_directories(working_directory, "temp")
 
     # The function exists in setup.py.
     # It can be manually invoked with "setup.py clean"

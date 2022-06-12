@@ -119,7 +119,7 @@ class BuildObject(object):
         configuration: Configuration if applicable
     """
 
-    def __init__(self, file_name, priority,
+    def __init__(self, file_name, priority=None,
                  configuration=None):
         """
         Initializers for an BuildObject.
@@ -128,10 +128,24 @@ class BuildObject(object):
             file_name: Name of the file to build.
             priority: Integer priority, lower will be built first.
             configuration: Configuration to build
+
+        Raises:
+            TypeError, ValueError
         """
 
+        # Sanity check
+
+        # Make sure a priority is assigned
+        if priority is None:
+            priority = 50
+
+        # Ensure the pathname is an absolute path
+        file_name = os.path.abspath(file_name)
+
         self.file_name = file_name
-        self.priority = priority
+
+        # Ensure it's a number
+        self.priority = int(priority)
         self.configuration = configuration
 
     ########################################
