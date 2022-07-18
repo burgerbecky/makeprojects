@@ -70,7 +70,7 @@ from burger import create_folder_if_needed, save_text_file_if_newer, \
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
 from .core import SourceFile, Configuration, BuildObject, BuildError
 from .core import Project as CoreProject
-from .__init__ import _XCODEPROJECT_FILE
+from .config import _XCODEPROJECT_FILE
 
 _PBXPROJFILE_MATCH = re_compile('(?is).*\\.pbxproj\\Z')
 _XCODEPROJFILE_MATCH = re_compile('(?is).*\\.xcodeproj\\Z')
@@ -876,8 +876,10 @@ def create_build_object(file_name, priority=50,
     Create BuildXCodeFile build records for every desired configuration
 
     Args:
-        file_name: Full pathname to the make file
-        args: parser argument list
+        file_name: Pathname to the *.pbxproj to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
     Returns:
         list of BuildXCodeFile classes
     """
@@ -1471,7 +1473,7 @@ class BuildGLSL(JSONDict):
         Initialize the PBXBuildRule for GLSL
         """
 
-        uuid = calcuuid('PBXBuildRule' 'BuildGLSL')
+        uuid = calcuuid('PBXBuildRule' + 'BuildGLSL')
 
         JSONDict.__init__(
             self,

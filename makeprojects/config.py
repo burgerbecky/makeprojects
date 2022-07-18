@@ -6,6 +6,9 @@ Package that reads, parses and processes the configuration file
 
 @package makeprojects.config
 
+@var makeprojects.config._XCODEPROJECT_FILE
+The filename project.pbxproj
+
 @var makeprojects.config.BUILD_RULES_PY
 build_rules.py file to detect secondly
 
@@ -27,6 +30,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 from shutil import copyfile
 from burger import get_windows_host_type
+
+# 'project.pbxproj'
+_XCODEPROJECT_FILE = 'project.pbxproj'
 
 # build_rules.py file to detect secondly
 BUILD_RULES_PY = 'build_rules.py'

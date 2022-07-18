@@ -369,7 +369,6 @@ def main(working_directory=None, args=None):
     parser.add_argument('-lib', dest='library', action='store_true',
                         default=False, help='Build a library instead of a tool')
 
-
     parser.add_argument('args', nargs=argparse.REMAINDER,
                         help='project filenames')
 
@@ -378,14 +377,15 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
+        # pylint: disable=import-outside-toplevel
         from .config import save_default
         if args.verbose:
             print(
                 'Saving {}'.format(
                     os.path.join(
                         working_directory,
-                        BUILD_RULES_PY)))
-        save_default(working_directory)
+                        args.rules_file)))
+        save_default(working_directory, destinationfile=args.rules_file)
         return 0
 
     # Make a list of directories to process

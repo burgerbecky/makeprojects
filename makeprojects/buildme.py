@@ -20,28 +20,6 @@ See Also:
     main, makeprojects.cleanme, makeprojects.rebuildme
 
 @package makeprojects.buildme
-
-@var makeprojects.buildme.MODULES
-List of build modules
-
-@var makeprojects.buildme.CODEWARRIOR_ERRORS
-Error code messages from Codewarrior
-
-@var makeprojects.buildme._CW_SUPPORTED_LINKERS
-List of supported Codewarrior Linkers
-
-@var makeprojects.buildme._VS_VERSION_YEARS
-Lookup for Visual Studio year in SLN file.
-
-@var makeprojects.buildme._VS_OLD_VERSION_YEARS
-Lookup for Visual Studio year in SLN file pre-2012.
-
-@var makeprojects.buildme._VS_SDK_ENV_VARIABLE
-Lookup for Visual Studio SDK detector.
-
-@var makeprojects.buildme._XCODE_SUFFIXES
-XCode version for file suffix
-
 """
 
 # pylint: disable=useless-object-inheritance
@@ -54,10 +32,10 @@ import sys
 import argparse
 from operator import attrgetter
 from burger import import_py_script, convert_to_array
-from .config import BUILD_RULES_PY
-from .__init__ import _XCODEPROJ_MATCH, __version__, _XCODEPROJECT_FILE
-from .util import get_build_rules, remove_ending_os_sep, was_processed, \
-    getattr_build_rules
+from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE
+from .__init__ import _XCODEPROJ_MATCH, __version__
+from .util import get_build_rules, was_processed, getattr_build_rules, \
+    fixup_args
 from .core import BuildError
 from .modules import add_documentation_modules, MODULES
 from .python import create_simple_script_object, create_build_rules_objects
@@ -78,11 +56,11 @@ def create_parser():
     - preview boolean for previewing the build process
     - generate_build_rules boolean create build rules and exit
     - rules_file string override build_rules.py
+    - fatal boolean abort if error occurs in processing
     - directories string array of directories to process
     - files string array of project files to process
     - configurations string array of configurations to process
     - documentation boolean if Doxygen is be executed
-    - fatal boolean abort if error occurs in processing
     - args string array of unknown parameters
 
     Returns:
@@ -140,55 +118,6 @@ def create_parser():
                         help='project filenames')
 
     return parser
-
-########################################
-
-
-def fixup_args(args):
-    """
-    Check unused args if they are directories, files or configurations
-
-    Args:
-        args: args class from argparser
-    """
-
-    # Remove trailing os seperator
-    args.args = remove_ending_os_sep(args.args)
-    args.directories = remove_ending_os_sep(args.directories)
-
-    if not args.configurations:
-        args.configurations = []
-
-    if not args.files:
-        args.files = []
-
-    # Process the orphaned arguments and determine if they
-    # are configurations, files or directories
-    if args.args:
-        for item in args.args:
-            filename = os.path.abspath(item)
-            if os.path.isfile(filename):
-                args.files.append(filename)
-            elif os.path.isdir(filename):
-                args.directories.append(filename)
-            else:
-                args.configurations.append(item)
-        args.args = None
-
-    args.directories = [os.path.abspath(item) for item in args.directories]
-    args.files = [os.path.abspath(item) for item in args.files]
-
-    # Hack to convert XCode directories into files
-    temp_list = []
-    for item in args.directories:
-        if item.endswith(".xcodeproj"):
-            filename = os.path.join(item, _XCODEPROJECT_FILE)
-            if os.path.isfile(filename):
-                args.files.append(filename)
-                continue
-        temp_list.append(item)
-    args.directories = temp_list
-
 
 ########################################
 
@@ -506,7 +435,7 @@ def main(working_directory=None, args=None):
     - ``-d``, List of directories to build.
     - ``-c``, List of configurations to build
     - ``-docs``, Compile Doxyfile files.
-    - Additional terms are considered specific files to build.
+    - Additional terms are considered specific files or configurations to build.
 
     Args:
         working_directory: Directory to operate on, or ``None``.
@@ -529,15 +458,13 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
-        # pylint: disable=import-outside-toplevel
-        from .config import save_default
         if args.verbose:
             print(
-                'Saving {}'.format(
+                "Saving {}".format(
                     os.path.join(
                         working_directory,
-                        BUILD_RULES_PY)))
-        save_default(working_directory)
+                        args.rules_file)))
+        save_default(working_directory, destinationfile=args.rules_file)
         return 0
 
     # Handle extra arguments

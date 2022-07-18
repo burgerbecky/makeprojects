@@ -63,9 +63,6 @@ Copyright owner
 @var makeprojects._XCODEPROJ_MATCH
 Match *.xcodeproj
 
-@var makeprojects._XCODEPROJECT_FILE
-The filename project.pbxproj
-
 @var makeprojects._HLSL_MATCH
 Match *.hlsl
 
@@ -124,9 +121,6 @@ __copyright__ = 'Copyright 2013-2022 Rebecca Ann Heineman'
 
 # Match *.xcodeproj
 _XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
-
-# 'project.pbxproj'
-_XCODEPROJECT_FILE = 'project.pbxproj'
 
 # Match *.hlsl
 _HLSL_MATCH = re_compile('(?ms).*\\.hlsl\\Z')

@@ -24,10 +24,10 @@ import os
 import sys
 import argparse
 from burger import convert_to_array
-from .config import BUILD_RULES_PY
+from .config import BUILD_RULES_PY, save_default
 from .__init__ import __version__, _XCODEPROJ_MATCH
-from .util import get_build_rules, getattr_build_rules, remove_ending_os_sep, \
-    was_processed
+from .util import get_build_rules, getattr_build_rules, was_processed, \
+    fixup_args
 
 ########################################
 
@@ -41,9 +41,14 @@ def create_parser():
     - version boolean if version is requested
     - recursive boolean for directory recursion
     - verbose boolean for verbose output
+    - preview boolean for previewing the clean process
     - generate_build_rules boolean create build rules and exit
     - rules_file string override build_rules.py
+    - fatal boolean abort if error occurs in processing
     - directories string array of directories to process
+    - files string array of project files to process
+    - configurations string array of configurations to process
+    - args string array of unknown parameters
 
     Returns:
         argparse.ArgumentParser() object
@@ -60,6 +65,9 @@ def create_parser():
     parser.add_argument('-r', '-all', dest='recursive', action='store_true',
                         default=False, help='Perform a recursive clean')
 
+    parser.add_argument('-n', '-preview', dest='preview', action='store_true',
+                        default=False, help='Preview clean commands.')
+
     parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
                         default=False, help='Verbose output.')
 
@@ -74,26 +82,25 @@ def create_parser():
         default=BUILD_RULES_PY,
         help='Specify a configuration file.')
 
+    parser.add_argument('-q', dest='fatal', action='store_true',
+                        default=False, help='Quit immediately on any error.')
+
+    parser.add_argument('-f', dest='files', action='append',
+                        metavar='<filename>',
+                        help='Project file to process.')
+
     parser.add_argument('-d', dest='directories', action='append',
                         metavar='<directory>', default=[],
                         help='List of directories to clean.')
 
+    parser.add_argument('-c', dest='configurations', action='append',
+                        metavar='<configuration>',
+                        help='Configuration to process.')
+
+    parser.add_argument('args', nargs=argparse.REMAINDER,
+                        help='project filenames')
+
     return parser
-
-########################################
-
-
-def fixup_args(args):
-    """
-    Perform argument cleanup
-
-    Args:
-        args: args class from argparser
-    """
-
-    # Remove trailing os seperator
-    args.directories = remove_ending_os_sep(args.directories)
-    args.directories = [os.path.abspath(item) for item in args.directories]
 
 ########################################
 
@@ -223,9 +230,14 @@ def main(working_directory=None, args=None):
     - ``--version``, show version.
     - ``-r``, Perform a recursive clean.
     - ``-v``, Verbose output.
+    - ``-n``, Preview clean commands
     - ``--generate-rules``, Create build_rules.py and exit.
     - ``--rules-file``, Override the configruration file.
+    - ``-q``, Quit after the first error
+    - ``-f``, List of files to build.
     - ``-d``, List of directories to clean.
+    - ``-c``, List of configurations to build
+    - Additional terms are considered specific files or configurations to clean.
 
     Args:
         working_directory: Directory to operate on, or None for os.getcwd()
@@ -246,31 +258,33 @@ def main(working_directory=None, args=None):
 
     # Output default configuration
     if args.generate_build_rules:
-        # pylint: disable=import-outside-toplevel
-        from .config import save_default
         if args.verbose:
             print(
-                'Saving {}'.format(
+                "Saving {}".format(
                     os.path.join(
                         working_directory,
-                        BUILD_RULES_PY)))
-        save_default(working_directory)
+                        args.rules_file)))
+        save_default(working_directory, destinationfile=args.rules_file)
         return 0
 
     # Handle extra arguments
     fixup_args(args)
 
-    # Make a list of directories to process
-    if not args.directories:
-        args.directories = [working_directory]
+    # Get lists of files/directories to build
+    files = args.files
+    directories = args.directories
+
+    # If there are no entries, use the working directory
+    if not directories and not files:
+        directories = [working_directory]
 
     # Process the list of directories.
     # Pass an empty set for recursion testing
-    error = process_directories(set(), args.directories, args)
+    error = process_directories(set(), directories, args)
 
     # Wrap up!
     if args.verbose:
-        print('cleanme is complete.')
+        print('Clean is successful!')
     return error
 
 

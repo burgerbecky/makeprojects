@@ -14,6 +14,8 @@ See Also:
 @package makeprojects.rebuildme
 """
 
+# pylint: disable=consider-using-f-string
+
 from __future__ import absolute_import, print_function, unicode_literals
 
 import sys
@@ -75,7 +77,7 @@ def main(working_directory=None, args=None):
         '--rules-file',
         dest='rules_file',
         metavar='<file>',
-        default=None,
+        default=BUILD_RULES_PY,
         help='Specify a configuration file.')
 
     parser.add_argument('-f', dest='fatal', action='store_true',
@@ -93,11 +95,11 @@ def main(working_directory=None, args=None):
     if args.generate_build_rules:
         if args.verbose:
             print(
-                'Saving {}'.format(
+                "Saving {}".format(
                     os.path.join(
                         working_directory,
-                        BUILD_RULES_PY)))
-        save_default(working_directory)
+                        args.rules_file)))
+        save_default(working_directory, destinationfile=args.rules_file)
         return 0
 
     # Generate command lines for the tools

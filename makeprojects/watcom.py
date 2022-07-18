@@ -139,8 +139,10 @@ def create_build_object(file_name, priority=50,
     Create BuildWatcomFile build records for every desired configuration
 
     Args:
-        file_name: Full pathname to the make file
-        args: parser argument list
+        file_name: Pathname to the *.wmk to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
     Returns:
         list of BuildWatcomFile classes
     """

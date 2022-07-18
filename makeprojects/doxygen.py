@@ -158,7 +158,7 @@ def create_build_object(file_name, priority=90,
     Return an array of BuildDoxygenFile build objects
 
     Args:
-        file_name: Pathname to the *.rezscript to build
+        file_name: Pathname to the Doxyfile to build
         priority: Priority to build this object
         configurations: Configuration list to build
         verbose: True if verbose output

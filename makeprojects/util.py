@@ -14,7 +14,7 @@ import re
 import fnmatch
 from burger import string_to_bool, is_string, import_py_script
 from .enums import FileTypes
-from .config import DEFAULT_BUILD_RULES
+from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 
 # pylint: disable=consider-using-f-string
 
@@ -374,3 +374,63 @@ def was_processed(processed, path_name, verbose):
         print('Processing {}.'.format(path_name))
     processed.add(path_name)
     return False
+
+########################################
+
+
+def fixup_args(args):
+    """
+    Check unused args if they are directories, files or configurations
+
+    The args object has the attributes ``args``, ``directories``,
+    ``configurations``, and ``files``. The attribute args has all the unparsed
+    arguments that will be tested to see if they are a file, directory or a
+    string. The entries will be added to their appropriate attribute, with
+    strings appended to ``configurations``. Attribute ``args`` is set to None.
+
+    Args:
+        args: args class from argparser
+    """
+
+    # Remove trailing os seperator
+    # This caused issues with parsing Xcode folders
+    args.args = remove_ending_os_sep(args.args)
+    args.directories = remove_ending_os_sep(args.directories)
+
+    # Insure configurations is initialized
+    if not args.configurations:
+        args.configurations = []
+
+    # Insure file list is initialized
+    if not args.files:
+        args.files = []
+
+    # Process the orphaned arguments and determine if they
+    # are configurations, files or directories
+    if args.args:
+        for item in args.args:
+            filename = os.path.abspath(item)
+            if os.path.isfile(filename):
+                args.files.append(filename)
+            elif os.path.isdir(filename):
+                args.directories.append(filename)
+            else:
+                args.configurations.append(item)
+        args.args = None
+
+    # Ensure all files and directories are absolute paths
+    args.directories = [os.path.abspath(item) for item in args.directories]
+    args.files = [os.path.abspath(item) for item in args.files]
+
+    # Hack to convert XCode directories into files
+    temp_list = []
+    for item in args.directories:
+        if item.endswith(".xcodeproj"):
+            filename = os.path.join(item, _XCODEPROJECT_FILE)
+            if os.path.isfile(filename):
+                # Convert to a file
+                args.files.append(filename)
+                continue
+        # Leave the directory in the list
+        temp_list.append(item)
+    args.directories = temp_list
