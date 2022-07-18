@@ -69,7 +69,6 @@ class TestCleanme(unittest.TestCase):
 
 ########################################
 
-
     def tearDown(self):
         """
         Restore directory
@@ -80,7 +79,6 @@ class TestCleanme(unittest.TestCase):
 
 
 ########################################
-
 
     @staticmethod
     def mkdir(path, *paths):
@@ -498,6 +496,40 @@ class TestCleanme(unittest.TestCase):
         self.assertFalse(os.path.isfile(a_foo_cpp))
         self.assertTrue(os.path.isfile(b_foo_txt))
         self.assertTrue(os.path.isfile(b_foo_cpp))
+
+########################################
+
+    def test_cleanme_missing_clean(self):
+        """
+        Test for a special case where a file doesn't have the clean() function.
+
+        It was found that if a build_rules.py file did not have a clean()
+        function, cleanme would report "clean is not a callable
+        function". This is a bug. It should skip the build_rules file.
+        """
+
+        # Create a temp folder
+        a_dir = self.mkdir(self.tmpdir, "a")
+
+        a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
+
+        # Write out the build_rules.py files
+        build_rules = os.path.join(self.tmpdir, "build_rules.py")
+        a_build_rules = os.path.join(a_dir, "build_rules.py")
+
+        # Test CLEANME_NO_RECURSE = True
+        save_text_file(build_rules, [
+            _IMPORT_BURGER,
+            "GENERIC = True",
+            _DEF_CLEAN,
+            '\tburger.clean_files(working_directory, "*.cpp")',
+            _RETURN_ONE]
+        )
+        save_text_file(a_build_rules, [
+            "CONTINUE = True"]
+        )
+        self.assertEqual(makeprojects.clean(a_dir), 1)
+        self.assertFalse(os.path.isfile(a_foo_cpp))
 
 ########################################
 

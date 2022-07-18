@@ -181,9 +181,13 @@ def process_directories(processed, directories, args):
 
             # Call the clean() proc in the build_rules.py file, if it exists
             clean_proc = getattr(build_rules, 'clean', None)
+            if clean_proc is None:
+                continue
+
             if not callable(clean_proc):
                 print(
-                    "Function clean in {} is not a callable function".format(
+                    ("Function clean in file {} "
+                    "is not a callable function").format(
                         build_rules.__file__))
                 error = 12
                 break

@@ -458,24 +458,27 @@ def rules(command, working_directory, root=True, **kargs):
         # Return the default type of project to create.
         return ProjectTypes.tool
 
-    elif command == 'default_ide':
+    if command == 'default_ide':
         # Return the default IDE to build for.
         return IDETypes.default()
 
-    elif command == 'default_platform':
+    if command == 'default_platform':
         # Return the default platform to build for.
         return PlatformTypes.default()
 
-    elif command == 'configuration_list':
+    if command == 'configuration_list':
         return do_configuration_list(kargs.get('platform'), kargs.get('ide'))
 
-    elif command == 'project_settings':
+    if command == 'project_settings':
         # Return the settings for a specific project
         return do_project_settings(kargs.get('project'))
 
-    elif command == 'configuration_settings':
+    if command == 'configuration_settings':
         # Set the defaults for this configuration
         return do_configuration_settings(kargs.get('configuration'))
+
+    if command == "default_project_name":
+        return os.path.basename(working_directory)
 
     # Return zero to denote no error or no action.
     return 0
