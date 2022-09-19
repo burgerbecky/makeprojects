@@ -72,7 +72,6 @@ class TestCleanme(unittest.TestCase):
 
 ########################################
 
-
     def tearDown(self):
         """
         Restore directory
@@ -83,7 +82,6 @@ class TestCleanme(unittest.TestCase):
 
 
 ########################################
-
 
     @staticmethod
     def mkdir(path, *paths):
@@ -354,7 +352,14 @@ class TestCleanme(unittest.TestCase):
             _DEF_CLEAN,
             _RETURN_ONE]
         )
-        makeprojects.clean(a_dir)
+
+        # Note, since the text files above returns 1, check if the
+        # error was properly triggered.
+        result = None
+        with Interceptstdout() as output:
+            result = makeprojects.clean(a_dir)
+        self.assertTrue("Errors detected" in output[0])
+        self.assertEqual(result, 1)
 
 ########################################
 
@@ -546,7 +551,11 @@ class TestCleanme(unittest.TestCase):
         save_text_file(a_build_rules, [
             "CONTINUE = True"]
         )
-        self.assertEqual(makeprojects.clean(a_dir), 1)
+        result = None
+        with Interceptstdout() as output:
+            result = makeprojects.clean(a_dir)
+        self.assertTrue("Errors detected" in output[0])
+        self.assertEqual(result, 1)
         self.assertFalse(os.path.isfile(a_foo_cpp))
 
 ########################################

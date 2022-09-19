@@ -499,7 +499,7 @@ def main(working_directory=None, args=None):
     error = 0
     for item in results:
         if item.error:
-            print('Errors detected in clean.', file=sys.stderr)
+            print('Errors detected in clean.')
             error = item.error
             break
     else:
