@@ -23,11 +23,15 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
 import argparse
-from burger import convert_to_array
-from .config import BUILD_RULES_PY, save_default
-from .__init__ import __version__, _XCODEPROJ_MATCH
+from operator import attrgetter
+from burger import convert_to_array, import_py_script
+from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE
+from .__init__ import _XCODEPROJ_MATCH, __version__
 from .util import get_build_rules, getattr_build_rules, was_processed, \
     fixup_args
+from .core import BuildError
+from .modules import MODULES
+from .python import create_clean_rules_objects, BuildPythonFile
 
 ########################################
 
@@ -105,27 +109,200 @@ def create_parser():
 ########################################
 
 
-def process_directories(processed, directories, args):
+def add_clean_rules(projects, working_directory,
+                    file_name, args, build_rules=None):
     """
-    Clean a list of directories.
+    Add a build_rules.py to the clean list.
 
-    The ``args`` parameter list is an object with these attributes:
-    * ``verbose`` If True, verbose output will be printed to the console
-    * ``rules_file`` Name of the rules file, should be ``build_rules.py``
-    * ``recursive`` If True, recursively process all directories
+    Given a build_rules.py to parse, check for the function "clean"
+    and use that for scanning for functions to call.
+
+    All valid entries will be appended to the projects list.
 
     Args:
-        processed: Set of directories already processed.
+        projects: List of projects to clean.
+        file_name: Pathname to the build_rules.py file.
+        args: Args for determining verbosity for output.
+        build_rules: Preloaded build_rules.py object.
+    See Also:
+        add_project
+    """
+
+    file_name = os.path.abspath(file_name)
+
+    # Was the build_rules already loaded?
+    if not build_rules:
+        build_rules = import_py_script(file_name)
+
+    dependencies = []
+
+    # Was a build_rules.py file found?
+    if build_rules:
+        if args.verbose:
+            print('Using configuration file {}'.format(file_name))
+
+        # Test for functions and append all that are found
+        if working_directory is None:
+            working_directory = os.path.dirname(file_name)
+        parms = {
+            'working_directory': working_directory}
+
+        # Get the dependency list
+        dependencies = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
+        if dependencies is None:
+            # Try the generic one
+            dependencies = getattr(build_rules, 'DEPENDENCIES', None)
+
+        if dependencies:
+            # Ensure it's an iterable of strings
+            items = convert_to_array(dependencies)
+            dependencies = []
+            for item in items:
+                if not os.path.isabs(item):
+                    dependencies.append(os.path.abspath(
+                        os.path.join(working_directory, item)))
+                else:
+                    dependencies.append(item)
+        else:
+            dependencies = []
+
+        # Add build object found in the build_rules.py file
+        projects.extend(
+            create_clean_rules_objects(
+                file_name,
+                build_rules,
+                parms,
+                args.verbose))
+    return dependencies
+
+
+########################################
+
+
+def add_project(projects, processed, file_name, args):
+    """
+    Detect the project type and add it to the list.
+
+    Args:
+        projects: List of projects to build.
+        processed: List of directories already processed.
+        file_name: Pathname to the build_rules.py file.
+        args: Args for determining verbosity for output.
+    Returns:
+        True if the file was buildable, False if not.
+    """
+
+    # pylint: disable=too-many-return-statements
+    # pylint: disable=too-many-branches
+
+    # Check if the file is accepted by a build module
+    for module in MODULES:
+
+        # Match the file?
+        if module.match(file_name):
+
+            # Test for recursion
+            if was_processed(processed, file_name, args.verbose):
+                return True
+
+            # Create the build objects
+            projects.extend(
+                module.create_clean_object(
+                    file_name,
+                    configurations=args.configurations,
+                    verbose=args.verbose))
+            return True
+
+    return False
+
+########################################
+
+
+def process_projects(results, projects, args):
+    """
+    Process a list of projects
+
+    Sort the projects by priority and build all of them.
+    """
+    # Sort the list by priority (The third parameter is priority from 1-99)
+    error = 0
+    projects = sorted(projects, key=attrgetter('priority'))
+
+    # If in preview mode, just show the generated build objects
+    # and exit
+    if args.preview:
+        for project in projects:
+            print(project)
+        return False
+
+    # Clean all the projects
+    # Note, python objects are a special case, if any return a
+    # non "None" error code, don't call any others
+
+    python_none = False
+    for project in projects:
+
+        # Skip all python clean objects if a numeric error code
+        # was already obtained
+        if isinstance(project, BuildPythonFile) and python_none:
+            continue
+
+        berror = project.clean()
+        error = 0
+        if berror is not None:
+            results.append(berror)
+            error = berror.error
+
+            # Check the error code, was it None?
+            if error is not None:
+                if isinstance(project, BuildPythonFile):
+                    # Don't parse any more python "clean" scripts
+                    python_none = True
+
+        # Abort on error?
+        if error and args.fatal:
+            return True
+    return False
+
+########################################
+
+
+def process_files(results, processed, files, args):
+    """
+    Process a list of files.
+    """
+    projects = []
+    for item in files:
+        full_name = os.path.abspath(item)
+        base_name = os.path.basename(full_name)
+        if base_name == args.rules_file:
+            if not was_processed(processed, full_name, args.verbose):
+                process_dependencies(
+                    results, processed, add_clean_rules(
+                        projects, None, full_name, args), args)
+        elif not add_project(projects, processed, full_name, args):
+            print('"{}" is not supported.'.format(full_name))
+            return True
+    return process_projects(results, projects, args)
+
+########################################
+
+
+def process_directories(results, processed, directories, args):
+    """
+    Process a list of directories.
+
+    Args:
+        results: list object to append BuildError objects
+        processed: List of directories already processed.
         directories: iterable list of directories to process
         args: parsed argument list for verbosity
     Returns:
-        Zero on no error, non zero integer on error
+        True if processing should abort, False if not.
     """
 
-    # pylint: disable=too-many-nested-blocks
     # pylint: disable=too-many-branches
-
-    error = 0
+    # pylint: disable=too-many-nested-blocks
 
     # Process the directory list
     for working_directory in directories:
@@ -140,9 +317,11 @@ def process_directories(processed, directories, args):
 
         # Only process directories
         if not os.path.isdir(working_directory):
-            print("{} is not a directory.".format(working_directory))
-            error = 10
-            break
+            msg = "{} is not a directory.".format(working_directory)
+            results.append(BuildError(10, working_directory, msg=msg))
+            if args.fatal:
+                return True
+            continue
 
         # Are there build rules in this directory?
         build_rules_list = get_build_rules(
@@ -152,74 +331,98 @@ def process_directories(processed, directories, args):
         allow_recursion = not getattr_build_rules(
             build_rules_list, ("CLEANME_NO_RECURSE", "NO_RECURSE"), False)
 
+        allow_files = getattr_build_rules(
+            build_rules_list, ("CLEANME_PROCESS_PROJECT_FILES",), True)
+
+        # Pass one, create a list of all projects to build
+        projects = []
+
         # Process all of the dependencies first, then this folder
         for build_rules in build_rules_list:
+            process_dependencies(
+                results,
+                processed,
+                add_clean_rules(
+                    projects,
+                    working_directory,
+                    build_rules.__file__,
+                    args,
+                    build_rules),
+                args)
 
-            # Check if there is dependency list
-            dependencies = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
-            if dependencies is None:
-                dependencies = getattr(build_rules, 'DEPENDENCIES', None)
+        # Iterate over the directory to find all the other files
+        if allow_files:
+            for entry in os.listdir(working_directory):
 
-            if dependencies:
-                # Ensure it's an iterable of strings
-                dir_list = []
-                dependencies = convert_to_array(dependencies)
-                for item in dependencies:
-                    if not os.path.isabs(item):
-                        item = os.path.join(working_directory, item)
-                        # Ensure there is a directory
-                        # This prevents recursion issues
-                        if not os.path.isdir(item):
-                            continue
-                    dir_list.append(item)
+                full_name = os.path.join(working_directory, entry)
 
-                # Process these directories first.
-                error = process_directories(
-                    processed, dir_list, args)
-                if error:
-                    break
+                # If it's a directory, check for recursion
+                if os.path.isdir(full_name):
 
-            # Call the clean() proc in the build_rules.py file, if it exists
-            clean_proc = getattr(build_rules, 'clean', None)
-            if clean_proc is None:
-                continue
+                    # Special case for xcode, if it's a *.xcodeproj
+                    if _XCODEPROJ_MATCH.match(entry):
 
-            if not callable(clean_proc):
-                print(
-                    ("Function clean in file {} "
-                    "is not a callable function").format(
-                        build_rules.__file__))
-                error = 12
-                break
+                        # Check if it's an xcode project file, if so, add it
+                        if not add_project(projects, processed, os.path.join(
+                                full_name, _XCODEPROJECT_FILE), args):
+                            print(
+                                ('"{}" is not supported on this platform.')
+                                .format(full_name))
+                            return True
+                        continue
 
-            error = clean_proc(working_directory=working_directory)
-            if error is not None:
-                break
-
-        # If recursive, process all the sub folders
-        if args.recursive and not error and allow_recursion:
-            # Iterate over the directory
-            for item in os.listdir(working_directory):
-
-                # Ignore xcode project directories
-                if _XCODEPROJ_MATCH.match(item):
+                    if args.recursive and allow_recursion:
+                        # Process the directory first
+                        if process_directories(
+                                results, processed, [full_name],
+                                args):
+                            # Abort?
+                            return True
                     continue
 
-                # Ignore the build_rules.py file
-                if item == args.rules_file:
-                    continue
+                # It's a file, process it, if possible
+                # Don't double process the rules file
+                if args.rules_file != entry:
+                    add_project(projects, processed, full_name, args)
 
-                # Only deal with directories, ignore all files
-                path_name = os.path.join(working_directory, item)
-                if os.path.isdir(path_name):
-                    # Prevent double processing
-                    if path_name not in processed:
-                        error = process_directories(
-                            processed, [path_name], args)
-                        if error:
-                            break
+        # The list is ready, process it in priority order
+        # and then loop to the next directory to process
+        temp = process_projects(results, projects, args)
+        if temp:
+            return temp
+    return False
 
-    return error
+########################################
+
+
+def process_dependencies(results, processed, dependencies, args):
+    """
+    Process a mixed string list of both directories and files.
+
+    Iterate over the dependencies list and test each object if it's a directory,
+    and if so, dispatch to the directory handler, otherwise, process as a file.
+
+    Args:
+        results: list object to append BuildError objects
+        processed: List of directories already processed.
+        dependencies: iterable list of files/directories to process
+        args: parsed argument list for verbosity
+    Returns:
+        True if processing should abort, False if not.
+    """
+
+    if dependencies:
+        for item in dependencies:
+            if os.path.isdir(item):
+                error = process_directories(results, processed, [item], args)
+            elif os.path.isfile(item):
+                error = process_files(results, processed, [item], args)
+            else:
+                error = 0
+            if error:
+                return error
+    return 0
+
 
 ########################################
 
@@ -282,13 +485,32 @@ def main(working_directory=None, args=None):
     if not directories and not files:
         directories = [working_directory]
 
-    # Process the list of directories.
-    # Pass an empty set for recursion testing
-    error = process_directories(set(), directories, args)
+    # List of errors created during building
+    results = []
+    processed = set()
 
-    # Wrap up!
-    if args.verbose:
-        print('Clean is successful!')
+    # Try building all individual files first
+    if not process_files(results, processed, files, args):
+
+        # If successful, process all directories
+        process_directories(results, processed, directories, args)
+
+    # Was there a build error?
+    error = 0
+    for item in results:
+        if item.error:
+            print('Errors detected in clean.', file=sys.stderr)
+            error = item.error
+            break
+    else:
+        if args.verbose:
+            print('Clean is successful!')
+
+    # Dump the error log if requested or an error
+    if args.verbose or error:
+        for item in results:
+            if args.verbose or item.error:
+                print(item)
     return error
 
 

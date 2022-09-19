@@ -88,6 +88,23 @@ class BuildMakeFile(BuildObject):
 
         return self.run_command(cmd, self.verbose)
 
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return BuildError(0, self.file_name,
+                          msg="Makefile doesn't support cleaning")
+
 ########################################
 
 
@@ -126,6 +143,36 @@ def create_build_object(file_name, priority=50,
 
     if not configurations:
         return [BuildMakeFile(file_name, priority, 'all', verbose)]
+
+    results = []
+    for configuration in configurations:
+        results.append(
+            BuildMakeFile(
+                file_name,
+                priority,
+                configuration,
+                verbose))
+    return results
+
+########################################
+
+
+def create_clean_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildMakeFile build records for every desired configuration
+
+    Args:
+        file_name: Pathname to the *.mak to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
+    Returns:
+        list of BuildMakeFile classes
+    """
+
+    if not configurations:
+        return [BuildMakeFile(file_name, priority, 'clean', verbose)]
 
     results = []
     for configuration in configurations:

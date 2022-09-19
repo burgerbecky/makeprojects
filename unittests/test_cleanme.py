@@ -32,6 +32,9 @@ _IMPORT_BURGER = "import burger"
 # Entry point for clean
 _DEF_CLEAN = "def clean(working_directory):"
 
+# Disable scanning other files
+_CLEANME_PROCESS_PROJECT_FILES = "CLEANME_PROCESS_PROJECT_FILES = False"
+
 # Return no error
 _RETURN_ZERO = "\treturn 0"
 
@@ -69,6 +72,7 @@ class TestCleanme(unittest.TestCase):
 
 ########################################
 
+
     def tearDown(self):
         """
         Restore directory
@@ -79,6 +83,7 @@ class TestCleanme(unittest.TestCase):
 
 
 ########################################
+
 
     @staticmethod
     def mkdir(path, *paths):
@@ -239,6 +244,7 @@ class TestCleanme(unittest.TestCase):
 
         # Test CLEANME_CONTINUE = False
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             'CLEANME_GENERIC = True',
             _IMPORT_BURGER,
             _DEF_CLEAN,
@@ -247,6 +253,7 @@ class TestCleanme(unittest.TestCase):
         )
 
         save_text_file(a_build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_CONTINUE = False",
             _IMPORT_BURGER,
             _DEF_CLEAN,
@@ -264,6 +271,7 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, 'foo.cpp')
 
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
@@ -272,6 +280,7 @@ class TestCleanme(unittest.TestCase):
         )
 
         save_text_file(a_build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_CONTINUE = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
@@ -292,6 +301,7 @@ class TestCleanme(unittest.TestCase):
         a_foo_txt = self.save_text_file(a_dir, "foo.txt")
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
@@ -300,6 +310,7 @@ class TestCleanme(unittest.TestCase):
         )
 
         save_text_file(a_build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
             '\tburger.clean_files(working_directory, "*.cpp")',
@@ -313,6 +324,7 @@ class TestCleanme(unittest.TestCase):
 
         # Test for return value abort
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_GENERIC = True",
             _DEF_CLEAN,
             "\traise RuntimeError(\"RETURN 0 didn't abort clean()\")",
@@ -320,6 +332,7 @@ class TestCleanme(unittest.TestCase):
         )
 
         save_text_file(a_build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CONTINUE = True",
             _DEF_CLEAN,
             _RETURN_ZERO]
@@ -328,13 +341,15 @@ class TestCleanme(unittest.TestCase):
 
         # Test for returning an error code
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_GENERIC = True",
             _DEF_CLEAN,
-            "\traise RuntimeError(\"RETURN 0 didn't abort clean()\")",
+            "\traise RuntimeError(\"RETURN 1 didn't abort clean()\")",
             _RETURN_NONE]
         )
 
         save_text_file(a_build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             "CONTINUE = True",
             _DEF_CLEAN,
             _RETURN_ONE]
@@ -365,6 +380,7 @@ class TestCleanme(unittest.TestCase):
         save_text_file(build_rules, [
             'CLEANME_DEPENDENCIES = ["a"]',
             'CLEANME_GENERIC = True',
+            _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
             '\tburger.clean_files(working_directory, "*.cpp")',
@@ -380,6 +396,7 @@ class TestCleanme(unittest.TestCase):
         foo_cpp = self.save_text_file(self.tmpdir, 'foo.cpp')
         a_foo_cpp = self.save_text_file(a_dir, 'foo.cpp')
         save_text_file(build_rules, [
+            _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
             '\tburger.clean_files(working_directory, "*.txt")',
@@ -388,6 +405,7 @@ class TestCleanme(unittest.TestCase):
 
         save_text_file(a_build_rules, [
             'CLEANME_DEPENDENCIES = [".."]',
+            _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
             '\tburger.clean_files(working_directory, "*.cpp")',

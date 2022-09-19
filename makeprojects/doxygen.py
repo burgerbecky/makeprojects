@@ -130,7 +130,8 @@ class BuildDoxygenFile(BuildObject):
         Returns:
             None if not implemented, otherwise an integer error code.
         """
-        return None
+        return BuildError(0, self.file_name,
+                          msg="Doxygen doesn't support cleaning")
 
 ########################################
 
@@ -153,6 +154,25 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=90,
+                 configurations=None, verbose=False):
+    """
+    Return an array of BuildDoxygenFile build objects
+
+    Args:
+        file_name: Pathname to the Doxyfile to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
+    """
+
+    # pylint: disable=unused-argument
+
+    return [BuildDoxygenFile(file_name, priority, verbose=verbose)]
+
+########################################
+
+
+def create_clean_object(file_name, priority=90,
                  configurations=None, verbose=False):
     """
     Return an array of BuildDoxygenFile build objects

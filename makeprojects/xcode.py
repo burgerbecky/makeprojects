@@ -850,6 +850,24 @@ class BuildXCodeFile(BuildObject):
             file_dir_name,
             configuration=self.configuration)
 
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return BuildError(0, self.file_name,
+                          msg="Xcode doesn't support cleaning")
+
+
 ########################################
 
 
@@ -871,6 +889,54 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildXCodeFile build records for every desired configuration
+
+    Args:
+        file_name: Pathname to the *.pbxproj to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
+    Returns:
+        list of BuildXCodeFile classes
+    """
+
+    # Don't build if not running on macOS
+    if not get_mac_host_type():
+        if verbose:
+            print('{} can only be built on macOS hosts'.format(file_name))
+        return []
+
+    # If it's the directory, convert to project filename
+    if _XCODEPROJFILE_MATCH.match(file_name):
+        file_name = os.path.join(file_name, _XCODEPROJECT_FILE)
+
+    targetlist = parse_xcodeproj_file(file_name)
+
+    # Was the file corrupted?
+    if not targetlist:
+        print(file_name + ' is corrupt!')
+        return []
+
+    results = []
+    for target in targetlist:
+        if configurations:
+            if target not in configurations:
+                continue
+        results.append(
+            BuildXCodeFile(
+                file_name,
+                priority,
+                target,
+                verbose))
+
+    return results
+
+########################################
+
+
+def create_clean_object(file_name, priority=50,
                  configurations=None, verbose=False):
     """
     Create BuildXCodeFile build records for every desired configuration

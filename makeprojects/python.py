@@ -182,6 +182,22 @@ class BuildPythonFile(BuildObject):
 
     ########################################
 
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return self.build()
+
+    ########################################
+
     def __repr__(self):
         """
         Convert the object into a string.
@@ -320,6 +336,52 @@ def create_build_rules_objects(
                 BuildPythonFile(
                     file_name,
                     priority=item[0],
+                    verbose=verbose,
+                    function_ref=function_ref,
+                    parms=parms))
+    return projects
+
+########################################
+
+
+def create_clean_rules_objects(
+        file_name, build_rules, parms=None, verbose=False):
+    """
+    Create BuildObjects from a loaded build_rules.py file.
+
+    After loading a build_rules.py module, this function will check for the
+    entry point used by ``cleanme`` ``clean`` and it will create a
+    BuildPythonFile objects for the entry point found.
+
+    If there are no entry point in the module, this function will return an
+    empty list.
+
+    Args:
+        file_name: Name of the loaded file
+        build_rules: Loaded python module, usually build_rules.py
+        parms: Dictionary of parameters for the function call
+        verbose: True if verbose output is required
+
+    Returns:
+        List of BuildPythonFile objects, can be empty
+    """
+
+    projects = []
+
+    # Check if the entry point exists
+    function_ref = getattr(build_rules, "clean", None)
+    if function_ref:
+        if not callable(function_ref):
+            print(
+                ("Function clean in file {} "
+                "is not a callable function").format(
+                    build_rules.__file__))
+        else:
+            # Add a BuildPythonFile object
+            projects.append(
+                BuildPythonFile(
+                    file_name,
+                    priority=10,
                     verbose=verbose,
                     function_ref=function_ref,
                     parms=parms))

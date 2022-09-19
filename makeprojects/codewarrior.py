@@ -328,6 +328,23 @@ class BuildCodeWarriorFile(BuildObject):
             configuration=self.configuration,
             msg=msg)
 
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return BuildError(0, self.file_name,
+                          msg="Codewarrior doesn't support cleaning")
+
 ########################################
 
 
@@ -417,6 +434,82 @@ def create_build_object(file_name, priority=50,
                     linkers))
 
     return results
+
+
+########################################
+
+
+def create_clean_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildMakeFile build records for every desired configuration
+
+    Args:
+        file_name: Pathname to the *.mcp to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
+    Returns:
+        list of BuildMakeFile classes
+    """
+
+    # pylint: disable=too-many-branches
+
+    # Test for older macOS or Windows
+    if get_mac_host_type():
+        if not is_codewarrior_mac_allowed():
+            print('Codewarrior is not compatible with this version of macOS')
+            return []
+    elif not get_windows_host_type():
+        print('Codewarrior is not compatible with this operating system')
+        return []
+
+    # Parse the MCP file to get the build targets and detected linkers
+    targetlist, linkers, _ = parse_mcp_file(file_name)
+
+    # Was the file corrupted?
+    if targetlist is None:
+        print(file_name + ' is corrupt')
+        return []
+
+    # Test for linkers that are not available on Windows
+    if get_windows_host_type():
+        if '68K Linker' in linkers:
+            print(
+                ('"{}" requires a 68k linker '
+                'which Windows doesn\'t support.').format(file_name))
+            return []
+
+        if 'PPC Linker' in linkers:
+            print(
+                ('"{}" requires a PowerPC linker '
+                'which Windows doesn\'t support.').format(file_name))
+            return []
+
+    # If everything is requested, then only build 'Everything'
+    if not configurations and 'Everything' in targetlist:
+        targetlist = ['Everything']
+
+    results = []
+    for target in targetlist:
+        # Check if
+        accept = True
+        if configurations:
+            accept = False
+            for item in configurations:
+                if item in target:
+                    accept = True
+                    break
+        if accept:
+            results.append(
+                BuildCodeWarriorFile(
+                    file_name,
+                    priority,
+                    target,
+                    verbose,
+                    linkers))
+
+    return results    
 
 ########################################
 

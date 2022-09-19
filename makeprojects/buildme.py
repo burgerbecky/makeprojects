@@ -6,14 +6,6 @@ Module that contains the code for the command line ``buildme``.
 
 Scan the current directory and all project files will be built.
 
-If BUILD_RULES_PY is found, it will be checked for function entry points
-``prebuild``, ``build`` and ``postbuild`` will be called in that order.
-
-If ``prebuild.py``, ``postbuild.py``, or ``custom_build.py`` files are found
-then function ``main`` is called.
-
-Build commands are performed from lowest priority value to highest value.
-
 Full documentation is here, @subpage md_buildme_man
 
 See Also:
@@ -138,7 +130,7 @@ def add_build_rules(projects, file_name, args, build_rules=None):
         args: Args for determining verbosity for output.
         build_rules: Preloaded build_rules.py object.
     See Also:
-       add_project
+        add_project
     """
 
     file_name = os.path.abspath(file_name)
@@ -501,7 +493,7 @@ def main(working_directory=None, args=None):
             break
     else:
         if args.verbose:
-            print('Build successful!')
+            print('Build is successful!')
 
     # Dump the error log if requested or an error
     if args.verbose or error:

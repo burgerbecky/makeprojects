@@ -175,7 +175,8 @@ class BuildObject(object):
         Returns:
             None if not implemented, otherwise an integer error code.
         """
-        return None
+        return BuildError(10, self.file_name, self.configuration,
+                          msg="Unimplemented clean")
 
     ########################################
 

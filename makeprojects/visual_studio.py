@@ -199,6 +199,8 @@ class BuildVisualStudioFile(BuildObject):
         self.verbose = verbose
         self.vs_version = vs_version
 
+    ########################################
+
     def build(self):
         """
         Build a visual studio .sln file.
@@ -263,6 +265,72 @@ class BuildVisualStudioFile(BuildObject):
 
         return self.run_command(cmd, self.verbose)
 
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+
+        # Locate the proper version of Visual Studio for this .sln file
+        vstudiopath = where_is_visual_studio(self.vs_version)
+
+        # Is Visual studio installed?
+        if vstudiopath is None:
+            msg = (
+                '{} requires Visual Studio version {}'
+                ' to be installed to build!').format(
+                self.file_name, self.vs_version)
+            print(msg, file=sys.stderr)
+            return BuildError(0, self.file_name, msg=msg)
+
+        # Certain targets require an installed SDK
+        # verify that the SDK is installed before trying to build
+
+        targettypes = self.configuration.rsplit('|')
+        if len(targettypes) >= 2:
+            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
+            if test_env:
+                if os.getenv(test_env, default=None) is None:
+                    msg = (
+                        'Target {} was detected but the environment variable {}'
+                        ' was not found.').format(
+                        targettypes[1], test_env)
+                    print(msg, file=sys.stderr)
+                    return BuildError(
+                        0,
+                        self.file_name,
+                        configuration=self.configuration,
+                        msg=msg)
+
+        # Create the build command
+        # Note: Use the single line form, because Windows will not
+        # process the target properly due to the presence of the | character
+        # which causes piping.
+
+        # Visual Studio 2003 doesn't support setting platforms, just use the
+        # configuration name
+        if self.vs_version == 2003:
+            target = targettypes[0]
+        else:
+            target = self.configuration
+
+        cmd = [vstudiopath, self.file_name, '/Clean', target]
+        if self.verbose:
+            print(' '.join(cmd))
+        sys.stdout.flush()
+
+        return self.run_command(cmd, self.verbose)
+
+
 ########################################
 
 
@@ -284,7 +352,8 @@ def match(filename):
 def create_build_object(file_name, priority=50,
                  configurations=None, verbose=False):
     """
-    Create BuildMakeFile build records for every desired configuration
+    Create BuildVisualStudioFile build records for every desired
+    configuration
 
     Args:
         file_name: Pathname to the *.sln to build
@@ -293,6 +362,49 @@ def create_build_object(file_name, priority=50,
         verbose: True if verbose output
     Returns:
         list of BuildMakeFile classes
+    """
+
+    # Get the list of build targets
+    targetlist, vs_version = parse_sln_file(file_name)
+
+    # Was the file corrupted?
+    if not vs_version:
+        print(file_name + ' is corrupt!')
+        return []
+
+    results = []
+    for target in targetlist:
+        if configurations:
+            targettypes = target.rsplit('|')
+            if targettypes[0] not in configurations and \
+                    targettypes[1] not in configurations:
+                continue
+        results.append(
+            BuildVisualStudioFile(
+                file_name,
+                priority,
+                target,
+                verbose,
+                vs_version))
+
+    return results
+
+########################################
+
+
+def create_clean_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildVisualStudioFile clean records for every desired
+    configuration
+
+    Args:
+        file_name: Pathname to the *.sln to build
+        priority: Priority to clean this object
+        configurations: Configuration list to clean
+        verbose: True if verbose output
+    Returns:
+        list of BuildVisualStudioFile classes
     """
 
     # Get the list of build targets

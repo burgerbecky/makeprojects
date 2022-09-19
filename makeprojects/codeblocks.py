@@ -184,6 +184,24 @@ class BuildCodeBlocksFile(BuildObject):
 
         return self.run_command(cmd, self.verbose)
 
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return BuildError(0, self.file_name,
+                          msg="Codeblocks doesn't support cleaning")
+
+
 ########################################
 
 
@@ -203,6 +221,62 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
+                 configurations=None, verbose=False):
+    """
+    Create BuildCodeBlocksFile build records for every desired configuration
+
+    Args:
+        file_name: Pathname to the *.cbp to build
+        priority: Priority to build this object
+        configurations: Configuration list to build
+        verbose: True if verbose output
+    Returns:
+        list of BuildCodeBlocksFile classes
+    """
+
+    # pylint: disable=too-many-branches
+
+    codeblocks_path = where_is_codeblocks()
+    if codeblocks_path is None:
+        print('Requires Codeblocks to be installed to build!')
+        return []
+
+    # Parse the CBP file to get the build targets and detected linkers
+    targetlist = parse_codeblocks_file(file_name)
+
+    # Was the file corrupted?
+    if targetlist is None:
+        print(file_name + ' is corrupt')
+        return []
+
+    # If everything is requested, then only build 'Everything'
+    if not configurations and 'Everything' in targetlist:
+        targetlist = ['Everything']
+
+    results = []
+    for target in targetlist:
+        # Check if
+        accept = True
+        if configurations:
+            accept = False
+            for item in configurations:
+                if item in target:
+                    accept = True
+                    break
+        if accept:
+            results.append(
+                BuildCodeBlocksFile(
+                    file_name,
+                    priority,
+                    target,
+                    verbose))
+
+    return results
+
+########################################
+
+
+def create_clean_object(file_name, priority=50,
                  configurations=None, verbose=False):
     """
     Create BuildCodeBlocksFile build records for every desired configuration

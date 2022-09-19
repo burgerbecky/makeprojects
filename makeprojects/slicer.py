@@ -17,7 +17,7 @@ Regex for matching files with *.slicerscript
 
 from __future__ import absolute_import, print_function, unicode_literals
 from re import compile as re_compile
-from .core import BuildObject
+from .core import BuildObject, BuildError
 
 _SLICERFILE_MATCH = re_compile('(?is).*\\.slicerscript\\Z')
 
@@ -52,6 +52,8 @@ class BuildSlicerFile(BuildObject):
         super(BuildSlicerFile, self).__init__(file_name, priority)
         self.verbose = verbose
 
+    ########################################
+
     def build(self):
         """
         Build an art slice using ``slicer``.
@@ -69,6 +71,23 @@ class BuildSlicerFile(BuildObject):
 
         # Issue it
         return self.run_command(cmd, self.verbose)
+
+    ########################################
+
+    def clean(self):
+        """
+        Delete temporary files.
+
+        This function is called by ``cleanme`` to remove temporary files.
+
+        On exit, return 0 for no error, or a non zero error code if there was an
+        error to report. None if not implemented or not applicable.
+
+        Returns:
+            None if not implemented, otherwise an integer error code.
+        """
+        return BuildError(0, self.file_name,
+                          msg="Slicer doesn't support cleaning")
 
 ########################################
 
@@ -102,6 +121,28 @@ def create_build_object(file_name, priority=None,
         file_name: Pathname to the *.slicerscript to build
         priority: Priority to build this object
         configurations: Configuration list to build (Not used)
+        verbose: True if verbose output
+    """
+
+    # pylint: disable=unused-argument
+
+    return [BuildSlicerFile(file_name, priority, verbose=verbose)]
+
+########################################
+
+
+def create_clean_object(file_name, priority=None,
+                 configurations=None, verbose=False):
+    """
+    Return an array of BuildSlicerFile clean objects
+
+    Given a filename to a slicer script, create a BuildObject that will
+    invoke the tool and clean the art as needed.
+
+    Args:
+        file_name: Pathname to the *.slicerscript to clean
+        priority: Priority to clean this object
+        configurations: Configuration list to clean (Not used)
         verbose: True if verbose output
     """
 

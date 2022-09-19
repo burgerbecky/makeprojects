@@ -18,7 +18,7 @@ Regex for matching files with *.rezscript
 from __future__ import absolute_import, print_function, unicode_literals
 
 from re import compile as re_compile
-from .core import BuildObject
+from .core import BuildObject, BuildError
 
 _REZFILE_MATCH = re_compile('(?is).*\\.rezscript\\Z')
 
@@ -87,7 +87,8 @@ class BuildRezFile(BuildObject):
         Returns:
             None if not implemented, otherwise an integer error code.
         """
-        return None
+        return BuildError(0, self.file_name,
+                          msg="Makerez doesn't support cleaning")
 
 
 ########################################
@@ -117,6 +118,28 @@ def create_build_object(file_name, priority=25,
         file_name: Pathname to the *.rezscript to build
         priority: Priority to build this object
         configurations: Configuration list to build
+        verbose: True if verbose output
+    """
+
+    # pylint: disable=unused-argument
+
+    return [BuildRezFile(file_name, priority, verbose=verbose)]
+
+########################################
+
+
+def create_clean_object(file_name, priority=None,
+                 configurations=None, verbose=False):
+    """
+    Return an array of BuildRezFile clean objects
+
+    Given a filename to a makerez script, create a BuildObject that will
+    invoke the tool and clean the art as needed.
+
+    Args:
+        file_name: Pathname to the *.rezscript to clean
+        priority: Priority to clean this object
+        configurations: Configuration list to clean (Not used)
         verbose: True if verbose output
     """
 
