@@ -24,7 +24,7 @@ import os
 import sys
 import argparse
 from operator import attrgetter
-from burger import convert_to_array, import_py_script
+from burger import convert_to_array, import_py_script, norm_paths
 from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE
 from .__init__ import _XCODEPROJ_MATCH, __version__
 from .util import get_build_rules, getattr_build_rules, was_processed, \
@@ -128,8 +128,6 @@ def add_clean_rules(projects, working_directory,
         add_project
     """
 
-    file_name = os.path.abspath(file_name)
-
     # Was the build_rules already loaded?
     if not build_rules:
         build_rules = import_py_script(file_name)
@@ -154,15 +152,10 @@ def add_clean_rules(projects, working_directory,
             dependencies = getattr(build_rules, 'DEPENDENCIES', None)
 
         if dependencies:
-            # Ensure it's an iterable of strings
-            items = convert_to_array(dependencies)
-            dependencies = []
-            for item in items:
-                if not os.path.isabs(item):
-                    dependencies.append(os.path.abspath(
-                        os.path.join(working_directory, item)))
-                else:
-                    dependencies.append(item)
+            # Ensure all paths are normalized
+            dependencies = norm_paths(
+                working_directory,
+                convert_to_array(dependencies))
         else:
             dependencies = []
 
@@ -273,15 +266,14 @@ def process_files(results, processed, files, args):
     """
     projects = []
     for item in files:
-        full_name = os.path.abspath(item)
-        base_name = os.path.basename(full_name)
+        base_name = os.path.basename(item)
         if base_name == args.rules_file:
-            if not was_processed(processed, full_name, args.verbose):
+            if not was_processed(processed, item, args.verbose):
                 process_dependencies(
                     results, processed, add_clean_rules(
-                        projects, None, full_name, args), args)
-        elif not add_project(projects, processed, full_name, args):
-            print('"{}" is not supported.'.format(full_name))
+                        projects, None, item, args), args)
+        elif not add_project(projects, processed, item, args):
+            print('"{}" is not supported.'.format(item))
             return True
     return process_projects(results, projects, args)
 
@@ -306,9 +298,6 @@ def process_directories(results, processed, directories, args):
 
     # Process the directory list
     for working_directory in directories:
-
-        # Sanitize the directory
-        working_directory = os.path.abspath(working_directory)
 
         # Was this directory already processed?
         if was_processed(processed, working_directory, args.verbose):

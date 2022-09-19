@@ -399,8 +399,10 @@ def process_dependencies(results, processed, dependencies, args):
         for item in dependencies:
             if os.path.isdir(item):
                 error = process_directories(results, processed, [item], args)
-            else:
+            elif os.path.isfile(item):
                 error = process_files(results, processed, [item], args)
+            else:
+                error = 0
             if error:
                 return error
     return 0

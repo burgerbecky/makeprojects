@@ -12,7 +12,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import re
 import fnmatch
-from burger import string_to_bool, is_string, import_py_script
+from burger import string_to_bool, is_string, import_py_script, norm_paths
 from .enums import FileTypes
 from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 
@@ -419,8 +419,9 @@ def fixup_args(args):
         args.args = None
 
     # Ensure all files and directories are absolute paths
-    args.directories = [os.path.abspath(item) for item in args.directories]
-    args.files = [os.path.abspath(item) for item in args.files]
+    cwd = os.getcwd()
+    args.directories = norm_paths(cwd, args.directories)
+    args.files = norm_paths(cwd, args.files)
 
     # Hack to convert XCode directories into files
     temp_list = []
