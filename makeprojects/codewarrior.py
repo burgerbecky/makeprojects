@@ -39,6 +39,7 @@ from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
     convert_to_linux_slashes, convert_to_windows_slashes, truefalse, \
     read_zero_terminated_string, get_windows_host_type, run_command, \
     create_folder_if_needed, get_mac_host_type, is_codewarrior_mac_allowed
+from burger.buildutils import _WINDOWS_ENV_PATHS
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .util import source_file_filter
 from .core import BuildObject, BuildError
@@ -234,11 +235,23 @@ class BuildCodeWarriorFile(BuildObject):
             # Test for Windows
             elif 'x86 Linker' in self.linkers:
                 cw_path = os.getenv('CWFolder', default=None)
+                if cw_path is None:
+
+                    # If environment not found, find manually
+                    for item in _WINDOWS_ENV_PATHS:
+                        # Generate the proper path to test
+                        mytempdir = os.getenv(item, None)
+                        if mytempdir:
+                            mytempdir = os.path.expandvars(
+                                "${" + item + "}\\Metrowerks\\CodeWarrior")
+                            if os.path.isdir(mytempdir):
+                                cw_path = mytempdir
+                                break
 
             if cw_path is None:
                 return BuildError(
                     0, self.file_name,
-                    msg="CodeWarrior with propler linker is not installed.")
+                    msg="CodeWarrior with proper linker is not installed.")
 
             # Note: CmdIDE is preferred, however, Codewarrior 9.4 has a bug
             # that it will die horribly if the pathname to it
@@ -509,7 +522,7 @@ def create_clean_object(file_name, priority=50,
                     verbose,
                     linkers))
 
-    return results    
+    return results
 
 ########################################
 
@@ -1033,7 +1046,8 @@ class FILE(object):
         line_list.append(tabs + '<FILE>')
         line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
         line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
-        line_list.append(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>')
+        line_list.append(tabs2 + '<PATHFORMAT>' + \
+                         self.format + '</PATHFORMAT>')
         line_list.append(tabs2 + '<FILEKIND>' + self.kind + '</FILEKIND>')
         line_list.append(tabs2 + '<FILEFLAGS>' + self.flags + '</FILEFLAGS>')
         line_list.append(tabs + '</FILE>')
@@ -1075,7 +1089,8 @@ class FILEREF(object):
                              '</TARGETNAME>')
         line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
         line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
-        line_list.append(tabs2 + '<PATHFORMAT>' + self.format + '</PATHFORMAT>')
+        line_list.append(tabs2 + '<PATHFORMAT>' + \
+                         self.format + '</PATHFORMAT>')
         line_list.append(tabs + '</FILEREF>')
 
 
@@ -1446,7 +1461,8 @@ class Project(object):
                             configuration.short_code))
 
                     # x86 CodeGen
-                    target.settinglist.append(MWCodeGen_X86(configuration.name))
+                    target.settinglist.append(
+                        MWCodeGen_X86(configuration.name))
 
                     # Global Optimizations
                     target.settinglist.append(
