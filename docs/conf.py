@@ -247,17 +247,17 @@ def generate_doxygen_xml(app):
 
     # Read the docs has an old version of doxygen, upgrade it.
     if _ON_RTD:
-        try:
-            subprocess.call(("curl "
-                "https://www.doxygen.nl/files/doxygen-1.9.4.linux.bin.tar.gz "
-                "--output doxygen-1.9.4.linux.bin.tar.gz"),
-                cwd=CWD,
-                shell=True)
-            subprocess.call("tar -xf doxygen-1.9.4.linux.bin.tar.gz", cwd=CWD,
-                shell=True)
-        except OSError as error:
-            sys.stderr.write("doxygen download error: %s" % error)
-        doxygen = os.path.join(CWD, 'doxygen-1.9.4', 'bin', 'doxygen')
+        doxygen = os.path.join(CWD, 'doxygen')
+        if not os.path.isfile(doxygen):
+            try:
+                subprocess.call(("curl -O "
+                    "http://logicware.com/downloads/linux/doxygen-1.9.5.tgz"),
+                    cwd=CWD,
+                    shell=True)
+                subprocess.call("tar -xvf doxygen-1.9.5.tgz", cwd=CWD,
+                    shell=True)
+            except OSError as error:
+                sys.stderr.write("doxygen download error: %s" % error)
     else:
         doxygen = 'doxygen'
 
