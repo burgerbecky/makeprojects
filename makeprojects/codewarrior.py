@@ -729,13 +729,13 @@ class MWFrontEnd_C(object):
         Initialize
         """
         self.settings = [
-            SETTING('MWFrontEnd_C_cplusplus', '1'),
+            SETTING('MWFrontEnd_C_cplusplus', '0'),
             SETTING('MWFrontEnd_C_templateparser', '0'),
             SETTING('MWFrontEnd_C_instance_manager', '0'),
             SETTING('MWFrontEnd_C_enableexceptions', '0'),
             SETTING('MWFrontEnd_C_useRTTI', '0'),
             SETTING('MWFrontEnd_C_booltruefalse', '1'),
-            SETTING('MWFrontEnd_C_wchar_type', '0'),
+            SETTING('MWFrontEnd_C_wchar_type', '1'),
             SETTING('MWFrontEnd_C_ecplusplus', '0'),
             SETTING('MWFrontEnd_C_dontinline', '0'),
             SETTING('MWFrontEnd_C_inlinelevel', '0'),
@@ -1354,11 +1354,12 @@ class Project(object):
             # Get the source files that are compatible
             listh = source_file_filter(project.codefiles, FileTypes.h)
             listcpp = source_file_filter(project.codefiles, FileTypes.cpp)
+            listc = source_file_filter(project.codefiles, FileTypes.c)
             listwindowsresource = []
             if project.platform.is_windows():
                 listwindowsresource = source_file_filter(
                     project.codefiles, FileTypes.rc)
-            alllists = listh + listcpp + listwindowsresource
+            alllists = listh + listcpp + listc + listwindowsresource
 
             # Select the project linker for the platform
             if project.platform.is_windows():

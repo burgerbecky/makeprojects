@@ -233,26 +233,33 @@ def do_configuration_settings(configuration):
 
         # MSDos with DOS4GW extender
         if platform is PlatformTypes.msdos4gw:
-            define_list.append('__DOS4G__')
+            define_list.append("__DOS4G__")
 
         # MSDos with X32 extender
         if platform is PlatformTypes.msdosx32:
-            define_list.append('__X32__')
+            define_list.append("__X32__")
 
         # Playstation 4
         if platform is PlatformTypes.ps4:
-            define_list.append('__ORBIS2__')
+            define_list.append("__ORBIS2__")
+
+        # Playstation 5 (Not needed)
+        # if platform is PlatformTypes.ps5:
+        #    define_list.append("__PROSPERO__")
 
         # Playstation Vita
         if platform is PlatformTypes.vita:
-            define_list.append('SN_TARGET_PSP2')
+            define_list.append("SN_TARGET_PSP2")
+
+        # Google Stadia
+        if platform is PlatformTypes.stadia:
+            define_list.append("_GNU_SOURCE")
+            define_list.append("VK_USE_PLATFORM_GGP")
 
         # Android targets
         if platform.is_android():
-            define_list.append('DISABLE_IMPORTGL')
-            libraries_list.extend(['android', 'EGL', 'GLESv1_CM'])
-            if ide is IDETypes.vs2022:
-                define_list.append('__ANDROID_API__=$(AndroidAPILevelNumber)')
+            define_list.append("DISABLE_IMPORTGL")
+            libraries_list.extend(["android", "EGL", "GLESv1_CM"])
 
         # Xbox 360
         if platform is PlatformTypes.xbox360:
@@ -302,6 +309,13 @@ def do_configuration_settings(configuration):
                 'NN_BUILD_NOOPT',
                 'NN_DEBUGGER_KMC_PARTNER'])
 
+        # Nintendo WiiU
+        if platform is PlatformTypes.wiiu:
+            configuration.include_folders_list.append(
+                "$(CAFE_ROOT_DOS)\\system\\src\\tool\\gfx\\include")
+            configuration.include_folders_list.append(
+                "$(CAFE_ROOT_DOS)\\system\\include")
+
         # Nintendo Switch
         if platform.is_switch():
             configuration.include_folders_list.append(
@@ -309,12 +323,12 @@ def do_configuration_settings(configuration):
 
             if platform is PlatformTypes.switch32:
                 configuration.include_folders_list.append(
-                    '$(NINTENDO_SDK_ROOT)\\Common\\Configs\\'
-                    'Targets\\NX-NXFP2-a32\\Include')
+                    '$(NINTENDO_SDK_ROOT)\\TargetSpecificInclude\\'
+                    'NX-NXFP2-a32')
             else:
                 configuration.include_folders_list.append(
-                    '$(NINTENDO_SDK_ROOT)\\Common\\Configs\\'
-                    'Targets\\NX-NXFP2-a64\\Include')
+                    '$(NINTENDO_SDK_ROOT)\\TargetSpecificInclude\\'
+                    'NX-NXFP2-a64')
 
             define_list.append('NN_NINTENDO_SDK')
             if configuration.debug:

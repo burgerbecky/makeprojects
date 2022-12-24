@@ -574,9 +574,9 @@ class Project(object):
             '# Now, set the compiler flags',
             '',
             'CL=WCC386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 '
-            '-wcd=7 -i=$(INCLUDE_DIRS)',
+            '-wcd=7 -i="$(INCLUDE_DIRS)"',
             'CP=WPP386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 '
-            '-wcd=7 -i=$(INCLUDE_DIRS)',
+            '-wcd=7 -i="$(INCLUDE_DIRS)"',
             'ASM=WASM -5r -fp6 -w4 -zq -d__WATCOM__=1',
             'LINK=*WLINK option caseexact option quiet PATH $(%WATCOM)/binnt;'
             '$(%WATCOM)/binw;.',
@@ -602,7 +602,7 @@ class Project(object):
             '',
             '.c.obj : .AUTODEPEND',
             '\t@echo $[&.c / $(%CONFIG) / $(%TARGET)',
-            '\t@$(CP) $(CFlags$(%CONFIG)) $(CFlags$(%TARGET)) $[*.c '
+            '\t@$(CL) $(CFlags$(%CONFIG)) $(CFlags$(%TARGET)) $[*.c '
             '-fo=$^@ -fr=$^*.err',
             '',
             '.cpp.obj : .AUTODEPEND',

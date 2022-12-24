@@ -888,6 +888,7 @@ class PlatformTypes(IntEnum):
         dsi: Nintendo 3DS
         ds: Nintendo DS
 
+        stadia: Google Stadia
         android: Generic Android
         shield: nVidia SHIELD
         amico: Intellivision Amico
@@ -958,25 +959,26 @@ class PlatformTypes(IntEnum):
     dsi = 40
     ds = 41
 
-    android = 42
-    shield = 43
-    amico = 44
-    ouya = 45
-    tegra = 46
-    androidarm32 = 47
-    androidarm64 = 48
-    androidintel32 = 49
-    androidintel64 = 50
+    stadia = 42
+    android = 43
+    shield = 44
+    amico = 45
+    ouya = 46
+    tegra = 47
+    androidarm32 = 48
+    androidarm64 = 49
+    androidintel32 = 50
+    androidintel64 = 51
 
-    linux = 51
+    linux = 52
 
-    msdos = 52
-    msdos4gw = 53
-    msdosx32 = 54
+    msdos = 53
+    msdos4gw = 54
+    msdosx32 = 55
 
-    beos = 55
+    beos = 56
 
-    iigs = 56
+    iigs = 57
 
     def get_short_code(self):
         """
@@ -1138,7 +1140,8 @@ class PlatformTypes(IntEnum):
             PlatformTypes.ds: 'ds',
             PlatformTypes.dsi: 'dsi',
             PlatformTypes.wii: 'wii',
-            PlatformTypes.wiiu: 'wiiu'
+            PlatformTypes.wiiu: 'wiiu',
+            PlatformTypes.stadia: 'stadia'
         }
 
         # Try the simple ones
@@ -1345,189 +1348,193 @@ class PlatformTypes(IntEnum):
 
         return self.__repr__()
 
+
 _PLATFORMTYPES_CODES = {
-    PlatformTypes.windows: 'win10',         # Windows targets
-    PlatformTypes.windowsintel: 'win',
-    PlatformTypes.windowsarm: 'winarm',
-    PlatformTypes.win32: 'w32',
-    PlatformTypes.win64: 'w64',
-    PlatformTypes.winarm32: 'wina32',
-    PlatformTypes.winarm64: 'wina64',
-    PlatformTypes.winitanium: 'winita',
-    PlatformTypes.macosx: 'osx',            # Mac OSX targets
-    PlatformTypes.macosxppc32: 'osxp32',
-    PlatformTypes.macosxppc64: 'osxp64',
-    PlatformTypes.macosxintel32: 'osxx86',
-    PlatformTypes.macosxintel64: 'osxx64',
-    PlatformTypes.macos9: 'mac',            # Mac OS targets (Pre-OSX)
-    PlatformTypes.macos968k: 'mac68k',
-    PlatformTypes.macos9ppc: 'macppc',
-    PlatformTypes.maccarbon: 'car',
-    PlatformTypes.maccarbon68k: 'car68k',
-    PlatformTypes.maccarbonppc: 'carppc',
-    PlatformTypes.ios: 'ios',               # iOS targets
-    PlatformTypes.ios32: 'iosa32',
-    PlatformTypes.ios64: 'iosa64',
-    PlatformTypes.iosemu: 'ioe',
-    PlatformTypes.iosemu32: 'ioex86',
-    PlatformTypes.iosemu64: 'ioex64',
-    PlatformTypes.xbox: 'xbx',              # Microsoft Xbox versions
-    PlatformTypes.xbox360: 'x36',
-    PlatformTypes.xboxone: 'one',
-    PlatformTypes.ps1: 'ps1',               # Sony platforms
-    PlatformTypes.ps2: 'ps2',
-    PlatformTypes.ps3: 'ps3',
-    PlatformTypes.ps4: 'ps4',
-    PlatformTypes.ps5: 'ps5',
-    PlatformTypes.psp: 'psp',
-    PlatformTypes.vita: 'vit',
-    PlatformTypes.ds: '2ds',                 # Nintendo platforms
-    PlatformTypes.dsi: 'dsi',
-    PlatformTypes.wii: 'wii',
-    PlatformTypes.wiiu: 'wiu',
-    PlatformTypes.switch: 'swi',
-    PlatformTypes.switch32: 'swia32',
-    PlatformTypes.switch64: 'swia64',
-    PlatformTypes.android: 'and',           # Google platforms
-    PlatformTypes.shield: 'shi',
-    PlatformTypes.amico: 'ami',
-    PlatformTypes.ouya: 'oya',
-    PlatformTypes.tegra: 'teg',
-    PlatformTypes.androidarm32: 'anda32',
-    PlatformTypes.androidarm64: 'anda64',
-    PlatformTypes.androidintel32: 'andx32',
-    PlatformTypes.androidintel64: 'andx64',
-    PlatformTypes.linux: 'lnx',             # Linux platforms
-    PlatformTypes.msdos: 'dos',             # MSDOS (Watcom or Codeblocks)
-    PlatformTypes.msdos4gw: 'dos4gw',
-    PlatformTypes.msdosx32: 'dosx32',
-    PlatformTypes.beos: 'beo',              # BeOS
-    PlatformTypes.iigs: '2gs'               # Apple IIgs
+    PlatformTypes.windows: "win10",         # Windows targets
+    PlatformTypes.windowsintel: "win",
+    PlatformTypes.windowsarm: "winarm",
+    PlatformTypes.win32: "w32",
+    PlatformTypes.win64: "w64",
+    PlatformTypes.winarm32: "wina32",
+    PlatformTypes.winarm64: "wina64",
+    PlatformTypes.winitanium: "winita",
+    PlatformTypes.macosx: "osx",            # Mac OSX targets
+    PlatformTypes.macosxppc32: "osxp32",
+    PlatformTypes.macosxppc64: "osxp64",
+    PlatformTypes.macosxintel32: "osxx86",
+    PlatformTypes.macosxintel64: "osxx64",
+    PlatformTypes.macos9: "mac",            # Mac OS targets (Pre-OSX)
+    PlatformTypes.macos968k: "mac68k",
+    PlatformTypes.macos9ppc: "macppc",
+    PlatformTypes.maccarbon: "car",
+    PlatformTypes.maccarbon68k: "car68k",
+    PlatformTypes.maccarbonppc: "carppc",
+    PlatformTypes.ios: "ios",               # iOS targets
+    PlatformTypes.ios32: "iosa32",
+    PlatformTypes.ios64: "iosa64",
+    PlatformTypes.iosemu: "ioe",
+    PlatformTypes.iosemu32: "ioex86",
+    PlatformTypes.iosemu64: "ioex64",
+    PlatformTypes.xbox: "xbx",              # Microsoft Xbox versions
+    PlatformTypes.xbox360: "x36",
+    PlatformTypes.xboxone: "one",
+    PlatformTypes.ps1: "ps1",               # Sony platforms
+    PlatformTypes.ps2: "ps2",
+    PlatformTypes.ps3: "ps3",
+    PlatformTypes.ps4: "ps4",
+    PlatformTypes.ps5: "ps5",
+    PlatformTypes.psp: "psp",
+    PlatformTypes.vita: "vit",
+    PlatformTypes.ds: "2ds",                 # Nintendo platforms
+    PlatformTypes.dsi: "dsi",
+    PlatformTypes.wii: "wii",
+    PlatformTypes.wiiu: "wiu",
+    PlatformTypes.switch: "swi",
+    PlatformTypes.switch32: "swia32",
+    PlatformTypes.switch64: "swia64",
+    PlatformTypes.stadia: "sta",            # Google platforms
+    PlatformTypes.android: "and",
+    PlatformTypes.shield: "shi",
+    PlatformTypes.amico: "ami",
+    PlatformTypes.ouya: "oya",
+    PlatformTypes.tegra: "teg",
+    PlatformTypes.androidarm32: "anda32",
+    PlatformTypes.androidarm64: "anda64",
+    PlatformTypes.androidintel32: "andx32",
+    PlatformTypes.androidintel64: "andx64",
+    PlatformTypes.linux: "lnx",             # Linux platforms
+    PlatformTypes.msdos: "dos",             # MSDOS (Watcom or Codeblocks)
+    PlatformTypes.msdos4gw: "dos4gw",
+    PlatformTypes.msdosx32: "dosx32",
+    PlatformTypes.beos: "beo",              # BeOS
+    PlatformTypes.iigs: "2gs"               # Apple IIgs
 }
 
 _PLATFORMTYPES_VS = {
     # Windows targets
-    PlatformTypes.windows: ('Win32', 'x64', 'ARM', 'ARM64'),
-    PlatformTypes.windowsintel: ('Win32', 'x64'),
-    PlatformTypes.windowsarm: ('ARM', 'ARM64'),
-    PlatformTypes.win32: ('Win32',),
-    PlatformTypes.win64: ('x64',),
-    PlatformTypes.winarm32: ('ARM',),
-    PlatformTypes.winarm64: ('ARM64',),
-    PlatformTypes.winitanium: ('IA64',),
+    PlatformTypes.windows: ("Win32", "x64", "ARM", "ARM64"),
+    PlatformTypes.windowsintel: ("Win32", "x64"),
+    PlatformTypes.windowsarm: ("ARM", "ARM64"),
+    PlatformTypes.win32: ("Win32",),
+    PlatformTypes.win64: ("x64",),
+    PlatformTypes.winarm32: ("ARM",),
+    PlatformTypes.winarm64: ("ARM64",),
+    PlatformTypes.winitanium: ("IA64",),
 
     # Microsoft Xbox versions
-    PlatformTypes.xbox: ('Xbox',),
-    PlatformTypes.xbox360: ('Xbox 360',),
-    PlatformTypes.xboxone: ('Durango',),
+    PlatformTypes.xbox: ("Xbox",),
+    PlatformTypes.xbox360: ("Xbox 360",),
+    PlatformTypes.xboxone: ("Durango",),
 
     # Sony platforms
-    PlatformTypes.ps3: ('PS3',),
-    PlatformTypes.ps4: ('ORBIS',),
-    PlatformTypes.ps5: ('ORBIS',),
-    PlatformTypes.vita: ('PSVita',),
+    PlatformTypes.ps3: ("PS3",),
+    PlatformTypes.ps4: ("ORBIS",),
+    PlatformTypes.ps5: ("Prospero",),
+    PlatformTypes.vita: ("PSVita",),
 
     # Nintendo platforms
-    PlatformTypes.wiiu: ('Cafe',),
-    PlatformTypes.dsi: ('CTR',),
-    PlatformTypes.switch: ('NX32', 'NX64'),
-    PlatformTypes.switch32: ('NX32',),
-    PlatformTypes.switch64: ('NX64',),
+    PlatformTypes.wiiu: ("Cafe",),
+    PlatformTypes.dsi: ("CTR",),
+    PlatformTypes.switch: ("NX32", "NX64"),
+    PlatformTypes.switch32: ("NX32",),
+    PlatformTypes.switch64: ("NX64",),
 
     # Google platforms
-    PlatformTypes.android: ('Android',),
+    PlatformTypes.stadia: ("GGP",),
+    PlatformTypes.android: ("Android",),
     PlatformTypes.shield: (
-        'Tegra-Android',
-        'ARM-Android-NVIDIA',
-        'AArch64-Android-NVIDIA',
-        'x86-Android-NVIDIA',
-        'x64-Android-NVIDIA'),
-    PlatformTypes.tegra: ('Tegra-Android',),
-    PlatformTypes.androidarm32: ('ARM-Android-NVIDIA',),
-    PlatformTypes.androidarm64: ('AArch64-Android-NVIDIA',),
-    PlatformTypes.androidintel32: ('x86-Android-NVIDIA',),
-    PlatformTypes.androidintel64: ('x64-Android-NVIDIA',)
+        "Tegra-Android",
+        "ARM-Android-NVIDIA",
+        "AArch64-Android-NVIDIA",
+        "x86-Android-NVIDIA",
+        "x64-Android-NVIDIA"),
+    PlatformTypes.tegra: ("Tegra-Android",),
+    PlatformTypes.androidarm32: ("ARM-Android-NVIDIA",),
+    PlatformTypes.androidarm64: ("AArch64-Android-NVIDIA",),
+    PlatformTypes.androidintel32: ("x86-Android-NVIDIA",),
+    PlatformTypes.androidintel64: ("x64-Android-NVIDIA",)
 }
 
 _PLATFORMTYPES_READABLE = {
     # Windows targets
-    PlatformTypes.windows: 'Microsoft Windows x86, x64, ARM, and ARM64',
-    PlatformTypes.windowsintel: 'Microsoft Windows x86 and x64',
-    PlatformTypes.windowsarm: 'Microsoft Windows ARM 32 and 64',
-    PlatformTypes.win32: 'Microsoft Windows x86',
-    PlatformTypes.win64: 'Microsoft Windows x64',
-    PlatformTypes.winarm32: 'Microsoft Windows ARM 32',
-    PlatformTypes.winarm64: 'Microsoft Windows ARM 64',
-    PlatformTypes.winitanium: 'Microsoft Windows Itanium',
+    PlatformTypes.windows: "Microsoft Windows x86, x64, ARM, and ARM64",
+    PlatformTypes.windowsintel: "Microsoft Windows x86 and x64",
+    PlatformTypes.windowsarm: "Microsoft Windows ARM 32 and 64",
+    PlatformTypes.win32: "Microsoft Windows x86",
+    PlatformTypes.win64: "Microsoft Windows x64",
+    PlatformTypes.winarm32: "Microsoft Windows ARM 32",
+    PlatformTypes.winarm64: "Microsoft Windows ARM 64",
+    PlatformTypes.winitanium: "Microsoft Windows Itanium",
 
     # Mac OSX targets
-    PlatformTypes.macosx: 'Apple macOS all CPUs',
-    PlatformTypes.macosxppc32: 'Apple macOS PowerPC 32',
-    PlatformTypes.macosxppc64: 'Apple macOS PowerPC 64',
-    PlatformTypes.macosxintel32: 'Apple macOS x86',
-    PlatformTypes.macosxintel64: 'Apple macOS x64',
+    PlatformTypes.macosx: "Apple macOS all CPUs",
+    PlatformTypes.macosxppc32: "Apple macOS PowerPC 32",
+    PlatformTypes.macosxppc64: "Apple macOS PowerPC 64",
+    PlatformTypes.macosxintel32: "Apple macOS x86",
+    PlatformTypes.macosxintel64: "Apple macOS x64",
 
     # Mac OS targets (Pre-OSX)
-    PlatformTypes.macos9: 'Apple MacOS 9 PPC and 68k',
-    PlatformTypes.macos968k: 'Apple MacOS 9 68k',
-    PlatformTypes.macos9ppc: 'Apple MacOS 9 PowerPC 32',
-    PlatformTypes.maccarbon: 'Apple MacOS Carbon',
-    PlatformTypes.maccarbon68k: 'Apple MacOS Carbon 68k',
-    PlatformTypes.maccarbonppc: 'Apple MacOS Carbon PowerPC 32',
+    PlatformTypes.macos9: "Apple MacOS 9 PPC and 68k",
+    PlatformTypes.macos968k: "Apple MacOS 9 68k",
+    PlatformTypes.macos9ppc: "Apple MacOS 9 PowerPC 32",
+    PlatformTypes.maccarbon: "Apple MacOS Carbon",
+    PlatformTypes.maccarbon68k: "Apple MacOS Carbon 68k",
+    PlatformTypes.maccarbonppc: "Apple MacOS Carbon PowerPC 32",
 
     # iOS targets
-    PlatformTypes.ios: 'Apple iOS',
-    PlatformTypes.ios32: 'Apple iOS ARM 32',
-    PlatformTypes.ios64: 'Apple iOS ARM 64',
-    PlatformTypes.iosemu: 'Apple iOS Emulator',
-    PlatformTypes.iosemu32: 'Apple iOS Emulator x86',
-    PlatformTypes.iosemu64: 'Apple iOS Emulator x64',
+    PlatformTypes.ios: "Apple iOS",
+    PlatformTypes.ios32: "Apple iOS ARM 32",
+    PlatformTypes.ios64: "Apple iOS ARM 64",
+    PlatformTypes.iosemu: "Apple iOS Emulator",
+    PlatformTypes.iosemu32: "Apple iOS Emulator x86",
+    PlatformTypes.iosemu64: "Apple iOS Emulator x64",
 
     # Microsoft Xbox versions
-    PlatformTypes.xbox: 'Microsoft Xbox',
-    PlatformTypes.xbox360: 'Microsoft Xbox 360',
-    PlatformTypes.xboxone: 'Microsoft Xbox ONE',
+    PlatformTypes.xbox: "Microsoft Xbox",
+    PlatformTypes.xbox360: "Microsoft Xbox 360",
+    PlatformTypes.xboxone: "Microsoft Xbox ONE",
     # Sony platforms
-    PlatformTypes.ps1: 'Sony PS1',
-    PlatformTypes.ps2: 'Sony PS2',
-    PlatformTypes.ps3: 'Sony PS3',
-    PlatformTypes.ps4: 'Sony PS4',
-    PlatformTypes.ps5: 'Sony PS5',
-    PlatformTypes.psp: 'Sony Playstation Portable',
-    PlatformTypes.vita: 'Sony Playstation Vita',
+    PlatformTypes.ps1: "Sony PS1",
+    PlatformTypes.ps2: "Sony PS2",
+    PlatformTypes.ps3: "Sony PS3",
+    PlatformTypes.ps4: "Sony PS4",
+    PlatformTypes.ps5: "Sony PS5",
+    PlatformTypes.psp: "Sony Playstation Portable",
+    PlatformTypes.vita: "Sony Playstation Vita",
 
     # Nintendo platforms
-    PlatformTypes.ds: 'Nintendo 2DS',
-    PlatformTypes.dsi: 'Nintendo DSI',
-    PlatformTypes.wii: 'Nintendo Wii',
-    PlatformTypes.wiiu: 'Nintendo WiiU',
-    PlatformTypes.switch: 'Nintendo Switch',
-    PlatformTypes.switch32: 'Nintendo Switch 32 bit',
-    PlatformTypes.switch64: 'Nintendo Switch 64 bit',
+    PlatformTypes.ds: "Nintendo 2DS",
+    PlatformTypes.dsi: "Nintendo DSI",
+    PlatformTypes.wii: "Nintendo Wii",
+    PlatformTypes.wiiu: "Nintendo WiiU",
+    PlatformTypes.switch: "Nintendo Switch",
+    PlatformTypes.switch32: "Nintendo Switch 32 bit",
+    PlatformTypes.switch64: "Nintendo Switch 64 bit",
 
     # Google platforms
-    PlatformTypes.android: 'Google Android',
-    PlatformTypes.shield: 'nVidia Shield',
-    PlatformTypes.amico: 'Intellivision Amico',
-    PlatformTypes.ouya: 'Ouya',
-    PlatformTypes.tegra: 'nVidia Android Tegra',
-    PlatformTypes.androidarm32: 'Android ARM 32',
-    PlatformTypes.androidarm64: 'Android ARM 64',
-    PlatformTypes.androidintel32: 'Android x86',
-    PlatformTypes.androidintel64: 'Android x64',
+    PlatformTypes.stadia: "Google Stadia",
+    PlatformTypes.android: "Google Android",
+    PlatformTypes.shield: "nVidia Shield",
+    PlatformTypes.amico: "Intellivision Amico",
+    PlatformTypes.ouya: "Ouya",
+    PlatformTypes.tegra: "nVidia Android Tegra",
+    PlatformTypes.androidarm32: "Android ARM 32",
+    PlatformTypes.androidarm64: "Android ARM 64",
+    PlatformTypes.androidintel32: "Android x86",
+    PlatformTypes.androidintel64: "Android x64",
 
     # Linux platforms
-    PlatformTypes.linux: 'Linux',
+    PlatformTypes.linux: "Linux",
 
     # MSDOS (Watcom or Codeblocks)
-    PlatformTypes.msdos: 'MSDos DOS4GW and X32',
-    PlatformTypes.msdos4gw: 'MSDos DOS4GW',
-    PlatformTypes.msdosx32: 'MSDos X32',
+    PlatformTypes.msdos: "MSDos DOS4GW and X32",
+    PlatformTypes.msdos4gw: "MSDos DOS4GW",
+    PlatformTypes.msdosx32: "MSDos X32",
 
     # BeOS
-    PlatformTypes.beos: 'BeOS',
+    PlatformTypes.beos: "BeOS",
     # Apple IIgs
-    PlatformTypes.iigs: 'Apple IIgs'
+    PlatformTypes.iigs: "Apple IIgs"
 }
 
 _PLATFORMTYPES_EXPANDED = {

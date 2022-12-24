@@ -74,10 +74,12 @@ These are the supported Visual Studio plug ins.
 - Durango (Xbox ONE)
 - PS3
 - PS4
+- PS5
 - PSVita
 - NX32 (Switch 32 bit)
 - NX64 (Switch 64 bit)
 - Tegra-Android (nVidia Shield)
+- GGP (Google Stadia)
 
 ## XCode
 

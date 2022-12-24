@@ -31,25 +31,26 @@ CWD = os.path.dirname(os.path.abspath(__file__))
 # Project specific strings
 PROJECT_NAME = 'makeprojects'
 PROJECT_KEYWORDS = [
-    'burger',
-    'perforce',
-    'burgerlib',
-    'development',
-    'makeprojects',
-    'xcode',
-    'visual studio',
-    'visualstudio',
-    'codeblocks',
-    'watcom',
-    'ps4',
-    'xboxone',
-    'xbox360',
-    'vita',
-    'mac',
-    'ios',
-    'android',
-    'nintendo',
-    'switch'
+    "burger",
+    "perforce",
+    "burgerlib",
+    "development",
+    "makeprojects",
+    "xcode",
+    "visual studio",
+    "visualstudio",
+    "codeblocks",
+    "watcom",
+    "ps4",
+    "ps5",
+    "xboxone",
+    "xbox360",
+    "vita",
+    "mac",
+    "ios",
+    "android",
+    "nintendo",
+    "switch"
 ]
 
 # Manually import the project

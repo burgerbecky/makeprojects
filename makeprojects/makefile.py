@@ -708,7 +708,7 @@ class Project(object):
             '# Now, set the compiler flags',
             '',
             'C_INCLUDES:=$(addprefix -I,$(INCLUDE_DIRS))',
-            'CL:=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
+            'CL:=$(CC) -c -Wall -x c $(C_INCLUDES)',
             'CP:=$(CXX) -c -Wall -x c++ $(C_INCLUDES)',
             'ASM:=$(AS)',
             'LINK:=$(CXX)',
@@ -716,6 +716,12 @@ class Project(object):
             '#',
             '# Default build recipes',
             '#',
+            '',
+            'define BUILD_C=',
+            '@echo $(<F) / $(CONFIG) / $(TARGET); \\',
+            '$(CL) $(CFlags$(CONFIG)$(TARGET)) $< -o $@ '
+            '-MT \'$@\' -MMD -MF \'$*.d\'',
+            'endef',
             '',
             'define BUILD_CPP=',
             '@echo $(<F) / $(CONFIG) / $(TARGET); \\',
@@ -847,10 +853,14 @@ class Project(object):
                 if index != -1:
                     entry = entry[index + 1:]
 
+                build_cpp = "BUILD_CPP"
+                if item.endswith(".c"):
+                    build_cpp = "BUILD_C"
+
                 line_list.extend(
                     ['',
-                     '$(TEMP_DIR)/{0}.o: {1} ; $(BUILD_CPP)'.format(entry, item)
-                     ])
+                     '$(TEMP_DIR)/{0}.o: {1} ; $({2})'.format(entry, item, build_cpp)
+                    ])
         return 0
 
     def write_builds(self, line_list):

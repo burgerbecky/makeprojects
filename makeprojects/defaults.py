@@ -388,7 +388,10 @@ def fixup_ide_platform(ide_list, platform_list):
             ide_list.append(IDETypes.vs2015)
 
         elif PlatformTypes.ps4 in platform_list:
-            ide_list.append(IDETypes.vs2015)
+            ide_list.append(IDETypes.vs2022)
+
+        elif PlatformTypes.ps5 in platform_list:
+            ide_list.append(IDETypes.vs2022)
 
         elif PlatformTypes.vita in platform_list:
             ide_list.append(IDETypes.vs2015)

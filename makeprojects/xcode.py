@@ -295,7 +295,7 @@ XCBUILD_FLAGS = (
     ('GCC_ENABLE_CPP_RTTI', 'boolean', 'NO'),
 
     # Build everything as Objective C++
-    ('GCC_INPUT_FILETYPE', 'string', 'sourcecode.cpp.objcpp'),
+    ('GCC_INPUT_FILETYPE', 'string', None),
 
     # Program flow for profiling.
     ('GCC_INSTRUMENT_PROGRAM_FLOW_ARCS', 'boolean', None),
@@ -1633,7 +1633,8 @@ FILE_REF_LAST_KNOWN = {
     FileTypes.glsl: 'sourcecode.glsl',
     FileTypes.xml: 'text.xml',
     FileTypes.xcconfig: 'text.xcconfig',
-    FileTypes.cpp: 'sourcecode.cpp.cpp',
+    FileTypes.cpp: 'sourcecode.cpp.objcpp',
+    FileTypes.c: 'source.c.c',
     FileTypes.h: 'sourcecode.c.h'
 }
 
@@ -1642,7 +1643,8 @@ FILE_REF_DIR = {
     FileTypes.library: 'BUILT_PRODUCTS_DIR',
     FileTypes.exe: 'BUILT_PRODUCTS_DIR',
     FileTypes.frameworks: 'SDKROOT',
-    FileTypes.cpp: 'SOURCE_ROOT'
+    FileTypes.cpp: 'SOURCE_ROOT',
+    FileTypes.c: 'SOURCE_ROOT'
 }
 
 
@@ -2677,8 +2679,8 @@ class Project(JSONDict):
                 # Add source files to compile for the ARM and the Intel libs
 
                 for item in objects.get_entries('PBXFileReference'):
-                    if item.source_file.type is FileTypes.cpp or \
-                            item.source_file.type is FileTypes.glsl:
+                    if item.source_file.type in (FileTypes.cpp, FileTypes.c,
+                        FileTypes.glsl):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -2708,8 +2710,8 @@ class Project(JSONDict):
                     objects.add_item(framephase1)
 
                     for item in objects.get_entries('PBXFileReference'):
-                        if item.source_file.type is FileTypes.cpp or \
-                                item.source_file.type is FileTypes.glsl:
+                        if item.source_file.type in (FileTypes.cpp, FileTypes.c,
+                            FileTypes.glsl):
 
                             build_file = PBXBuildFile(item, outputfilereference)
                             objects.add_item(build_file)

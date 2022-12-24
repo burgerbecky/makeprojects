@@ -12,6 +12,7 @@ Microsoft's Visual Studio IDE
 """
 
 # pylint: disable=consider-using-f-string
+# pylint: disable=too-many-lines
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -64,8 +65,16 @@ def test(ide, platform_type):
         if platform_type in (PlatformTypes.ps3, PlatformTypes.vita):
             return True
 
+    if ide >= IDETypes.vs2017:
+        if platform_type in (PlatformTypes.ps4, PlatformTypes.ps5):
+            return True
+
+    if ide >= IDETypes.vs2017:
+        if platform_type is PlatformTypes.stadia:
+            return True
+
     if ide >= IDETypes.vs2012:
-        if platform_type in (PlatformTypes.ps4, PlatformTypes.wiiu):
+        if platform_type is PlatformTypes.wiiu:
             return True
 
     if ide >= IDETypes.vs2013:
@@ -400,17 +409,30 @@ class VS2010XML():
 
     ########################################
 
+    def add_tag(self, tag_name, tag_value):
+        """
+        Add a XML tag to this XML element.
+
+        Args:
+            tag_name: Name of the tag
+            tag_value: Value to assign to the tag
+        """
+
+        if tag_value is not None:
+            self.add_element(VS2010XML(tag_name, contents=tag_value))
+
+    ########################################
+
     def add_tags(self, tag_list):
         """
-        Add an earray of XML tags to this XML element.
+        Add an array of XML tags to this XML element.
 
         Args:
             tag_list: List of name/content pairs
         """
 
         for tag in tag_list:
-            if tag[1] is not None:
-                self.add_element(VS2010XML(tag[0], contents=tag[1]))
+            self.add_tag(tag[0], tag[1])
 
     ########################################
 
@@ -542,7 +564,7 @@ class VS2010XML():
         Returns:
             Human readable string or None if the solution is invalid
         """
-        
+
         return self.__repr__()
 
 
@@ -570,9 +592,8 @@ class VS2010ProjectConfiguration(VS2010XML):
                 'Include':
                     configuration.vs_configuration_name})
 
-        self.add_tags((
-            ('Configuration', configuration.name),
-            ('Platform', configuration.vs_platform)))
+        self.add_tag('Configuration', configuration.name)
+        self.add_tag('Platform', configuration.vs_platform)
 
 ########################################
 
@@ -621,9 +642,7 @@ class VS2010NsightTegraProject(VS2010XML):
         VS2010XML.__init__(self, 'PropertyGroup', {
             'Label': 'NsightTegraProject'})
 
-        self.add_tags((
-            ('NsightTegraProjectRevisionNumber', '11'),
-        ))
+        self.add_tag("NsightTegraProjectRevisionNumber", "11")
 
 
 ########################################
@@ -712,9 +731,7 @@ class VS2010Globals(VS2010XML):
                 else:
                     platform_version = '10.0.18362.0'
 
-            self.add_tags((
-                ('WindowsTargetPlatformVersion', platform_version),
-            ))
+            self.add_tag("WindowsTargetPlatformVersion", platform_version)
 
 
 ########################################
@@ -789,6 +806,11 @@ class VS2010Configuration(VS2010XML):
                 }
                 platform_toolset = platformtoolsets_one.get(
                     configuration.ide, 'v141')
+
+            # The default is 5.0, but currently the Android plug in is
+            # causing warnings with __ANDROID_API__. Fall back to 3.8
+            elif platform.is_android():
+                platform_toolset = "Clang_3_8"
 
         use_of_mfc = None
         use_of_atl = None
@@ -1000,6 +1022,10 @@ class VS2010PropertyGroup(VS2010XML):
                  ('GenerateManifest', 'false')
                  ))
 
+        # Visual Studio Android puts multi-processor compilation here
+        if platform.is_android() and configuration.ide >= IDETypes.vs2022:
+            self.add_tag("UseMultiToolTask", "true")
+
 ########################################
 
 
@@ -1076,19 +1102,9 @@ class VS2010ClCompile(VS2010XML):
             buffer_security_check = 'false'
             inline_assembly_optimization = 'true'
 
-        pre_fast = None
-        call_cap = None
         # Not supported on the Xbox 360
         if platform is PlatformTypes.xbox360:
             omit_frame_pointers = None
-            # Handle CodeAnalysis
-            if configuration.analyze:
-                pre_fast = 'Analyze'
-            profile = configuration.get_chained_value('profile')
-            if profile:
-                call_cap = 'Callcap'
-                if profile == 'fast':
-                    call_cap = 'Fastcap'
 
         if platform is PlatformTypes.win32:
             calling_convention = 'FastCall'
@@ -1097,20 +1113,15 @@ class VS2010ClCompile(VS2010XML):
         optimization_level = None
         branchless = None
         cpp_language_std = None
-        disable_specific_warnings = None
         set_message_to_silent = None
-        additional_options = None
         omit_frame_pointer = None
         stack_protector = None
         strict_aliasing = None
         function_sections = None
         cpp_language_standard = None
-        float_abi = None
-        thumb_mode = None
-        inline_functions = None
-        char_unsigned = None
 
-        if platform in (PlatformTypes.ps3, PlatformTypes.ps4):
+        if platform in (PlatformTypes.ps3, PlatformTypes.ps4,
+                PlatformTypes.ps5):
             if configuration.optimization:
                 optimization_level = 'Level2'
                 if platform is PlatformTypes.ps3:
@@ -1121,15 +1132,8 @@ class VS2010ClCompile(VS2010XML):
         if platform in (PlatformTypes.vita, PlatformTypes.ps3):
             cpp_language_std = 'Cpp11'
 
-        if platform is PlatformTypes.ps4:
-            disable_specific_warnings = packed_paths(
-                ['missing-braces',
-                 'tautological-undefined-compare',
-                 'unused-local-typedef'])
-
         if platform is PlatformTypes.wiiu:
             set_message_to_silent = '1795'
-            additional_options = '--diag_suppress "1795"'
 
         if platform.is_android():
             if not configuration.debug:
@@ -1140,32 +1144,32 @@ class VS2010ClCompile(VS2010XML):
             function_sections = 'true'
             cpp_language_standard = 'gnu++11'
 
-            # Disable these features when compiling Intel Android
-            # to disable warnings from clang for intel complaining
-            # about ARM specific commands
-            if platform in (PlatformTypes.androidintel32,
-                            PlatformTypes.androidintel64):
-                float_abi = ''
-                thumb_mode = ''
-
         # Switch
         if platform.is_switch():
-            char_unsigned = 'false'
             if configuration.optimization:
-                omit_frame_pointer = 'true'
-                optimization_level = 'O3'
-                inline_functions = 'true'
+                omit_frame_pointer = "true"
+                optimization_level = "O3"
 
         # Not used for Android Targets
-        warning_level = 'Level4'
-        debug_information_format = 'OldStyle'
-        exception_handling = 'false'
+        warning_level = "Level4"
+        debug_information_format = "OldStyle"
+        exception_handling = "false"
         if platform.is_android() and configuration.ide >= IDETypes.vs2022:
             debug_information_format = None
-            warning_level = 'EnableAllWarnings'
-            exception_handling = 'Disabled'
+            warning_level = "EnableAllWarnings"
+            exception_handling = "Disabled"
             if not configuration.debug:
-                optimization = 'Full'
+                optimization = "Full"
+
+        # Handle Stadia
+        if platform is PlatformTypes.stadia:
+            debug_information_format = None
+            warning_level = "EnableAllWarnings"
+            exception_handling = "Disabled"
+            if not configuration.debug:
+                optimization = "Full"
+            else:
+                debug_information_format = "FullDebug"
 
         self.add_tags((
             ('Optimization', optimization),
@@ -1187,28 +1191,80 @@ class VS2010ClCompile(VS2010XML):
             ('FloatingPointModel', 'Fast'),
             ('RuntimeTypeInfo', 'false'),
             ('StringPooling', 'true'),
-            ('FunctionLevelLinking', 'true'),
-            ('MultiProcessorCompilation', 'true'),
-            ('EnableFiberSafeOptimizations', 'true'),
-            ('PREfast', pre_fast),
-            ('CallAttributedProfiling', call_cap),
+            ('FunctionLevelLinking', 'true')
+        ))
+
+        # Stadia multiprocessor compilation
+        if platform is PlatformTypes.stadia:
+            self.add_tag("UseMultiToolTask", "true")
+        # nVidia codeworks multiprocessor compilation
+        elif platform.is_android() and configuration.ide < IDETypes.vs2017:
+            self.add_tag("ProcessMax", "24")
+        # All others
+        elif not platform.is_android() \
+                or configuration.ide < IDETypes.vs2022:
+            self.add_tag("MultiProcessorCompilation", "true")
+
+        self.add_tag("EnableFiberSafeOptimizations", "true")
+
+        # Profiling on the xbox 360
+        if platform is PlatformTypes.xbox360:
+
+            # Handle CodeAnalysis
+            if configuration.analyze:
+                self.add_tag("PREfast", "Analyze")
+
+            profile = configuration.get_chained_value("profile")
+            if profile:
+                call_cap = "Callcap"
+                if profile == "fast":
+                    call_cap = "Fastcap"
+                self.add_tag("CallAttributedProfiling", call_cap)
+
+            # C or C++ for Xbox 360
+            self.add_tag("CompileAs", "Default")
+
+        self.add_tags((
             ('CallingConvention', calling_convention),
             ('OptimizationLevel', optimization_level),
             ('Branchless', branchless),
-            ('CppLanguageStd', cpp_language_std),
-            ('DisableSpecificWarnings', disable_specific_warnings),
+            ('CppLanguageStd', cpp_language_std)
+        ))
+
+        if platform in (PlatformTypes.ps4, PlatformTypes.ps5):
+            self.add_tag("DisableSpecificWarnings", packed_paths(
+                ("missing-braces",
+                 "tautological-undefined-compare",
+                 "unused-local-typedef")))
+
+        self.add_tags((
             ('SetMessageToSilent', set_message_to_silent),
             ('StackProtector', stack_protector),
             ('OmitFramePointer', omit_frame_pointer),
             ('StrictAliasing', strict_aliasing),
             ('FunctionSections', function_sections),
-            ('CppLanguageStandard', cpp_language_standard),
-            ('FloatAbi', float_abi),
-            ('ThumbMode', thumb_mode),
-            ('Inlinefunctions', inline_functions),
-            ('AdditionalOptions', additional_options),
-            ('CharUnsigned', char_unsigned)
+            ('CppLanguageStandard', cpp_language_standard)
         ))
+
+        # Disable these features when compiling Intel Android
+        # to disable warnings from clang for intel complaining
+        # about ARM specific commands
+        if platform in (PlatformTypes.androidintel32,
+                PlatformTypes.androidintel64):
+            self.add_tag("FloatAbi", "")
+            self.add_tag("ThumbMode", "")
+
+        # Switch has inline functions when optimizing
+        if platform.is_switch() and configuration.optimization:
+            self.add_tag("Inlinefunctions", "true")
+
+        # Ensure that on the switch chars are signed
+        if platform.is_switch():
+            self.add_tag("CharUnsigned", "false")
+
+        # WiiU needs this suppressed
+        if platform is PlatformTypes.wiiu:
+            self.add_tag("AdditionalOptions", "--diag_suppress \"1795\"")
 
 
 ########################################
@@ -1292,11 +1348,6 @@ class VS2010Link(VS2010XML):
             enable_comdat_folding = None
             optimize_references = 'false'
 
-        if configuration.get_chained_value('profile'):
-            profile = 'true'
-        else:
-            profile = None
-
         self.add_tags((
             ('AdditionalLibraryDirectories', library_folders),
             ('AdditionalDependencies', additional_libraries),
@@ -1306,9 +1357,11 @@ class VS2010Link(VS2010XML):
             ('DuplicateStripping', duplicate_stripping),
             ('OptimizeReferences', optimize_references),
             ('GenerateDebugInformation', 'true'),
-            ('EnableCOMDATFolding', enable_comdat_folding),
-            ('Profile', profile)
+            ('EnableCOMDATFolding', enable_comdat_folding)
         ))
+
+        if configuration.get_chained_value('profile'):
+            self.add_tag("Profile", "true")
 
 ########################################
 
@@ -1475,6 +1528,13 @@ class VS2010Files(VS2010XML):
                         'Include': convert_to_windows_slashes(
                             item.relative_pathname)}))
 
+        for item in source_file_filter(project.codefiles, FileTypes.c):
+            self.add_element(
+                VS2010XML(
+                    'ClCompile', {
+                        'Include': convert_to_windows_slashes(
+                            item.relative_pathname)}))
+
         for item in source_file_filter(project.codefiles, FileTypes.rc):
             self.add_element(
                 VS2010XML(
@@ -1590,7 +1650,7 @@ class VS2010Files(VS2010XML):
                   '%(RootDir)%(Directory)Generated\\%(FileName).h'),))
 
         for item in source_file_filter(
-            project.codefiles, FileTypes.appxmanifest):
+                project.codefiles, FileTypes.appxmanifest):
             self.add_element(
                 VS2010XML(
                     'AppxManifest', {
@@ -1762,6 +1822,7 @@ class VS2010vcprojfilter(VS2010XML):
         groups = []
         self.write_filter_group(FileTypes.h, groups, 'ClInclude')
         self.write_filter_group(FileTypes.cpp, groups, 'ClCompile')
+        self.write_filter_group(FileTypes.c, groups, 'ClCompile')
         self.write_filter_group(FileTypes.rc, groups, 'ResourceCompile')
         self.write_filter_group(FileTypes.hlsl, groups, 'HLSL')
         self.write_filter_group(FileTypes.x360sl, groups, 'X360SL')

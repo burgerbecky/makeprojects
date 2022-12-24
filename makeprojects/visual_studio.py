@@ -54,22 +54,24 @@ _VS_OLD_VERSION_YEARS = {
 }
 
 _VS_SDK_ENV_VARIABLE = {
-    'PSP': 'SCE_ROOT_DIR',          # PSP
-    'PS3': 'SCE_PS3_ROOT',          # PS3
-    'ORBIS': 'SCE_ORBIS_SDK_DIR',   # PS4
-    'PSVita': 'SCE_PSP2_SDK_DIR',   # PS Vita
-    'Xbox': 'XDK',                  # Xbox classic
-    'Xbox 360': 'XEDK',             # Xbox 360
-    'Xbox ONE': 'DurangoXDK',       # Xbox ONE
-    'Wii': 'REVOLUTION_SDK_ROOT',   # Nintendo Wii
-    'NX32': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
-    'NX64': 'NINTENDO_SDK_ROOT',    # Nintendo Switch
-    'Android': 'ANDROID_NDK_ROOT',  # Generic Android tools
-    'ARM-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
-    'AArch64-Android-NVIDIA': 'NVPACK_ROOT',    # nVidia android tools
-    'x86-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
-    'x64-Android-NVIDIA': 'NVPACK_ROOT',        # nVidia android tools
-    'Tegra-Android': 'NVPACK_ROOT'              # nVidia android tools
+    "PS3": "SCE_PS3_ROOT",          # PS3
+    "ORBIS": "SCE_ORBIS_SDK_DIR",   # PS4
+    "Prospero": "SCE_PROSPERO_SDK_DIR",  # PS5
+    "PSP": "SCE_ROOT_DIR",          # PSP
+    "PSVita": "SCE_PSP2_SDK_DIR",   # PS Vita
+    "Xbox": "XDK",                  # Xbox classic
+    "Xbox 360": "XEDK",             # Xbox 360
+    "Xbox ONE": "DurangoXDK",       # Xbox ONE
+    "Wii": "REVOLUTION_SDK_ROOT",   # Nintendo Wii
+    "NX32": "NINTENDO_SDK_ROOT",    # Nintendo Switch
+    "NX64": "NINTENDO_SDK_ROOT",    # Nintendo Switch
+    "GGP": "GGP_SDK_PATH",          # Google Stadia
+    "Android": "ANDROID_NDK_ROOT",  # Generic Android tools
+    "ARM-Android-NVIDIA": "NVPACK_ROOT",        # nVidia android tools
+    "AArch64-Android-NVIDIA": "NVPACK_ROOT",    # nVidia android tools
+    "x86-Android-NVIDIA": "NVPACK_ROOT",        # nVidia android tools
+    "x64-Android-NVIDIA": "NVPACK_ROOT",        # nVidia android tools
+    "Tegra-Android": "NVPACK_ROOT"              # nVidia android tools
 }
 
 ########################################
@@ -1852,13 +1854,13 @@ def create_deploy_script(configuration):
             perforce))
 
     # Copy the symbols on Microsoft platforms
-    if platform.is_windows() or platform.is_xbox():
-        if project_type.is_library() or configuration.debug:
-            command_list.extend(
-                create_copy_file_script(
-                    '$(TargetDir)$(TargetName).pdb',
-                    '{}{}.pdb'.format(deploy_folder, deploy_name),
-                    perforce))
+    # if platform.is_windows() or platform.is_xbox():
+    #    if project_type.is_library() or configuration.debug:
+    #       command_list.extend(
+    #           create_copy_file_script(
+    #              '$(TargetDir)$(TargetName).pdb',
+    #               '{}{}.pdb'.format(deploy_folder, deploy_name),
+    #               perforce))
 
     return 'Copying $(TargetFileName) to {}'.format(
         deploy_folder), '\n'.join(command_list)
@@ -2783,7 +2785,8 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Get the defines
         default = ['4201']
-        self.add_default(StringListProperty('DisableSpecificWarnings', default))
+        self.add_default(StringListProperty(
+            'DisableSpecificWarnings', default))
 
         # List of include files to force inclusion
         default = []
