@@ -245,6 +245,21 @@ class TestCore(unittest.TestCase):
         a.deploy_folder = None
         self.assertIsNone(a.deploy_folder)
 
+        # test fastcall
+        self.assertIsNone(a.fastcall)
+        a.fastcall = 'true'
+        self.assertIs(a.fastcall, True)
+        a.fastcall = 'n'
+        self.assertIs(a.fastcall, False)
+        a.fastcall = False
+        self.assertIs(a.fastcall, False)
+        with self.assertRaises(ValueError):
+            a.fastcall = 'elvis'
+        with self.assertRaises(ValueError):
+            a.fastcall = self
+        a.fastcall = None
+        self.assertIsNone(a.fastcall)
+
 ########################################
 
     def test_configuration(self):

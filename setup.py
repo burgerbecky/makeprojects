@@ -62,44 +62,45 @@ with io.open(os.path.join(CWD, 'README.rst'), encoding='utf-8') as filep:
 
 # Create the dependency list
 INSTALL_REQUIRES = [
-    'setuptools >= 17.1',
-    'enum34 >= 1.0.0',
-    'burger >= 1.2.5',
-    'argparse >= 1.0',
-    'glob2 >= 0.6',
-    'funcsigs >= 1.0'
+    "setuptools >= 17.1",
+    "enum34 >= 1.0.0",
+    "burger >= 1.2.5",
+    "argparse >= 1.0",
+    "glob2 >= 0.6",
+    "funcsigs >= 1.0"
 ]
 
 # Project classifiers
 CLASSIFIERS = [
-    'Development Status :: 3 - Alpha',
-    'Environment :: Console',
-    'Intended Audience :: Developers',
-    'Topic :: Software Development',
-    'Topic :: Software Development :: Build Tools',
-    'License :: OSI Approved :: MIT License',
-    'Operating System :: OS Independent',
-    'Natural Language :: English',
-    'Programming Language :: Python',
-    'Programming Language :: Python :: 2',
-    'Programming Language :: Python :: 2.7',
-    'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.4',
-    'Programming Language :: Python :: 3.5',
-    'Programming Language :: Python :: 3.6',
-    'Programming Language :: Python :: 3.7',
-    'Programming Language :: Python :: 3.8',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10'
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development",
+    "Topic :: Software Development :: Build Tools",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 2",
+    "Programming Language :: Python :: 2.7",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11"
 ]
 
 # Entry points for the generated command line tools
 ENTRY_POINTS = {
-    'console_scripts': [
-        'makeprojects = makeprojects.__main__:main',
-        'buildme = makeprojects.buildme:main',
-        'cleanme = makeprojects.cleanme:main',
-        'rebuildme = makeprojects.rebuildme:main']
+    "console_scripts": [
+        "makeprojects = makeprojects.__main__:main",
+        "buildme = makeprojects.buildme:main",
+        "cleanme = makeprojects.cleanme:main",
+        "rebuildme = makeprojects.rebuildme:main"]
 }
 
 #

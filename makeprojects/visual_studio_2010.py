@@ -812,18 +812,8 @@ class VS2010Configuration(VS2010XML):
             elif platform.is_android():
                 platform_toolset = "Clang_3_8"
 
-        use_of_mfc = None
-        use_of_atl = None
-        clr_support = None
         android_min_api = None
         android_target_api = None
-        nintendo_sdk_root = None
-
-        if platform.is_windows():
-            use_of_mfc = truefalse(configuration.use_mfc)
-            use_of_atl = truefalse(configuration.use_atl)
-            clr_support = truefalse(
-                configuration.clr_support)
 
         # Handle android minimum tool set
         if platform.is_android():
@@ -836,10 +826,6 @@ class VS2010Configuration(VS2010XML):
             else:
                 android_min_api = 'android-9'
 
-        # Nintendo Switch SDK location
-        if platform.is_switch():
-            nintendo_sdk_root = '$(NINTENDO_SDK_ROOT)\\'
-
         self.add_tags((
             ('ConfigurationType', configuration_type),
             # Enable debug libraries
@@ -850,12 +836,18 @@ class VS2010Configuration(VS2010XML):
             ('AndroidTargetAPI', android_target_api),
             ('WholeProgramOptimization', truefalse(
                 configuration.link_time_code_generation)),
-            ('CharacterSet', 'Unicode'),
-            ('UseOfMfc', use_of_mfc),
-            ('UseOfAtl', use_of_atl),
-            ('CLRSupport', clr_support),
-            ('NintendoSdkRoot', nintendo_sdk_root)
+            ('CharacterSet', 'Unicode')
         ))
+
+        if platform.is_windows():
+            self.add_tag("UseOfMfc", truefalse(configuration.use_mfc))
+            self.add_tag("UseOfAtl", truefalse(configuration.use_atl))
+            self.add_tag("CLRSupport", truefalse(configuration.clr_support))
+
+        # Nintendo Switch SDK location
+        if platform.is_switch():
+            self.add_tag("NintendoSdkRoot", "$(NINTENDO_SDK_ROOT)\\")
+
 
 ########################################
 
@@ -1106,14 +1098,9 @@ class VS2010ClCompile(VS2010XML):
         if platform is PlatformTypes.xbox360:
             omit_frame_pointers = None
 
-        if platform is PlatformTypes.win32:
-            calling_convention = 'FastCall'
-        else:
-            calling_convention = None
         optimization_level = None
         branchless = None
         cpp_language_std = None
-        set_message_to_silent = None
         omit_frame_pointer = None
         stack_protector = None
         strict_aliasing = None
@@ -1131,9 +1118,6 @@ class VS2010ClCompile(VS2010XML):
 
         if platform in (PlatformTypes.vita, PlatformTypes.ps3):
             cpp_language_std = 'Cpp11'
-
-        if platform is PlatformTypes.wiiu:
-            set_message_to_silent = '1795'
 
         if platform.is_android():
             if not configuration.debug:
@@ -1224,8 +1208,12 @@ class VS2010ClCompile(VS2010XML):
             # C or C++ for Xbox 360
             self.add_tag("CompileAs", "Default")
 
+        # Set the x86 windows calling convention
+        if platform is PlatformTypes.win32:
+            if configuration.fastcall:
+                self.add_tag("CallingConvention", "FastCall")
+
         self.add_tags((
-            ('CallingConvention', calling_convention),
             ('OptimizationLevel', optimization_level),
             ('Branchless', branchless),
             ('CppLanguageStd', cpp_language_std)
@@ -1237,8 +1225,11 @@ class VS2010ClCompile(VS2010XML):
                  "tautological-undefined-compare",
                  "unused-local-typedef")))
 
+        # Disable this warning on WiiU
+        if platform is PlatformTypes.wiiu:
+            self.add_tag("SetMessageToSilent", "1795")
+
         self.add_tags((
-            ('SetMessageToSilent', set_message_to_silent),
             ('StackProtector', stack_protector),
             ('OmitFramePointer', omit_frame_pointer),
             ('StrictAliasing', strict_aliasing),

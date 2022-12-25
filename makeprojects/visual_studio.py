@@ -2768,7 +2768,9 @@ class VCCLCompilerTool(VS2003Tool):
             EnumProperty('DebugInformationFormat', default, enum_list))
 
         # Code calling convention
-        default = '__fastcall'
+        default = None
+        if configuration.fastcall:
+            default = '__fastcall'
         self.add_default(
             EnumProperty('CallingConvention', default,
                          (('/Gd', '__cdecl'),

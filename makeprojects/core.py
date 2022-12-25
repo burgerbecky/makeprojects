@@ -82,14 +82,14 @@ class BuildError(object):
         """
 
         if self.error:
-            result = 'Error #{} in file {}'.format(self.error, self.filename)
+            result = "Error #{} in file {}".format(self.error, self.filename)
         else:
-            result = 'No error in file {}'.format(self.filename)
+            result = "No error in file {}".format(self.filename)
 
         if self.configuration:
-            result += ' Configuration "{}"'.format(self.configuration)
+            result += " Configuration \"{}\"".format(self.configuration)
         if self.msg:
-            result += ' "{}"'.format(self.msg)
+            result += " \"{}\"".format(self.msg)
 
         return result
 
@@ -198,7 +198,7 @@ class BuildObject(object):
                 quiet=not verbose)[0]
             msg = None
         except OSError as error:
-            error_code = getattr(error, 'winerror', error.errno)
+            error_code = getattr(error, "winerror", error.errno)
             msg = str(error)
             print(msg, file=sys.stderr)
 
@@ -217,13 +217,13 @@ class BuildObject(object):
         """
 
         result = (
-            '{} for file "{}" with priority {}').format(
+            "{} for file \"{}\" with priority {}").format(
                 type(self).__name__,
                 self.file_name,
                 self.priority)
 
         if self.configuration:
-            result += ' configuration "{}"'.format(self.configuration)
+            result += " configuration \"{}\"".format(self.configuration)
 
         return result
 
@@ -284,14 +284,14 @@ class Attributes(object):
 
     # pylint: disable=too-many-instance-attributes
 
-    define_list = StringListProperty('_define_list')
-    include_folders_list = StringListProperty('_include_folders_list')
-    library_folders_list = StringListProperty('_library_folders_list')
-    libraries_list = StringListProperty('_libraries_list')
-    frameworks_list = StringListProperty('_frameworks_list')
-    exclude_from_build_list = StringListProperty('_exclude_from_build_list')
-    exclude_list = StringListProperty('_exclude_list')
-    cw_environment_variables = StringListProperty('_cw_environment_variables')
+    define_list = StringListProperty("_define_list")
+    include_folders_list = StringListProperty("_include_folders_list")
+    library_folders_list = StringListProperty("_library_folders_list")
+    libraries_list = StringListProperty("_libraries_list")
+    frameworks_list = StringListProperty("_frameworks_list")
+    exclude_from_build_list = StringListProperty("_exclude_from_build_list")
+    exclude_list = StringListProperty("_exclude_list")
+    cw_environment_variables = StringListProperty("_cw_environment_variables")
 
     def __init__(self):
         """
@@ -323,6 +323,7 @@ class Attributes(object):
         self._name = None
         self._working_directory = None
         self._deploy_folder = None
+        self._fastcall = None
 
     ########################################
 
@@ -331,7 +332,7 @@ class Attributes(object):
         Follow the chain to find a value.
 
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             name: Name of the attribute
         Returns:
             None or the value.
@@ -395,13 +396,13 @@ class Attributes(object):
         Get the enums.PlatformTypes
         """
 
-        return self.get_chained_value('_platform')
+        return self.get_chained_value("_platform")
 
     def _setplatform(self, value):
         """
         Set the enums.PlatformTypes with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None or enums.PlatformTypes
         """
 
@@ -416,13 +417,13 @@ class Attributes(object):
         Get the enums.ProjectTypes
         """
 
-        return self.get_chained_value('_project_type')
+        return self.get_chained_value("_project_type")
 
     def _setproject_type(self, value):
         """
         Set the enums.ProjectTypes with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None or enums.ProjectTypes
         """
 
@@ -437,13 +438,13 @@ class Attributes(object):
         Get debug boolean
         """
 
-        return self.get_chained_value('_debug')
+        return self.get_chained_value("_debug")
 
     def _setdebug(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -458,13 +459,13 @@ class Attributes(object):
         Get link time code generation boolean
         """
 
-        return self.get_chained_value('_link_time_code_generation')
+        return self.get_chained_value("_link_time_code_generation")
 
     def _setlink_time_code_generation(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -481,13 +482,13 @@ class Attributes(object):
         Get optimization boolean
         """
 
-        return self.get_chained_value('_optimization')
+        return self.get_chained_value("_optimization")
 
     def _setoptimization(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -502,13 +503,13 @@ class Attributes(object):
         Get code analysis boolean
         """
 
-        return self.get_chained_value('_analyze')
+        return self.get_chained_value("_analyze")
 
     def _setanalyze(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -523,13 +524,13 @@ class Attributes(object):
         Get use of Microsoft Foundation class boolean
         """
 
-        return self.get_chained_value('_use_mfc')
+        return self.get_chained_value("_use_mfc")
 
     def _setuse_mfc(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -544,13 +545,13 @@ class Attributes(object):
         Get Microsoft Active Template Library boolean
         """
 
-        return self.get_chained_value('_use_atl')
+        return self.get_chained_value("_use_atl")
 
     def _setuse_atl(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -565,13 +566,13 @@ class Attributes(object):
         Get Common Language Runtime boolean
         """
 
-        return self.get_chained_value('_clr_support')
+        return self.get_chained_value("_clr_support")
 
     def _setclr_support(self, value):
         """
         Set the boolean with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, True or False
         """
 
@@ -586,13 +587,13 @@ class Attributes(object):
         Get name string
         """
 
-        return self.get_chained_value('_name')
+        return self.get_chained_value("_name")
 
     def _setname(self, value):
         """
         Set the string with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, string
         """
 
@@ -607,13 +608,13 @@ class Attributes(object):
         Get working directory string
         """
 
-        return self.get_chained_value('_working_directory')
+        return self.get_chained_value("_working_directory")
 
     def _setworking_directory(self, value):
         """
         Set the string with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, string
         """
 
@@ -628,19 +629,40 @@ class Attributes(object):
         Get deployment folder string
         """
 
-        return self.get_chained_value('_deploy_folder')
+        return self.get_chained_value("_deploy_folder")
 
     def _setdeploy_folder(self, value):
         """
         Set the string with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None, string
         """
 
         self._deploy_folder = validate_string(value)
 
     deploy_folder = property(_getdeploy_folder, _setdeploy_folder)
+
+    ########################################
+
+    def _getfastcall(self):
+        """
+        Get Common Language Runtime boolean
+        """
+
+        return self.get_chained_value("_fastcall")
+
+    def _setfastcall(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The "this" reference.
+            value: None, True or False
+        """
+
+        self._fastcall = validate_boolean(value)
+
+    fastcall = property(_getfastcall, _setfastcall)
 
 ########################################
 
@@ -700,25 +722,25 @@ class SourceFile(object):
         """
 
         # Check if there's a group
-        slash = '\\'
+        slash = "\\"
         index = self.relative_pathname.rfind(slash)
         if index == -1:
-            slash = '/'
+            slash = "/"
             index = self.relative_pathname.rfind(slash)
             if index == -1:
                 # It's at the root
-                return ''
+                return ""
 
         # Remove the basename
         group_name = self.relative_pathname[:index]
 
         # If there are ..\\ at the beginning, remove them
 
-        while group_name.startswith('..' + slash):
+        while group_name.startswith(".." + slash):
             group_name = group_name[3:]
 
         # If there is a .\\, remove the single prefix
-        while group_name.startswith('.' + slash):
+        while group_name.startswith("." + slash):
             group_name = group_name[2:]
 
         return group_name
@@ -752,7 +774,7 @@ class SourceFile(object):
             Human readable string.
         """
 
-        return 'FileType: {} Pathname: "{}"'.format(str(self.type),
+        return "FileType: {} Pathname: \"{}\"".format(str(self.type),
                                                     self.get_abspath())
 
     def __str__(self):
@@ -815,10 +837,10 @@ class Configuration(Attributes):
     """
 
     # Disable these attributes that are present in the parent Project
-    source_folders_list = NoneProperty('_source_folders_list')
-    vs_props = NoneProperty('_vs_props')
-    vs_targets = NoneProperty('_vs_targets')
-    vs_rules = NoneProperty('_vs_rules')
+    source_folders_list = NoneProperty("_source_folders_list")
+    vs_props = NoneProperty("_vs_props")
+    vs_targets = NoneProperty("_vs_targets")
+    vs_rules = NoneProperty("_vs_rules")
 
     def __init__(self, *args, **kargs):
         """
@@ -839,7 +861,7 @@ class Configuration(Attributes):
             # Too many parameters?
             if len(args) >= 3:
                 raise ValueError(
-                    'Only one or two nameless parameters are allowed')
+                    "Only one or two nameless parameters are allowed")
 
             # Get the default settings
             setting_name = None
@@ -1728,14 +1750,14 @@ class Solution(Attributes):
         """
         result_list = []
         for item in self.__dict__.items():
-            if item[0] == 'parent':
+            if item[0] == "parent":
                 continue
-            item_name = item[0][1:] if item[0].startswith('_') else item[0]
+            item_name = item[0][1:] if item[0].startswith("_") else item[0]
             result_list.append(
                 '{0}: {1!s}'.format(
                     item_name,
                     item[1]))
-        return 'Solution: ' + ', '.join(result_list)
+        return "Solution: " + ", ".join(result_list)
 
     def __str__(self):
         """
