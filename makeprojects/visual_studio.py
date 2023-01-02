@@ -31,7 +31,7 @@ except ImportError:
     pass
 
 from .validators import BooleanProperty, StringProperty, EnumProperty, \
-    StringListProperty, IntegerProperty
+    StringListProperty, IntegerProperty, lookup_enum_value
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
@@ -4265,7 +4265,8 @@ class VS2003FileConfiguration(VS2003XML):
                             value = record[item]
                             enum_table = tool_enums.get(item, None)
                             if enum_table:
-                                new_value = enum_table[1].get(value, None)
+                                new_value = lookup_enum_value(
+                                    enum_table[1], value, None)
                                 if new_value is not None:
                                     value = str(new_value)
 
@@ -4308,7 +4309,8 @@ class VS2003FileConfiguration(VS2003XML):
                             value = record[item]
                             enum_table = tool_enums.get(item, None)
                             if enum_table:
-                                new_value = enum_table[1].get(value, None)
+                                new_value = lookup_enum_value(
+                                    enum_table[1], value, None)
                                 if new_value is not None:
                                     value = str(new_value)
 

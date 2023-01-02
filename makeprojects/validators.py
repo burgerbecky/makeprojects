@@ -20,12 +20,47 @@ from burger import is_string, packed_paths, truefalse, \
     StringListProperty as StringListProp, \
     IntegerProperty as IntegerProp
 
+
+########################################
+
+def lookup_enum_value(enum_lookup, key, default):
+    """
+    Find a value in a list of enums.
+
+
+    Iterate over a list of two entry tuples, the first entry is the key and the
+    second is the value. Essentually, it's a dict implemented as a list/tuple.
+
+    Args:
+        enum_lookup: iterable of enumeration entries (key, integer)
+        key: Key value to match in enumeration keys
+        default: Value to return if there is no match
+
+    Returns:
+        Second value in the enumeration entry where the key matches, or
+        ``default``
+    """
+
+    # Scan the table until a match is found
+    for item in enum_lookup:
+
+        # Match?
+        if item[0] == key:
+            return item[1]
+
+    return default
+
+
 ########################################
 
 
-def lookup_enum(cmd, enum_lookup, value):
+def lookup_enum_append_key(cmd, enum_lookup, value):
     """
-    Look up a command line option from an enum
+    Look up a command line option from an enumeration
+
+    Iterate over a list of tuples, with the first entry is a command line entry
+    and the second entry is the integer enumeration value. If the value is a
+    match to the enumeration value, append the command line entry to ``cmd``.
 
     Args:
         cmd: list of command line options to append the new entry
@@ -59,6 +94,8 @@ def lookup_enum(cmd, enum_lookup, value):
 
         # Match?
         if item[1] == value:
+
+            # If the key is None, abort, no value needed.
             if item[0] is not None:
                 # Append the command
                 cmd.append(item[0])
@@ -69,16 +106,15 @@ def lookup_enum(cmd, enum_lookup, value):
 
 
 def lookup_enums(cmd, enum_dicts, command_dict):
-    """ Look up a set of enum command line options
+    """
+    Look up a set of enum command line options
 
-    An enumeration table is a dict with each key being a
-    value to enumerate and the value the integer enumeration
-    value. Synonyms are allowed by having previously used
-    integer value. Reverse lookup of the command line
-    switch is performed by scanning the integer values and
-    stopping on the first match. If the key starts with
-    ``_NOT_USED``, it is assumed to be an enumeration that
-    purposefully does not have a command line switch.
+    An enumeration table is a dict with each key being a value to enumerate and
+    the value the integer enumeration value. Synonyms are allowed by having
+    previously used integer value. Reverse lookup of the command line switch is
+    performed by scanning the integer values and stopping on the first match.
+    If the key starts with ``_NOT_USED`` or is None, it is assumed to be an
+    enumeration that purposefully does not have a command line switch.
 
     Args:
         cmd: list of command line options to append the new entry
@@ -101,7 +137,7 @@ def lookup_enums(cmd, enum_dicts, command_dict):
             value = item[0]
             if value is None:
                 continue
-        lookup_enum(cmd, item[1], value)
+        lookup_enum_append_key(cmd, item[1], value)
 
 ########################################
 

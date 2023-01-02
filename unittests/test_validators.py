@@ -21,7 +21,7 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.validators import lookup_enum
+from makeprojects.validators import lookup_enum_append_key, lookup_enum_value
 
 ########################################
 
@@ -31,11 +31,27 @@ class TestValidators(unittest.TestCase):
     Test validators
     """
 
+    def test_lookup_enum_value(self):
+        """
+        Test makeprojects.validators.lookup_enum_value
+        """
+
+        enum_test1 = (
+            ("key1", 0), ("barf", 66), ("key1", 66), ("barf", 2)
+        )
+
+        self.assertIs(lookup_enum_value(enum_test1, "key1", None), 0)
+        self.assertIs(lookup_enum_value(enum_test1, "barf", None), 66)
+        self.assertIs(lookup_enum_value(enum_test1, "foo", None), None)
+        self.assertIs(lookup_enum_value(enum_test1, 0, None), None)
+
+
 ########################################
 
-    def test_lookup_enum(self):
+
+    def test_lookup_enum_append_key(self):
         """
-        Test makeprojects.validators.lookup_enum
+        Test makeprojects.validators.lookup_enum_append_key
         """
 
         # The function returns the resulting list
@@ -47,31 +63,40 @@ class TestValidators(unittest.TestCase):
         result1 = ["foo.exe"]
 
         # Test against input that should not modify the result
-        self.assertListEqual(lookup_enum(cmd, enum_test1, None), result1)
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 67), result1)
-        self.assertListEqual(lookup_enum(cmd, enum_test1, -1), result1)
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 3), result1)
-        self.assertListEqual(lookup_enum(cmd, enum_test1, "3"), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, None), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 67), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, -1), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 3), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, "3"), result1)
 
         # Failure cases
         with self.assertRaises(ValueError):
-            lookup_enum(cmd, enum_test1, True)
+            lookup_enum_append_key(cmd, enum_test1, True)
         with self.assertRaises(ValueError):
-            lookup_enum(cmd, enum_test1, False)
+            lookup_enum_append_key(cmd, enum_test1, False)
         with self.assertRaises(ValueError):
-            lookup_enum(cmd, enum_test1, "Barf")
+            lookup_enum_append_key(cmd, enum_test1, "Barf")
 
         # Append cases, note, this also tests that the first match
         # is used where there are multiple case matches
         result1.append("/Zpr")
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 0), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 0), result1)
         result1.append("/Zpc")
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 1), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 1), result1)
         result1.append("/Zpr")
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 0), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 0), result1)
 
         # Test for the case where None is the default
-        self.assertListEqual(lookup_enum(cmd, enum_test1, 2), result1)
+        self.assertListEqual(lookup_enum_append_key(
+            cmd, enum_test1, 2), result1)
 
 ########################################
 
