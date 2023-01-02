@@ -22,11 +22,12 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from makeprojects.core import Configuration
+from makeprojects.hlsl_support import HLSL_ENUMS
 from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
     lookup_enum_append_keys, lookup_strings, lookup_string_list, \
-    lookup_string_lists, lookup_booleans, VSBooleanProperty
-from makeprojects.hlsl_support import HLSL_ENUMS
-from makeprojects.core import Configuration
+    lookup_string_lists, lookup_booleans, VSBooleanProperty, VSIntegerProperty, \
+    VSStringProperty
 
 ########################################
 
@@ -52,7 +53,6 @@ class TestValidators(unittest.TestCase):
 
 
 ########################################
-
 
     def test_lookup_enum_append_key(self):
         """
@@ -256,20 +256,20 @@ class TestValidators(unittest.TestCase):
         # Create a simple entry
         t = VSBooleanProperty("Test1", True)
         self.assertEqual(t.name, "Test1")
-        self.assertEqual(t.value, True)
+        self.assertIs(t.value, True)
         self.assertEqual(t.get_value(), "true")
 
         t = VSBooleanProperty("Test2", None)
         self.assertEqual(t.name, "Test2")
-        self.assertEqual(t.value, None)
-        self.assertEqual(t.get_value(), None)
+        self.assertIs(t.value, None)
+        self.assertIs(t.get_value(), None)
 
         t = VSBooleanProperty("Test3", 0)
-        self.assertEqual(t.value, False)
+        self.assertIs(t.value, False)
         self.assertEqual(t.get_value(), "false")
 
         t = VSBooleanProperty("Test4", "1")
-        self.assertEqual(t.value, True)
+        self.assertIs(t.value, True)
         self.assertEqual(t.get_value(), "true")
 
         # Failure cases
@@ -277,6 +277,8 @@ class TestValidators(unittest.TestCase):
             VSBooleanProperty("Fail", "Fail")
         with self.assertRaises(ValueError):
             VSBooleanProperty("Fail", t)
+        with self.assertRaises(ValueError):
+            t.value = "Fail"
 
         c = Configuration("Release")
 
@@ -284,14 +286,14 @@ class TestValidators(unittest.TestCase):
             "GlobalOptimizations", c, default=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
-        self.assertEqual(t.value, False)
+        self.assertIs(t.value, False)
 
         c.compiler_options = ["/Og"]
         t = VSBooleanProperty.validate(
             "GlobalOptimizations", c, default=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
-        self.assertEqual(t.value, True)
+        self.assertIs(t.value, True)
 
         # Test for a Visual Studio override
         c.vs_GlobalOptimizations = True
@@ -299,14 +301,65 @@ class TestValidators(unittest.TestCase):
             "GlobalOptimizations", c, default=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
-        self.assertEqual(t.value, True)
+        self.assertIs(t.value, True)
 
         c.vs_GlobalOptimizations = False
         t = VSBooleanProperty.vs_validate(
             "GlobalOptimizations", c, default=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
-        self.assertEqual(t.value, False)
+        self.assertIs(t.value, False)
+
+########################################
+
+    def test_VSIntegerProperty(self):
+        """
+        Test makeprojects.validators.VSIntegerProperty
+        """
+
+        t = VSIntegerProperty("Test")
+        self.assertEqual(t.name, "Test")
+        self.assertIs(t.value, None)
+        self.assertIs(t.switch, None)
+
+        t = VSIntegerProperty("Test", switch="/Foo")
+        self.assertEqual(t.name, "Test")
+        self.assertIs(t.value, None)
+        self.assertEqual(t.switch, "/Foo")
+
+        t = VSIntegerProperty("Test", 33)
+        self.assertEqual(t.name, "Test")
+        self.assertIs(t.value, 33)
+        self.assertIs(t.switch, None)
+
+        # Failure cases
+        with self.assertRaises(ValueError):
+            VSIntegerProperty("Fail", "Fail")
+        with self.assertRaises(ValueError):
+            t.value = "Fail"
+        with self.assertRaises(ValueError):
+            t.value = self
+
+########################################
+
+    def test_VSStringProperty(self):
+        """
+        Test makeprojects.validators.VSStringProperty
+        """
+
+        t = VSStringProperty("Test")
+        self.assertEqual(t.name, "Test")
+        self.assertIs(t.value, None)
+
+        t = VSStringProperty("Test", 33)
+        self.assertEqual(t.name, "Test")
+        self.assertEqual(t.value, "33")
+
+        t.value = "Barf"
+        self.assertEqual(t.value, "Barf")
+
+        t.value = None
+        self.assertIs(t.value, None)
 
 ########################################
 

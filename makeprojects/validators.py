@@ -16,9 +16,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 import numbers
 
 from burger import is_string, packed_paths, truefalse, convert_to_array, \
-    BooleanProperty, StringProperty as StringProp, \
-    StringListProperty as StringListProp, \
-    IntegerProperty as IntegerProp
+    BooleanProperty, IntegerProperty, StringProperty, \
+    StringListProperty as StringListProp
 
 
 ########################################
@@ -386,10 +385,9 @@ class VSBooleanProperty(object):
                  options_key=None, options=None):
         """
         Check if there is a command line switch override.
-
-        Given a configuration, scan for the options_key and if found, check if
-        that list has one of the option tuples and if there's a match, use the
-        options tuple entry, otherwise use the default value.
+        Given a configuration, scan for the ``options_key`` and if found,
+        check if that list has one of the option tuples. If there's a
+        match, use the options tuple entry, otherwise use the default value.
 
         Args:
             key: Name of the XML attribute key
@@ -428,7 +426,6 @@ class VSBooleanProperty(object):
                     options_key=None, options=None):
         """
         Check if there is an override with a vs_ prefix.
-
         Check if the configuration has a key of \"vs_\" + key in the
         configuration and if not found or None, use the key as is.
 
@@ -474,7 +471,7 @@ class VSBooleanProperty(object):
 ########################################
 
 
-class IntegerProperty(object):
+class VSIntegerProperty(object):
     """
     Value can only be integer or None
 
@@ -484,11 +481,12 @@ class IntegerProperty(object):
         value: Integer value
     """
 
-    value = IntegerProp("_value")
+    value = IntegerProperty("_value")
 
     def __init__(self, name, default=None, switch=None):
         """
-        Initialize the default value
+        Initialize the default values.
+        Set the name (Required), value and compiler switch.
 
         Args:
             name: Name of the validator
@@ -496,17 +494,19 @@ class IntegerProperty(object):
             switch: Switch for integer found
         """
 
+        # Init the defaults
         self.name = name
         self.switch = switch
-
-        # Init the default value
         self.value = default
 
     ########################################
 
     def get_value(self):
         """
-        Return the string representation of the string, or None
+        Return the string representation of the integer, or None
+
+        Returns:
+            String of number or None
         """
         temp = self.value
         if temp is not None:
@@ -520,7 +520,7 @@ class IntegerProperty(object):
         Convert to string.
 
         Returns:
-            Value as a string
+            Value as a string or "None"
         """
 
         if self.value is None:
@@ -532,7 +532,7 @@ class IntegerProperty(object):
         Convert to string.
 
         Returns:
-            Value as a string
+            Value as a string or "None"
         """
         return self.__repr__()
 
@@ -540,7 +540,7 @@ class IntegerProperty(object):
 ########################################
 
 
-class StringProperty():
+class VSStringProperty():
     """
     Value can be any string.
 
@@ -549,7 +549,7 @@ class StringProperty():
         value: String value
     """
 
-    value = StringProp("_value")
+    value = StringProperty("_value")
 
     def __init__(self, name, default=None):
         """
@@ -560,9 +560,8 @@ class StringProperty():
             default: Default value, ``None`` is acceptable
         """
 
+        # Set defaults
         self.name = name
-
-        # Active value
         self.value = default
 
     ########################################
@@ -583,6 +582,7 @@ class StringProperty():
             Value as a string
         """
 
+        # None becomes "None"
         return "{}".format(self.value)
 
     def __str__(self):

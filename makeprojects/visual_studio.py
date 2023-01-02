@@ -30,8 +30,8 @@ try:
 except ImportError:
     pass
 
-from .validators import VSBooleanProperty, StringProperty, EnumProperty, \
-    StringListProperty, IntegerProperty, lookup_enum_value
+from .validators import VSBooleanProperty, VSStringProperty, EnumProperty, \
+    StringListProperty, VSIntegerProperty, lookup_enum_value
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
@@ -1617,27 +1617,27 @@ def BoolExcludedFromBuild(default=None):
 
 def IntTypeLibraryResourceID():
     """ ID number of the library resource """
-    return IntegerProperty('TypeLibraryResourceID', switch='/TLBID')
+    return VSIntegerProperty("TypeLibraryResourceID", switch="/TLBID")
 
 
 def IntHeapReserveSize():
     """ Amount of heap to reserve """
-    return IntegerProperty('HeapReserveSize', switch='/HEAP')
+    return VSIntegerProperty("HeapReserveSize", switch="/HEAP")
 
 
 def IntHeapCommitSize():
     """ Amount of heap to commit """
-    return IntegerProperty('HeapCommitSize', switch='/HEAP:commit')
+    return VSIntegerProperty("HeapCommitSize", switch="/HEAP:commit")
 
 
 def IntStackReserveSize():
     """ Amount of stack to reserve """
-    return IntegerProperty('StackReserveSize', switch='/STACK')
+    return VSIntegerProperty("StackReserveSize", switch="/STACK")
 
 
 def IntStackCommitSize():
     """ Amount of stack to commit """
-    return IntegerProperty('StackCommitSize', switch='/STACK:commit')
+    return VSIntegerProperty("StackCommitSize", switch="/STACK:commit")
 
 ########################################
 
@@ -1646,62 +1646,62 @@ def IntStackCommitSize():
 
 def StringName(default):
     """ Name record """
-    return StringProperty('Name', default=default)
+    return VSStringProperty('Name', default=default)
 
 
 def StringAdditionalOptions():
     """ List of custom compiler options as a single string """
-    return StringProperty('AdditionalOptions')
+    return VSStringProperty('AdditionalOptions')
 
 
 def StringPrecompiledHeaderThrough():
     """ Text header file for precompilation """
-    return StringProperty('PrecompiledHeaderThrough')
+    return VSStringProperty('PrecompiledHeaderThrough')
 
 
 def StringPrecompiledHeaderFile():
     """ Binary header file for precompilation """
-    return StringProperty('PrecompiledHeaderFile')
+    return VSStringProperty('PrecompiledHeaderFile')
 
 
 def StringAssemblerListingLocation():
     """ Output location for .asm file """
-    return StringProperty('AssemblerListingLocation')
+    return VSStringProperty('AssemblerListingLocation')
 
 
 def StringObjectFile():
     """ Output location for .obj file """
-    return StringProperty('ObjectFile')
+    return VSStringProperty('ObjectFile')
 
 
 def StringProgramDataBaseFileName(default):
     """ Output location of shared .pdb file """
-    return StringProperty('ProgramDataBaseFileName', default=default)
+    return VSStringProperty('ProgramDataBaseFileName', default=default)
 
 
 def StringXMLDocumentationFileName():
     """ Name of the XML formatted documentation file """
-    return StringProperty('XMLDocumentationFileName')
+    return VSStringProperty('XMLDocumentationFileName')
 
 
 def StringBrowseInformationFile():
     """ Name of the browsing file """
-    return StringProperty('BrowseInformationFile')
+    return VSStringProperty('BrowseInformationFile')
 
 
 def StringDescription(default=None):
     """ Message to print in the console """
-    return StringProperty('Description', default)
+    return VSStringProperty('Description', default)
 
 
 def StringCommandLine(default=None):
     """ Batch file contents """
-    return StringProperty('CommandLine', default)
+    return VSStringProperty('CommandLine', default)
 
 
 def StringOutputFile(default=None):
     """ Name of the output file """
-    return StringProperty('OutputFile', default)
+    return VSStringProperty('OutputFile', default)
 
 ########################################
 
@@ -2436,7 +2436,7 @@ class VS2003Tool(VS2003XML):
         """
 
         VS2003XML.__init__(
-            self, 'Tool', [StringProperty('Name', name)],
+            self, 'Tool', [VSStringProperty('Name', name)],
             force_pair=force_pair)
 
 ########################################
@@ -2970,7 +2970,7 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(StringOutputFile(default))
 
         # Version number
-        self.add_default(StringProperty('Version', None))
+        self.add_default(VSStringProperty('Version', None))
 
        # Show progress in linking
         default = 'No' if optimization else 'Yes'
@@ -2999,7 +2999,7 @@ class VCLinkerTool(VS2003Tool):
 
         if ide > IDETypes.vs2003:
             # Name of the manifest file
-            self.add_default(StringProperty('ManifestFile', None))
+            self.add_default(VSStringProperty('ManifestFile', None))
 
             # Manifests this one is dependent on
             self.add_default(
@@ -3028,7 +3028,7 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(StringListProperty('IgnoreDefaultLibraryNames', []))
 
         # Module definition file, if one exists
-        self.add_default(StringProperty('ModuleDefinitionFile', None))
+        self.add_default(VSStringProperty('ModuleDefinitionFile', None))
 
         # Add these modules to the C# assembly
         self.add_default(StringListProperty('AddModuleNamesToAssembly', []))
@@ -3047,16 +3047,16 @@ class VCLinkerTool(VS2003Tool):
             self.add_default(StringListProperty('AssemblyLinkResource', []))
 
         # Contents of a Midl comment file (Actual commands)
-        self.add_default(StringProperty('MidlCommandFile', None))
+        self.add_default(VSStringProperty('MidlCommandFile', None))
 
         # Ignore embedded .idlsym sections
         self.add_default(BoolIgnoreEmbeddedIDL(configuration))
 
         # Filename the contains the contents of the merged idl
-        self.add_default(StringProperty('MergedIDLBaseFileName', None))
+        self.add_default(VSStringProperty('MergedIDLBaseFileName', None))
 
         # Name of the type library
-        self.add_default(StringProperty('TypeLibraryFile', None))
+        self.add_default(VSStringProperty('TypeLibraryFile', None))
 
         # ID number of the library resource
         self.add_default(IntTypeLibraryResourceID())
@@ -3075,16 +3075,16 @@ class VCLinkerTool(VS2003Tool):
 
         # Name of the program database file
         default = '"$(OutDir)$(TargetName).pdb"'
-        self.add_default(StringProperty('ProgramDatabaseFile', default))
+        self.add_default(VSStringProperty('ProgramDatabaseFile', default))
 
         # Do not put private symboles in this program database file
-        self.add_default(StringProperty('StripPrivateSymbols', None))
+        self.add_default(VSStringProperty('StripPrivateSymbols', None))
 
         # Generate the map file
         self.add_default(BoolGenerateMapFile(configuration))
 
         # Name of the map file
-        self.add_default(StringProperty('MapFileName', None))
+        self.add_default(VSStringProperty('MapFileName', None))
 
         # Include exported symbols in the map file
         self.add_default(BoolMapExports(configuration))
@@ -3185,7 +3185,7 @@ class VCLinkerTool(VS2003Tool):
                           ('/OPT:WIN98', 'Enable'))))
 
         # Name of file containing the function link order
-        self.add_default(StringProperty('FunctionOrder', None))
+        self.add_default(VSStringProperty('FunctionOrder', None))
 
         if ide > IDETypes.vs2003:
 
@@ -3200,10 +3200,10 @@ class VCLinkerTool(VS2003Tool):
                               ('/ltcg:pgupdate', 'Update'))))
 
             # Database file for profile based optimizations
-            self.add_default(StringProperty('ProfileGuidedDatabase', None))
+            self.add_default(VSStringProperty('ProfileGuidedDatabase', None))
 
         # Code entry point symbol
-        self.add_default(StringProperty('EntryPointSymbol', None))
+        self.add_default(VSStringProperty('EntryPointSymbol', None))
 
         # No entry point (Resource only DLL)
         self.add_default(BoolResourceOnlyDLL(configuration))
@@ -3212,7 +3212,7 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(BoolSetChecksum(configuration))
 
         # Base address for execution
-        self.add_default(StringProperty('BaseAddress', None))
+        self.add_default(VSStringProperty('BaseAddress', None))
 
         if ide > IDETypes.vs2005:
 
@@ -3247,10 +3247,10 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(BoolSupportUnloadOfDelayLoadedDLL(configuration))
 
         # Name of the import library to generate
-        self.add_default(StringProperty('ImportLibrary', None))
+        self.add_default(VSStringProperty('ImportLibrary', None))
 
         # Sections to merge on link
-        self.add_default(StringProperty('MergeSections', None))
+        self.add_default(VSStringProperty('MergeSections', None))
 
         # Target machine to build data for.
         default = None
@@ -3294,10 +3294,10 @@ class VCLinkerTool(VS2003Tool):
         if ide > IDETypes.vs2003:
 
             # File with key for signing
-            self.add_default(StringProperty('KeyFile', None))
+            self.add_default(VSStringProperty('KeyFile', None))
 
             # Name of the container of the key
-            self.add_default(StringProperty('KeyContainer', None))
+            self.add_default(VSStringProperty('KeyContainer', None))
 
         # Output should be delay signed
         self.add_default(BoolDelaySign(configuration))
@@ -3400,7 +3400,7 @@ class VCLibrarianTool(VS2003Tool):
                 'linker_options'))
 
         # Name of the module file name
-        self.add_default(StringProperty('ModuleDefinitionFile', None))
+        self.add_default(VSStringProperty('ModuleDefinitionFile', None))
 
         # Ignore the default libraries
         self.add_default(BoolIgnoreAllDefaultLibraries(configuration))
@@ -3728,7 +3728,7 @@ class VCResourceCompilerTool(VS2003Tool):
         VS2003Tool.__init__(self, 'VCResourceCompilerTool')
 
         # Language
-        self.add_default(StringProperty('Culture', '1033'))
+        self.add_default(VSStringProperty('Culture', '1033'))
 
 ########################################
 
@@ -3909,7 +3909,7 @@ class VS2003Platform(VS2003XML):
 
         VS2003XML.__init__(
             self, 'Platform', [
-                StringProperty(
+                VSStringProperty(
                     'Name', platform.get_vs_platform()[0])])
 
 ########################################
@@ -3974,7 +3974,7 @@ class VS2003DefaultToolFile(VS2003XML):
 
         VS2003XML.__init__(
             self, 'DefaultToolFile', [
-                StringProperty(
+                VSStringProperty(
                     'FileName', rules)])
 
 ########################################
@@ -4070,17 +4070,17 @@ class VS2003Configuration(VS2003XML):
 
         VS2003XML.__init__(self, 'Configuration', [
             StringName(configuration.vs_configuration_name),
-            StringProperty('OutputDirectory', 'bin\\'),
-            StringProperty('IntermediateDirectory', vs_intdirectory),
-            StringProperty('ConfigurationType', vs_configuration_type),
-            StringProperty('UseOfMFC', '0'),
+            VSStringProperty('OutputDirectory', 'bin\\'),
+            VSStringProperty('IntermediateDirectory', vs_intdirectory),
+            VSStringProperty('ConfigurationType', vs_configuration_type),
+            VSStringProperty('UseOfMFC', '0'),
             BoolATLMinimizesCRunTimeLibraryUsage(configuration),
-            StringProperty('CharacterSet', '1'),
-            StringProperty('DeleteExtensionsOnClean', None),
-            StringProperty('ManagedExtensions', None),
-            StringProperty('WholeProgramOptimization',
+            VSStringProperty('CharacterSet', '1'),
+            VSStringProperty('DeleteExtensionsOnClean', None),
+            VSStringProperty('ManagedExtensions', None),
+            VSStringProperty('WholeProgramOptimization',
                            vs_link_time_code_generation),
-            StringProperty('ReferencesPath', None)
+            VSStringProperty('ReferencesPath', None)
         ])
 
         # Include all the data chunks
@@ -4315,7 +4315,7 @@ class VS2003FileConfiguration(VS2003XML):
                                     value = str(new_value)
 
                             element.add_default(
-                                StringProperty(
+                                VSStringProperty(
                                     item,
                                     convert_file_name_vs2010(value)))
 
@@ -4346,7 +4346,7 @@ class VS2003File(VS2003XML):
         vs_name = source_file.vs_name
         VS2003XML.__init__(
             self, 'File', [
-                StringProperty('RelativePath',
+                VSStringProperty('RelativePath',
                                vs_name)], force_pair=True)
 
         # Add in the file customizations
@@ -4386,7 +4386,7 @@ class VS2003Filter(VS2003XML):
 
         self.name = name
         self.project = project
-        VS2003XML.__init__(self, 'Filter', [StringProperty('Name', name)])
+        VS2003XML.__init__(self, 'Filter', [VSStringProperty('Name', name)])
 
 
 class VS2003Files(VS2003XML):
@@ -4483,19 +4483,19 @@ class VS2003vcproj(VS2003XML):
 
         VS2003XML.__init__(
             self, 'VisualStudioProject',
-            [StringProperty('ProjectType', 'Visual C++'),
-             StringProperty('Version', version),
-             StringProperty('Name', name),
-             StringProperty('ProjectGUID',
+            [VSStringProperty('ProjectType', 'Visual C++'),
+             VSStringProperty('Version', version),
+             VSStringProperty('Name', name),
+             VSStringProperty('ProjectGUID',
                             '{' + project.vs_uuid + '}')])
 
         self.add_default(
-            StringProperty('RootNamespace', name))
+            VSStringProperty('RootNamespace', name))
 
-        self.add_default(StringProperty('Keyword', 'Win32Proj'))
+        self.add_default(VSStringProperty('Keyword', 'Win32Proj'))
         if ide is IDETypes.vs2008:
             self.add_default(
-                StringProperty('TargetFrameworkVersion', '196613'))
+                VSStringProperty('TargetFrameworkVersion', '196613'))
 
         # Add all the sub chunks
         self.platforms = VS2003Platforms(project)
