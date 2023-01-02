@@ -29,8 +29,8 @@ def lookup_enum(cmd, enum_lookup, value):
 
     Args:
         cmd: list of command line options to append the new entry
-        enum_lookup: dict of enumeration entries
-        value: integer enumeration value to look up
+        enum_lookup: iterable of enumeration entries (key, integer)
+        value: integer enumeration value to match in enum_lookup
     Returns:
         cmd, which may have been modified.
     """
@@ -55,13 +55,13 @@ def lookup_enum(cmd, enum_lookup, value):
             "\"{}\" is not a numeric value".format(str(value)))
 
     # Scan the table until a match is found
-    for key, index in enum_lookup.items():
+    for item in enum_lookup:
 
         # Match?
-        if index == value:
-            if key is not None:
+        if item[1] == value:
+            if item[0] is not None:
                 # Append the command
-                cmd.append(key)
+                cmd.append(item[0])
             break
     return cmd
 

@@ -42,52 +42,52 @@ from .validators import lookup_enums, lookup_booleans, lookup_strings, \
     lookup_string_lists
 
 # Enumerations for HLSL Optimization
-HLSL_OPTIMIZATION = {
-    '/Od': 0, '/O0': 1, '/O1': 2, '/O2': 3, '/O3': 4
-}
+HLSL_OPTIMIZATION = (
+    ("/Od", 0), ("/O0", 1), ("/O1", 2), ("/O2", 3), ("/O3", 4)
+)
 
 # Enumerations for HLSL MatricesPacking
-HLSL_MATRICES = {
-    '/Zpr': 0, 'Row': 0, '/Zpc': 1, 'Column': 1
-}
+HLSL_MATRICES = (
+    ("/Zpr", 0), ("Row", 0), ("/Zpc", 1), ("Column", 1)
+)
 
 # Enumerations for HLSL FlowControl
-HLSL_FLOW_CONTROL = {
-    '/Gfa': 0, 'Avoid': 0, '/Gfp': 1, 'Prefer': 1
-}
+HLSL_FLOW_CONTROL = (
+    ("/Gfa", 0), ("Avoid", 0), ("/Gfp", 1), ("Prefer", 1)
+)
 
 # Enumerations for HLSL TargetProfile
-HLSL_TARGET_PROFILES = {
-    '/Tvs_1_1': 0, 'vs_1_1': 0,
-    '/Tvs_2_0': 1, 'vs_2_0': 1,
-    '/Tvs_2_a': 2, 'vs_2_a': 2,
-    '/Tvs_2_sw': 3, 'vs_2_sw': 3,
-    '/Tvs_3_0': 4, 'vs_3_0': 4,
-    '/Tvs_3_sw': 5, 'vs_3_sw': 5,
-    '/Tvs_4_0': 6, 'vs_4_0': 6,
-    '/Tvs_4_1': 7, 'vs_4_1': 7,
-    '/Tps_2_0': 8, 'ps_2_0': 8,
-    '/Tps_2_a': 9, 'ps_2_a': 9,
-    '/Tps_2_b': 10, 'ps_2_b': 10,
-    '/Tps_2_sw': 11, 'ps_2_sw': 11,
-    '/Tps_3_0': 12, 'ps_3_0': 12,
-    '/Tps_3_sw': 13, 'ps_3_sw': 13,
-    '/Tps_4_0': 14, 'ps_4_0': 14,
-    '/Tps_4_1': 15, 'ps_4_1': 15,
-    '/Ttx_1_0': 16, 'tx_1_0': 16,
-    '/Tgs_4_0': 17, 'gs_4_0': 17,
-    '/Tgs_4_1': 18, 'gs_4_1': 18,
-    '/Tfx_2_0': 19, 'fx_2_0': 19,
-    '/Tfx_4_0': 20, 'fx_4_0': 20,
-    '/Tfx_4_1': 21, 'fx_4_1': 21
-}
+HLSL_TARGET_PROFILES = (
+    ("/Tvs_1_1", 0), ("vs_1_1", 0),
+    ("/Tvs_2_0", 1), ("vs_2_0", 1),
+    ("/Tvs_2_a", 2), ("vs_2_a", 2),
+    ("/Tvs_2_sw", 3), ("vs_2_sw", 3),
+    ("/Tvs_3_0", 4), ("vs_3_0", 4),
+    ("/Tvs_3_sw", 5), ("vs_3_sw", 5),
+    ("/Tvs_4_0", 6), ("vs_4_0", 6),
+    ("/Tvs_4_1", 7), ("vs_4_1", 7),
+    ("/Tps_2_0", 8), ("ps_2_0", 8),
+    ("/Tps_2_a", 9), ("ps_2_a", 9),
+    ("/Tps_2_b", 10), ("ps_2_b", 10),
+    ("/Tps_2_sw", 11), ("ps_2_sw", 11),
+    ("/Tps_3_0", 12), ("ps_3_0", 12),
+    ("/Tps_3_sw", 13), ("ps_3_sw", 13),
+    ("/Tps_4_0", 14), ("ps_4_0", 14),
+    ("/Tps_4_1", 15), ("ps_4_1", 15),
+    ("/Ttx_1_0", 16), ("tx_1_0", 16),
+    ("/Tgs_4_0", 17), ("gs_4_0", 17),
+    ("/Tgs_4_1", 18), ("gs_4_1", 18),
+    ("/Tfx_2_0", 19), ("fx_2_0", 19),
+    ("/Tfx_4_0", 20), ("fx_4_0", 20),
+    ("/Tfx_4_1", 21), ("fx_4_1", 21)
+)
 
 # Names, default, lookup tables for HLSL enums
 HLSL_ENUMS = {
-    'Optimization': (4, HLSL_OPTIMIZATION),
-    'MatricesPacking': (1, HLSL_MATRICES),
-    'FlowControl': (1, HLSL_FLOW_CONTROL),
-    'TargetProfile': (8, HLSL_TARGET_PROFILES)
+    "Optimization": (4, HLSL_OPTIMIZATION),
+    "MatricesPacking": (1, HLSL_MATRICES),
+    "FlowControl": (1, HLSL_FLOW_CONTROL),
+    "TargetProfile": (8, HLSL_TARGET_PROFILES)
 }
 
 # Boolean list for HLSL, Name, Default, switches

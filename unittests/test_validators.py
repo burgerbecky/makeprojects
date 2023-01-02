@@ -40,10 +40,10 @@ class TestValidators(unittest.TestCase):
 
         # The function returns the resulting list
         cmd = ["foo.exe"]
-        enum_test1 = {
-            "/Zpr": 0, "Row": 0, "/Zpc": 1, "Column": 1,
-            None: 2, "Matrix": 2
-        }
+        enum_test1 = (
+            ("/Zpr", 0), ("Row", 0), ("/Zpc", 1), ("Column", 1),
+            (None, 2), ("Matrix", 2)
+        )
         result1 = ["foo.exe"]
 
         # Test against input that should not modify the result
