@@ -16,7 +16,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 import numbers
 
 from burger import is_string, packed_paths, truefalse, convert_to_array, \
-    BooleanProperty as BooleanProp, StringProperty as StringProp, \
+    BooleanProperty, StringProperty as StringProp, \
     StringListProperty as StringListProp, \
     IntegerProperty as IntegerProp
 
@@ -344,16 +344,16 @@ def lookup_booleans(cmd, boolean_list, command_dict):
 ########################################
 
 
-class BooleanProperty(object):
+class VSBooleanProperty(object):
     """
     Value can only be true or false.
 
     Attributes:
         name: Name of the validator
-        value: Boolean value
+        value: BooleanProperty boolean value
     """
 
-    value = BooleanProp("_value")
+    value = BooleanProperty("_value")
 
     def __init__(self, name, default=None):
         """
@@ -364,9 +364,8 @@ class BooleanProperty(object):
             default: Default value, ``None`` is acceptable
         """
 
+        # Init the defaults
         self.name = name
-
-        # Init the default value
         self.value = default
 
     ########################################
@@ -385,34 +384,54 @@ class BooleanProperty(object):
     @staticmethod
     def validate(key, configuration, default=None,
                  options_key=None, options=None):
-        """ Check if there is a default
+        """
+        Check if there is a command line switch override.
+
+        Given a configuration, scan for the options_key and if found, check if
+        that list has one of the option tuples and if there's a match, use the
+        options tuple entry, otherwise use the default value.
+
         Args:
             key: Name of the XML attribute key
             configuration: configuration to scan for an override
             default: Value to use in case there is no override.
             options_key: Attribute to scan for commmand line options
             options: Iterable with options / Value pairs
+
         Returns:
-            None or BooleanProperty() instance
+            None or VSBooleanProperty() instance
         """
+
         if options_key is not None:
+
+            # Check the configuration for the options
             options_key = configuration.get_chained_value(options_key)
             if options_key:
+
+                # Iterate over the options
                 for item in options:
                     if item[0] in options_key:
+                        # Match, use this
                         default = item[1]
                         break
 
         if default is None:
             return None
-        return BooleanProperty(key, default)
+
+        # Set the value (May assert if not a boolean)
+        return VSBooleanProperty(key, default)
 
     ########################################
 
     @staticmethod
     def vs_validate(key, configuration, default=None,
                     options_key=None, options=None):
-        """ Check if there is an override
+        """
+        Check if there is an override with a vs_ prefix.
+
+        Check if the configuration has a key of \"vs_\" + key in the
+        configuration and if not found or None, use the key as is.
+
         Args:
             key: Name of the XML attribute key
             configuration: configuration to scan for an override
@@ -420,22 +439,23 @@ class BooleanProperty(object):
             options_key: Attribute to scan for commmand line options
             options: Iterable with options / Value pairs
         Returns:
-            None or BooleanProperty() instance
+            None or VSBooleanProperty() instance
         """
+
         value = configuration.get_chained_value("vs_" + key)
         if value is None:
-            return BooleanProperty.validate(
+            return VSBooleanProperty.validate(
                 key, configuration, default, options_key, options)
-        return BooleanProperty(key, value)
+        return VSBooleanProperty(key, value)
 
     ########################################
 
     def __repr__(self):
         """
-        Convert to string.
+        Convert to string
 
         Returns:
-            Value as a string
+            \"true\", \"false\" or \"None\"
         """
 
         if self.value is None:
@@ -447,7 +467,7 @@ class BooleanProperty(object):
         Convert to string.
 
         Returns:
-            Value as a string
+            \"true\", \"false\" or \"None\"
         """
         return self.__repr__()
 

@@ -1470,14 +1470,14 @@ class Solution(Attributes):
 
     # pylint: disable=too-many-instance-attributes
 
-    source_folders_list = StringListProperty('_source_folders_list')
-    source_files_list = StringListProperty('_source_files_list')
-    vs_props = NoneProperty('_vs_props')
-    vs_targets = NoneProperty('_vs_targets')
-    vs_rules = NoneProperty('_vs_rules')
-    perforce = BooleanProperty('_perforce')
-    verbose = BooleanProperty('_verbose')
-    suffix_enable = BooleanProperty('_suffix_enable')
+    source_folders_list = StringListProperty("_source_folders_list")
+    source_files_list = StringListProperty("_source_files_list")
+    vs_props = NoneProperty("_vs_props")
+    vs_targets = NoneProperty("_vs_targets")
+    vs_rules = NoneProperty("_vs_rules")
+    perforce = BooleanProperty("_perforce")
+    verbose = BooleanProperty("_verbose")
+    suffix_enable = BooleanProperty("_suffix_enable")
 
     def __init__(self, name=None, **kargs):
         """

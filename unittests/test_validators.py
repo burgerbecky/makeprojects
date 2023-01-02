@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Unit tests for makeprojects.validators
+"""
+Unit tests for makeprojects.validators
 
 Copyright 2013-2023 by Rebecca Ann Heineman becky@burgerbecky.com
 
@@ -9,10 +10,10 @@ It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
 commercial title without paying anything, just give me a credit.
 Please? It's not like I'm asking you for money!
-
 """
 
 # pylint: disable=wrong-import-position
+# pylint: disable=invalid-name
 
 import unittest
 import os
@@ -23,8 +24,9 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
     lookup_enum_append_keys, lookup_strings, lookup_string_list, \
-    lookup_string_lists, lookup_booleans
+    lookup_string_lists, lookup_booleans, VSBooleanProperty
 from makeprojects.hlsl_support import HLSL_ENUMS
+from makeprojects.core import Configuration
 
 ########################################
 
@@ -50,6 +52,7 @@ class TestValidators(unittest.TestCase):
 
 
 ########################################
+
 
     def test_lookup_enum_append_key(self):
         """
@@ -243,6 +246,67 @@ class TestValidators(unittest.TestCase):
         })
         self.assertListEqual(cmd, ["foo.exe", "/T2", "/F3"])
 
+########################################
+
+    def test_VSBooleanProperty(self):
+        """
+        Test makeprojects.validators.VSBooleanProperty
+        """
+
+        # Create a simple entry
+        t = VSBooleanProperty("Test1", True)
+        self.assertEqual(t.name, "Test1")
+        self.assertEqual(t.value, True)
+        self.assertEqual(t.get_value(), "true")
+
+        t = VSBooleanProperty("Test2", None)
+        self.assertEqual(t.name, "Test2")
+        self.assertEqual(t.value, None)
+        self.assertEqual(t.get_value(), None)
+
+        t = VSBooleanProperty("Test3", 0)
+        self.assertEqual(t.value, False)
+        self.assertEqual(t.get_value(), "false")
+
+        t = VSBooleanProperty("Test4", "1")
+        self.assertEqual(t.value, True)
+        self.assertEqual(t.get_value(), "true")
+
+        # Failure cases
+        with self.assertRaises(ValueError):
+            VSBooleanProperty("Fail", "Fail")
+        with self.assertRaises(ValueError):
+            VSBooleanProperty("Fail", t)
+
+        c = Configuration("Release")
+
+        t = VSBooleanProperty.validate(
+            "GlobalOptimizations", c, default=False,
+            options_key="compiler_options", options=(("/Og", True),))
+        self.assertEqual(t.name, "GlobalOptimizations")
+        self.assertEqual(t.value, False)
+
+        c.compiler_options = ["/Og"]
+        t = VSBooleanProperty.validate(
+            "GlobalOptimizations", c, default=False,
+            options_key="compiler_options", options=(("/Og", True),))
+        self.assertEqual(t.name, "GlobalOptimizations")
+        self.assertEqual(t.value, True)
+
+        # Test for a Visual Studio override
+        c.vs_GlobalOptimizations = True
+        t = VSBooleanProperty.vs_validate(
+            "GlobalOptimizations", c, default=False,
+            options_key="compiler_options", options=(("/Og", True),))
+        self.assertEqual(t.name, "GlobalOptimizations")
+        self.assertEqual(t.value, True)
+
+        c.vs_GlobalOptimizations = False
+        t = VSBooleanProperty.vs_validate(
+            "GlobalOptimizations", c, default=False,
+            options_key="compiler_options", options=(("/Og", True),))
+        self.assertEqual(t.name, "GlobalOptimizations")
+        self.assertEqual(t.value, False)
 
 ########################################
 
