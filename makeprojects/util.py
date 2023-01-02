@@ -318,10 +318,10 @@ def getattr_build_rules(build_rules_list, attributes, value):
 
 def remove_ending_os_sep(input_list):
     """
-    Iterate over a string list and remove trailing os seperator characters.
+    Iterate over a string list and remove trailing os separator characters.
 
     Each string is tested if its length is greater than one and if the last
-    character is the pathname seperator. If so, the pathname seperator character
+    character is the pathname separator. If so, the pathname separator character
     is removed.
 
     Args:
@@ -392,7 +392,7 @@ def fixup_args(args):
         args: args class from argparser
     """
 
-    # Remove trailing os seperator
+    # Remove trailing os separator
     # This caused issues with parsing Xcode folders
     args.args = remove_ending_os_sep(args.args)
     args.directories = remove_ending_os_sep(args.directories)

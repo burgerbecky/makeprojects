@@ -25,6 +25,11 @@ from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     escape_xml_cdata, escape_xml_attribute, is_string, where_is_visual_studio, \
     load_text_file
 
+try:
+    from wslwinreg import convert_to_windows_path
+except ImportError:
+    pass
+
 from .validators import BooleanProperty, StringProperty, EnumProperty, \
     StringListProperty, IntegerProperty
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
@@ -260,7 +265,8 @@ class BuildVisualStudioFile(BuildObject):
         else:
             target = self.configuration
 
-        cmd = [vstudiopath, self.file_name, '/Build', target]
+        cmd = [vstudiopath, convert_to_windows_path(
+            self.file_name), '/Build', target]
         if self.verbose:
             print(' '.join(cmd))
         sys.stdout.flush()
@@ -2946,7 +2952,7 @@ class VCLinkerTool(VS2003Tool):
             StringListProperty(
                 'AdditionalDependencies',
                 default,
-                seperator=' '))
+                separator=' '))
 
         # Show progress in linking
         default = None
@@ -3370,7 +3376,7 @@ class VCLibrarianTool(VS2003Tool):
             StringListProperty(
                 'AdditionalDependencies',
                 default,
-                seperator=' '))
+                separator=' '))
 
         # Name of the output file
         # Don't use $(TargetExt)

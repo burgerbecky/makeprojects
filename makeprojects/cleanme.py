@@ -121,6 +121,7 @@ def add_clean_rules(projects, working_directory,
 
     Args:
         projects: List of projects to clean.
+        working_directory: Directory to perform actions on
         file_name: Pathname to the build_rules.py file.
         args: Args for determining verbosity for output.
         build_rules: Preloaded build_rules.py object.

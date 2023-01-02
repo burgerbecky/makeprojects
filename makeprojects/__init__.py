@@ -26,11 +26,11 @@ Chapter list
 
 from makeprojects import *
 
-solution = newsolution(name='myproject')
-project = newproject(name='myproject')
+solution = newsolution(name="myproject")
+project = newproject(name="myproject")
 solution.add_project(project=project)
 
-project.addsourcefiles(os.path.join(os.getcwd(),'*.*'),recursive=True)
+project.addsourcefiles(os.path.join(os.getcwd(),"*.*"),recursive=True)
 solution.save(solution.xcode3)
 
 @var makeprojects.__numversion__
@@ -96,62 +96,62 @@ from .defaults import get_configuration_settings
 __numversion__ = (0, 13, 1)
 
 # Current version of the library
-__version__ = '.'.join([str(num) for num in __numversion__])
+__version__ = ".".join([str(num) for num in __numversion__])
 
 # Author's name
-__author__ = 'Rebecca Ann Heineman <becky@burgerbecky.com>'
+__author__ = "Rebecca Ann Heineman <becky@burgerbecky.com>"
 
 # Name of the module
-__title__ = 'makeprojects'
+__title__ = "makeprojects"
 
 # Summary of the module's use
-__summary__ = 'IDE project generator for Visual Studio, XCode, etc...'
+__summary__ = "IDE project generator for Visual Studio, XCode, etc..."
 
 # Home page
-__uri__ = 'http://makeprojects.readthedocs.io'
+__uri__ = "http://makeprojects.readthedocs.io"
 
 # Email address for bug reports
-__email__ = 'becky@burgerbecky.com'
+__email__ = "becky@burgerbecky.com"
 
 # Type of license used for distribution
-__license__ = 'MIT License'
+__license__ = "MIT License"
 
 # Copyright owner
-__copyright__ = 'Copyright 2013-2022 Rebecca Ann Heineman'
+__copyright__ = "Copyright 2013-2023 Rebecca Ann Heineman"
 
 # Match *.xcodeproj
-_XCODEPROJ_MATCH = re_compile('(?ms).*\\.xcodeproj\\Z')
+_XCODEPROJ_MATCH = re_compile("(?ms).*\\.xcodeproj\\Z")
 
 # Match *.hlsl
-_HLSL_MATCH = re_compile('(?ms).*\\.hlsl\\Z')
+_HLSL_MATCH = re_compile("(?ms).*\\.hlsl\\Z")
 
 # Match *.glsl
-_GLSL_MATCH = re_compile('(?ms).*\\.glsl\\Z')
+_GLSL_MATCH = re_compile("(?ms).*\\.glsl\\Z")
 
 # Match *.x360sl
-_X360SL_MATCH = re_compile('(?ms).*\\.x360sl\\Z')
+_X360SL_MATCH = re_compile("(?ms).*\\.x360sl\\Z")
 
 # Match *.vitacg
-_VITACG_MATCH = re_compile('(?ms).*\\.vitacg\\Z')
+_VITACG_MATCH = re_compile("(?ms).*\\.vitacg\\Z")
 
 # Items to import on "from makeprojects import *"
 __all__ = [
-    'build',
-    'clean',
-    'rebuild',
-    'makeprojects',
-    'new_solution',
+    "build",
+    "clean",
+    "rebuild",
+    "makeprojects",
+    "new_solution",
 
-    'FileTypes',
-    'ProjectTypes',
-    'IDETypes',
-    'PlatformTypes',
-    'add_burgerlib',
+    "FileTypes",
+    "ProjectTypes",
+    "IDETypes",
+    "PlatformTypes",
+    "add_burgerlib",
 
-    'SourceFile',
-    'Configuration',
-    'Project',
-    'Solution'
+    "SourceFile",
+    "Configuration",
+    "Project",
+    "Solution"
 ]
 
 ########################################
@@ -261,16 +261,16 @@ def new_configuration(configuration_list):
 
         # Special case, if the platform is an expandable, convert to an array
         # of configurations that fit the bill.
-        platform = config_item.get('platform')
+        platform = config_item.get("platform")
         if platform is None:
             results.append(Configuration(**config_item))
         else:
             platform_type = PlatformTypes.lookup(platform)
             if platform_type is None:
                 raise TypeError(
-                    "parameter 'platform_type' must be of type PlatformTypes")
+                    "parameter \"platform_type\" must be of type PlatformTypes")
             for item in platform_type.get_expanded():
-                config_item['platform'] = item
+                config_item["platform"] = item
                 results.append(Configuration(**config_item))
 
     # If a single object, pass back as is.
@@ -286,7 +286,7 @@ def new_solution(name=None, platform=None, project_type=None):
     Create a new instance of a full solution
 
     Convenience routine to create a Solution with a
-    Project and three configurations 'Debug', 'Release', 'Internal'
+    Project and three configurations "Debug", "Release", "Internal"
 
     Args:
         name: Name of the project
@@ -302,8 +302,8 @@ def new_solution(name=None, platform=None, project_type=None):
     solution = Solution(name=name)
     project = Project(name=name, platform=platform, project_type=project_type)
     solution.add_project(project)
-    for item in ('Debug', 'Internal', 'Release'):
+    for item in ("Debug", "Internal", "Release"):
         settings = get_configuration_settings(item)
-        settings['platform'] = platform
+        settings["platform"] = platform
         project.add_configuration(new_configuration(settings))
     return solution

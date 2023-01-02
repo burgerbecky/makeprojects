@@ -13,6 +13,8 @@ Validation objects for project data generators.
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import numbers
+
 from burger import is_string, packed_paths, truefalse, \
     BooleanProperty as BooleanProp, StringProperty as StringProp, \
     StringListProperty as StringListProp, \
@@ -22,29 +24,46 @@ from burger import is_string, packed_paths, truefalse, \
 
 
 def lookup_enum(cmd, enum_lookup, value):
-    """ Look up a command line option from an enum
+    """
+    Look up a command line option from an enum
+
     Args:
         cmd: list of command line options to append the new entry
         enum_lookup: dict of enumeration entries
         value: integer enumeration value to look up
+    Returns:
+        cmd, which may have been modified.
     """
 
-    # None aborts
-    if value is not None:
+    # None exits immediately
+    if value is None:
+        return cmd
 
-        # Convert strings to an integer
+    # Check for bool
+    if isinstance(value, bool):
+        raise ValueError(
+            "bool \"{}\" is not allowed".format(str(value)))
+
+    # If it's a string, convert
+    if is_string(value):
+        # Can raise an exception if not able to convert
         value = int(value)
 
-        # Scan the table until a match is found
-        for key, index in enum_lookup.items():
+    # Convert strings to an integer
+    if not isinstance(value, numbers.Number):
+        raise ValueError(
+            "\"{}\" is not a numeric value".format(str(value)))
 
-            # Match?
-            if index == value:
+    # Scan the table until a match is found
+    for key, index in enum_lookup.items():
 
-                if key is not None:
-                    # Append the command
-                    cmd.append(key)
-                break
+        # Match?
+        if index == value:
+            if key is not None:
+                # Append the command
+                cmd.append(key)
+            break
+    return cmd
 
 ########################################
 
@@ -74,7 +93,7 @@ def lookup_enums(cmd, enum_dicts, command_dict):
 
         # Discard phony keys
         if is_string(value):
-            if value.startswith('_NOT_USED'):
+            if value.startswith("_NOT_USED"):
                 value = None
 
         if value is None:
@@ -112,11 +131,11 @@ def lookup_strings(cmd, string_dict, command_dict):
 
         # Create the command line entry
         if table[2]:
-            quoted = '"{}"'.format(temp)
+            quoted = "\"{}\"".format(temp)
         else:
             quoted = temp
 
-        cmd.append('{}{}'.format(table[1], quoted))
+        cmd.append("{}{}".format(table[1], quoted))
         if table[2]:
             outputs.append(temp)
 
@@ -138,7 +157,7 @@ def lookup_string_list(cmd, command, entry_list, spacing=False, quotes=True):
     for item in entry_list:
 
         if quotes:
-            item = '"{}"'.format(item)
+            item = "\"{}\"".format(item)
 
         # Seperate lines
         if spacing:
@@ -146,7 +165,7 @@ def lookup_string_list(cmd, command, entry_list, spacing=False, quotes=True):
             cmd.append(item)
         else:
             # One line
-            cmd.append('{}{}'.format(command, item))
+            cmd.append("{}{}".format(command, item))
 
 ########################################
 
@@ -166,7 +185,7 @@ def lookup_string_lists(cmd, string_list_dict, command_dict):
         temp = command_dict.get(key, [])
         if temp:
             switch = table[0]
-            spacing = switch.endswith(' ')
+            spacing = switch.endswith(" ")
             if spacing:
                 switch = switch[:-1]
             lookup_string_list(cmd, switch, temp, spacing, table[1])
@@ -213,7 +232,7 @@ class BooleanProperty(object):
         value: Boolean value
     """
 
-    value = BooleanProp('_value')
+    value = BooleanProp("_value")
 
     def __init__(self, name, default=None):
         """
@@ -282,7 +301,7 @@ class BooleanProperty(object):
         Returns:
             None or BooleanProperty() instance
         """
-        value = configuration.get_chained_value('vs_' + key)
+        value = configuration.get_chained_value("vs_" + key)
         if value is None:
             return BooleanProperty.validate(
                 key, configuration, default, options_key, options)
@@ -299,7 +318,7 @@ class BooleanProperty(object):
         """
 
         if self.value is None:
-            return 'None'
+            return "None"
         return truefalse(self.value)
 
     def __str__(self):
@@ -324,7 +343,7 @@ class IntegerProperty(object):
         value: Integer value
     """
 
-    value = IntegerProp('_value')
+    value = IntegerProp("_value")
 
     def __init__(self, name, default=None, switch=None):
         """
@@ -364,7 +383,7 @@ class IntegerProperty(object):
         """
 
         if self.value is None:
-            return 'None'
+            return "None"
         return str(self.value)
 
     def __str__(self):
@@ -389,7 +408,7 @@ class StringProperty():
         value: String value
     """
 
-    value = StringProp('_value')
+    value = StringProp("_value")
 
     def __init__(self, name, default=None):
         """
@@ -423,7 +442,7 @@ class StringProperty():
             Value as a string
         """
 
-        return '{}'.format(self.value)
+        return "{}".format(self.value)
 
     def __str__(self):
         """
@@ -446,15 +465,15 @@ class StringListProperty():
         name: Name of the validator
         default: Default values of the validator
         slashes: Slashes for directory
-        seperator: Seperator character instead of ';'
+        separator: Seperator character instead of ";"
         force_ending_slash: True if an endling slash is needed for a directory
         value: String list value
     """
 
-    value = StringListProp('_value')
+    value = StringListProp("_value")
 
     # pylint: disable=too-many-arguments
-    def __init__(self, name, default, slashes=None, seperator=None,
+    def __init__(self, name, default, slashes=None, separator=None,
                  force_ending_slash=False):
         """
         Initialize the default value
@@ -462,8 +481,8 @@ class StringListProperty():
         Args:
             name: Name of the validator
             default: Default value, ``None`` is acceptable
-            slashes: None for no conversion, '/' or '\\' path seperator
-            seperator: Character to use to seperate entries, ';' for None
+            slashes: None for no conversion, "/" or "\\" path separator
+            separator: Character to use to seperate entries, ";" for None
             force_ending_slash: Enforce a trailing slash if True
         """
 
@@ -474,7 +493,7 @@ class StringListProperty():
         self.name = name
         self.default = default
         self.slashes = slashes
-        self.seperator = seperator
+        self.separator = separator
         self.force_ending_slash = force_ending_slash
 
         # Initial value
@@ -512,7 +531,7 @@ class StringListProperty():
 
         if self.value:
             return packed_paths(
-                self.value, slashes=self.slashes, seperator=self.seperator,
+                self.value, slashes=self.slashes, separator=self.separator,
                 force_ending_slash=self.force_ending_slash)
         return None
 
@@ -526,7 +545,7 @@ class StringListProperty():
             Value as a string
         """
 
-        return '{}'.format(self.value)
+        return "{}".format(self.value)
 
     def __str__(self):
         """
@@ -612,18 +631,18 @@ class EnumProperty():
                             break
                 else:
                     raise ValueError(
-                        '"{}": {} was not found in enumeration list'.format(
+                        "\"{}\": {} was not found in enumeration list".format(
                             self.name, value))
 
             # Perform a sanity check on the integer value
             if int_value < 0 or int_value >= len(self.enumerations):
                 raise ValueError(
-                    '"{}": Index {} must be between 0 and {} inclusive.'.format(
+                    "\"{}\": Index {} must be between 0 and {} inclusive.".format(
                         self.name, value, len(
                             self.enumerations) - 1))
 
             # Convert integer to a string
-            self.value = '{}'.format(int_value)
+            self.value = "{}".format(int_value)
 
     ########################################
 
@@ -643,7 +662,7 @@ class EnumProperty():
             Value as a string
         """
 
-        return '{}'.format(self.value)
+        return "{}".format(self.value)
 
     def __str__(self):
         """
