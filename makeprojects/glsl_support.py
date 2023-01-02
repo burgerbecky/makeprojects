@@ -19,16 +19,17 @@ from .validators import lookup_booleans, lookup_strings
 
 # Boolean list for GLSL, Name, Default, switches
 GLSL_BOOLEANS = {
-    'CPP': (True, {'/c': True})
+    "CPP": (True, {"/c": True})
 }
 
 # String entries for GLSL, Name, default, switch, generates output, quote
 # parameter
-GLSL_STRINGS = {
-    'ObjectFileName': (
-        '%(RootDir)%(Directory)%(FileName).h', '', True, True),
-    'VariableName': (
-        'g_%(FileName)', '/l ', False, False)}
+GLSL_STRINGS = (
+    ("ObjectFileName", (
+        "%(RootDir)%(Directory)%(FileName).h", "", True, True)),
+    ("VariableName", (
+        "g_%(FileName)", "/l ", False, False))
+)
 
 
 ########################################
@@ -44,12 +45,12 @@ def make_glsl_command(command_dict):
 
     # Create the initial command line
     cmd = [
-        ('"$(VS71COMNTOOLS)..\\..\\..\\Microsoft Visual Studio 8\\'
-         'vc\\bin\\stripcomments.exe"'),
-        '"%(FullPath)"']
+        ("\"$(VS71COMNTOOLS)..\\..\\..\\Microsoft Visual Studio 8\\"
+         "vc\\bin\\stripcomments.exe\""),
+        "\"%(FullPath)\""]
 
     lookup_booleans(cmd, GLSL_BOOLEANS, command_dict)
     outputs = lookup_strings(cmd, GLSL_STRINGS, command_dict)
 
-    description = 'Stripcomments %(FileName)%(Extension)...'
-    return ' '.join(cmd), description, outputs
+    description = "Stripcomments %(FileName)%(Extension)..."
+    return " ".join(cmd), description, outputs

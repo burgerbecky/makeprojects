@@ -155,72 +155,117 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
 ########################################
 
 
-def lookup_strings(cmd, string_dict, command_dict):
-    """ Lookup string items and add them to the command line
+def lookup_strings(cmd, string_entries, command_dict):
+    """
+    Lookup string items and add them to the command line
+
+    The command dictionary has a key of the Visual Studio XML name and
+    the data is a valid string, usually a filename. If the data is None,
+    the default string is used.
+
+    String entries are a list of tuples where the first entry is the key
+    and the second entry is a four entry tuple with the actions.
+
+    The function will return a list of strings of output files so the
+    caller can properly create the ``make`` entries for output files
+    for the dependency tree.
+
+    The four entry tuple is as follows:
+        1. String/None, Output filename if any, or None for no output
+        2. String, command line switch, may have a space at the end.
+        3. Boolean, if True, encapsulate the output filename with quotes
+        4. Boolean, if True, add the string to the return list
+
     Args:
         cmd: list of command line options to append the new entry
-        string_dict: dict of string entries
+        string_entries: dict of string entries
         command_dict: dict of command entries
+
     Returns:
         String list of string items the generate output
     """
 
-    # Initialize the output
+    # Initialize the output(s)
     outputs = []
 
-    for key, table in string_dict.items():
-        # Was there an override?
-        temp = command_dict.get(key, None)
-        if temp is None:
+    for item in string_entries:
+
+        # Get the tuple table
+        table = item[1]
+
+        # Was there an entry?
+        value = command_dict.get(item[0], None)
+        if not value:
+
             # Use the default instead
-            temp = table[0]
-            # No default?
-            if not temp:
+            value = table[0]
+
+            # No default? Skip the entry
+            if not value:
                 continue
 
-        # Create the command line entry
+        # Check if the string needs to be quoted
         if table[2]:
-            quoted = "\"{}\"".format(temp)
+            quoted = "\"{}\"".format(value)
         else:
-            quoted = temp
-
+            quoted = value
         cmd.append("{}{}".format(table[1], quoted))
-        if table[2]:
-            outputs.append(temp)
+
+        # Check if the output filename should be appended to outputs
+        if table[3]:
+            outputs.append(value)
 
     return outputs
 
 ########################################
 
 
-def lookup_string_list(cmd, command, entry_list, spacing=False, quotes=True):
-    """ Create a command line with an entry list
+def lookup_string_list(cmd, switch, entry_list, quotes=True):
+    """
+    Create a command line with an entry list
+
+    Given a list of strings in entry_list, add to a command line a compiler
+    switch followed by each string with or without quotes. If the switch
+    has an ending space, the space is removed and entries are stored in
+    separate lines.
+
     Args:
         cmd: list of command line options to append the new entry
-        command: Command prefix
-        entry_list: List of
-        spacing: True causes the parameter to be a seperate entry
-        quotes: True caused the entries to be quoted
+        switch: String, Command line switch string
+        entry_list: List of parameter strings
+        quotes: Boolean, True caused the entries to be quoted
+    Returns:
+        None
     """
+
+    # Check if the command switch requires a space, if so, remove the
+    # space and pass as separate lines
+
+    spacing = switch.endswith(" ")
+    if spacing:
+        switch = switch[:-1]
 
     for item in entry_list:
 
+        # Quote the string if needed
         if quotes:
             item = "\"{}\"".format(item)
 
         # Seperate lines
         if spacing:
-            cmd.append(command)
+            cmd.append(switch)
             cmd.append(item)
         else:
             # One line
-            cmd.append("{}{}".format(command, item))
+            cmd.append("{}{}".format(switch, item))
 
 ########################################
 
 
 def lookup_string_lists(cmd, string_list_dict, command_dict):
-    """ Lookup string items and add them to the command line
+    """
+    Lookup string items and add them to the command line
+
     Args:
         cmd: list of command line options to append the new entry
         string_list_dict: dict of string list entries
@@ -234,10 +279,7 @@ def lookup_string_lists(cmd, string_list_dict, command_dict):
         temp = command_dict.get(key, [])
         if temp:
             switch = table[0]
-            spacing = switch.endswith(" ")
-            if spacing:
-                switch = switch[:-1]
-            lookup_string_list(cmd, switch, temp, spacing, table[1])
+            lookup_string_list(cmd, switch, temp, table[1])
 
 ########################################
 

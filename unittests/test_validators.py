@@ -21,9 +21,9 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
-    lookup_enum_append_keys
 from makeprojects.hlsl_support import HLSL_ENUMS
+from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
+    lookup_enum_append_keys, lookup_strings, lookup_string_list
 
 ########################################
 
@@ -49,7 +49,6 @@ class TestValidators(unittest.TestCase):
 
 
 ########################################
-
 
     def test_lookup_enum_append_key(self):
         """
@@ -116,7 +115,83 @@ class TestValidators(unittest.TestCase):
         lookup_enum_append_keys(cmd, HLSL_ENUMS, source_dict)
         self.assertListEqual(cmd, result1)
 
+########################################
+
+    def test_lookup_strings(self):
+        """
+        Test makeprojects.validators.lookup_strings
+        """
+
+        # The function modifies this list
+        cmd = ["foo.exe"]
+
+        string_entries = (
+            ("Test1", (
+                "Test1.h", "", True, True)),
+            ("Test2", (
+                "Test2.h", "/2 ", False, False)),
+            ("Test3", (
+                "Test3.h", "/3", True, False)),
+            ("Test4", (
+                "Test4.h", "/4", False, True)),
+        )
+
+        result = lookup_strings(cmd, string_entries, {})
+        self.assertListEqual(
+            cmd, ["foo.exe", "\"Test1.h\"", "/2 Test2.h", "/3\"Test3.h\"", "/4Test4.h"])
+        self.assertListEqual(result, ["Test1.h", "Test4.h"])
+
+        cmd = ["foo.exe"]
+        result = lookup_strings(cmd, string_entries, {
+            "Test1": "bar1.h",
+            "Test2": "bar2.h",
+            "Test3": "bar3.h",
+            "Test4": "bar4.h"
+        })
+        self.assertListEqual(
+            cmd, ["foo.exe", "\"bar1.h\"", "/2 bar2.h", "/3\"bar3.h\"", "/4bar4.h"])
+        self.assertListEqual(result, ["bar1.h", "bar4.h"])
+
+        cmd = ["foo.exe"]
+        result = lookup_strings(cmd, string_entries, {
+            "Test1": "",
+            "Test2": "bar2.h",
+            "Test3": None,
+        })
+        self.assertListEqual(
+            cmd, ["foo.exe", "\"Test1.h\"", "/2 bar2.h", "/3\"Test3.h\"", "/4Test4.h"])
+        self.assertListEqual(result, ["Test1.h", "Test4.h"])
 
 ########################################
-if __name__ == '__main__':
+
+    def test_lookup_string_list(self):
+        """
+        Test makeprojects.validators.lookup_string_list
+        """
+
+        cmd = ["foo.exe"]
+        entry_list = ("bar.h", "barf.h", "temp.h")
+        lookup_string_list(cmd, "/I ", entry_list, False)
+        self.assertListEqual(
+            cmd, ["foo.exe", "/I", "bar.h", "/I", "barf.h", "/I", "temp.h"])
+
+        cmd = ["foo.exe"]
+        lookup_string_list(cmd, "/I ", entry_list, True)
+        self.assertListEqual(
+            cmd, ["foo.exe", "/I", "\"bar.h\"", "/I", "\"barf.h\"", "/I", "\"temp.h\""])
+
+        cmd = ["foo.exe"]
+        lookup_string_list(cmd, "/T", entry_list, False)
+        self.assertListEqual(
+            cmd, ["foo.exe", "/Tbar.h", "/Tbarf.h", "/Ttemp.h"])
+
+        cmd = ["foo.exe"]
+        lookup_string_list(cmd, "/T", entry_list, True)
+        self.assertListEqual(
+            cmd, ["foo.exe", "/T\"bar.h\"", "/T\"barf.h\"", "/T\"temp.h\""])
+
+########################################
+
+
+if __name__ == "__main__":
     unittest.main()

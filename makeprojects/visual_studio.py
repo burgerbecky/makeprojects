@@ -4263,7 +4263,7 @@ class VS2003FileConfiguration(VS2003XML):
                         record = rule[key]
                         for item in record:
                             value = record[item]
-                            enum_table = tool_enums.get(item, None)
+                            enum_table = lookup_enum_value(tool_enums, item, None)
                             if enum_table:
                                 new_value = lookup_enum_value(
                                     enum_table[1], value, None)
@@ -4307,7 +4307,7 @@ class VS2003FileConfiguration(VS2003XML):
                                 self.add_element(element)
 
                             value = record[item]
-                            enum_table = tool_enums.get(item, None)
+                            enum_table = lookup_enum_value(tool_enums, item, None)
                             if enum_table:
                                 new_value = lookup_enum_value(
                                     enum_table[1], value, None)

@@ -92,43 +92,44 @@ HLSL_ENUMS = (
 
 # Boolean list for HLSL, Name, Default, switches
 HLSL_BOOLEANS = {
-    'GenerateDebugInformation': (None, {'/Zi': True}),
-    'NoLogo': (True, {'/nologo': True}),
-    'DisableValidation': (None, {'/Vd': True}),
-    'TreatWarningsAsErrors': (None, {'/WX': True}),
-    'StripReflectionData': (None, {'/Qstrip_reflect': True}),
-    'StripDebugInformation': (None, {'/Qstrip_debug': True}),
-    'ForcePartialPrecision': (None, {'/Gpp': True}),
-    'DisablePreshaders': (None, {'/Op': True}),
-    'DisableEffectPerformanceMode': (None, {'/Gdp': True}),
-    'EnableStrictMode': (None, {'/Ges': True}),
-    'EnableBackwardsCompatibility': (None, {'/Gec': True}),
-    'ForceIEEEStrictness': (None, {'/Gis': True}),
-    'ShowIncludeProcess': (None, {'/Vi': True}),
-    'ColorCodeAssembly': (None, {'/Cc': True}),
-    'OutputInstructionNumbers': (None, {'/Ni': True}),
-    'LoadDX931': (None, {'/LD': True}),
-    'CompressDX10': (None, {'/compress': True}),
-    'DecompressDX10': (None, {'/decompress': True}),
-    'CompileChildFx4': (None, {'/Gch': True})
+    "GenerateDebugInformation": (None, {"/Zi": True}),
+    "NoLogo": (True, {"/nologo": True}),
+    "DisableValidation": (None, {"/Vd": True}),
+    "TreatWarningsAsErrors": (None, {"/WX": True}),
+    "StripReflectionData": (None, {"/Qstrip_reflect": True}),
+    "StripDebugInformation": (None, {"/Qstrip_debug": True}),
+    "ForcePartialPrecision": (None, {"/Gpp": True}),
+    "DisablePreshaders": (None, {"/Op": True}),
+    "DisableEffectPerformanceMode": (None, {"/Gdp": True}),
+    "EnableStrictMode": (None, {"/Ges": True}),
+    "EnableBackwardsCompatibility": (None, {"/Gec": True}),
+    "ForceIEEEStrictness": (None, {"/Gis": True}),
+    "ShowIncludeProcess": (None, {"/Vi": True}),
+    "ColorCodeAssembly": (None, {"/Cc": True}),
+    "OutputInstructionNumbers": (None, {"/Ni": True}),
+    "LoadDX931": (None, {"/LD": True}),
+    "CompressDX10": (None, {"/compress": True}),
+    "DecompressDX10": (None, {"/decompress": True}),
+    "CompileChildFx4": (None, {"/Gch": True})
 }
 
 # String entries for HLSL, Name, default, switch, generates output, quote
 # parameter
-HLSL_STRINGS = {
-    'ObjectFileName': (
-        '', '/Fo', True, True),
-    'HeaderFileName': (
-        '%(RootDir)%(Directory)%(FileName).h', '/Fh', True, True),
-    'EntryPointName': (
-        '', '/E', False, False),
-    'VariableName': (
-        'g_%(FileName)', '/Vn', False, False)}
+HLSL_STRINGS = (
+    ("ObjectFileName", (
+        None, "/Fo", True, True)),
+    ("HeaderFileName", (
+        "%(RootDir)%(Directory)%(FileName).h", "/Fh", True, True)),
+    ("EntryPointName", (
+        None, "/E", False, False)),
+    ("VariableName", (
+        "g_%(FileName)", "/Vn", False, False))
+)
 
 # String list entries for HLSL, switch, quote parameters
 HLSL_STRING_LISTS = {
-    'PreprocessorDefinitions': ('/D', False),
-    'AdditionalIncludeDirectories': ('/I ', True)
+    "PreprocessorDefinitions": ("/D", False),
+    "AdditionalIncludeDirectories": ("/I ", True)
 }
 
 ########################################
@@ -143,41 +144,41 @@ def make_hlsl_command(command_dict):
     """
 
     # Create the initial command line
-    cmd = ['"$(DXSDK_DIR)utilities\\bin\\x86\\fxc.exe"',
-           '"%(FullPath)"']
+    cmd = ["\"$(DXSDK_DIR)utilities\\bin\\x86\\fxc.exe\"",
+           "\"%(FullPath)\""]
 
     lookup_booleans(cmd, HLSL_BOOLEANS, command_dict)
     lookup_enum_append_keys(cmd, HLSL_ENUMS, command_dict)
     outputs = lookup_strings(cmd, HLSL_STRINGS, command_dict)
     lookup_string_lists(cmd, HLSL_STRING_LISTS, command_dict)
 
-    if command_dict.get('GeneratePreprocessedSourceListing', False):
+    if command_dict.get("GeneratePreprocessedSourceListing", False):
         temp = command_dict.get(
-            'PreprocessedSourceListingName', '$(IntDir)%(FileName).lst')
-        cmd.append('/P"{}"'.format(temp))
+            "PreprocessedSourceListingName", "$(IntDir)%(FileName).lst")
+        cmd.append("/P\"{}\"".format(temp))
         outputs.append(temp)
 
-    if command_dict.get('GenerateWarningFile', False):
-        temp = command_dict.get('WarningsFileName',
-                                '$(IntDir)%(FileName).log')
-        cmd.append('/Fe"{}"'.format(temp))
+    if command_dict.get("GenerateWarningFile", False):
+        temp = command_dict.get("WarningsFileName",
+                                "$(IntDir)%(FileName).log")
+        cmd.append("/Fe\"{}\"".format(temp))
         outputs.append(temp)
 
-    temp_int = int(command_dict.get('AssemblerOutput', 0))
+    temp_int = int(command_dict.get("AssemblerOutput", 0))
     if temp_int == 1:
         # Assembly code
-        temp_int = '/Fc'
+        temp_int = "/Fc"
     elif temp_int == 2:
         # Assembly code and hex
-        temp_int = '/Fx'
+        temp_int = "/Fx"
     else:
         temp_int = None
     if temp_int:
         temp = command_dict.get(
-            'AssemblyListingFileName',
-            '$(IntDir)%(FileName).asm')
-        cmd.append('{}"{}"'.format(temp_int, temp))
+            "AssemblyListingFileName",
+            "$(IntDir)%(FileName).asm")
+        cmd.append("{}\"{}\"".format(temp_int, temp))
         outputs.append(temp)
 
-    description = 'fxc %(FileName)%(Extension)...'
-    return ' '.join(cmd), description, outputs
+    description = "fxc %(FileName)%(Extension)..."
+    return " ".join(cmd), description, outputs
