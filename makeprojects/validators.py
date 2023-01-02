@@ -109,21 +109,19 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
     """
     Look up a set of enum command line options
 
-    An enumeration table is a dict with each key pointing to a default value
-    and an integer enumeration tuple list. Synonyms are allowed by having
-    previously used integer value. Reverse lookup of the command line switch is
-    performed by scanning the integer values and stopping on the first match.
-    If the key starts with ``_NOT_USED`` or is None, it is assumed to be an
-    enumeration that purposefully does not have a command line switch.
+    A command_dict has keys in the form of Visual Studio XML entries with the
+    data being the expected setting, or None for default. If the value starts
+    with ``_NOT_USED``, it's considered None and will use the default.
 
     Note:
         Enumeration entries are a list of tuples where the first entry is the
         command line switch and the second entry is an integer as the enumeration
-        value.
+        value. If multiple entries have the same integer, the first entry is the
+        default.
 
     Args:
         cmd: list of command line options to append the new entry
-        enum_dicts: dict of enumeration entries
+        enum_dicts: Iterable of enumeration entries
         command_dict: dict of command entries
 
     Returns:
@@ -131,10 +129,10 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
     """
 
     # Read from the master list
-    for key, item in enum_dicts.items():
+    for item in enum_dicts:
 
         # Get the key from the dictionary
-        value = command_dict.get(key, None)
+        value = command_dict.get(item[0], None)
 
         # Discard phony keys
         if is_string(value):
@@ -143,14 +141,14 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
 
         # Is the default requested?
         if value is None:
-            value = item[0]
+            value = item[1][0]
 
             # Is the default to skip?
             if value is None:
                 continue
 
         # It's a command line option, so append it, if needed
-        lookup_enum_append_key(cmd, item[1], value)
+        lookup_enum_append_key(cmd, item[1][1], value)
 
     return cmd
 

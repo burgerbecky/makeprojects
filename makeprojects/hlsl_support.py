@@ -83,12 +83,12 @@ HLSL_TARGET_PROFILES = (
 )
 
 # Names, default, lookup tables for HLSL enums
-HLSL_ENUMS = {
-    "Optimization": (4, HLSL_OPTIMIZATION),
-    "MatricesPacking": (1, HLSL_MATRICES),
-    "FlowControl": (1, HLSL_FLOW_CONTROL),
-    "TargetProfile": (8, HLSL_TARGET_PROFILES)
-}
+HLSL_ENUMS = (
+    ("Optimization", (4, HLSL_OPTIMIZATION)),
+    ("MatricesPacking", (1, HLSL_MATRICES)),
+    ("FlowControl", (1, HLSL_FLOW_CONTROL)),
+    ("TargetProfile", (8, HLSL_TARGET_PROFILES))
+)
 
 # Boolean list for HLSL, Name, Default, switches
 HLSL_BOOLEANS = {
