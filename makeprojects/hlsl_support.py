@@ -38,8 +38,8 @@ String list entries for HLSL, switch, quote parameters
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-from .validators import lookup_enums, lookup_booleans, lookup_strings, \
-    lookup_string_lists
+from .validators import lookup_enum_append_keys, lookup_booleans, \
+    lookup_strings, lookup_string_lists
 
 # Enumerations for HLSL Optimization
 HLSL_OPTIMIZATION = (
@@ -147,7 +147,7 @@ def make_hlsl_command(command_dict):
            '"%(FullPath)"']
 
     lookup_booleans(cmd, HLSL_BOOLEANS, command_dict)
-    lookup_enums(cmd, HLSL_ENUMS, command_dict)
+    lookup_enum_append_keys(cmd, HLSL_ENUMS, command_dict)
     outputs = lookup_strings(cmd, HLSL_STRINGS, command_dict)
     lookup_string_lists(cmd, HLSL_STRING_LISTS, command_dict)
 

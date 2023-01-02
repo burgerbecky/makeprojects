@@ -105,26 +105,35 @@ def lookup_enum_append_key(cmd, enum_lookup, value):
 ########################################
 
 
-def lookup_enums(cmd, enum_dicts, command_dict):
+def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
     """
     Look up a set of enum command line options
 
-    An enumeration table is a dict with each key being a value to enumerate and
-    the value the integer enumeration value. Synonyms are allowed by having
+    An enumeration table is a dict with each key pointing to a default value
+    and an integer enumeration tuple list. Synonyms are allowed by having
     previously used integer value. Reverse lookup of the command line switch is
     performed by scanning the integer values and stopping on the first match.
     If the key starts with ``_NOT_USED`` or is None, it is assumed to be an
     enumeration that purposefully does not have a command line switch.
 
+    Note:
+        Enumeration entries are a list of tuples where the first entry is the
+        command line switch and the second entry is an integer as the enumeration
+        value.
+
     Args:
         cmd: list of command line options to append the new entry
         enum_dicts: dict of enumeration entries
         command_dict: dict of command entries
+
+    Returns:
+        cmd is returned
     """
 
     # Read from the master list
     for key, item in enum_dicts.items():
-        # Process the enumeration
+
+        # Get the key from the dictionary
         value = command_dict.get(key, None)
 
         # Discard phony keys
@@ -132,12 +141,18 @@ def lookup_enums(cmd, enum_dicts, command_dict):
             if value.startswith("_NOT_USED"):
                 value = None
 
+        # Is the default requested?
         if value is None:
-            # Use the default
             value = item[0]
+
+            # Is the default to skip?
             if value is None:
                 continue
+
+        # It's a command line option, so append it, if needed
         lookup_enum_append_key(cmd, item[1], value)
+
+    return cmd
 
 ########################################
 

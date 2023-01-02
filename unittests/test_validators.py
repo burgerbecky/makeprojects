@@ -21,7 +21,9 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.validators import lookup_enum_append_key, lookup_enum_value
+from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
+    lookup_enum_append_keys
+from makeprojects.hlsl_support import HLSL_ENUMS
 
 ########################################
 
@@ -100,6 +102,21 @@ class TestValidators(unittest.TestCase):
 
 ########################################
 
+    def test_lookup_enum_append_keys(self):
+        """
+        Test makeprojects.validators.lookup_enum_append_keys
+        """
 
+        # The function returns the resulting list
+        cmd = ["foo.exe"]
+
+        # Override Optimization with 2, default is 4
+        source_dict = {"Optimization": 2}
+        result1 = ["foo.exe", "/O1", "/Zpc", "/Gfp", "/Tps_2_0"]
+        lookup_enum_append_keys(cmd, HLSL_ENUMS, source_dict)
+        self.assertListEqual(cmd, result1)
+
+
+########################################
 if __name__ == '__main__':
     unittest.main()
