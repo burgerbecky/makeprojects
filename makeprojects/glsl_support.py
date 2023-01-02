@@ -18,9 +18,9 @@ from __future__ import absolute_import, print_function, unicode_literals
 from .validators import lookup_booleans, lookup_strings
 
 # Boolean list for GLSL, Name, Default, switches
-GLSL_BOOLEANS = {
-    "CPP": (True, {"/c": True})
-}
+GLSL_BOOLEANS = (
+    ("CPP", (True, "/c", True)),
+)
 
 # String entries for GLSL, Name, default, switch, generates output, quote
 # parameter

@@ -15,7 +15,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import numbers
 
-from burger import is_string, packed_paths, truefalse, \
+from burger import is_string, packed_paths, truefalse, convert_to_array, \
     BooleanProperty as BooleanProp, StringProperty as StringProp, \
     StringListProperty as StringListProp, \
     IntegerProperty as IntegerProp
@@ -262,53 +262,83 @@ def lookup_string_list(cmd, switch, entry_list, quotes=True):
 ########################################
 
 
-def lookup_string_lists(cmd, string_list_dict, command_dict):
+def lookup_string_lists(cmd, string_list, command_dict):
     """
-    Lookup string items and add them to the command line
+    Lookup string items and add them to the command line.
+
+    The command_dict has the overrides where the value is either a single
+    string or an array of strings or None.
+
+    The string_list is an iterable of tuples where the first entry is a
+    string of the Visual Studio XML name and the second entry is a 2 entry
+    tuple, where the first entry is the command line switch and the second
+    entry is a boolean where if ``True`` will have the string in quotes.
+
+    Note:
+        If a command line switch ends with a space, it will be used as a flag
+        to append the parameter string as a separate line in the cmd list.
 
     Args:
         cmd: list of command line options to append the new entry
-        string_list_dict: dict of string list entries
+        string_list: dict of string list entries
         command_dict: dict of command entries
     Returns:
-        String list of string items the generate output
+        None
     """
 
-    for key, table in string_list_dict.items():
+    for item in string_list:
+
         # Was there an override?
-        temp = command_dict.get(key, [])
+        temp = command_dict.get(item[0], None)
         if temp:
-            switch = table[0]
-            lookup_string_list(cmd, switch, temp, table[1])
+            table = item[1]
+            lookup_string_list(cmd, table[0], convert_to_array(temp), table[1])
 
 ########################################
 
 
-def lookup_booleans(cmd, boolean_lookup, command_dict):
-    """ Look up a command line option from a list of booleans
+def lookup_booleans(cmd, boolean_list, command_dict):
+    """
+    Look up a command line option from a list of booleans
+
+    The command dict is a dict of Visual Studio XML entries where the value is
+    None, or a value that will be converted into a boolean.
+
+    The boolean list is an iterable of tuples where the first entry is the
+    Visual Studio XML entry and the second is a variable length tuple where
+    the first entry is the default value followed by pairs of values of a
+    string for the command line switch and then the boolean to match.
+
     Args:
         cmd: list of command line options to append the new entry
-        boolean_lookup: dict of boolean entries
+        boolean_list: list of boolean entries
         command_dict: dict of command entries
+    Returns:
+        None
     """
 
     # Scan the table until a match is found
-    for key, table in boolean_lookup.items():
+    for item in boolean_list:
+        key = item[0]
+        table = item[1]
 
         # Was there an override?
-        temp = command_dict.get(key, None)
-        if temp is None:
+        value = command_dict.get(key, None)
+        if value is None:
             # Use the default instead
-            temp = table[0]
+            value = table[0]
 
             # If no override or default, skip
-            if temp is None:
+            if value is None:
                 continue
 
+        # Ensure value is a boolean
+        value = bool(value)
+
         # Check if the value actually sets a command line entry
-        for key2, table2 in table[1].items():
-            if table2 is temp:
-                cmd.append(key2)
+        for index in range(1, len(table), 2):
+            if table[index + 1] is value:
+                cmd.append(table[index])
                 break
 
 ########################################
@@ -572,7 +602,7 @@ class StringListProperty():
         Args:
             name: Name of the validator
             default: Default value, ``None`` is acceptable
-            slashes: None for no conversion, "/" or "\\" path separator
+            slashes: "/" or '\\' or None for no conversion
             separator: Character to use to seperate entries, ";" for None
             force_ending_slash: Enforce a trailing slash if True
         """

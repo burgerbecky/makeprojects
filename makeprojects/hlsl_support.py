@@ -91,27 +91,27 @@ HLSL_ENUMS = (
 )
 
 # Boolean list for HLSL, Name, Default, switches
-HLSL_BOOLEANS = {
-    "GenerateDebugInformation": (None, {"/Zi": True}),
-    "NoLogo": (True, {"/nologo": True}),
-    "DisableValidation": (None, {"/Vd": True}),
-    "TreatWarningsAsErrors": (None, {"/WX": True}),
-    "StripReflectionData": (None, {"/Qstrip_reflect": True}),
-    "StripDebugInformation": (None, {"/Qstrip_debug": True}),
-    "ForcePartialPrecision": (None, {"/Gpp": True}),
-    "DisablePreshaders": (None, {"/Op": True}),
-    "DisableEffectPerformanceMode": (None, {"/Gdp": True}),
-    "EnableStrictMode": (None, {"/Ges": True}),
-    "EnableBackwardsCompatibility": (None, {"/Gec": True}),
-    "ForceIEEEStrictness": (None, {"/Gis": True}),
-    "ShowIncludeProcess": (None, {"/Vi": True}),
-    "ColorCodeAssembly": (None, {"/Cc": True}),
-    "OutputInstructionNumbers": (None, {"/Ni": True}),
-    "LoadDX931": (None, {"/LD": True}),
-    "CompressDX10": (None, {"/compress": True}),
-    "DecompressDX10": (None, {"/decompress": True}),
-    "CompileChildFx4": (None, {"/Gch": True})
-}
+HLSL_BOOLEANS = (
+    ("GenerateDebugInformation", (None, "/Zi", True)),
+    ("NoLogo", (True, "/nologo", True)),
+    ("DisableValidation", (None, "/Vd", True)),
+    ("TreatWarningsAsErrors", (None, "/WX", True)),
+    ("StripReflectionData", (None, "/Qstrip_reflect", True)),
+    ("StripDebugInformation", (None, "/Qstrip_debug", True)),
+    ("ForcePartialPrecision", (None, "/Gpp", True)),
+    ("DisablePreshaders", (None, "/Op", True)),
+    ("DisableEffectPerformanceMode", (None, "/Gdp", True)),
+    ("EnableStrictMode", (None, "/Ges", True)),
+    ("EnableBackwardsCompatibility", (None, "/Gec", True)),
+    ("ForceIEEEStrictness", (None, "/Gis", True)),
+    ("ShowIncludeProcess", (None, "/Vi", True)),
+    ("ColorCodeAssembly", (None, "/Cc", True)),
+    ("OutputInstructionNumbers", (None, "/Ni", True)),
+    ("LoadDX931", (None, "/LD", True)),
+    ("CompressDX10", (None, "/compress", True)),
+    ("DecompressDX10", (None, "/decompress", True)),
+    ("CompileChildFx4", (None, "/Gch", True))
+)
 
 # String entries for HLSL, Name, default, switch, generates output, quote
 # parameter
@@ -127,10 +127,10 @@ HLSL_STRINGS = (
 )
 
 # String list entries for HLSL, switch, quote parameters
-HLSL_STRING_LISTS = {
-    "PreprocessorDefinitions": ("/D", False),
-    "AdditionalIncludeDirectories": ("/I ", True)
-}
+HLSL_STRING_LISTS = (
+    ("PreprocessorDefinitions", ("/D", False)),
+    ("AdditionalIncludeDirectories", ("/I ", True))
+)
 
 ########################################
 

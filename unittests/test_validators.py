@@ -21,9 +21,10 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.hlsl_support import HLSL_ENUMS
 from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
-    lookup_enum_append_keys, lookup_strings, lookup_string_list
+    lookup_enum_append_keys, lookup_strings, lookup_string_list, \
+    lookup_string_lists, lookup_booleans
+from makeprojects.hlsl_support import HLSL_ENUMS
 
 ########################################
 
@@ -189,6 +190,59 @@ class TestValidators(unittest.TestCase):
         lookup_string_list(cmd, "/T", entry_list, True)
         self.assertListEqual(
             cmd, ["foo.exe", "/T\"bar.h\"", "/T\"barf.h\"", "/T\"temp.h\""])
+
+########################################
+
+    def test_lookup_string_lists(self):
+        """
+        Test makeprojects.validators.lookup_string_lists
+        """
+
+        cmd = ["foo.exe"]
+        string_list = (
+            ("Test1", ("/D", False)),
+            ("Test2", ("/I ", True))
+        )
+        lookup_string_lists(cmd, string_list, {})
+        self.assertListEqual(cmd, ["foo.exe"])
+
+        lookup_string_lists(cmd, string_list, {
+                            "Test1": "barf.h", "Test2": ("a", "b")})
+        self.assertListEqual(
+            cmd, ["foo.exe", "/Dbarf.h", "/I", "\"a\"", "/I", "\"b\""])
+
+########################################
+
+    def test_lookup_booleans(self):
+        """
+        Test makeprojects.validators.lookup_booleans
+        """
+
+        cmd = ["foo.exe"]
+        boolean_list = (
+            ("Test1", (None, "/T1", True)),
+            ("Test2", (True, "/T2", True, "/F2", False)),
+            ("Test3", (False, "/F3", False)),
+        )
+        lookup_booleans(cmd, boolean_list, {})
+        self.assertListEqual(cmd, ["foo.exe", "/T2", "/F3"])
+
+        cmd = ["foo.exe"]
+        lookup_booleans(cmd, boolean_list, {
+            "Test1": False,
+            "Test2": False,
+            "Test3": True
+        })
+        self.assertListEqual(cmd, ["foo.exe", "/F2"])
+
+        cmd = ["foo.exe"]
+        lookup_booleans(cmd, boolean_list, {
+            "Test1": None,
+            "Test2": None,
+            "Test3": None
+        })
+        self.assertListEqual(cmd, ["foo.exe", "/T2", "/F3"])
+
 
 ########################################
 
