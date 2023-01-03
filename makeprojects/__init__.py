@@ -60,21 +60,6 @@ Type of license used for distribution
 @var makeprojects.__copyright__
 Copyright owner
 
-@var makeprojects._XCODEPROJ_MATCH
-Match *.xcodeproj
-
-@var makeprojects._HLSL_MATCH
-Match *.hlsl
-
-@var makeprojects._GLSL_MATCH
-Match *.glsl
-
-@var makeprojects._X360SL_MATCH
-Match *.x360sl
-
-@var makeprojects._VITACG_MATCH
-Match *.vitacg
-
 @var makeprojects.__all__
 Items to import on "from makeprojects import *"
 """
@@ -118,21 +103,6 @@ __license__ = "MIT License"
 
 # Copyright owner
 __copyright__ = "Copyright 2013-2023 Rebecca Ann Heineman"
-
-# Match *.xcodeproj
-_XCODEPROJ_MATCH = re_compile("(?ms).*\\.xcodeproj\\Z")
-
-# Match *.hlsl
-_HLSL_MATCH = re_compile("(?ms).*\\.hlsl\\Z")
-
-# Match *.glsl
-_GLSL_MATCH = re_compile("(?ms).*\\.glsl\\Z")
-
-# Match *.x360sl
-_X360SL_MATCH = re_compile("(?ms).*\\.x360sl\\Z")
-
-# Match *.vitacg
-_VITACG_MATCH = re_compile("(?ms).*\\.vitacg\\Z")
 
 # Items to import on "from makeprojects import *"
 __all__ = [

@@ -47,9 +47,29 @@ Internal constants
 
 Constants used internally by this package.
 
+_XCODEPROJECT_FILE
+^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_XCODEPROJECT_FILE
+
 _XCODEPROJ_MATCH
 ^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::_XCODEPROJ_MATCH
+.. doxygenvariable:: makeprojects::config::_XCODEPROJ_MATCH
+
+_HLSL_MATCH
+^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_HLSL_MATCH
+
+_GLSL_MATCH
+^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_GLSL_MATCH
+
+_X360SL_MATCH
+^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_X360SL_MATCH
+
+_VITACG_MATCH
+^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::config::_VITACG_MATCH
 
 Internal tables
 ---------------

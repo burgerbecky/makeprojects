@@ -99,8 +99,7 @@ def main(working_directory=None, args=None):
                     os.path.join(
                         working_directory,
                         args.rules_file)))
-        save_default(working_directory, destinationfile=args.rules_file)
-        return 0
+        return save_default(working_directory, destinationfile=args.rules_file)
 
     # Generate command lines for the tools
     cleanargs = []

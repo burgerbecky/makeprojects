@@ -24,8 +24,9 @@ import sys
 import argparse
 from operator import attrgetter
 from burger import import_py_script, convert_to_array
-from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE
-from .__init__ import _XCODEPROJ_MATCH, __version__
+from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
+    _XCODEPROJ_MATCH
+from .__init__ import __version__
 from .util import get_build_rules, was_processed, getattr_build_rules, \
     fixup_args
 from .core import BuildError
@@ -458,8 +459,7 @@ def main(working_directory=None, args=None):
                     os.path.join(
                         working_directory,
                         args.rules_file)))
-        save_default(working_directory, destinationfile=args.rules_file)
-        return 0
+        return save_default(working_directory, destinationfile=args.rules_file)
 
     # Handle extra arguments
     fixup_args(args)
