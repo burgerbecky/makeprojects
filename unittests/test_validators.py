@@ -329,7 +329,9 @@ class TestValidators(unittest.TestCase):
 
         t = VSIntegerProperty("Test", 33)
         self.assertEqual(t.name, "Test")
-        self.assertIs(t.value, 33)
+
+        # Use Equal, Python 2.7 returns 33L so is doesn't match
+        self.assertEqual(t.value, 33)
         self.assertIs(t.switch, None)
 
         # Failure cases
@@ -360,6 +362,9 @@ class TestValidators(unittest.TestCase):
 
         t.value = None
         self.assertIs(t.value, None)
+
+        t.value = 66
+        self.assertEqual(t.value, "66")
 
 ########################################
 

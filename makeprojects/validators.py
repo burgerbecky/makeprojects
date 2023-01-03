@@ -540,7 +540,7 @@ class VSIntegerProperty(object):
 ########################################
 
 
-class VSStringProperty():
+class VSStringProperty(object):
     """
     Value can be any string.
 
@@ -598,7 +598,7 @@ class VSStringProperty():
 ########################################
 
 
-class StringListProperty():
+class StringListProperty(object):
     """
     List of strings or directories.
 
