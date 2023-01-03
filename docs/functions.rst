@@ -142,6 +142,10 @@ rebuild.main
 Enums
 -----
 
+enums.source_file_filter
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::enums::source_file_filter
+
 enums.get_installed_visual_studio
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::enums::get_installed_visual_studio
@@ -172,10 +176,6 @@ util.validate_boolean
 util.validate_string
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::validate_string
-
-util.source_file_filter
-^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::util::source_file_filter
 
 util.add_build_rules
 ^^^^^^^^^^^^^^^^^^^^

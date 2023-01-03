@@ -40,8 +40,8 @@ from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
     read_zero_terminated_string, get_windows_host_type, run_command, \
     create_folder_if_needed, get_mac_host_type, is_codewarrior_mac_allowed
 from burger.buildutils import _WINDOWS_ENV_PATHS
-from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .util import source_file_filter
+from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
+    source_file_filter
 from .core import BuildObject, BuildError
 
 _MCPFILE_MATCH = re_compile('(?is).*\\.mcp\\Z')

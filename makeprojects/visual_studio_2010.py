@@ -21,8 +21,8 @@ from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     delete_file, escape_xml_cdata, escape_xml_attribute, \
     packed_paths, truefalse
 
-from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
-from .util import source_file_filter
+from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
+    source_file_filter
 from .visual_studio import get_uuid, create_deploy_script
 
 SUPPORTED_IDES = (
