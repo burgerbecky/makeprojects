@@ -113,21 +113,23 @@ SUPPORTED_IDES = (
     IDETypes.xcode10,
     IDETypes.xcode11,
     IDETypes.xcode12,
-    IDETypes.xcode13)
+    IDETypes.xcode13,
+    IDETypes.xcode14)
 
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
 OBJECT_VERSIONS = {
-    IDETypes.xcode3: ('45', None, 'Xcode 3.1', 'English'),
-    IDETypes.xcode4: ('46', '0420', 'Xcode 3.2', 'English'),
-    IDETypes.xcode5: ('46', '0510', 'Xcode 3.2', 'English'),
-    IDETypes.xcode6: ('47', '0600', 'Xcode 6.3', None),
-    IDETypes.xcode7: ('47', '0700', 'Xcode 6.3', None),
-    IDETypes.xcode8: ('48', '0800', 'Xcode 8.0', None),
-    IDETypes.xcode9: ('50', '0900', 'Xcode 9.3', None),
-    IDETypes.xcode10: ('51', '1030', 'Xcode 10.0', None),
-    IDETypes.xcode11: ('52', '1100', 'Xcode 11.0', None),
-    IDETypes.xcode12: ('53', '1200', 'Xcode 12.0', None),
-    IDETypes.xcode13: ('54', '1300', 'Xcode 13.0', None)
+    IDETypes.xcode3: ("45", None, "Xcode 3.1", "English"),
+    IDETypes.xcode4: ("46", "0420", "Xcode 3.2", "English"),
+    IDETypes.xcode5: ("46", "0510", "Xcode 3.2", "English"),
+    IDETypes.xcode6: ("47", "0600", "Xcode 6.3", None),
+    IDETypes.xcode7: ("47", "0700", "Xcode 6.3", None),
+    IDETypes.xcode8: ("48", "0800", "Xcode 8.0", None),
+    IDETypes.xcode9: ("50", "0900", "Xcode 9.3", None),
+    IDETypes.xcode10: ("51", "1030", "Xcode 10.0", None),
+    IDETypes.xcode11: ("52", "1100", "Xcode 11.0", None),
+    IDETypes.xcode12: ("53", "1200", "Xcode 12.0", None),
+    IDETypes.xcode13: ("54", "1300", "Xcode 13.0", None),
+    IDETypes.xcode14: ("55", "1400", "Xcode 14.0", None)
 }
 
 # This is the order of XCode chunks that match the way

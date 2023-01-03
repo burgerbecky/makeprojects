@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2013-2023 by Rebecca Ann Heineman becky@burgerbecky.com
 #
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -96,15 +96,16 @@ Dictionary to map generic PlatformTypes enumerations into lists.
 @sa makeprojects.enums.PlatformTypes.get_expanded
 """
 
+# pylint: disable=too-many-lines
+# pylint: disable=invalid-name
+# pylint: disable=consider-using-f-string
+
 from __future__ import absolute_import, print_function, unicode_literals
 from enum import IntEnum
 import os
 from burger import get_mac_host_type, get_windows_host_type, \
     where_is_visual_studio, where_is_codeblocks, where_is_watcom, \
     where_is_xcode, is_string
-
-# pylint: disable=invalid-name
-# pylint: disable=consider-using-f-string
 
 ########################################
 
@@ -124,6 +125,7 @@ class FileTypes(IntEnum):
         cpp: Compile as C++
         h: C/C++ header
         m: Objective-C
+        mm: Objective-C++
         xml: XML text file
         rc: Windows resource file
         r: Mac OS resource file
@@ -153,33 +155,33 @@ class FileTypes(IntEnum):
     cpp = 3
     h = 4
     m = 5
-    xml = 6
-    rc = 7
-    r = 8
-    hlsl = 9
-    glsl = 10
-    x360sl = 11
-    vitacg = 12
-    frameworks = 13
-    library = 14
-    object = 15
-    exe = 16
-    xcconfig = 17
-    x86 = 18
-    x64 = 19
-    a65 = 20
-    ppc = 21
-    a68 = 22
-    image = 23
-    ico = 24
-    icns = 25
-    appxmanifest = 26
+    mm = 6
+    xml = 7
+    rc = 8
+    r = 9
+    hlsl = 10
+    glsl = 11
+    x360sl = 12
+    vitacg = 13
+    frameworks = 14
+    library = 15
+    object = 16
+    exe = 17
+    xcconfig = 18
+    x86 = 19
+    x64 = 20
+    a65 = 21
+    ppc = 22
+    a68 = 23
+    image = 24
+    ico = 25
+    icns = 26
+    appxmanifest = 27
 
     @staticmethod
     def lookup(test_name):
         """
         Look up a file name extension and return the type.
-        @details
         Parse the filename extension and match it to a table of known
         extensions and return the enumeration for the file type. The
         test is case insensitive.
@@ -225,81 +227,82 @@ class FileTypes(IntEnum):
 
 
 _FILETYPES_LOOKUP = {
-    'c': FileTypes.c,                   # C/C++ source code
-    'cc': FileTypes.cpp,
-    'cpp': FileTypes.cpp,
-    'c++': FileTypes.cpp,
-    'hpp': FileTypes.h,                 # C/C++ header files
-    'h': FileTypes.h,
-    'hh': FileTypes.h,
-    'i': FileTypes.h,
-    'inc': FileTypes.h,
-    'm': FileTypes.m,                   # MacOSX / iOS Objective-C
-    'mm': FileTypes.m,                  # MacOSX / iOS Objective-C++
-    'plist': FileTypes.xml,             # MacOSX / iOS plist files
-    'rc': FileTypes.rc,                 # Windows resources
-    'r': FileTypes.r,                   # MacOS classic resources
-    'rsrc': FileTypes.r,
-    'hlsl': FileTypes.hlsl,             # DirectX shader files
-    'vsh': FileTypes.glsl,              # OpenGL shader files
-    'fsh': FileTypes.glsl,
-    'glsl': FileTypes.glsl,
-    'x360sl': FileTypes.x360sl,         # Xbox 360 shader files
-    'vitacg': FileTypes.vitacg,         # PS Vita shader files
-    'lib': FileTypes.library,           # Static library
-    'a': FileTypes.library,
-    'obj': FileTypes.object,            # .obj object code
-    'o': FileTypes.object,
-    'xml': FileTypes.xml,               # XML data files
-    'x86': FileTypes.x86,               # Intel ASM 80x86 source code
-    'x64': FileTypes.x64,               # AMD 64 bit source code
-    'a65': FileTypes.a65,               # 6502/65816 source code
-    'ppc': FileTypes.ppc,               # PowerPC source code
-    'a68': FileTypes.a68,               # 680x0 source code
-    'ico': FileTypes.ico,               # Windows icon file
-    'icns': FileTypes.icns,             # Mac OSX Icon file
-    'png': FileTypes.image,             # Art files
-    'jpg': FileTypes.image,
-    'bmp': FileTypes.image,
-    'txt': FileTypes.generic,           # Text files
-    'rtf': FileTypes.generic,
-    'rst': FileTypes.generic,
-    'md': FileTypes.generic,
-    'pdf': FileTypes.generic,
-    'sh': FileTypes.generic,
-    'cmd': FileTypes.generic,
-    'bat': FileTypes.generic,
-    'appxmanifest': FileTypes.appxmanifest
+    "c": FileTypes.c,                   # C/C++ source code
+    "cc": FileTypes.cpp,
+    "cpp": FileTypes.cpp,
+    "c++": FileTypes.cpp,
+    "hpp": FileTypes.h,                 # C/C++ header files
+    "h": FileTypes.h,
+    "hh": FileTypes.h,
+    "i": FileTypes.h,
+    "inc": FileTypes.h,
+    "m": FileTypes.m,                   # MacOSX / iOS Objective-C
+    "mm": FileTypes.mm,                 # MacOSX / iOS Objective-C++
+    "plist": FileTypes.xml,             # MacOSX / iOS plist files
+    "rc": FileTypes.rc,                 # Windows resources
+    "r": FileTypes.r,                   # MacOS classic resources
+    "rsrc": FileTypes.r,
+    "hlsl": FileTypes.hlsl,             # DirectX shader files
+    "vsh": FileTypes.glsl,              # OpenGL shader files
+    "fsh": FileTypes.glsl,
+    "glsl": FileTypes.glsl,
+    "x360sl": FileTypes.x360sl,         # Xbox 360 shader files
+    "vitacg": FileTypes.vitacg,         # PS Vita shader files
+    "lib": FileTypes.library,           # Static library
+    "a": FileTypes.library,
+    "obj": FileTypes.object,            # .obj object code
+    "o": FileTypes.object,
+    "xml": FileTypes.xml,               # XML data files
+    "x86": FileTypes.x86,               # Intel ASM 80x86 source code
+    "x64": FileTypes.x64,               # AMD 64 bit source code
+    "a65": FileTypes.a65,               # 6502/65816 source code
+    "ppc": FileTypes.ppc,               # PowerPC source code
+    "a68": FileTypes.a68,               # 680x0 source code
+    "ico": FileTypes.ico,               # Windows icon file
+    "icns": FileTypes.icns,             # Mac OSX Icon file
+    "png": FileTypes.image,             # Art files
+    "jpg": FileTypes.image,
+    "bmp": FileTypes.image,
+    "txt": FileTypes.generic,           # Text files
+    "rtf": FileTypes.generic,
+    "rst": FileTypes.generic,
+    "md": FileTypes.generic,
+    "pdf": FileTypes.generic,
+    "sh": FileTypes.generic,
+    "cmd": FileTypes.generic,
+    "bat": FileTypes.generic,
+    "appxmanifest": FileTypes.appxmanifest
 }
 
 _FILETYPES_READABLE = {
-    FileTypes.user: 'User',
-    FileTypes.generic: 'Generic',
-    FileTypes.c: 'C source file',
-    FileTypes.cpp: 'C++ source file',
-    FileTypes.h: 'C header file',
-    FileTypes.m: 'Objective-C file',
-    FileTypes.xml: 'Xml file',
-    FileTypes.rc: 'Windows Resource file',
-    FileTypes.r: 'MacOS Resource file',
-    FileTypes.hlsl: 'DirectX shader file',
-    FileTypes.glsl: 'OpenGL shader file',
-    FileTypes.x360sl: 'Xbox 360 shader file',
-    FileTypes.vitacg: 'Playstation Vita shader file',
-    FileTypes.frameworks: 'macOS Framework',
-    FileTypes.library: 'Statically linked library',
-    FileTypes.object: 'Object code',
-    FileTypes.exe: 'Executable file',
-    FileTypes.xcconfig: 'Apple XCode config file',
-    FileTypes.x86: 'X86 assembly file',
-    FileTypes.x64: 'X64 assembly file',
-    FileTypes.a65: '6502/65816 assembly file',
-    FileTypes.ppc: 'PowerPC assembly file',
-    FileTypes.a68: '680x0 assembly file',
-    FileTypes.image: 'Image file',
-    FileTypes.ico: 'Windows Icon file',
-    FileTypes.icns: 'macOS Icon file',
-    FileTypes.appxmanifest: 'Windows AppX Manifest file'
+    FileTypes.user: "User",
+    FileTypes.generic: "Generic",
+    FileTypes.c: "C source file",
+    FileTypes.cpp: "C++ source file",
+    FileTypes.h: "C header file",
+    FileTypes.m: "Objective-C file",
+    FileTypes.mm: "Objective-C++ file",
+    FileTypes.xml: "Xml file",
+    FileTypes.rc: "Windows Resource file",
+    FileTypes.r: "MacOS Resource file",
+    FileTypes.hlsl: "DirectX shader file",
+    FileTypes.glsl: "OpenGL shader file",
+    FileTypes.x360sl: "Xbox 360 shader file",
+    FileTypes.vitacg: "Playstation Vita shader file",
+    FileTypes.frameworks: "macOS Framework",
+    FileTypes.library: "Statically linked library",
+    FileTypes.object: "Object code",
+    FileTypes.exe: "Executable file",
+    FileTypes.xcconfig: "Apple XCode config file",
+    FileTypes.x86: "X86 assembly file",
+    FileTypes.x64: "X64 assembly file",
+    FileTypes.a65: "6502/65816 assembly file",
+    FileTypes.ppc: "PowerPC assembly file",
+    FileTypes.a68: "680x0 assembly file",
+    FileTypes.image: "Image file",
+    FileTypes.ico: "Windows Icon file",
+    FileTypes.icns: "macOS Icon file",
+    FileTypes.appxmanifest: "Windows AppX Manifest file"
 }
 
 ########################################
@@ -372,11 +375,11 @@ class ProjectTypes(IntEnum):
                     return item
 
             specials = {
-                'lib': ProjectTypes.library,
-                'game': ProjectTypes.app,
-                'dll': ProjectTypes.sharedlibrary,
-                'console': ProjectTypes.tool,
-                'scr': ProjectTypes.screensaver
+                "lib": ProjectTypes.library,
+                "game": ProjectTypes.app,
+                "dll": ProjectTypes.sharedlibrary,
+                "console": ProjectTypes.tool,
+                "scr": ProjectTypes.screensaver
             }
             return specials.get(test_name, None)
 
@@ -416,12 +419,12 @@ class ProjectTypes(IntEnum):
 
 
 _PROJECTTYPES_READABLE = {
-    ProjectTypes.library: 'Library',
-    ProjectTypes.tool: 'Tool',
-    ProjectTypes.app: 'Application',
-    ProjectTypes.screensaver: 'ScreenSaver',
-    ProjectTypes.sharedlibrary: 'Dynamic Library',
-    ProjectTypes.empty: 'Empty'
+    ProjectTypes.library: "Library",
+    ProjectTypes.tool: "Tool",
+    ProjectTypes.app: "Application",
+    ProjectTypes.screensaver: "ScreenSaver",
+    ProjectTypes.sharedlibrary: "Dynamic Library",
+    ProjectTypes.empty: "Empty"
 }
 
 
@@ -463,6 +466,7 @@ class IDETypes(IntEnum):
         xcode11: XCode 11
         xcode12: XCode 12
         xcode13: XCode 13
+        xcode14: XCode 14
 
         codeblocks: Codeblocks
 
@@ -507,27 +511,27 @@ class IDETypes(IntEnum):
     xcode11 = 22
     xcode12 = 23
     xcode13 = 24
+    xcode14 = 25
 
-    codeblocks = 25
+    codeblocks = 26
 
-    nmake = 26
+    nmake = 27
 
-    make = 27
+    make = 28
 
-    bazel = 28
+    bazel = 29
 
-    mpw = 29
+    mpw = 30
 
-    buck = 30
+    buck = 31
 
-    ninja = 31
+    ninja = 32
 
     ########################################
 
     def get_short_code(self):
         """
         Create the ide code from the ide type.
-        @details
         Return the three letter code that determines the specfic IDE
         version that the project file is meant for.
 
@@ -567,7 +571,7 @@ class IDETypes(IntEnum):
         return self in (
             IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
             IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
-            IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13)
+            IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14)
 
     ########################################
 
@@ -588,7 +592,6 @@ class IDETypes(IntEnum):
     def lookup(ide_name):
         """
         Look up a IDETypes based on name.
-        @details
         For maximum compatiblity, the name will be scanned from several
         look up tables to attempt to cover all premutations of an input string.
 
@@ -609,7 +612,7 @@ class IDETypes(IntEnum):
 
         # Non-strings are bad
         if not is_string(ide_name):
-            msg = '"{}" cannot be a number".'.format(
+            msg = "\"{}\" cannot be a number.".format(
                 ide_name)
             raise TypeError(msg)
 
@@ -627,14 +630,14 @@ class IDETypes(IntEnum):
                     return item
 
             # Try some generic names and perform magic to figure out the IDE
-            if ide_name in ('vs', 'visualstudio',
-                            'visual_studio', 'visual studio'):
+            if ide_name in ("vs", "visualstudio",
+                            "visual_studio", "visual studio"):
                 return get_installed_visual_studio()
 
-            if ide_name in ('xcode',):
+            if ide_name in ("xcode",):
                 return get_installed_xcode()
 
-            if ide_name in ('codewarrior', 'metrowerks', 'cw', 'freescale'):
+            if ide_name in ("codewarrior", "metrowerks", "cw", "freescale"):
                 return IDETypes.codewarrior50
 
         return None
@@ -695,73 +698,75 @@ class IDETypes(IntEnum):
 
 
 _IDETYPES_CODES = {
-    IDETypes.vs2003: 'vc7',                 # Microsoft Visual Studio
-    IDETypes.vs2005: 'vc8',
-    IDETypes.vs2008: 'vc9',
-    IDETypes.vs2010: 'v10',
-    IDETypes.vs2012: 'v12',
-    IDETypes.vs2013: 'v13',
-    IDETypes.vs2015: 'v15',
-    IDETypes.vs2017: 'v17',
-    IDETypes.vs2019: 'v19',
-    IDETypes.vs2022: 'v22',
-    IDETypes.watcom: 'wat',                 # Watcom MAKEFILE
-    IDETypes.codewarrior50: 'c50',          # Metrowerks / Freescale CodeWarrior
-    IDETypes.codewarrior58: 'c58',
-    IDETypes.codewarrior59: 'c59',
-    IDETypes.xcode3: 'xc3',                 # Apple XCode
-    IDETypes.xcode4: 'xc4',
-    IDETypes.xcode5: 'xc5',
-    IDETypes.xcode6: 'xc6',
-    IDETypes.xcode7: 'xc7',
-    IDETypes.xcode8: 'xc8',
-    IDETypes.xcode9: 'xc9',
-    IDETypes.xcode10: 'x10',
-    IDETypes.xcode11: 'x11',
-    IDETypes.xcode12: 'x12',
-    IDETypes.xcode13: 'x13',
-    IDETypes.codeblocks: 'cdb',             # Codeblocks
-    IDETypes.nmake: 'nmk',                  # nmake
-    IDETypes.make: 'mak',                   # make
-    IDETypes.bazel: 'bzl',                  # Bazel
-    IDETypes.mpw: 'mpw',                    # Apple MPW Make
-    IDETypes.buck: 'bck',                   # Facebook buck
-    IDETypes.ninja: 'nin'                   # Google ninja
+    IDETypes.vs2003: "vc7",                 # Microsoft Visual Studio
+    IDETypes.vs2005: "vc8",
+    IDETypes.vs2008: "vc9",
+    IDETypes.vs2010: "v10",
+    IDETypes.vs2012: "v12",
+    IDETypes.vs2013: "v13",
+    IDETypes.vs2015: "v15",
+    IDETypes.vs2017: "v17",
+    IDETypes.vs2019: "v19",
+    IDETypes.vs2022: "v22",
+    IDETypes.watcom: "wat",                 # Watcom MAKEFILE
+    IDETypes.codewarrior50: "c50",          # Metrowerks / Freescale CodeWarrior
+    IDETypes.codewarrior58: "c58",
+    IDETypes.codewarrior59: "c59",
+    IDETypes.xcode3: "xc3",                 # Apple XCode
+    IDETypes.xcode4: "xc4",
+    IDETypes.xcode5: "xc5",
+    IDETypes.xcode6: "xc6",
+    IDETypes.xcode7: "xc7",
+    IDETypes.xcode8: "xc8",
+    IDETypes.xcode9: "xc9",
+    IDETypes.xcode10: "x10",
+    IDETypes.xcode11: "x11",
+    IDETypes.xcode12: "x12",
+    IDETypes.xcode13: "x13",
+    IDETypes.xcode14: "x14",
+    IDETypes.codeblocks: "cdb",             # Codeblocks
+    IDETypes.nmake: "nmk",                  # nmake
+    IDETypes.make: "mak",                   # make
+    IDETypes.bazel: "bzl",                  # Bazel
+    IDETypes.mpw: "mpw",                    # Apple MPW Make
+    IDETypes.buck: "bck",                   # Facebook buck
+    IDETypes.ninja: "nin"                   # Google ninja
 }
 
 _IDETYPES_READABLE = {
-    IDETypes.vs2003: 'Visual Studio 2003',
-    IDETypes.vs2005: 'Visual Studio 2005',
-    IDETypes.vs2008: 'Visual Studio 2008',
-    IDETypes.vs2010: 'Visual Studio 2010',
-    IDETypes.vs2012: 'Visual Studio 2012',
-    IDETypes.vs2013: 'Visual Studio 2013',
-    IDETypes.vs2015: 'Visual Studio 2015',
-    IDETypes.vs2017: 'Visual Studio 2017',
-    IDETypes.vs2019: 'Visual Studio 2019',
-    IDETypes.vs2022: 'Visual Studio 2022',
-    IDETypes.watcom: 'Open Watcom 1.9 wmake',
-    IDETypes.codewarrior50: 'CodeWarrior 9',
-    IDETypes.codewarrior58: 'CodeWarrior 10',
-    IDETypes.codewarrior59: 'Freescale CodeWarrior 5.9',
-    IDETypes.xcode3: 'XCode 3.1.4',
-    IDETypes.xcode4: 'XCode 4',
-    IDETypes.xcode5: 'XCode 5',
-    IDETypes.xcode6: 'XCode 6',
-    IDETypes.xcode7: 'XCode 7',
-    IDETypes.xcode8: 'XCode 8',
-    IDETypes.xcode9: 'XCode 9',
-    IDETypes.xcode10: 'XCode 10',
-    IDETypes.xcode11: 'XCode 11',
-    IDETypes.xcode12: 'XCode 12',
-    IDETypes.xcode13: 'XCode 13',
-    IDETypes.codeblocks: 'CodeBlocks 13.12',
-    IDETypes.nmake: 'GNU make',
-    IDETypes.make: 'Linux make',
-    IDETypes.bazel: 'Bazel build',
-    IDETypes.mpw: 'Apple MPW make',
-    IDETypes.buck: 'Facebook buck',
-    IDETypes.ninja: 'Google ninja'
+    IDETypes.vs2003: "Visual Studio 2003",
+    IDETypes.vs2005: "Visual Studio 2005",
+    IDETypes.vs2008: "Visual Studio 2008",
+    IDETypes.vs2010: "Visual Studio 2010",
+    IDETypes.vs2012: "Visual Studio 2012",
+    IDETypes.vs2013: "Visual Studio 2013",
+    IDETypes.vs2015: "Visual Studio 2015",
+    IDETypes.vs2017: "Visual Studio 2017",
+    IDETypes.vs2019: "Visual Studio 2019",
+    IDETypes.vs2022: "Visual Studio 2022",
+    IDETypes.watcom: "Open Watcom 1.9 wmake",
+    IDETypes.codewarrior50: "CodeWarrior 9",
+    IDETypes.codewarrior58: "CodeWarrior 10",
+    IDETypes.codewarrior59: "Freescale CodeWarrior 5.9",
+    IDETypes.xcode3: "XCode 3.1.4",
+    IDETypes.xcode4: "XCode 4",
+    IDETypes.xcode5: "XCode 5",
+    IDETypes.xcode6: "XCode 6",
+    IDETypes.xcode7: "XCode 7",
+    IDETypes.xcode8: "XCode 8",
+    IDETypes.xcode9: "XCode 9",
+    IDETypes.xcode10: "XCode 10",
+    IDETypes.xcode11: "XCode 11",
+    IDETypes.xcode12: "XCode 12",
+    IDETypes.xcode13: "XCode 13",
+    IDETypes.xcode14: "XCode 14",
+    IDETypes.codeblocks: "CodeBlocks 13.12",
+    IDETypes.nmake: "GNU make",
+    IDETypes.make: "Linux make",
+    IDETypes.bazel: "Bazel build",
+    IDETypes.mpw: "Apple MPW make",
+    IDETypes.buck: "Facebook buck",
+    IDETypes.ninja: "Google ninja"
 }
 
 ########################################
@@ -811,6 +816,7 @@ def get_installed_xcode():
     """
 
     xcode_table = (
+        (14, IDETypes.xcode14),
         (13, IDETypes.xcode13),
         (12, IDETypes.xcode12),
         (11, IDETypes.xcode11),
@@ -983,7 +989,6 @@ class PlatformTypes(IntEnum):
     def get_short_code(self):
         """
         Convert the enumeration to a 3 letter code for filename suffix.
-        @details
         Create a three letter code for the target platform for the final
         filename for the project. For platforms that support multiple
         CPU architectures, the code will be six letters long with the CPU
@@ -1122,57 +1127,60 @@ class PlatformTypes(IntEnum):
     def get_platform_folder(self):
         """
         Return the name of a folder that would hold platform specific files.
+
+        Returns:
+            String of the name of the folder name, or None if not found.
         """
 
+        # pylint: disable=too-many-return-statements
+
         table = {
-            PlatformTypes.iigs: 'iigs',
-            PlatformTypes.beos: 'beos',
-            PlatformTypes.ps1: 'ps1',
-            PlatformTypes.ps2: 'ps2',
-            PlatformTypes.ps3: 'ps3',
-            PlatformTypes.ps4: 'ps4',
-            PlatformTypes.ps5: 'ps5',
-            PlatformTypes.psp: 'psp',
-            PlatformTypes.vita: 'vita',
-            PlatformTypes.xbox: 'xbox',
-            PlatformTypes.xbox360: 'xbox360',
-            PlatformTypes.xboxone: 'xboxone',
-            PlatformTypes.ds: 'ds',
-            PlatformTypes.dsi: 'dsi',
-            PlatformTypes.wii: 'wii',
-            PlatformTypes.wiiu: 'wiiu',
-            PlatformTypes.stadia: 'stadia'
+            PlatformTypes.iigs: "iigs",
+            PlatformTypes.beos: "beos",
+            PlatformTypes.ps1: "ps1",
+            PlatformTypes.ps2: "ps2",
+            PlatformTypes.ps3: "ps3",
+            PlatformTypes.ps4: "ps4",
+            PlatformTypes.ps5: "ps5",
+            PlatformTypes.psp: "psp",
+            PlatformTypes.vita: "vita",
+            PlatformTypes.xbox: "xbox",
+            PlatformTypes.xbox360: "xbox360",
+            PlatformTypes.xboxone: "xboxone",
+            PlatformTypes.ds: "ds",
+            PlatformTypes.dsi: "dsi",
+            PlatformTypes.wii: "wii",
+            PlatformTypes.wiiu: "wiiu",
+            PlatformTypes.stadia: "stadia"
         }
 
         # Try the simple ones
         platform_folder = table.get(self, None)
-        if platform_folder is None:
-            if self.is_windows():
-                platform_folder = 'windows'
-            elif self.is_msdos():
-                platform_folder = 'dos'
-            elif self.is_macosx():
-                platform_folder = 'macosx'
-            elif self.is_ios():
-                platform_folder = 'ios'
-            elif self.is_macos():
-                platform_folder = 'mac'
-            elif self is PlatformTypes.ouya:
-                platform_folder = 'ouya'
-            elif self is PlatformTypes.shield:
-                platform_folder = 'shield'
-            elif self.is_android():
-                platform_folder = 'android'
-            elif self.is_switch():
-                platform_folder = 'switch'
-            else:
-                platform_folder = 'linux'
-        return platform_folder
+        if platform_folder is not None:
+            return platform_folder
+        if self.is_windows():
+            return "windows"
+        if self.is_msdos():
+            return "dos"
+        if self.is_macosx():
+            return "macosx"
+        if self.is_ios():
+            return "ios"
+        if self.is_macos():
+            return "mac"
+        if self is PlatformTypes.ouya:
+            return "ouya"
+        if self is PlatformTypes.shield:
+            return "shield"
+        if self.is_android():
+            return "android"
+        if self.is_switch():
+            return "switch"
+        return "linux"
 
     def match(self, second):
         """
         Test if two platform types are a match.
-        @details
         If two platform types are similar, this function will return True. An
         example would be a windows 32 bit and a windows 64 bit platform would
         match.
@@ -1218,7 +1226,6 @@ class PlatformTypes(IntEnum):
     def get_vs_platform(self):
         """
         Create the platform codes from the platform type for Visual Studio.
-        @details
         Visual Studio uses specific codes for tool chains used for
         video game consoles or CPUs. This function returns a list of
         codes needed to support the requested platform.
@@ -1234,6 +1241,9 @@ class PlatformTypes(IntEnum):
     def get_expanded(self):
         """
         Return a list of platforms from a platform that is a group.
+
+        Returns:
+            A tuple of PlatformTypes
         """
 
         return _PLATFORMTYPES_EXPANDED.get(self, [self])
@@ -1241,6 +1251,9 @@ class PlatformTypes(IntEnum):
     def is_expandable(self):
         """
         Return True if the platform defines other platforms.
+
+        Returns:
+            True or False
         """
 
         return self in _PLATFORMTYPES_EXPANDED
@@ -1249,7 +1262,6 @@ class PlatformTypes(IntEnum):
     def lookup(platform_name):
         """
         Look up a PlatformType based on name.
-        @details
         For maximum compatiblity, the name will be scanned from several
         look up tables to attempt to cover all premutations of an input string.
 
@@ -1288,8 +1300,8 @@ class PlatformTypes(IntEnum):
                             return item
 
             specials = {
-                'macos': PlatformTypes.macos9,
-                'carbon': PlatformTypes.maccarbon
+                "macos": PlatformTypes.macos9,
+                "carbon": PlatformTypes.maccarbon
             }
             return specials.get(test_name, None)
         return None
@@ -1298,27 +1310,30 @@ class PlatformTypes(IntEnum):
     def default():
         """
         Determine the PlatformTypes from the currently running platform.
+
+        Returns:
+            PlatformType
         """
 
         # Windows host?
         temp = get_windows_host_type()
         if temp:
             win_table = {
-                'x86': PlatformTypes.win32,
-                'x64': PlatformTypes.win64,
-                'arm': PlatformTypes.winarm32,
-                'arm64': PlatformTypes.winarm64,
-                'ia64': PlatformTypes.winitanium}
+                "x86": PlatformTypes.win32,
+                "x64": PlatformTypes.win64,
+                "arm": PlatformTypes.winarm32,
+                "arm64": PlatformTypes.winarm64,
+                "ia64": PlatformTypes.winitanium}
             return win_table.get(temp, PlatformTypes.win32)
 
         # Mac host?
         temp = get_mac_host_type()
         if temp:
             mac_table = {
-                'ppc': PlatformTypes.macosxppc32,
-                'ppc64': PlatformTypes.macosxppc64,
-                'x32': PlatformTypes.macosxintel32,
-                'x64': PlatformTypes.macosxintel64}
+                "ppc": PlatformTypes.macosxppc32,
+                "ppc64": PlatformTypes.macosxppc64,
+                "x32": PlatformTypes.macosxintel32,
+                "x64": PlatformTypes.macosxintel64}
             return mac_table.get(temp, PlatformTypes.macosxintel64)
 
         # Unknown platforms default to Linux
@@ -1605,7 +1620,7 @@ def platformtype_short_code(configurations):
 
     # None?
     if not configurations:
-        return ''
+        return ""
 
     # Extract the platform codes from all configurations
     codes = []
@@ -1637,33 +1652,33 @@ def add_burgerlib(command, **kargs):
 
     """
 
-    if command == 'configuration_settings':
+    if command == "configuration_settings":
         # Return the settings for a specific configuation
-        configuration = kargs['configuration']
+        configuration = kargs["configuration"]
 
         platform = configuration.platform
 
         force_short = platform.is_macosx() or platform.is_ios()
-        lib_name = 'burger{}'.format(
+        lib_name = "burger{}".format(
             configuration.get_suffix(
                 force_short=force_short))
         if platform.is_android() or force_short:
-            lib_name = 'lib{}.a'.format(lib_name)
+            lib_name = "lib{}.a".format(lib_name)
         else:
-            lib_name = '{}.lib'.format(lib_name)
+            lib_name = "{}.lib".format(lib_name)
         configuration.libraries_list.append(lib_name)
 
         # Linux requires linking in OpenGL
         if platform is PlatformTypes.linux:
-            configuration.libraries_list.append('GL')
+            configuration.libraries_list.append("GL")
 
-        lib_dir = '$(BURGER_SDKS)/{}/burgerlib'.format(
+        lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
             platform.get_platform_folder())
         configuration.library_folders_list.append(lib_dir)
 
         # Include burger.h, however Codewarrior uses the library folder
         if not configuration.project.solution.ide.is_codewarrior():
-            lib_dir = '$(BURGER_SDKS)/{}/burgerlib'.format(
+            lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
                 platform.get_platform_folder())
             configuration.include_folders_list.append(lib_dir)
 

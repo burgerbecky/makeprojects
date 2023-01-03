@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-""" Unit tests for makeproject IDETypes
+"""
+Unit tests for makeproject IDETypes
 
-Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+Copyright 2013-2023 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
 commercial title without paying anything, just give me a credit.
 Please? It's not like I'm asking you for money!
-
 """
 
 # pylint: disable=wrong-import-position
@@ -38,16 +38,16 @@ class TestEnums(unittest.TestCase):
         Test FileTypes.lookup().
         """
         tests = (
-            ('foo.c', FileTypes.c),
-            ('foo', None),
-            ('foo.txt', FileTypes.generic),
-            ('.txt', None),
-            ('shader.hlsl', FileTypes.hlsl),
-            ('fun.ico', FileTypes.ico),
-            ('burger.lib', FileTypes.library),
-            ('libburger.a', FileTypes.library),
-            ('sound.obj', FileTypes.object),
-            ('sound.o', FileTypes.object)
+            ("foo.c", FileTypes.c),
+            ("foo", None),
+            ("foo.txt", FileTypes.generic),
+            (".txt", None),
+            ("shader.hlsl", FileTypes.hlsl),
+            ("fun.ico", FileTypes.ico),
+            ("burger.lib", FileTypes.library),
+            ("libburger.a", FileTypes.library),
+            ("sound.obj", FileTypes.object),
+            ("sound.o", FileTypes.object)
         )
 
         for test in tests:
@@ -73,14 +73,14 @@ class TestEnums(unittest.TestCase):
         Test ProjectTypes.lookup().
         """
         tests = (
-            ('dll', ProjectTypes.sharedlibrary),
-            ('scr', ProjectTypes.screensaver),
-            ('app', ProjectTypes.app),
-            ('game', ProjectTypes.app),
-            ('tool', ProjectTypes.tool),
-            ('console', ProjectTypes.tool),
-            ('library', ProjectTypes.library),
-            ('lib', ProjectTypes.library)
+            ("dll", ProjectTypes.sharedlibrary),
+            ("scr", ProjectTypes.screensaver),
+            ("app", ProjectTypes.app),
+            ("game", ProjectTypes.app),
+            ("tool", ProjectTypes.tool),
+            ("console", ProjectTypes.tool),
+            ("library", ProjectTypes.library),
+            ("lib", ProjectTypes.library)
         )
 
         for test in tests:
@@ -88,7 +88,6 @@ class TestEnums(unittest.TestCase):
 
 
 ########################################
-
 
     def test_idetypes_is_visual_studio(self):
         """
@@ -108,7 +107,6 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
-
     def test_idetypes_is_xcode(self):
         """
         Test IDETypes.is_xcode().
@@ -118,14 +116,13 @@ class TestEnums(unittest.TestCase):
             if item in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5,
                         IDETypes.xcode6, IDETypes.xcode7, IDETypes.xcode8,
                         IDETypes.xcode9, IDETypes.xcode10, IDETypes.xcode11,
-                        IDETypes.xcode12, IDETypes.xcode13):
+                        IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14):
                 self.assertTrue(item.is_xcode())
             else:
                 self.assertFalse(item.is_xcode())
 
 
 ########################################
-
 
     def test_idetypes_is_codewarrior(self):
         """
@@ -142,19 +139,18 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
-
     def test_idetypes_lookup(self):
         """
         Test IDETypes.lookup().
         """
 
         tests = (
-            ('vc7', IDETypes.vs2003),
-            ('vs2003', IDETypes.vs2003),
-            ('vs2019', IDETypes.vs2019),
-            ('vs2022', IDETypes.vs2022),
-            ('codewarrior', IDETypes.codewarrior50),
-            ('watcom', IDETypes.watcom)
+            ("vc7", IDETypes.vs2003),
+            ("vs2003", IDETypes.vs2003),
+            ("vs2019", IDETypes.vs2019),
+            ("vs2022", IDETypes.vs2022),
+            ("codewarrior", IDETypes.codewarrior50),
+            ("watcom", IDETypes.watcom)
         )
 
         for test in tests:
@@ -255,21 +251,22 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
-
     def test_platformtypes_lookup(self):
         """
         Test PlatformTypes.lookup().
         """
         tests = (
-            ('windows', PlatformTypes.windows),
-            ('win32', PlatformTypes.win32),
-            ('w64', PlatformTypes.win64),
-            ('macos', PlatformTypes.macos9),
-            ('macosx', PlatformTypes.macosx),
-            ('carbon', PlatformTypes.maccarbon),
-            ('ouya', PlatformTypes.ouya),
-            ('switch', PlatformTypes.switch),
-            ('xboxone', PlatformTypes.xboxone)
+            ("windows", PlatformTypes.windows),
+            ("win32", PlatformTypes.win32),
+            ("w64", PlatformTypes.win64),
+            ("macos", PlatformTypes.macos9),
+            ("macosx", PlatformTypes.macosx),
+            ("carbon", PlatformTypes.maccarbon),
+            ("ouya", PlatformTypes.ouya),
+            ("switch", PlatformTypes.switch),
+            ("xboxone", PlatformTypes.xboxone),
+            ("stadia", PlatformTypes.stadia),
+            ("ps5", PlatformTypes.ps5)
         )
 
         for test in tests:
@@ -278,5 +275,5 @@ class TestEnums(unittest.TestCase):
 ########################################
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
