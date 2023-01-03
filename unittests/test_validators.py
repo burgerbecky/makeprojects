@@ -22,12 +22,12 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.core import Configuration
-from makeprojects.hlsl_support import HLSL_ENUMS
 from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
     lookup_enum_append_keys, lookup_strings, lookup_string_list, \
     lookup_string_lists, lookup_booleans, VSBooleanProperty, VSIntegerProperty, \
-    VSStringProperty
+    VSStringProperty, VSStringListProperty, VSEnumProperty
+from makeprojects.hlsl_support import HLSL_ENUMS
+from makeprojects.core import Configuration
 
 ########################################
 
@@ -53,6 +53,7 @@ class TestValidators(unittest.TestCase):
 
 
 ########################################
+
 
     def test_lookup_enum_append_key(self):
         """
@@ -365,6 +366,83 @@ class TestValidators(unittest.TestCase):
 
         t.value = 66
         self.assertEqual(t.value, "66")
+
+########################################
+
+    def test_VSStringListProperty(self):
+        """
+        Test makeprojects.validators.VSStringListProperty
+        """
+
+        default = ["back/forward.txt", "projects"]
+
+        t = VSStringListProperty("Test", default)
+        self.assertEqual(t.name, "Test")
+        self.assertListEqual(t.value, ["back/forward.txt", "projects"])
+        self.assertEqual(t.get_value(), "back/forward.txt;projects")
+
+        t = VSStringListProperty("Test", default, separator=" ")
+        self.assertEqual(t.name, "Test")
+        self.assertListEqual(t.value, ["back/forward.txt", "projects"])
+        self.assertEqual(t.get_value(), "back/forward.txt projects")
+
+        t = VSStringListProperty("Test", default, slashes="\\")
+        self.assertEqual(t.name, "Test")
+        self.assertEqual(t.get_value(), "back\\forward.txt;projects")
+
+        t = VSStringListProperty(
+            "Test", default, slashes="\\", force_ending_slash=True)
+        self.assertEqual(t.name, "Test")
+        self.assertEqual(t.get_value(), "back\\forward.txt\\;projects\\")
+
+        t = VSStringListProperty("Test", default, force_ending_slash=True)
+        self.assertEqual(t.name, "Test")
+        self.assertEqual(t.get_value(), "back/forward.txt;projects")
+
+        t = VSStringListProperty(
+            "Test", default, slashes="/", force_ending_slash=True)
+        self.assertEqual(t.name, "Test")
+        self.assertEqual(t.get_value(), "back/forward.txt/;projects/")
+
+        # Set value
+        t.slashes = None
+        t.separator = " "
+        t.value = [9, 2, 3]
+        self.assertEqual(t.get_value(), "9 2 3")
+
+        t.value.append("sds")
+        self.assertEqual(t.get_value(), "9 2 3 sds")
+
+########################################
+
+    def test_VSEnumProperty(self):
+        """
+        Test makeprojects.validators.VSEnumProperty
+        """
+
+        enumerations = (
+            "No",
+            ("Yes", "Hello"),
+            ("a", "b", "c"),
+            "Custom"
+        )
+        t = VSEnumProperty("Test", "No", enumerations)
+        self.assertEqual(t.get_value(), "0")
+
+        t.set_value("a")
+        self.assertEqual(t.get_value(), "2")
+
+        t.set_value(1)
+        self.assertEqual(t.get_value(), "1")
+
+        # Failure cases
+        with self.assertRaises(ValueError):
+            t.set_value("skdjskjd")
+        with self.assertRaises(ValueError):
+            t.set_value(9)
+        with self.assertRaises(ValueError):
+            t.set_value(-1)
+
 
 ########################################
 

@@ -16,16 +16,14 @@ from __future__ import absolute_import, print_function, unicode_literals
 import numbers
 
 from burger import is_string, packed_paths, truefalse, convert_to_array, \
-    BooleanProperty, IntegerProperty, StringProperty, \
-    StringListProperty as StringListProp
-
+    BooleanProperty, IntegerProperty, StringProperty, StringListProperty
 
 ########################################
+
 
 def lookup_enum_value(enum_lookup, key, default):
     """
     Find a value in a list of enums.
-
 
     Iterate over a list of two entry tuples, the first entry is the key and the
     second is the value. Essentually, it's a dict implemented as a list/tuple.
@@ -598,7 +596,7 @@ class VSStringProperty(object):
 ########################################
 
 
-class StringListProperty(object):
+class VSStringListProperty(object):
     """
     List of strings or directories.
 
@@ -611,7 +609,7 @@ class StringListProperty(object):
         value: String list value
     """
 
-    value = StringListProp("_value")
+    value = StringListProperty("_value")
 
     # pylint: disable=too-many-arguments
     def __init__(self, name, default, slashes=None, separator=None,
@@ -648,7 +646,6 @@ class StringListProperty(object):
     def set_value(self, value):
         """
         Update the value with a string.
-
         Value can be a boolean, a number, a string or None
         to set to default.
 
@@ -700,7 +697,7 @@ class StringListProperty(object):
 ########################################
 
 
-class EnumProperty():
+class VSEnumProperty(object):
     """
     Enumeration integer value.
 
@@ -734,9 +731,7 @@ class EnumProperty():
     def set_value(self, value):
         """
         Update with an index or an enumeration string.
-
-        Value can be a number, a string or None
-        to set to default.
+        Value can be a number, a string or None to set to default.
 
         Args:
             value: None, number, or string.

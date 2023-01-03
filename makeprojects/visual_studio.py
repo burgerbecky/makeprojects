@@ -30,8 +30,8 @@ try:
 except ImportError:
     pass
 
-from .validators import VSBooleanProperty, VSStringProperty, EnumProperty, \
-    StringListProperty, VSIntegerProperty, lookup_enum_value
+from .validators import VSBooleanProperty, VSStringProperty, VSEnumProperty, \
+    VSStringListProperty, VSIntegerProperty, lookup_enum_value
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
@@ -2485,7 +2485,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Optimizations
         default = '/Ox' if optimization else '/Od'
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'Optimization', default,
                 (('/Od', 'Disabled'),
                  ('/O1', 'Minimize Size'),
@@ -2499,7 +2499,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Inline functions
         default = '/Ob2' if optimization else None
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'InlineFunctionExpansion', default,
                 ('Disable',
                  ('/Ob1', 'Only __inline'),
@@ -2513,7 +2513,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Size or speed?
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'FavorSizeOrSpeed', '/Ot',
                 ('Neither', ('/Ot', 'Favor Fast Code'),
                  ('/Os', 'Favor Small Code'))))
@@ -2531,7 +2531,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Build for Pentium, Pro, P4
         if ide is IDETypes.vs2003:
             self.add_default(
-                EnumProperty(
+                VSEnumProperty(
                     'OptimizeForProcessor', '/G7',
                     ('Blended',
                      ('/G5', 'Pentium'),
@@ -2546,14 +2546,14 @@ class VCCLCompilerTool(VS2003Tool):
             '_source_include_list')
         default.extend(configuration.get_unique_chained_list(
             'include_folders_list'))
-        self.add_default(StringListProperty(
+        self.add_default(VSStringListProperty(
             'AdditionalIncludeDirectories',
             default,
             slashes='\\'))
 
         # Directory for #using includes
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'AdditionalUsingDirectories',
                 [],
                 slashes='\\'))
@@ -2561,7 +2561,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Get the defines
         define_list = configuration.get_chained_list('define_list')
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'PreprocessorDefinitions',
                 define_list))
 
@@ -2570,7 +2570,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Create a preprocessed file
         self.add_default(
-            EnumProperty('GeneratePreprocessedFile', None,
+            VSEnumProperty('GeneratePreprocessedFile', None,
                          ('No',
                           ('/P', 'With Line Numbers'),
                           ('/EP', '/EP /P', 'Without Line Numbers'))))
@@ -2588,7 +2588,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         if ide > IDETypes.vs2003:
             self.add_default(
-                EnumProperty(
+                VSEnumProperty(
                     'ExceptionHandling', 'No',
                     ('No',
                      ('/EHsc', 'Yes'),
@@ -2597,7 +2597,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Runtime checks (Only valid if no optimizations)
         default = None if optimization else 'Both'
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'BasicRuntimeChecks', default,
                 ('Default', ('/RTCs', 'Stack', 'Stack Frames'),
                  ('/RTCu', 'Uninitialzed', 'Uninitialized Variables'),
@@ -2618,11 +2618,11 @@ class VCCLCompilerTool(VS2003Tool):
             enum_list.extend([('/ML', 'Single-Threaded'),
                               ('/MLd', 'Single-Threaded Debug')])
         self.add_default(
-            EnumProperty('RuntimeLibrary', default, enum_list))
+            VSEnumProperty('RuntimeLibrary', default, enum_list))
 
         # Structure alignment
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'StructMemberAlignment', '/Zp8',
                 ('Default',
                  ('/Zp1', '1', '1 Byte'),
@@ -2640,7 +2640,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Enhanced instruction set
         default = None
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'EnableEnhancedInstructionSet', default,
                 ('Default',
                  ('/arch:SSE', 'SSE'),
@@ -2650,7 +2650,7 @@ class VCCLCompilerTool(VS2003Tool):
         if ide > IDETypes.vs2003:
             default = '/fp:fast'
             self.add_default(
-                EnumProperty(
+                VSEnumProperty(
                     'FloatingPointModel', default,
                     (('/fp:precise', 'Precise'),
                      ('/fp:strict', 'Strict'),
@@ -2687,7 +2687,7 @@ class VCCLCompilerTool(VS2003Tool):
         if ide is IDETypes.vs2003:
             enum_list.insert(-1, ('/YX', 'Automatic'))
         self.add_default(
-            EnumProperty('UsePrecompiledHeader', default, enum_list))
+            VSEnumProperty('UsePrecompiledHeader', default, enum_list))
 
         # Text header file for precompilation
         self.add_default(StringPrecompiledHeaderThrough())
@@ -2701,7 +2701,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Format of the assembly output
         default = None
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'AssemblerOutput', default,
                 (('No', 'No Listing'),
                  ('/FA', 'Assembly', 'Asm', 'Assembly-Only'),
@@ -2729,7 +2729,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Type of source browsing information
         default = None
         self.add_default(
-            EnumProperty('BrowseInformation', default,
+            VSEnumProperty('BrowseInformation', default,
                          (('None', 'No'),
                           ('/FR', 'All'),
                           ('/Fr', 'No Local Symbols', 'No Locals'))))
@@ -2740,7 +2740,7 @@ class VCCLCompilerTool(VS2003Tool):
         # Warning level
         default = 'All'
         self.add_default(
-            EnumProperty('WarningLevel', default,
+            VSEnumProperty('WarningLevel', default,
                          (('/W0', 'Off', 'No', 'None'),
                           ('/W1', 'Level 1'),
                           ('/W2', 'Level 2'),
@@ -2771,14 +2771,14 @@ class VCCLCompilerTool(VS2003Tool):
         if debug or project_type.is_library():
             default = '/C7'
         self.add_default(
-            EnumProperty('DebugInformationFormat', default, enum_list))
+            VSEnumProperty('DebugInformationFormat', default, enum_list))
 
         # Code calling convention
         default = None
         if configuration.fastcall:
             default = '__fastcall'
         self.add_default(
-            EnumProperty('CallingConvention', default,
+            VSEnumProperty('CallingConvention', default,
                          (('/Gd', '__cdecl'),
                           ('/Gr', '__fastcall'),
                           ('/Gz', '__stdcall'))))
@@ -2786,23 +2786,23 @@ class VCCLCompilerTool(VS2003Tool):
         # C or C++
         default = None
         self.add_default(
-            EnumProperty('CompileAs', default,
+            VSEnumProperty('CompileAs', default,
                          (('No', 'Default'),
                           ('/TC', 'C'),
                           ('/TP', 'C++'))))
 
         # Get the defines
         default = ['4201']
-        self.add_default(StringListProperty(
+        self.add_default(VSStringListProperty(
             'DisableSpecificWarnings', default))
 
         # List of include files to force inclusion
         default = []
-        self.add_default(StringListProperty('ForcedIncludeFile', default))
+        self.add_default(VSStringListProperty('ForcedIncludeFile', default))
 
         # List of using files to force inclusion
         default = []
-        self.add_default(StringListProperty('ForcedUsingFiles', default))
+        self.add_default(VSStringListProperty('ForcedUsingFiles', default))
 
         # Show include file list
         self.add_default(BoolShowIncludes(configuration))
@@ -2810,7 +2810,7 @@ class VCCLCompilerTool(VS2003Tool):
         # List of defines to remove
         default = []
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'UndefinePreprocessorDefinitions',
                 default))
 
@@ -2827,7 +2827,7 @@ class VCCLCompilerTool(VS2003Tool):
             # Error reporting style
             default = None
             self.add_default(
-                EnumProperty('ErrorReporting', default,
+                VSEnumProperty('ErrorReporting', default,
                              (('Default'),
                               ('/errorReport:prompt', 'Immediate'),
                               ('/errorReport:queue', 'Queue'))))
@@ -2886,10 +2886,10 @@ class VCCustomBuildTool(VS2003Tool):
         self.add_default(StringCommandLine())
 
         # List of files this step depends on
-        self.add_default(StringListProperty('AdditionalDependencies', []))
+        self.add_default(VSStringListProperty('AdditionalDependencies', []))
 
         # List of files created by this build step
-        self.add_default(StringListProperty('Outputs', []))
+        self.add_default(VSStringListProperty('Outputs', []))
 
 
 ########################################
@@ -2949,7 +2949,7 @@ class VCLinkerTool(VS2003Tool):
         default = configuration.get_unique_chained_list(
             'libraries_list')
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'AdditionalDependencies',
                 default,
                 separator=' '))
@@ -2957,7 +2957,7 @@ class VCLinkerTool(VS2003Tool):
         # Show progress in linking
         default = None
         self.add_default(
-            EnumProperty('ShowProgress', default,
+            VSEnumProperty('ShowProgress', default,
                          (('Default', 'No', 'None'),
                           ('/VERBOSE', 'All'),
                           ('/VERBOSE:LIB', 'Lib'))))
@@ -2975,7 +2975,7 @@ class VCLinkerTool(VS2003Tool):
        # Show progress in linking
         default = 'No' if optimization else 'Yes'
         self.add_default(
-            EnumProperty('LinkIncremental', default,
+            VSEnumProperty('LinkIncremental', default,
                          ('Default',
                           ('/INCREMENTAL:NO', 'No'),
                           ('/INCREMENTAL', 'Yes'))))
@@ -2989,7 +2989,7 @@ class VCLinkerTool(VS2003Tool):
         # Library folders
         default = configuration.get_unique_chained_list('library_folders_list')
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'AdditionalLibraryDirectories',
                 default,
                 slashes='\\'))
@@ -3003,7 +3003,7 @@ class VCLinkerTool(VS2003Tool):
 
             # Manifests this one is dependent on
             self.add_default(
-                StringListProperty(
+                VSStringListProperty(
                     'AdditionalManifestDependencies', []))
 
         # Enable User Access Control
@@ -3013,7 +3013,7 @@ class VCLinkerTool(VS2003Tool):
             # Generate a manifest file
             default = None
             self.add_default(
-                EnumProperty('UACExecutionLevel', None,
+                VSEnumProperty('UACExecutionLevel', None,
                              ('asInvoker',
                               'highestAvailable',
                               'requireAdministrator')))
@@ -3025,26 +3025,26 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(BoolIgnoreAllDefaultLibraries(configuration))
 
         # Manifests this one is dependent on
-        self.add_default(StringListProperty('IgnoreDefaultLibraryNames', []))
+        self.add_default(VSStringListProperty('IgnoreDefaultLibraryNames', []))
 
         # Module definition file, if one exists
         self.add_default(VSStringProperty('ModuleDefinitionFile', None))
 
         # Add these modules to the C# assembly
-        self.add_default(StringListProperty('AddModuleNamesToAssembly', []))
+        self.add_default(VSStringListProperty('AddModuleNamesToAssembly', []))
 
         # Embed these resource fildes
-        self.add_default(StringListProperty('EmbedManagedResourceFile', []))
+        self.add_default(VSStringListProperty('EmbedManagedResourceFile', []))
 
         # Force these symbols
-        self.add_default(StringListProperty('ForceSymbolReferences', []))
+        self.add_default(VSStringListProperty('ForceSymbolReferences', []))
 
         # Load these DLLs only when called.
-        self.add_default(StringListProperty('DelayLoadDLLs', []))
+        self.add_default(VSStringListProperty('DelayLoadDLLs', []))
 
         if ide > IDETypes.vs2003:
             # Link in these assemblies
-            self.add_default(StringListProperty('AssemblyLinkResource', []))
+            self.add_default(VSStringListProperty('AssemblyLinkResource', []))
 
         # Contents of a Midl comment file (Actual commands)
         self.add_default(VSStringProperty('MidlCommandFile', None))
@@ -3067,7 +3067,7 @@ class VCLinkerTool(VS2003Tool):
         # Add debugging infromation in assembly
         default = None
         self.add_default(
-            EnumProperty(
+            VSEnumProperty(
                 'AssemblyDebug', default,
                 (('No', 'None'),
                  ('/ASSEMBLYDEBUG', 'Runtime Tracking'),
@@ -3114,7 +3114,7 @@ class VCLinkerTool(VS2003Tool):
                 enum_list.insert(-1, ('/SUBSYSTEM:POSIX', 'Posix'))
 
         self.add_default(
-            EnumProperty('SubSystem', default, enum_list))
+            VSEnumProperty('SubSystem', default, enum_list))
 
         # Amount of heap to reserve
         self.add_default(IntHeapReserveSize())
@@ -3131,7 +3131,7 @@ class VCLinkerTool(VS2003Tool):
         # Large address space aware?
         default = None
         self.add_default(
-            EnumProperty('LargeAddressAware', default,
+            VSEnumProperty('LargeAddressAware', default,
                          ('Default',
                           ('/LARGEADDRESSAWARE:NO', 'Disable'),
                           ('/LARGEADDRESSAWARE', 'Enable'))))
@@ -3139,7 +3139,7 @@ class VCLinkerTool(VS2003Tool):
         # Terminal server aware?
         default = None
         self.add_default(
-            EnumProperty('TerminalServerAware', default,
+            VSEnumProperty('TerminalServerAware', default,
                          ('Default',
                           ('/TSAWARE:NO', 'Disable'),
                           ('/TSAWARE', 'Enable'))))
@@ -3154,7 +3154,7 @@ class VCLinkerTool(VS2003Tool):
         if ide > IDETypes.vs2003:
             default = None
             self.add_default(
-                EnumProperty('Driver', default,
+                VSEnumProperty('Driver', default,
                              (('No', 'Not Set'),
                               ('/DRIVER:NO', 'Driver'),
                               ('/DRIVER:UPONLY', 'Up Only'),
@@ -3163,7 +3163,7 @@ class VCLinkerTool(VS2003Tool):
         # Remove unreferenced code
         default = '/OPT:REF'
         self.add_default(
-            EnumProperty('OptimizeReferences', default,
+            VSEnumProperty('OptimizeReferences', default,
                          ('Default',
                           ('/OPT:NOREF', 'Disable'),
                           ('/OPT:REF', 'Enable'))))
@@ -3171,7 +3171,7 @@ class VCLinkerTool(VS2003Tool):
         # Remove redundant COMDAT symbols
         default = '/OPT:ICF' if optimization else None
         self.add_default(
-            EnumProperty('EnableCOMDATFolding', default,
+            VSEnumProperty('EnableCOMDATFolding', default,
                          ('Default',
                           ('/OPT:NOICF', 'Disable'),
                           ('/OPT:ICF', 'Enable'))))
@@ -3179,7 +3179,7 @@ class VCLinkerTool(VS2003Tool):
         # Align code on 4K boundaries for Windows 98
         default = None
         self.add_default(
-            EnumProperty('OptimizeForWindows98', default,
+            VSEnumProperty('OptimizeForWindows98', default,
                          ('Default',
                           ('/OPT:NOWIN98', 'Disable'),
                           ('/OPT:WIN98', 'Enable'))))
@@ -3192,7 +3192,7 @@ class VCLinkerTool(VS2003Tool):
             # Link using link time code generation
             default = 'Enable' if link_time_code_generation else None
             self.add_default(
-                EnumProperty('LinkTimeCodeGeneration', default,
+                VSEnumProperty('LinkTimeCodeGeneration', default,
                              ('Default',
                               ('/ltcg', 'Enable'),
                               ('/ltcg:pginstrument', 'Instrument'),
@@ -3219,7 +3219,7 @@ class VCLinkerTool(VS2003Tool):
             # Enable base address randomization
             default = None
             self.add_default(
-                EnumProperty('RandomizedBaseAddress', default,
+                VSEnumProperty('RandomizedBaseAddress', default,
                              ('Default',
                               ('/DYNAMICBASE:NO', 'Disable'),
                               ('/DYNAMICBASE', 'Enable'))))
@@ -3227,7 +3227,7 @@ class VCLinkerTool(VS2003Tool):
             # Enable fixed address code generation
             default = None
             self.add_default(
-                EnumProperty('FixedBaseAddress', default,
+                VSEnumProperty('FixedBaseAddress', default,
                              ('Default',
                               ('/FIXED:NO', 'Relocatable'),
                               ('/FIXED', 'Fixed'))))
@@ -3235,7 +3235,7 @@ class VCLinkerTool(VS2003Tool):
             # Enable Data execution protection
             default = None
             self.add_default(
-                EnumProperty('DataExecutionPrevention', default,
+                VSEnumProperty('DataExecutionPrevention', default,
                              ('Default',
                               ('/NXCOMPAT:NO', 'Disable'),
                               ('/NXCOMPAT', 'Enable'))))
@@ -3278,14 +3278,14 @@ class VCLinkerTool(VS2003Tool):
                 ('/MACHINE:X64', 'X64')
             ])
 
-        self.add_default(StringListProperty('TargetMachine', None, enum_list))
+        self.add_default(VSStringListProperty('TargetMachine', None, enum_list))
 
         # This is a duplication of what is in 2008 for sorting
         if ide < IDETypes.vs2008:
             # Enable fixed address code generation
             default = None
             self.add_default(
-                EnumProperty('FixedBaseAddress', default,
+                VSEnumProperty('FixedBaseAddress', default,
                              ('Default',
                               ('/FIXED:NO', 'Relocatable'),
                               ('/FIXED', 'Fixed'))))
@@ -3313,7 +3313,7 @@ class VCLinkerTool(VS2003Tool):
             # CLR Thread attribute
             default = None
             self.add_default(
-                EnumProperty('CLRThreadAttribute', default,
+                VSEnumProperty('CLRThreadAttribute', default,
                              ('Default',
                               ('/CLRTHREADATTRIBUTE:MTA', 'MTA'),
                               ('/CLRTHREADATTRIBUTE:STA', 'STA'))))
@@ -3321,7 +3321,7 @@ class VCLinkerTool(VS2003Tool):
             # CLR data image type
             default = None
             self.add_default(
-                EnumProperty('CLRImageType', default,
+                VSEnumProperty('CLRImageType', default,
                              ('Default',
                               ('/CLRIMAGETYPE:IJW', 'IJW'),
                               ('/CLRIMAGETYPE:PURE', 'RelPureocatable'),
@@ -3330,7 +3330,7 @@ class VCLinkerTool(VS2003Tool):
             # Error reporting
             default = None
             self.add_default(
-                EnumProperty('ErrorReporting', default,
+                VSEnumProperty('ErrorReporting', default,
                              ('Default',
                               ('/ERRORREPORT:PROMPT', 'Prompt'),
                               ('/ERRORREPORT:QUEUE', 'Queue'))))
@@ -3373,7 +3373,7 @@ class VCLibrarianTool(VS2003Tool):
         # Libaries to link in
         default = []
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'AdditionalDependencies',
                 default,
                 separator=' '))
@@ -3388,7 +3388,7 @@ class VCLibrarianTool(VS2003Tool):
         # Library folders
         default = configuration.get_unique_chained_list('library_folders_list')
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'AdditionalLibraryDirectories',
                 default,
                 slashes='\\'))
@@ -3408,21 +3408,21 @@ class VCLibrarianTool(VS2003Tool):
         # Ignore these libraries
         default = []
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'IgnoreDefaultLibraryNames',
                 default))
 
         # Export these functions
         default = []
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'ExportNamedFunctions',
                 default))
 
         # Force linking to these symbols
         default = []
         self.add_default(
-            StringListProperty(
+            VSStringListProperty(
                 'ForceSymbolReferences',
                 default))
 
@@ -4290,7 +4290,7 @@ class VS2003FileConfiguration(VS2003XML):
 
                     # List of files created by this build step
                     element.add_default(
-                        StringListProperty(
+                        VSStringListProperty(
                             'Outputs',
                             [convert_file_name_vs2010(x)
                              for x in outputs]))
