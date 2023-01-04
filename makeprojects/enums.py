@@ -105,7 +105,9 @@ from enum import IntEnum
 import os
 from burger import get_mac_host_type, get_windows_host_type, \
     where_is_visual_studio, where_is_codeblocks, where_is_watcom, \
-    where_is_xcode, is_string
+    where_is_xcode
+
+from .util import string_test
 
 ########################################
 
@@ -193,6 +195,9 @@ class FileTypes(IntEnum):
         See Also:
             makeprojects.enums._FILETYPES_LOOKUP
         """
+
+        # Sanity check
+        string_test(test_name)
 
         return _FILETYPES_LOOKUP.get(
             os.path.splitext(test_name)[1][1:].strip().lower(), None)
@@ -394,6 +399,10 @@ class ProjectTypes(IntEnum):
             return project_type_name
 
         if project_type_name:
+
+            # Sanity check
+            string_test(project_type_name)
+
             # Try the member name as is.
             test_name = project_type_name.lower()
             if hasattr(ProjectTypes, project_type_name):
@@ -641,11 +650,8 @@ class IDETypes(IntEnum):
         if isinstance(ide_name, IDETypes):
             return ide_name
 
-        # Non-strings are bad
-        if not is_string(ide_name):
-            msg = "\"{}\" cannot be a number.".format(
-                ide_name)
-            raise TypeError(msg)
+        # Sanity check
+        string_test(ide_name)
 
         if ide_name:
             # Try the member name as is.
@@ -1312,6 +1318,10 @@ class PlatformTypes(IntEnum):
 
         # Already a PlatformTypes?
         if platform_name:
+
+            # Sanity check
+            string_test(platform_name)
+
             # Try the member name as is.
             test_name = platform_name.lower()
             if hasattr(PlatformTypes, test_name):

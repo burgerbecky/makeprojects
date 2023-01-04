@@ -1,6 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Copyright 2021-2023 by Rebecca Ann Heineman becky@burgerbecky.com
+
+# It is released under an MIT Open Source license. Please see LICENSE
+# for license details. Yes, you can use it in a
+# commercial title without paying anything, just give me a credit.
+# Please? It's not like I'm asking you for money!
+
 """
 The util module contains subroutines used everywhere.
 
@@ -13,10 +20,27 @@ import os
 import re
 import fnmatch
 from burger import string_to_bool, is_string, import_py_script, norm_paths
-from .enums import FileTypes
 from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 
 # pylint: disable=consider-using-f-string
+
+########################################
+
+
+def string_test(value):
+    """
+    Simple validation function that will throw a TypeError.
+    If the input is a string, return. If not, throw a TypeError
+
+    Args:
+        value: String to test, anything else will raise
+    Except:
+        TypeError if input is not a string.
+    """
+
+    if not is_string(value):
+        msg = "\"{}\" must be a string.".format(value)
+        raise TypeError(msg)
 
 ########################################
 
@@ -42,6 +66,7 @@ def validate_enum_type(value, data_type):
     """
 
     if value is not None:
+
         # Perform the lookup
         new_value = data_type.lookup(value)
         if new_value is None:
