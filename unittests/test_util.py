@@ -41,9 +41,9 @@ class TestUtil(unittest.TestCase):
         """
 
         # Test None
-        self.assertIs(validate_enum_type(None, PlatformTypes), None)
-        self.assertIs(validate_enum_type(None, IDETypes), None)
-        self.assertIs(validate_enum_type(None, ProjectTypes), None)
+        self.assertIsNone(validate_enum_type(None, PlatformTypes))
+        self.assertIsNone(validate_enum_type(None, IDETypes))
+        self.assertIsNone(validate_enum_type(None, ProjectTypes))
 
         # Test conversion
         self.assertIs(validate_enum_type(
@@ -108,11 +108,11 @@ class TestUtil(unittest.TestCase):
         Test makeprojects.util.validate_boolean
         """
 
-        self.assertIs(validate_boolean(True), True)
-        self.assertIs(validate_boolean(str(1)), True)
-        self.assertIs(validate_boolean(None), None)
-        self.assertIs(validate_boolean(90), True)
-        self.assertIs(validate_boolean("No"), False)
+        self.assertTrue(validate_boolean(True))
+        self.assertTrue(validate_boolean(str(1)))
+        self.assertIsNone(validate_boolean(None))
+        self.assertTrue(validate_boolean(90))
+        self.assertFalse(validate_boolean("No"))
 
         with self.assertRaises(ValueError):
             validate_boolean({})
@@ -150,12 +150,12 @@ class TestUtil(unittest.TestCase):
 
         # Test parent
         self.assertEqual(remove_ending_os_sep(None), [])
-        if os.sep == '\\':
-            before = ['c:\\a', 'a\\a\\', '\\', 'c:\\a\\a\\']
-            after = ['c:\\a', 'a\\a', '\\', 'c:\\a\\a']
+        if os.sep == "\\":
+            before = ["c:\\a", "a\\a\\", "\\", "c:\\a\\a\\"]
+            after = ["c:\\a", "a\\a", "\\", "c:\\a\\a"]
         else:
-            before = ['/a', 'a/a/', '/', '/a/a/']
-            after = ['/a', 'a/a', '/', '/a/a']
+            before = ["/a", "a/a/", "/", "/a/a/"]
+            after = ["/a", "a/a", "/", "/a/a"]
         self.assertEqual(remove_ending_os_sep(before), after)
 
         # Test failure cases
@@ -190,5 +190,5 @@ class TestUtil(unittest.TestCase):
 ########################################
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

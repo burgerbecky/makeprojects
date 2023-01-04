@@ -12,6 +12,9 @@
 The util module contains subroutines used everywhere.
 
 @package makeprojects.util
+
+@var makeprojects._BUILD_RULES_CACHE
+Dict of build rules loaded
 """
 
 from __future__ import absolute_import, print_function, unicode_literals
@@ -23,6 +26,9 @@ from burger import string_to_bool, is_string, import_py_script, norm_paths
 from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 
 # pylint: disable=consider-using-f-string
+
+# Cache of Build_rules.py python scripts
+_BUILD_RULES_CACHE = {}
 
 ########################################
 
@@ -143,6 +149,60 @@ def validate_string(value):
 ########################################
 
 
+def clear_build_rules_cache():
+    """
+    Clear the build rules cache
+
+    See Also:
+        load_build_rules
+    """
+
+    global _BUILD_RULES_CACHE
+    _BUILD_RULES_CACHE = {}
+
+########################################
+
+
+def load_build_rules(path_name, clear_cache=False):
+    """
+    Load build_rules using a cache.
+    Check if the path was already loaded. If so, use the cached
+    version, otherwise load and cache the build_rules.py script
+
+    Args:
+        path_name: Full pathname to the build_rules.py script
+        clear_cache: Boolean, if true, clear the cache first
+
+    See Also:
+        clear_build_rules_cache
+    """
+
+    # pylint: disable=global-statement
+    global _BUILD_RULES_CACHE
+
+    # Check if the cache was to be cleared
+    if clear_cache:
+        _BUILD_RULES_CACHE = {}
+
+    # Get rid of the trailing slash to ensure hits for duplicate files
+    path_name = os.path.abspath(path_name)
+    if len(path_name) >= 2 and path_name.endswith(os.sep):
+        path_name = path_name[:-1]
+
+    # Is it in the cache?
+    build_rules = _BUILD_RULES_CACHE.get(path_name, None)
+    if not build_rules:
+
+        # Load and insert into the cache
+        build_rules = import_py_script(path_name)
+        if build_rules:
+            _BUILD_RULES_CACHE[path_name] = build_rules
+
+    return build_rules
+
+########################################
+
+
 def add_build_rules(build_rules_list, file_name, verbose, is_root, basename):
     """
     Load in the file ``build_rules.py``
@@ -169,8 +229,7 @@ def add_build_rules(build_rules_list, file_name, verbose, is_root, basename):
     """
 
     # Ensure the absolute path is used.
-    file_name = os.path.abspath(file_name)
-    build_rules = import_py_script(file_name)
+    build_rules = load_build_rules(file_name)
 
     # Not found? Continue parsing folders.
     if not build_rules:

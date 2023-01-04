@@ -29,7 +29,7 @@ from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
     _XCODEPROJ_MATCH
 from .__init__ import __version__
 from .util import get_build_rules, getattr_build_rules, was_processed, \
-    fixup_args
+    fixup_args, clear_build_rules_cache
 from .core import BuildError
 from .modules import MODULES
 from .python import create_clean_rules_objects, BuildPythonFile
@@ -501,6 +501,7 @@ def main(working_directory=None, args=None):
         for item in results:
             if args.verbose or item.error:
                 print(item)
+    clear_build_rules_cache()
     return error
 
 
