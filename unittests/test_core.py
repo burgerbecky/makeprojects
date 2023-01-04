@@ -69,7 +69,7 @@ class TestCore(unittest.TestCase):
         self.assertIs(a.platform, PlatformTypes.maccarbon)
         a.platform = 'carbon'
         self.assertIs(a.platform, PlatformTypes.maccarbon)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             a.platform = 1
         with self.assertRaises(TypeError):
             a.platform = 'myplatform'
@@ -84,7 +84,7 @@ class TestCore(unittest.TestCase):
         self.assertIs(a.project_type, ProjectTypes.app)
         a.project_type = 'lib'
         self.assertIs(a.project_type, ProjectTypes.library)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             a.project_type = 1
         with self.assertRaises(TypeError):
             a.project_type = 'myproject_type'
@@ -342,11 +342,11 @@ class TestCore(unittest.TestCase):
         self.assertIs(s.ide, IDETypes.xcode11)
         s.ide = 'codeblocks'
         self.assertIs(s.ide, IDETypes.codeblocks)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             s.ide = False
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             s.ide = 5.0
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             s.ide = self
         s.ide = None
         self.assertIsNone(s.ide)

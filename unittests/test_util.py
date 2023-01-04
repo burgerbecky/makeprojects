@@ -21,8 +21,8 @@ import os
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.util import string_test, validate_enum_type, remove_ending_os_sep, \
-    was_processed
+from makeprojects.util import validate_enum_type, regex_dict, validate_boolean, \
+    validate_string, remove_ending_os_sep, was_processed
 from makeprojects.enums import PlatformTypes, IDETypes, ProjectTypes
 
 ########################################
@@ -32,26 +32,6 @@ class TestUtil(unittest.TestCase):
     """
     Test util functions
     """
-
-########################################
-
-    def test_string_test(self):
-        """
-        Test makeprojects.util.string_test
-        """
-
-        string_test("sds")
-        string_test(str(90))
-        string_test(b"slk")
-
-        with self.assertRaises(TypeError):
-            string_test(90)
-        with self.assertRaises(TypeError):
-            string_test({})
-        with self.assertRaises(TypeError):
-            string_test(self)
-        with self.assertRaises(TypeError):
-            string_test(9.0)
 
 ########################################
 
@@ -73,14 +53,93 @@ class TestUtil(unittest.TestCase):
                       ProjectTypes), ProjectTypes.library)
 
         # Failure cases
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             validate_enum_type(90, PlatformTypes)
-        with self.assertRaises(TypeError):
+        with self.assertRaises(ValueError):
             validate_enum_type(PlatformTypes, PlatformTypes)
 
         with self.assertRaises(AttributeError):
             validate_enum_type("stadia", 90)
 
+########################################
+
+    def test_regex_dict(self):
+        """
+        Test makeprojects.util.test_regex_dict
+        """
+
+        # Create wildcards for .h and .cpp only
+        test = {
+            "*.h": ".h",
+            "*.cpp": ".cpp"
+        }
+
+        # Convert the dict
+        result = regex_dict(test)
+
+        # Only foo.hpp will not match
+        samples = ("foo.h", "foo.hpp", "foo.cpp", "test.h")
+        for sample in samples:
+
+            # Make sure it hit only once
+            hit = 0
+            for item in result.items():
+
+                # Regex match?
+                if item[0](sample):
+
+                    # Make sure the file extension is a match
+                    data = item[1]
+                    self.assertIs(sample.endswith(data), True)
+                    hit = hit + 1
+
+            # No hits?
+            if not hit:
+                # This is the only entry that should not hit
+                self.assertEqual(sample, "foo.hpp")
+            else:
+                # Only 1 hit allowed
+                self.assertEqual(hit, 1)
+
+########################################
+
+    def test_validate_boolean(self):
+        """
+        Test makeprojects.util.validate_boolean
+        """
+
+        self.assertIs(validate_boolean(True), True)
+        self.assertIs(validate_boolean(str(1)), True)
+        self.assertIs(validate_boolean(None), None)
+        self.assertIs(validate_boolean(90), True)
+        self.assertIs(validate_boolean("No"), False)
+
+        with self.assertRaises(ValueError):
+            validate_boolean({})
+        with self.assertRaises(ValueError):
+            validate_boolean(self)
+        with self.assertRaises(ValueError):
+            validate_boolean("fail")
+
+########################################
+
+    def test_validate_string(self):
+        """
+        Test makeprojects.util.validate_string
+        """
+
+        validate_string("sds")
+        validate_string(str(90))
+        validate_string(b"slk")
+
+        with self.assertRaises(ValueError):
+            validate_string(90)
+        with self.assertRaises(ValueError):
+            validate_string({})
+        with self.assertRaises(ValueError):
+            validate_string(self)
+        with self.assertRaises(ValueError):
+            validate_string(9.0)
 
 ########################################
 

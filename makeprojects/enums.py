@@ -107,7 +107,7 @@ from burger import get_mac_host_type, get_windows_host_type, \
     where_is_visual_studio, where_is_codeblocks, where_is_watcom, \
     where_is_xcode
 
-from .util import string_test
+from .util import validate_string
 
 ########################################
 
@@ -197,7 +197,7 @@ class FileTypes(IntEnum):
         """
 
         # Sanity check
-        string_test(test_name)
+        validate_string(test_name)
 
         return _FILETYPES_LOOKUP.get(
             os.path.splitext(test_name)[1][1:].strip().lower(), None)
@@ -401,7 +401,7 @@ class ProjectTypes(IntEnum):
         if project_type_name:
 
             # Sanity check
-            string_test(project_type_name)
+            validate_string(project_type_name)
 
             # Try the member name as is.
             test_name = project_type_name.lower()
@@ -651,7 +651,7 @@ class IDETypes(IntEnum):
             return ide_name
 
         # Sanity check
-        string_test(ide_name)
+        validate_string(ide_name)
 
         if ide_name:
             # Try the member name as is.
@@ -1320,7 +1320,7 @@ class PlatformTypes(IntEnum):
         if platform_name:
 
             # Sanity check
-            string_test(platform_name)
+            validate_string(platform_name)
 
             # Try the member name as is.
             test_name = platform_name.lower()

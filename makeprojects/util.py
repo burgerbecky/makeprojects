@@ -27,24 +27,6 @@ from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 ########################################
 
 
-def string_test(value):
-    """
-    Simple validation function that will throw a TypeError.
-    If the input is a string, return. If not, throw a TypeError
-
-    Args:
-        value: String to test, anything else will raise
-    Except:
-        TypeError if input is not a string.
-    """
-
-    if not is_string(value):
-        msg = "\"{}\" must be a string.".format(value)
-        raise TypeError(msg)
-
-########################################
-
-
 def validate_enum_type(value, data_type):
     """
     Verify a value is a specific data type.
@@ -70,7 +52,7 @@ def validate_enum_type(value, data_type):
         # Perform the lookup
         new_value = data_type.lookup(value)
         if new_value is None:
-            msg = '"{}" must be of type "{}".'.format(
+            msg = "\"{}\" must be of type \"{}\".".format(
                 value, data_type.__name__)
             raise TypeError(msg)
         # Save the converted type
@@ -80,7 +62,7 @@ def validate_enum_type(value, data_type):
 ########################################
 
 
-def regex_dict(item):
+def regex_dict(value):
     """
     Convert *.cpp keys to regex keys
 
@@ -90,22 +72,22 @@ def regex_dict(item):
     Examples:
 
     rules = {
-        '*.cpp':
-            {'a': 'arf', 'b': 'bark', 'c': 'coo'},
-        '*.h':
-            {'h': 'help'}
+        "*.cpp":
+            {"a": "arf", "b": "bark", "c": "coo"},
+        "*.h":
+            {"h": "help"}
     }
     regex_keys = regex_dict(rules)
 
     Args:
-        item: dict to convert
+        value: dict to convert
     Returns:
         dict with keys converted to regexes
     """
 
     output = {}
-    for key in item:
-        output[re.compile(fnmatch.translate(key)).match] = item[key]
+    for key in value:
+        output[re.compile(fnmatch.translate(key)).match] = value[key]
     return output
 
 ########################################
@@ -155,7 +137,7 @@ def validate_string(value):
     if value is not None:
         # Convert to bool
         if not is_string(value):
-            raise ValueError('"{}" must be a string.'.format(value))
+            raise ValueError("\"{}\" must be a string.".format(value))
     return value
 
 ########################################
@@ -200,7 +182,7 @@ def add_build_rules(build_rules_list, file_name, verbose, is_root, basename):
         build_rules_list.append(build_rules)
 
     if verbose:
-        print('Using configuration file {}'.format(file_name))
+        print("Using configuration file {}".format(file_name))
 
     # Test if this is considered the last one in the chain.
     result = getattr(build_rules, basename + "_CONTINUE", None)
@@ -360,12 +342,12 @@ def was_processed(processed, path_name, verbose):
     # Test for recursion
     if path_name in processed:
         if verbose:
-            print('{} has already been processed'.format(path_name))
+            print("{} has already been processed".format(path_name))
         return True
 
     # Mark this list as "processed" to prevent recursion
     if verbose:
-        print('Processing {}.'.format(path_name))
+        print("Processing {}.".format(path_name))
     processed.add(path_name)
     return False
 

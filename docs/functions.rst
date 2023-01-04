@@ -161,10 +161,6 @@ enums.platformtype_short_code
 Util
 ----
 
-util.string_test
-^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::util::string_test
-
 util.validate_enum_type
 ^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::validate_enum_type
