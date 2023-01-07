@@ -16,6 +16,15 @@ Handler for Apple Computer XCode projects
 This module contains classes needed to generate
 project files intended for use by Apple's XCode IDE
 
+@var makeprojects.xcode._PBXPROJFILE_MATCH
+Regex for matching files with *.pbxproj
+
+@var makeprojects.xcode._XCODEPROJFILE_MATCH
+Regex for matching files with *.xcodeproj
+
+@var makeprojects.xcode._XCODE_SUFFIXES
+List of filename suffixes for xcode versions
+
 @var makeprojects.xcode.TABS
 Default tab format for XCode
 
@@ -68,9 +77,9 @@ from burger import create_folder_if_needed, save_text_file_if_newer, \
     convert_to_windows_slashes, convert_to_linux_slashes, PY2, \
     get_mac_host_type, where_is_xcode, run_command
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import SourceFile, Configuration, BuildObject, BuildError
-from .core import Project as CoreProject
+from .core import SourceFile, Configuration, Project
 from .config import _XCODEPROJECT_FILE
+from .build_objects import BuildError, BuildObject
 
 _PBXPROJFILE_MATCH = re_compile('(?is).*\\.pbxproj\\Z')
 _XCODEPROJFILE_MATCH = re_compile('(?is).*\\.xcodeproj\\Z')
@@ -817,8 +826,8 @@ class BuildXCodeFile(BuildObject):
 
         # Is this version of XCode installed?
         if not xcode or not os.path.isfile(xcode[0]):
-            msg = ('Can\'t build {}, the proper version '
-                'of XCode is not installed').format(file_dir_name)
+            msg = ("Can't build {}, the proper version "
+                "of XCode is not installed").format(file_dir_name)
             print(msg)
             return BuildError(0, file_dir_name,
                             msg=msg)
@@ -900,6 +909,7 @@ def create_build_object(file_name, priority=50,
         priority: Priority to build this object
         configurations: Configuration list to build
         verbose: True if verbose output
+
     Returns:
         list of BuildXCodeFile classes
     """
@@ -907,7 +917,7 @@ def create_build_object(file_name, priority=50,
     # Don't build if not running on macOS
     if not get_mac_host_type():
         if verbose:
-            print('{} can only be built on macOS hosts'.format(file_name))
+            print("{} can only be built on macOS hosts".format(file_name))
         return []
 
     # If it's the directory, convert to project filename
@@ -918,7 +928,7 @@ def create_build_object(file_name, priority=50,
 
     # Was the file corrupted?
     if not targetlist:
-        print(file_name + ' is corrupt!')
+        print(file_name + " is corrupt!")
         return []
 
     results = []
@@ -927,11 +937,7 @@ def create_build_object(file_name, priority=50,
             if target not in configurations:
                 continue
         results.append(
-            BuildXCodeFile(
-                file_name,
-                priority,
-                target,
-                verbose))
+            BuildXCodeFile(file_name, priority, target, verbose))
 
     return results
 
@@ -955,7 +961,7 @@ def create_clean_object(file_name, priority=50,
     # Don't build if not running on macOS
     if not get_mac_host_type():
         if verbose:
-            print('{} can only be built on macOS hosts'.format(file_name))
+            print("{} can only be built on macOS hosts".format(file_name))
         return []
 
     # If it's the directory, convert to project filename
@@ -966,7 +972,7 @@ def create_clean_object(file_name, priority=50,
 
     # Was the file corrupted?
     if not targetlist:
-        print(file_name + ' is corrupt!')
+        print(file_name + " is corrupt!")
         return []
 
     results = []
@@ -974,12 +980,9 @@ def create_clean_object(file_name, priority=50,
         if configurations:
             if target not in configurations:
                 continue
+
         results.append(
-            BuildXCodeFile(
-                file_name,
-                priority,
-                target,
-                verbose))
+            BuildXCodeFile(file_name, priority, target, verbose))
 
     return results
 
@@ -1938,6 +1941,10 @@ class PBXNativeTarget(JSONDict):
     Attributes:
         parent: Objects record (Parent)
         target_name: Name of the target
+        build_config_list: JSONEntry of configurations
+        build_phases: JSONArray of build phases
+        build_rules: JSONArray of build rules
+        dependencies: JSONArray of dependencies
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -1945,6 +1952,16 @@ class PBXNativeTarget(JSONDict):
 
     def __init__(self, parent, name, productreference,
                  productname, producttype):
+        """
+        Init PBXNativeTarget
+
+        Args:
+            parent: Parent object
+            name: Name of the Native target
+            productreference: Reference to the object being built
+            productname: Name of the project being built
+            producttype: Type of product being built
+        """
 
         uuid = calcuuid('PBXNativeTarget' + name)
         JSONDict.__init__(
@@ -2043,9 +2060,21 @@ class PBXNativeTarget(JSONDict):
 class PBXProject(JSONDict):
     """
     Each PBXProject entry
+
+    Attributes:
+        build_config_list: List of build configurations
+        main_group: JSONEntry of the main group
+        targets: JSONArray of the targets
     """
 
     def __init__(self, uuid, solution):
+        """
+        Init PBXProject
+
+        Args:
+            uuid: Unique UUID
+            solution: Parent solution
+        """
         JSONDict.__init__(
             self,
             name=uuid,
@@ -2141,10 +2170,20 @@ class PBXProject(JSONDict):
 class PBXShellScriptBuildPhase(JSONDict):
     """
     Each PBXShellScriptBuildPhase entry
+
+    Attributes:
+        files: JSONArray of files
     """
 
     def __init__(self, input_data, output, command):
+        """
+        Init PBXShellScriptBuildPhase
 
+        Args:
+            input_data: Input file references
+            output: List of file that will be built
+            command: Script to build
+        """
         uuid = calcuuid(
             'PBXShellScriptBuildPhase' +
             ''.join(input_data) +
@@ -2192,10 +2231,21 @@ class PBXShellScriptBuildPhase(JSONDict):
 class PBXSourcesBuildPhase(JSONDict):
     """
     Each PBXSourcesBuildPhase entry
+
+    Attributes:
+        files: JSONArray of files
+        owner: Owner object
+        buildfirstlist: List of files to build first
+        buildlist: List of file to build later
     """
 
     def __init__(self, owner):
+        """
+        Init PBXSourcesBuildPhase
 
+        Args:
+            owner: Parent object
+        """
         uuid = calcuuid(
             'PBXSourcesBuildPhase' +
             owner.source_file.relative_pathname)
@@ -2271,6 +2321,13 @@ class PBXTargetDependency(JSONDict):
     """
 
     def __init__(self, proxy, nativetarget):
+        """
+        Init PBXTargetDependency
+
+        Args:
+            proxy: target proxy
+            nativetarget: Native target
+        """
         uuid = calcuuid(
             'PBXTargetDependency' +
             proxy.native_target.target_name +
@@ -2299,12 +2356,23 @@ class PBXTargetDependency(JSONDict):
 class XCBuildConfiguration(JSONDict):
     """
     Each XCBuildConfiguration entry
+
+    Attributes:
+        build_settings: JSONDict of build settings
+        configuration: Parent configuration
     """
 
     def __init__(self, configuration, configfilereference, owner, sdkroot,
                  installpath):
         """
         Initialize a XCBuildConfiguration object.
+
+        Args:
+            configuration: Configuration
+            configfilereference: Reference to a config file
+            owner: Owner object
+            sdkroot: Path to the root folder of the SDKS
+            installpath: Path to install the final product
         """
 
         # pylint: disable=too-many-arguments
@@ -2482,9 +2550,23 @@ class XCBuildConfiguration(JSONDict):
 class XCConfigurationList(JSONDict):
     """
     Each XCConfigurationList entry
+
+    Attributes:
+        build_configurations: Build configurations
+        default_config: Default configuration
+        pbxtype: Type of project builder
+        targetname: Name of this target
+        configuration_list: Configations
     """
 
     def __init__(self, pbxtype, targetname):
+        """
+        Init XCConfigurationList
+
+        Args:
+            pbxtype: Project type
+            targetname: Name of the target
+        """
 
         uuid = calcuuid('XCConfigurationList' + pbxtype + targetname)
         JSONDict.__init__(
@@ -2537,14 +2619,15 @@ class XCConfigurationList(JSONDict):
 
 ########################################
 
-class Project(JSONDict):
+class XCProject(JSONDict):
     """
-    Root object for an XCode IDE project file
+    Root object for an XCode IDE project file.
     Created with the name of the project, the IDE code (xc3, xc5)
     the platform code (ios, osx)
 
     Attributes:
         solution: Parent solution
+        objects: JSONObjects of objects
     """
 
     def __init__(self, solution):
@@ -2682,7 +2765,7 @@ class Project(JSONDict):
 
                 for item in objects.get_entries('PBXFileReference'):
                     if item.source_file.type in (FileTypes.cpp, FileTypes.c,
-                        FileTypes.glsl):
+                            FileTypes.glsl):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -2713,14 +2796,16 @@ class Project(JSONDict):
 
                     for item in objects.get_entries('PBXFileReference'):
                         if item.source_file.type in (FileTypes.cpp, FileTypes.c,
-                            FileTypes.glsl):
+                                FileTypes.glsl):
 
-                            build_file = PBXBuildFile(item, outputfilereference)
+                            build_file = PBXBuildFile(
+                                item, outputfilereference)
                             objects.add_item(build_file)
                             buildphase1.append_file(build_file)
 
                         elif item.source_file.type is FileTypes.frameworks:
-                            build_file = PBXBuildFile(item, outputfilereference)
+                            build_file = PBXBuildFile(
+                                item, outputfilereference)
                             objects.add_item(build_file)
                             framephase1.add_build_file(build_file)
 
@@ -3019,7 +3104,8 @@ class Project(JSONDict):
                         'mv ${SRCROOT}/bin/${EXECUTABLE_NAME}' + idecode + '${SUFFIX}.app' \
                         '/Contents/MacOS/${EXECUTABLE_NAME} ' \
                         '${SRCROOT}/bin/${EXECUTABLE_NAME}' + idecode + '${SUFFIX}.app' \
-                        '/Contents/MacOS/${EXECUTABLE_NAME}' + idecode + '${SUFFIX}'
+                        '/Contents/MacOS/${EXECUTABLE_NAME}' + \
+                        idecode + '${SUFFIX}'
                     shellbuildphase = PBXShellScriptBuildPhase(
                         input_data, output, command)
                     objects.add_item(shellbuildphase)
@@ -3151,7 +3237,7 @@ def generate(solution):
     # Xcode requires configurations, if none are present, add some
 
     if not solution.project_list:
-        project = CoreProject(
+        project = Project(
             name=solution.name,
             project_type=ProjectTypes.empty)
         project.source_folders_list = []
@@ -3162,7 +3248,7 @@ def generate(solution):
             project.configuration_list.append(Configuration('Debug'))
             project.configuration_list.append(Configuration('Release'))
 
-    exporter = Project(solution)
+    exporter = XCProject(solution)
 
     # Output the actual project file
     xcode_lines = []

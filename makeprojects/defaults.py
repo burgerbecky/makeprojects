@@ -20,33 +20,34 @@ from .enums import IDETypes, PlatformTypes, ProjectTypes
 from .build_rules import rules as default_rules
 
 
-# Each key must be lower case
+# Each key must be lower case for case insensitive
+# matching
 _CONFIGURATION_DEFAULTS = {
-    'debug': {
-        'short_code': 'dbg',
-        'debug': True},
-    'internal': {
-        'short_code': 'int',
-        'optimization': 4,
-        'debug': True},
-    'release': {
-        'short_code': 'rel',
-        'optimization': 4},
-    'release_ltcg': {
-        'short_code': 'ltc',
-        'optimization': 4,
-        'link_time_code_generation': True},
-    'profile': {
-        'short_code': 'pro',
-        'optimization': 4,
-        'profile': True},
-    'profile_fastcap': {
-        'short_code': 'fas',
-        'optimization': 4,
-        'profile': 'fast'},
-    'codeanalysis': {
-        'short_code': 'cod',
-        'analyze': True}
+    "debug": {
+        "short_code": "dbg",
+        "debug": True},
+    "internal": {
+        "short_code": "int",
+        "optimization": 4,
+        "debug": True},
+    "release": {
+        "short_code": "rel",
+        "optimization": 4},
+    "release_ltcg": {
+        "short_code": "ltc",
+        "optimization": 4,
+        "link_time_code_generation": True},
+    "profile": {
+        "short_code": "pro",
+        "optimization": 4,
+        "profile": True},
+    "profile_fastcap": {
+        "short_code": "fas",
+        "optimization": 4,
+        "profile": "fast"},
+    "codeanalysis": {
+        "short_code": "cod",
+        "analyze": True}
 }
 
 ########################################
@@ -73,16 +74,27 @@ def get_configuration_settings(name, setting_name=None):
 
     # Case insensitive test
     test_lower = setting_name.lower()
+
+    # Try the easy way
     settings = _CONFIGURATION_DEFAULTS.get(test_lower, None)
 
-    # Set up the configuration name
-    if settings:
+    # If not a direct name, try partial name
+    if not settings:
+        for item in _CONFIGURATION_DEFAULTS.items():
+            if item[0] in test_lower:
+                settings = item[1]
+                break
+        else:
+            # Special case for Link Time Code Generation
+            if "ltcg" in test_lower:
+                settings = _CONFIGURATION_DEFAULTS["release_ltcg"]
 
+    if settings:
         # Use a copy
         settings = settings.copy()
 
         # Override the name
-        settings['name'] = name
+        settings["name"] = name
     return settings
 
 
@@ -93,7 +105,7 @@ def get_project_name(build_rules_list, working_directory, args):
     """
     Determine the project name.
 
-    Scan the build_rules.py file for the command 'default_project_name'
+    Scan the build_rules.py file for the command "default_project_name"
     and if found, use that string for the project name. Otherwise,
     use the name of the working folder.
 
@@ -111,14 +123,14 @@ def get_project_name(build_rules_list, working_directory, args):
         # Check build_rules.py
         for rules in build_rules_list:
             project_name = rules(
-                'default_project_name',
+                "default_project_name",
                 working_directory=working_directory)
             if project_name:
                 break
         else:
             # Use the default
             project_name = default_rules(
-                'default_project_name', working_directory)
+                "default_project_name", working_directory)
 
     # Print if needed.
     if args.verbose:
@@ -132,7 +144,7 @@ def get_project_type(build_rules_list, working_directory, args, project_name):
     """
     Determine the project type.
 
-    Scan the build_rules.py file for the command 'default_project_type'
+    Scan the build_rules.py file for the command "default_project_type"
     and if found, use that string for the project type. Otherwise,
     assume it's a command line tool.
 
@@ -154,7 +166,7 @@ def get_project_type(build_rules_list, working_directory, args, project_name):
         # Check build_rules.py
         for rules in build_rules_list:
             item = rules(
-                'default_project_type',
+                "default_project_type",
                 working_directory=working_directory,
                 project_name=project_name)
 
@@ -168,11 +180,11 @@ def get_project_type(build_rules_list, working_directory, args, project_name):
                 project_type = ProjectTypes.lookup(item)
                 if project_type is not None:
                     break
-                print('Project Type {} is not supported.'.format(item))
+                print("Project Type {} is not supported.".format(item))
         else:
             # Use the default
             project_type = default_rules(
-                'default_project_type', working_directory)
+                "default_project_type", working_directory)
 
     # Print if needed.
     if args.verbose:
@@ -186,7 +198,7 @@ def get_ide_list(build_rules_list, working_directory, args):
     """
     Determine the IDEs to generate projects for.
 
-    Scan the build_rules.py file for the command 'default_ide'
+    Scan the build_rules.py file for the command "default_ide"
     and if found, use that list of IDETypes or strings to lookup with
     IDETypes.lookup().
 
@@ -203,7 +215,7 @@ def get_ide_list(build_rules_list, working_directory, args):
     temp_list = args.ides
     if not temp_list:
         for rules in build_rules_list:
-            default = rules('default_ide', working_directory=working_directory)
+            default = rules("default_ide", working_directory=working_directory)
             # Check if it's a single IDETypes enum
             if isinstance(default, IDETypes):
                 # Convert to a list
@@ -220,7 +232,7 @@ def get_ide_list(build_rules_list, working_directory, args):
     for item in temp_list:
         ide_type = IDETypes.lookup(item)
         if ide_type is None:
-            print('IDE {} is not supported.'.format(item))
+            print("IDE {} is not supported.".format(item))
         else:
             ide_list.append(ide_type)
 
@@ -240,7 +252,7 @@ def get_platform_list(build_rules_list, working_directory, args):
     """
     Determine the platforms to generate projects for.
 
-    Scan the build_rules.py file for the command 'default_platform'
+    Scan the build_rules.py file for the command "default_platform"
     and if found, use that list of PlatformTypes or strings to lookup with
     PlatformTypes.lookup().
 
@@ -258,7 +270,7 @@ def get_platform_list(build_rules_list, working_directory, args):
     if not temp_list:
         for rules in build_rules_list:
             default = rules(
-                'default_platform',
+                "default_platform",
                 working_directory=working_directory)
             # Check if it's a single PlatformTypes enum
             if isinstance(default, PlatformTypes):
@@ -276,7 +288,7 @@ def get_platform_list(build_rules_list, working_directory, args):
     for item in temp_list:
         platform_type = PlatformTypes.lookup(item)
         if platform_type is None:
-            print('Platform {} is not supported.'.format(item))
+            print("Platform {} is not supported.".format(item))
         else:
             platform_list.append(platform_type)
 
@@ -297,7 +309,7 @@ def get_configuration_list(
     """
     Determine the configurations to generate projects for.
 
-    Scan the build_rules.py file for the command 'configuration_list'
+    Scan the build_rules.py file for the command "configuration_list"
     and if found, use that list of strings to create configurations.
 
     Args:
@@ -322,21 +334,20 @@ def get_configuration_list(
             if item:
                 configuration_list.append(item)
                 break
-            else:
-                print(('configuration {} is not found in the '
-                       'acceptable name list.').format(
-                           configuration))
+            print(("configuration {} is not found in the "
+                   "acceptable name list.").format(
+                       configuration))
     else:
         for rules in build_rules_list:
-            configuration_list = rules('configuration_list',
+            configuration_list=rules("configuration_list",
                                        working_directory=working_directory,
                                        platform=platform,
                                        ide=ide)
             if configuration_list != 0:
                 break
         else:
-            configuration_list = default_rules(
-                'configuration_list',
+            configuration_list=default_rules(
+                "configuration_list",
                 working_directory=working_directory,
                 platform=platform,
                 ide=ide)

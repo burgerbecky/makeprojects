@@ -21,7 +21,7 @@ import os
 
 from burger import load_text_file, delete_file, where_is_doxygen, \
     save_text_file, create_folder_if_needed, get_windows_host_type, run_command
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 ########################################
 

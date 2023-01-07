@@ -55,12 +55,12 @@ core.Solution
 Build Classes
 -------------
 
-core.BuildError
-^^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::core::BuildError
+build_objects.BuildError
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::build_objects::BuildError
     :members:
 
-core.BuildObject
-^^^^^^^^^^^^^^^^
-.. doxygenclass:: makeprojects::core::BuildObject
+build_objects.BuildObject
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::build_objects::BuildObject
     :members:

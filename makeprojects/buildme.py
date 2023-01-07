@@ -27,9 +27,9 @@ from burger import import_py_script, convert_to_array
 from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
     _XCODEPROJ_MATCH
 from .__init__ import __version__
-from .util import get_build_rules, was_processed, getattr_build_rules, \
+from .util import get_build_rules, was_processed, getattr_build_rules_list, \
     fixup_args
-from .core import BuildError
+from .build_objects import BuildError
 from .modules import add_documentation_modules, MODULES
 from .python import create_simple_script_object, create_build_rules_objects
 from .python import match as python_match
@@ -62,53 +62,53 @@ def create_parser():
 
     # Create the initial parser
     parser = argparse.ArgumentParser(
-        description='Build project files. Copyright by Rebecca Ann Heineman. '
-        'Builds *.sln, *.mcp, *.cbp, *.wmk, *.rezscript, *.slicerscript, '
-        'doxyfile, makefile and *.xcodeproj files')
+        description="Build project files. Copyright by Rebecca Ann Heineman. "
+        "Builds *.sln, *.mcp, *.cbp, *.wmk, *.rezscript, *.slicerscript, "
+        "doxyfile, makefile and *.xcodeproj files")
 
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + __version__)
+    parser.add_argument("--version", action="version",
+                        version="%(prog)s " + __version__)
 
-    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
-                        default=False, help='Perform a recursive build')
+    parser.add_argument("-r", "-all", dest="recursive", action="store_true",
+                        default=False, help="Perform a recursive build")
 
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
-                        default=False, help='Verbose output.')
+    parser.add_argument("-v", "-verbose", dest="verbose", action="store_true",
+                        default=False, help="Verbose output.")
 
-    parser.add_argument('-n', '-preview', dest='preview', action='store_true',
-                        default=False, help='Preview build commands.')
+    parser.add_argument("-n", "-preview", dest="preview", action="store_true",
+                        default=False, help="Preview build commands.")
 
-    parser.add_argument('--generate-rules', dest='generate_build_rules',
-                        action='store_true', default=False,
-                        help='Generate a sample configuration file and exit.')
+    parser.add_argument("--generate-rules", dest="generate_build_rules",
+                        action="store_true", default=False,
+                        help="Generate a sample configuration file and exit.")
 
     parser.add_argument(
-        '--rules-file',
-        dest='rules_file',
-        metavar='<file>',
+        "--rules-file",
+        dest="rules_file",
+        metavar="<file>",
         default=BUILD_RULES_PY,
-        help='Specify a configuration file.')
+        help="Specify a configuration file.")
 
-    parser.add_argument('-q', dest='fatal', action='store_true',
-                        default=False, help='Quit immediately on any error.')
+    parser.add_argument("-q", dest="fatal", action="store_true",
+                        default=False, help="Quit immediately on any error.")
 
-    parser.add_argument('-f', dest='files', action='append',
-                        metavar='<filename>',
-                        help='Project file to process.')
+    parser.add_argument("-f", dest="files", action="append",
+                        metavar="<filename>",
+                        help="Project file to process.")
 
-    parser.add_argument('-d', dest='directories', action='append',
-                        metavar='<directory>',
-                        help='Directory to process.')
+    parser.add_argument("-d", dest="directories", action="append",
+                        metavar="<directory>",
+                        help="Directory to process.")
 
-    parser.add_argument('-c', dest='configurations', action='append',
-                        metavar='<configuration>',
-                        help='Configuration to process.')
+    parser.add_argument("-c", dest="configurations", action="append",
+                        metavar="<configuration>",
+                        help="Configuration to process.")
 
-    parser.add_argument('-docs', dest='documentation', action='store_true',
-                        default=False, help='Compile Doxyfile files.')
+    parser.add_argument("-docs", dest="documentation", action="store_true",
+                        default=False, help="Compile Doxyfile files.")
 
-    parser.add_argument('args', nargs=argparse.REMAINDER,
-                        help='project filenames')
+    parser.add_argument("args", nargs=argparse.REMAINDER,
+                        help="project filenames")
 
     return parser
 
@@ -145,19 +145,19 @@ def add_build_rules(projects, file_name, args, build_rules=None):
     # Was a build_rules.py file found?
     if build_rules:
         if args.verbose:
-            print('Using configuration file {}'.format(file_name))
+            print("Using configuration file {}".format(file_name))
 
         # Test for functions and append all that are found
         working_directory = os.path.dirname(file_name)
         parms = {
-            'working_directory': working_directory,
-            'configuration': 'all'}
+            "working_directory": working_directory,
+            "configuration": "all"}
 
         # Get the dependency list
-        dependencies = getattr(build_rules, 'BUILDME_DEPENDENCIES', None)
+        dependencies = getattr(build_rules, "BUILDME_DEPENDENCIES", None)
         if dependencies is None:
             # Try the generic one
-            dependencies = getattr(build_rules, 'DEPENDENCIES', None)
+            dependencies = getattr(build_rules, "DEPENDENCIES", None)
 
         if dependencies:
             # Ensure it's an iterable of strings
@@ -239,7 +239,7 @@ def process_projects(results, projects, args):
     """
     # Sort the list by priority (The third parameter is priority from 1-99)
     error = 0
-    projects = sorted(projects, key=attrgetter('priority'))
+    projects = sorted(projects, key=attrgetter("priority"))
 
     # If in preview mode, just show the generated build objects
     # and exit
@@ -278,7 +278,7 @@ def process_files(results, processed, files, args):
                     results, processed, add_build_rules(
                         projects, full_name, args), args)
         elif not add_project(projects, processed, full_name, args):
-            print('"{}" is not supported.'.format(full_name))
+            print("\"{}\" is not supported.".format(full_name))
             return True
     return process_projects(results, projects, args)
 
@@ -324,7 +324,7 @@ def process_directories(results, processed, directories, args):
             working_directory, args.verbose, args.rules_file, "BUILDME")
 
         # Is recursion allowed?
-        allow_recursion = not getattr_build_rules(
+        allow_recursion = not getattr_build_rules_list(
             build_rules_list, ("BUILDME_NO_RECURSE", "NO_RECURSE"), False)
 
         # Pass one, create a list of all projects to build
@@ -351,7 +351,7 @@ def process_directories(results, processed, directories, args):
                     if not add_project(projects, processed, os.path.join(
                             full_name, _XCODEPROJECT_FILE), args):
                         print(
-                            '"{}" is not supported on this platform.'.format(
+                            "\"{}\" is not supported on this platform.".format(
                                 full_name))
                         return True
                     continue
@@ -490,12 +490,12 @@ def main(working_directory=None, args=None):
     error = 0
     for item in results:
         if item.error:
-            print('Errors detected in the build.', file=sys.stderr)
+            print("Errors detected in the build.", file=sys.stderr)
             error = item.error
             break
     else:
         if args.verbose:
-            print('Build is successful!')
+            print("Build is successful!")
 
     # Dump the error log if requested or an error
     if args.verbose or error:

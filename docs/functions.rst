@@ -177,6 +177,22 @@ util.validate_string
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::validate_string
 
+util.clear_build_rules_cache
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::clear_build_rules_cache
+
+util.load_build_rules
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::load_build_rules
+
+util.getattr_build_rules
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::getattr_build_rules
+
+util.getattr_build_rules_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::getattr_build_rules_list
+
 util.add_build_rules
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::add_build_rules
@@ -184,10 +200,6 @@ util.add_build_rules
 util.get_build_rules
 ^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::get_build_rules
-
-util.getattr_build_rules
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::util::getattr_build_rules
 
 util.remove_ending_os_sep
 ^^^^^^^^^^^^^^^^^^^^^^^^^

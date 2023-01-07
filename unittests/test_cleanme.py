@@ -72,6 +72,7 @@ class TestCleanme(unittest.TestCase):
 
 ########################################
 
+
     def tearDown(self):
         """
         Restore directory
@@ -82,6 +83,7 @@ class TestCleanme(unittest.TestCase):
 
 
 ########################################
+
 
     @staticmethod
     def mkdir(path, *paths):
@@ -203,10 +205,10 @@ class TestCleanme(unittest.TestCase):
         # If called, force an exception
         a_foo_txt = self.save_text_file(a_dir, "foo.txt")
         save_text_file(build_rules, [
-            'CLEANME_GENERIC = False',
+            "CLEANME_GENERIC = False",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_GENERIC = False not handled")',
+            "\traise RuntimeError(\"CLEANME_GENERIC = False not handled\")",
             _RETURN_NONE]
         )
         makeprojects.clean(a_dir)
@@ -215,7 +217,7 @@ class TestCleanme(unittest.TestCase):
         save_text_file(build_rules, [
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_GENERIC missing not handled")',
+            "\traise RuntimeError(\"CLEANME_GENERIC missing not handled\")",
             _RETURN_NONE]
         )
         makeprojects.clean(a_dir)
@@ -228,25 +230,25 @@ class TestCleanme(unittest.TestCase):
         """
 
         # Create some temp folders
-        a_dir = self.mkdir(self.tmpdir, 'a')
+        a_dir = self.mkdir(self.tmpdir, "a")
 
         # Write out the test files
-        foo_txt = self.save_text_file(self.tmpdir, 'foo.txt')
-        foo_cpp = self.save_text_file(self.tmpdir, 'foo.cpp')
-        a_foo_txt = self.save_text_file(a_dir, 'foo.txt')
-        a_foo_cpp = self.save_text_file(a_dir, 'foo.cpp')
+        foo_txt = self.save_text_file(self.tmpdir, "foo.txt")
+        foo_cpp = self.save_text_file(self.tmpdir, "foo.cpp")
+        a_foo_txt = self.save_text_file(a_dir, "foo.txt")
+        a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, 'build_rules.py')
-        a_build_rules = os.path.join(a_dir, 'build_rules.py')
+        build_rules = os.path.join(self.tmpdir, "build_rules.py")
+        a_build_rules = os.path.join(a_dir, "build_rules.py")
 
         # Test CLEANME_CONTINUE = False
         save_text_file(build_rules, [
             _CLEANME_PROCESS_PROJECT_FILES,
-            'CLEANME_GENERIC = True',
+            "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_CONTINUE False not handled")',
+            "\traise RuntimeError(\"CLEANME_CONTINUE False not handled\")",
             _RETURN_NONE]
         )
 
@@ -255,7 +257,7 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_CONTINUE = False",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         makeprojects.clean(a_dir)
@@ -266,14 +268,14 @@ class TestCleanme(unittest.TestCase):
 
         # Test CLEANME_GENERIC = True / CLEANME_CONTINUE = True
         # Reset
-        a_foo_cpp = self.save_text_file(a_dir, 'foo.cpp')
+        a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         save_text_file(build_rules, [
             _CLEANME_PROCESS_PROJECT_FILES,
             "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.txt")',
+            "\tburger.clean_files(working_directory, \"*.txt\")",
             _RETURN_NONE]
         )
 
@@ -282,7 +284,7 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_CONTINUE = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
 
@@ -303,7 +305,7 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_CONTINUE not present")',
+            "\traise RuntimeError(\"CLEANME_CONTINUE not present\")",
             _RETURN_NONE]
         )
 
@@ -311,7 +313,7 @@ class TestCleanme(unittest.TestCase):
             _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         makeprojects.clean(a_dir)
@@ -383,12 +385,12 @@ class TestCleanme(unittest.TestCase):
 
         # Test CLEANME_CONTINUE = False
         save_text_file(build_rules, [
-            'CLEANME_DEPENDENCIES = ["a"]',
-            'CLEANME_GENERIC = True',
+            "CLEANME_DEPENDENCIES = [\"a\"]",
+            "CLEANME_GENERIC = True",
             _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         makeprojects.clean(self.tmpdir)
@@ -398,22 +400,22 @@ class TestCleanme(unittest.TestCase):
         self.assertFalse(os.path.isfile(a_foo_cpp))
 
         # Test CLEANME_CONTINUE = False
-        foo_cpp = self.save_text_file(self.tmpdir, 'foo.cpp')
-        a_foo_cpp = self.save_text_file(a_dir, 'foo.cpp')
+        foo_cpp = self.save_text_file(self.tmpdir, "foo.cpp")
+        a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
         save_text_file(build_rules, [
             _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.txt")',
+            "\tburger.clean_files(working_directory, \"*.txt\")",
             _RETURN_NONE]
         )
 
         save_text_file(a_build_rules, [
-            'CLEANME_DEPENDENCIES = [".."]',
+            "CLEANME_DEPENDENCIES = [\"..\"]",
             _CLEANME_PROCESS_PROJECT_FILES,
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
 
@@ -448,13 +450,13 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_NO_RECURSE = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         save_text_file(a_build_rules, [
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_NO_RECURSE not parsed")',
+            "\traise RuntimeError(\"CLEANME_NO_RECURSE not parsed\")",
             _RETURN_NONE]
         )
 
@@ -470,13 +472,13 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_NO_RECURSE = False",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         save_text_file(a_build_rules, [
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.txt")',
+            "\tburger.clean_files(working_directory, \"*.txt\")",
             _RETURN_NONE]
         )
 
@@ -501,14 +503,14 @@ class TestCleanme(unittest.TestCase):
             "CLEANME_GENERIC = True",
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_NONE]
         )
         delete_file(a_build_rules)
         save_text_file(b_build_rules, [
             _IMPORT_BURGER,
             _DEF_CLEAN,
-            '\traise RuntimeError("CLEANME_NO_RECURSE not parsed")',
+            "\traise RuntimeError(\"CLEANME_NO_RECURSE not parsed\")",
             _RETURN_NONE]
         )
 
@@ -545,7 +547,7 @@ class TestCleanme(unittest.TestCase):
             _IMPORT_BURGER,
             "GENERIC = True",
             _DEF_CLEAN,
-            '\tburger.clean_files(working_directory, "*.cpp")',
+            "\tburger.clean_files(working_directory, \"*.cpp\")",
             _RETURN_ONE]
         )
         save_text_file(a_build_rules, [

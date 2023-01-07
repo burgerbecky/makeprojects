@@ -8,6 +8,21 @@ This module contains classes needed to generate project files intended for use
 by Microsoft's Visual Studio 2003, 2005 and 2008.
 
 @package makeprojects.visual_studio
+
+@var makeprojects.visual_studio._SLNFILE_MATCH
+Regex for matching files with *.sln
+
+@var makeprojects.visual_studio.SUPPORTED_IDES
+List of IDETypes the visual_studio module supports.
+
+@var makeprojects.visual_studio._VS_VERSION_YEARS
+Dict of version year strings to integers
+
+@var makeprojects.visual_studio._VS_OLD_VERSION_YEARS
+Dict of version year strings 2003-2012 to integers
+
+@var makeprojects.visual_studio._VS_SDK_ENV_VARIABLE
+Dict of environment variables for game consoles
 """
 
 # pylint: disable=consider-using-f-string
@@ -35,7 +50,7 @@ from .validators import VSBooleanProperty, VSStringProperty, VSEnumProperty, \
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
 
@@ -4027,6 +4042,22 @@ class VS2003Configuration(VS2003XML):
 
     Attributes:
         configuration: Parent configuration
+        vcprebuildeventtool: Pre build settings
+        vcpostbuildeventtool: Post build settings
+        vcprelinkeventtool: Pre link custom settings
+        vccustombuildtool: Custom build settings
+        vcclcompilertool: C++ compiler settings
+        vcmidltool: Midl tool settings
+        vcmanagedresourcecompilertool: Managed resource settings
+        vcresourcecompilertool: Resource compiler settings
+        vcxmldatageneratortool: XML data generator settings
+        vcwebserviceproxygeneratortool: Web service proxy settings
+        vcwebdeploymenttool: Web deployment settings
+        vcmanagedwrappergeneratortool: Managed wrapper settings
+        vcauxiliarymanagedwrappedgeneratortool: Aux Managed Wrapper settings
+        xboxdeploymenttool: Xbox deployment settings
+        xboximagetool: Xbox game imaging settings
+        vclinkertool: Linker settings
     """
 
     # Too many instance attributes

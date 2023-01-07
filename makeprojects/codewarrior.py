@@ -13,6 +13,24 @@ Freescale Codewarrior
 - Version 5.9 is Freescale Codewarrior for Nintendo
 
 @package makeprojects.codewarrior
+
+@var makeprojects.codewarrior._MCPFILE_MATCH
+Regex for matching files with *.mcp
+
+@var makeprojects.codewarrior.unicode
+Py3 compatiblity for unicode in Python 2
+
+@var makeprojects.codewarrior.SUPPORTED_IDES
+List of IDETypes the codewarrior module supports.
+
+@var makeprojects.codewarrior.CODEWARRIOR_ERRORS
+Tuple of Codewarrior IDE error messages
+
+@var makeprojects.codewarrior._CW_SUPPORTED_LINKERS
+Tuple of supported codewarrior linkers
+
+@var makeprojects.codewarrior.TAB
+Tab character for XML output
 """
 
 # Copyright 2019-2022 by Rebecca Ann Heineman becky@burgerbecky.com
@@ -42,7 +60,7 @@ from burger import save_text_file_if_newer, perforce_edit, PY2, is_string, \
 from burger.buildutils import _WINDOWS_ENV_PATHS
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     source_file_filter
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _MCPFILE_MATCH = re_compile('(?is).*\\.mcp\\Z')
 
@@ -77,6 +95,8 @@ _CW_SUPPORTED_LINKERS = (
     '68K Linker',               # macOS 68k
     'PPC EABI Linker'           # PowerPC for Nintendo Wii
 )
+
+TAB = '\t'
 
 ########################################
 
@@ -543,9 +563,6 @@ def test(ide, platform_type):
         PlatformTypes.win32,)
 
 
-TAB = '\t'
-
-
 class SETTING(object):
     """
     Class for a simple setting entry
@@ -559,6 +576,13 @@ class SETTING(object):
     """
 
     def __init__(self, name=None, value=None):
+        """
+        Init SETTING
+
+        Args:
+            name: Name of the setting
+            value: Value of the setting
+        """
         self.name = name
         self.value = value
         self.subsettings = []
@@ -610,11 +634,17 @@ class UserSourceTree(object):
 
     """
     Create an entry for UserSourceTrees
+
+    Attributes:
+        settings: SETTING object with all the settings
     """
 
     def __init__(self, name):
         """
         Create the setting list
+
+        Args:
+            name: Name of the source tree
         """
         self.settings = SETTING()
         self.settings.addsetting('Name', name)
@@ -634,9 +664,21 @@ class SearchPath(object):
 
     The title defaults to SearchPath, however it can be overridden
     such as OutputDirectory
+
+    Attributes:
+        settings: SETTING object with all the settings
     """
 
     def __init__(self, platform, path, root=None, title='SearchPath'):
+        """
+        Init SearchPath
+
+        Args:
+            platform: PlatformTypes
+            path: Path to search
+            root: Root pathname for relative path searches
+            title: Title of the object
+        """
         self.settings = SETTING(title)
 
         if path.startswith('$('):
@@ -669,9 +711,21 @@ class SearchPath(object):
 class SearchPathAndFlags(object):
     """
     Create a path entry for with flags for recursion
+
+    Attributes:
+        settings: List of SETTING objects for the settings
     """
 
     def __init__(self, platform, path, root=None, recursive=False):
+        """
+        Init SearchPathAndFlags
+
+        Args:
+            platform: PlatformTypes
+            path: Path to search from
+            root: Root pathname
+            recursive: Boolean, True allows recursion
+        """
         if path.startswith('$(CodeWarrior)'):
             recursive = True
 
@@ -693,9 +747,19 @@ class SearchPathAndFlags(object):
 class MWProject_X86(object):
     """
     Write out the settings for MWProject_X86
+
+    Attributes:
+        settings: List of project settings
     """
 
     def __init__(self, projecttype, filename):
+        """
+        Init MWProject_X86
+
+        Args:
+            projecttype: ProjectTypes
+            filename: Name of the output file
+        """
         if projecttype == ProjectTypes.library:
             x86type = 'Library'
             extension = '.lib'
@@ -1015,6 +1079,8 @@ class FILE(object):
     Attributes:
         filename: Name of the file
         format: Windows or linux slashes
+        flags: Debug or empty string
+        kind: File type
     """
 
     def __init__(self, platform, configuration, filename):
@@ -1203,6 +1269,13 @@ class TARGET(object):
     """
 
     def __init__(self, name, linker):
+        """
+        Init TARGET
+
+        Args:
+            name: Name of the target
+            linker: Name of the linker
+        """
         self.name = name
         self.linker = linker
         self.settinglist = [

@@ -18,7 +18,7 @@ Regex for matching files with *.rezscript
 from __future__ import absolute_import, print_function, unicode_literals
 
 from re import compile as re_compile
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _REZFILE_MATCH = re_compile('(?is).*\\.rezscript\\Z')
 

@@ -17,7 +17,7 @@ Regex for matching files with *.slicerscript
 
 from __future__ import absolute_import, print_function, unicode_literals
 from re import compile as re_compile
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _SLICERFILE_MATCH = re_compile('(?is).*\\.slicerscript\\Z')
 

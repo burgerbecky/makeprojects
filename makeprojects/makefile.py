@@ -15,6 +15,12 @@ Handler for Linux make projects
 @package makeprojects.makefile
 This module contains classes needed to generate
 project files intended for use by make
+
+@var makeprojects.makefile._MAKEFILE_MATCH
+Regex for matching files with *.mak
+
+@var makeprojects.makefile.SUPPORTED_IDES
+List of IDETypes the makefile module supports.
 """
 
 # pylint: disable=consider-using-f-string
@@ -29,7 +35,7 @@ from burger import save_text_file_if_newer, encapsulate_path_linux, \
     convert_to_linux_slashes, host_machine
 
 from makeprojects import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _MAKEFILE_MATCH = re_compile('(?is).*\\.mak\\Z')
 

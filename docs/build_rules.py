@@ -37,7 +37,7 @@ CLEANME_NO_RECURSE = True
 CLEANME_DEPENDENCIES = []
 
 # Match *.dot
-_DOT_MATCH = re_compile('(?ms).*\\.dot\\Z')
+_DOT_MATCH = re_compile("(?ms).*\\.dot\\Z")
 
 ########################################
 
@@ -70,11 +70,11 @@ def build(working_directory, configuration):
     # Copy README.rst to docs/temp/README.html
     # Doxygen may not create the output folder, ensure it exists.
 
-    temp_dir = os.path.join(working_directory, 'temp')
+    temp_dir = os.path.join(working_directory, "temp")
     create_folder_if_needed(temp_dir)
 
     # Needed for dot generated docs
-    create_folder_if_needed(os.path.join(temp_dir, 'images'))
+    create_folder_if_needed(os.path.join(temp_dir, "images"))
 
     # Process all the .dot files
     for item in os.listdir(working_directory):
@@ -89,15 +89,15 @@ def build(working_directory, configuration):
 
 
     # Get the input and output file names
-    source = os.path.join(os.path.dirname(working_directory), 'README.rst')
-    dest = os.path.join(temp_dir, 'README.html')
+    source = os.path.join(os.path.dirname(working_directory), "README.rst")
+    dest = os.path.join(temp_dir, "README.html")
 
     # Was the file already created and newer than the source?
     if is_source_newer(source, dest):
 
         # Load pandoc if needed to do the conversion
         pypandoc.ensure_pandoc_installed(delete_installer=True)
-        pypandoc.convert_file(source, to='html', outputfile=dest)
+        pypandoc.convert_file(source, to="html", outputfile=dest)
     return 0
 
 ########################################
@@ -120,11 +120,11 @@ def clean(working_directory):
         None if not implemented, otherwise an integer error code.
     """
 
-    clean_directories(working_directory, ('temp', '_build'))
-    clean_files(working_directory, '.DS_Store')
+    clean_directories(working_directory, ("temp", "_build"))
+    clean_files(working_directory, ".DS_Store")
     return 0
 
 
 # If called as a command line and not a class, perform the build
 if __name__ == "__main__":
-    sys.exit(build(os.path.dirname(os.path.abspath(__file__)), 'all'))
+    sys.exit(build(os.path.dirname(os.path.abspath(__file__)), "all"))

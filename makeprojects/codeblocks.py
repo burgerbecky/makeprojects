@@ -16,6 +16,12 @@ This module contains classes needed to generate
 project files intended for use by Codeblocks
 
 @package makeprojects.codeblocks
+
+@var makeprojects.codeblocks._CBPFILE_MATCH
+Regex for matching files with *.cbp
+
+@var makeprojects.codeblocks.SUPPORTED_IDES
+List of IDETypes the codeblocks module supports.
 """
 
 # pylint: disable=consider-using-f-string
@@ -31,7 +37,7 @@ import xml.etree.ElementTree as ET
 from burger import save_text_file_if_newer, convert_to_linux_slashes, \
     where_is_codeblocks, get_windows_host_type
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _CBPFILE_MATCH = re_compile('(?is).*\\.cbp\\Z')
 

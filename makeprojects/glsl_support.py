@@ -11,6 +11,9 @@ building GLSL files
 
 @var makeprojects.glsl_support.GLSL_BOOLEANS
 Boolean list for GLSL, Name, Default, switches
+
+@var makeprojects.glsl_support.GLSL_STRINGS
+Name, default, switch, generates output, quote parameters
 """
 
 from __future__ import absolute_import, print_function, unicode_literals

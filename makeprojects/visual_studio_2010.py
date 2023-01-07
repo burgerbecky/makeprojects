@@ -9,6 +9,9 @@ project files intended for use by
 Microsoft's Visual Studio IDE
 
 @package makeprojects.visual_studio_2010
+
+@var makeprojects.visual_studio_2010.SUPPORTED_IDES
+List of IDETypes the visual_studio_2010 module supports.
 """
 
 # pylint: disable=consider-using-f-string

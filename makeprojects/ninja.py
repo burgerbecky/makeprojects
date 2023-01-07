@@ -15,6 +15,9 @@ Handler for Ninja projects
 @package makeprojects.ninja
 This module contains classes needed to generate
 project files intended for use by ninja
+
+@var makeprojects.codeblocks._NINJAFILE_MATCH
+Regex for matching files with *.ninja
 """
 
 # pylint: disable=consider-using-f-string
@@ -25,7 +28,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 from re import compile as re_compile
 
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _NINJAFILE_MATCH = re_compile('(?is).*\\.ninja\\Z')
 

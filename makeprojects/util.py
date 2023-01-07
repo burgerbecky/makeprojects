@@ -151,13 +151,17 @@ def validate_string(value):
 
 def clear_build_rules_cache():
     """
-    Clear the build rules cache
+    Clear the build rules cache.
+    util.load_build_rules uses a cache. Call this function to clear the cache
+    without calling util.load_build_rules to do it.
 
     See Also:
         load_build_rules
     """
 
+    # pylint: disable=global-statement
     global _BUILD_RULES_CACHE
+
     _BUILD_RULES_CACHE = {}
 
 ########################################
@@ -185,6 +189,8 @@ def load_build_rules(path_name, clear_cache=False):
         _BUILD_RULES_CACHE = {}
 
     # Get rid of the trailing slash to ensure hits for duplicate files
+    # Also precheck if the path is /, while invalid, it will prevent the
+    # path from becoming an empty path.
     path_name = os.path.abspath(path_name)
     if len(path_name) >= 2 and path_name.endswith(os.sep):
         path_name = path_name[:-1]
@@ -199,6 +205,77 @@ def load_build_rules(path_name, clear_cache=False):
             _BUILD_RULES_CACHE[path_name] = build_rules
 
     return build_rules
+
+########################################
+
+
+def getattr_build_rules(build_rules, attributes, default=None):
+    """
+    Find an attribute in a build rules module.
+
+    Scan the build rules until an attribute value is found. It will return
+    the first one found. If none are found, this function returns ``default``.
+
+    This function returns two values, the first is the attribute value, the
+    second is a boolean of ``True`` meaning the attribute was found, or
+    ``False`` if the default value was returned.
+
+    Args:
+        build_rules: ``build_rules.py`` module instance.
+        attributes: String or list of strings, attribute name(s).
+        default: Value to return if the attribute was not found.
+
+    Returns:
+        Tuple of attribute value found in ``build_rules``, or ``default``
+        and the second value is ``True`` if found, ``False`` if default was
+        used.
+    """
+
+    # Ensure if it is a single string
+
+    if is_string(attributes):
+        result = getattr(build_rules, attributes, None)
+        if result is not None:
+            return result, True
+    else:
+        # It's a list of attributes?
+        for attribute in attributes:
+            result = getattr(build_rules, attribute, None)
+            if result is not None:
+                return result, True
+
+    # Return the default value
+    return default, False
+
+########################################
+
+
+def getattr_build_rules_list(build_rules_list, attributes, default):
+    """
+    Find an attribute in a list of build rules.
+
+    Iterate over the build rules list until an entry has an attribute value.
+    It will return the first one found. If none are found, or there were no
+    entries in ``build_rules_list``, this function returns ``default``.
+
+    Args:
+        build_rules_list: List of ``build_rules.py`` instances.
+        attributes: String or list of strings, attribute name(s).
+        default: Value to return if the attribute was not found.
+
+    Returns:
+        Attribute value found in ``build_rules_list`` entry, or ``default``.
+    """
+
+    # Scan the list of rules
+    for build_rules in build_rules_list:
+        result, hit = getattr_build_rules(build_rules, attributes)
+        # Was an attribute actually hit?
+        if hit:
+            return result
+
+    # Return the default value
+    return default
 
 ########################################
 
@@ -235,22 +312,17 @@ def add_build_rules(build_rules_list, file_name, verbose, is_root, basename):
     if not build_rules:
         return True
 
-    if is_root or getattr(build_rules, basename + "_GENERIC",
-                          False) or getattr(build_rules, "GENERIC", False):
+    if is_root or getattr_build_rules(build_rules,
+            (basename + "_GENERIC", "GENERIC"), False)[0]:
         # Add to the list
         build_rules_list.append(build_rules)
 
-    if verbose:
-        print("Using configuration file {}".format(file_name))
+        if verbose:
+            print("Using configuration file {}".format(file_name))
 
     # Test if this is considered the last one in the chain.
-    result = getattr(build_rules, basename + "_CONTINUE", None)
-
-    # Not found?
-    if result is None:
-        # Try the catch all version
-        result = getattr(build_rules, "CONTINUE", False)
-    return result
+    return getattr_build_rules(build_rules,
+        (basename + "_CONTINUE", "CONTINUE"), False)[0]
 
 ########################################
 
@@ -281,10 +353,10 @@ def get_build_rules(working_directory, verbose, build_rules_name, basename):
     while True:
 
         # Attempt to load in the build rules.
+        # if *_CONTINUE is not True, exit
         if not add_build_rules(
             build_rules_list, os.path.join(
                 temp_dir, build_rules_name), verbose, is_root, basename):
-            # Abort if *_CONTINUE = False
             break
 
         # Directory traversal is active, require CLEANME_GENERIC
@@ -295,58 +367,15 @@ def get_build_rules(working_directory, verbose, build_rules_name, basename):
 
         # Already at the top of the directory?
         if temp_dir2 is None or temp_dir2 == temp_dir:
-            add_build_rules(
-                build_rules_list,
-                DEFAULT_BUILD_RULES,
-                verbose,
-                True,
-                basename)
             break
         # Use the new folder
         temp_dir = temp_dir2
+
+    # Add the final build rules
+    add_build_rules(build_rules_list, DEFAULT_BUILD_RULES,
+        verbose, True, basename)
+
     return build_rules_list
-
-########################################
-
-
-def getattr_build_rules(build_rules_list, attributes, value):
-    """
-    Find an attribute in a list of build rules.
-
-    Iterate over the build rules list until an entry has an attribute value.
-    It will return the first one found. If none are found, or there were no
-    entries in ``build_rules_list``, this function returns ``value``.
-
-    Args:
-        build_rules_list: List of ``build_rules.py`` instances.
-        attributes: Attribute name(s) to check for.
-        value: Value to return if the attribute was not found.
-
-    Returns:
-        Attribute value found in ``build_rules_list`` entry, or ``value``.
-    """
-
-    # Ensure if it is a single string
-
-    if is_string(attributes):
-        for build_rules in build_rules_list:
-            # Does the entry have this attribute?
-            try:
-                return getattr(build_rules, attributes)
-            except AttributeError:
-                pass
-    else:
-        # Assume attributes is an iterable of strings
-        for build_rules in build_rules_list:
-            # Does the rules file have this attribute?
-            for attribute in attributes:
-                try:
-                    return getattr(build_rules, attribute)
-                except AttributeError:
-                    pass
-
-    # Return the default value
-    return value
 
 ########################################
 

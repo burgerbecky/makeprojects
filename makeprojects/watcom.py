@@ -14,6 +14,12 @@ project files intended for use by Open Watcom
 WMAKE 1.9 or higher
 
 @package makeprojects.watcom
+
+@var makeprojects.watcom._WATCOMFILE_MATCH
+Regex for matching files with *.wmk
+
+@var makeprojects.watcom.SUPPORTED_IDES
+List of IDETypes the watcom module supports.
 """
 
 # pylint: disable=consider-using-f-string
@@ -29,7 +35,7 @@ from burger import save_text_file_if_newer, encapsulate_path_linux, \
     get_windows_host_type
 
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 _WATCOMFILE_MATCH = re_compile('(?is).*\\.wmk\\Z')
 

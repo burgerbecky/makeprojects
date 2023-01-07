@@ -28,9 +28,9 @@ from burger import convert_to_array, import_py_script, norm_paths
 from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
     _XCODEPROJ_MATCH
 from .__init__ import __version__
-from .util import get_build_rules, getattr_build_rules, was_processed, \
-    fixup_args, clear_build_rules_cache
-from .core import BuildError
+from .util import get_build_rules, getattr_build_rules_list, was_processed, \
+    fixup_args, clear_build_rules_cache, getattr_build_rules
+from .build_objects import BuildError
 from .modules import MODULES
 from .python import create_clean_rules_objects, BuildPythonFile
 
@@ -61,49 +61,49 @@ def create_parser():
 
     # Parse the command line
     parser = argparse.ArgumentParser(
-        description='Remove project output files. '
-        'Copyright by Rebecca Ann Heineman')
+        description="Remove project output files. "
+        "Copyright by Rebecca Ann Heineman")
 
-    parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + __version__)
+    parser.add_argument("--version", action="version",
+                        version="%(prog)s " + __version__)
 
-    parser.add_argument('-r', '-all', dest='recursive', action='store_true',
-                        default=False, help='Perform a recursive clean')
+    parser.add_argument("-r", "-all", dest="recursive", action="store_true",
+                        default=False, help="Perform a recursive clean")
 
-    parser.add_argument('-n', '-preview', dest='preview', action='store_true',
-                        default=False, help='Preview clean commands.')
+    parser.add_argument("-n", "-preview", dest="preview", action="store_true",
+                        default=False, help="Preview clean commands.")
 
-    parser.add_argument('-v', '-verbose', dest='verbose', action='store_true',
-                        default=False, help='Verbose output.')
+    parser.add_argument("-v", "-verbose", dest="verbose", action="store_true",
+                        default=False, help="Verbose output.")
 
-    parser.add_argument('--generate-rules', dest='generate_build_rules',
-                        action='store_true', default=False,
-                        help='Generate a sample configuration file and exit.')
+    parser.add_argument("--generate-rules", dest="generate_build_rules",
+                        action="store_true", default=False,
+                        help="Generate a sample configuration file and exit.")
 
     parser.add_argument(
-        '--rules-file',
-        dest='rules_file',
-        metavar='<file>',
+        "--rules-file",
+        dest="rules_file",
+        metavar="<file>",
         default=BUILD_RULES_PY,
-        help='Specify a configuration file.')
+        help="Specify a configuration file.")
 
-    parser.add_argument('-q', dest='fatal', action='store_true',
-                        default=False, help='Quit immediately on any error.')
+    parser.add_argument("-q", dest="fatal", action="store_true",
+                        default=False, help="Quit immediately on any error.")
 
-    parser.add_argument('-f', dest='files', action='append',
-                        metavar='<filename>',
-                        help='Project file to process.')
+    parser.add_argument("-f", dest="files", action="append",
+                        metavar="<filename>",
+                        help="Project file to process.")
 
-    parser.add_argument('-d', dest='directories', action='append',
-                        metavar='<directory>', default=[],
-                        help='List of directories to clean.')
+    parser.add_argument("-d", dest="directories", action="append",
+                        metavar="<directory>", default=[],
+                        help="List of directories to clean.")
 
-    parser.add_argument('-c', dest='configurations', action='append',
-                        metavar='<configuration>',
-                        help='Configuration to process.')
+    parser.add_argument("-c", dest="configurations", action="append",
+                        metavar="<configuration>",
+                        help="Configuration to process.")
 
-    parser.add_argument('args', nargs=argparse.REMAINDER,
-                        help='project filenames')
+    parser.add_argument("args", nargs=argparse.REMAINDER,
+                        help="project filenames")
 
     return parser
 
@@ -139,19 +139,17 @@ def add_clean_rules(projects, working_directory,
     # Was a build_rules.py file found?
     if build_rules:
         if args.verbose:
-            print('Using configuration file {}'.format(file_name))
+            print("Using configuration file {}".format(file_name))
 
         # Test for functions and append all that are found
         if working_directory is None:
             working_directory = os.path.dirname(file_name)
         parms = {
-            'working_directory': working_directory}
+            "working_directory": working_directory}
 
-        # Get the dependency list
-        dependencies = getattr(build_rules, 'CLEANME_DEPENDENCIES', None)
-        if dependencies is None:
-            # Try the generic one
-            dependencies = getattr(build_rules, 'DEPENDENCIES', None)
+        # Get the dependency list, if any
+        dependencies = getattr_build_rules(
+            build_rules, ("CLEANME_DEPENDENCIES", "DEPENDENCIES"), None)[0]
 
         if dependencies:
             # Ensure all paths are normalized
@@ -221,7 +219,7 @@ def process_projects(results, projects, args):
     """
     # Sort the list by priority (The third parameter is priority from 1-99)
     error = 0
-    projects = sorted(projects, key=attrgetter('priority'))
+    projects = sorted(projects, key=attrgetter("priority"))
 
     # If in preview mode, just show the generated build objects
     # and exit
@@ -275,7 +273,7 @@ def process_files(results, processed, files, args):
                     results, processed, add_clean_rules(
                         projects, None, item, args), args)
         elif not add_project(projects, processed, item, args):
-            print('"{}" is not supported.'.format(item))
+            print("\"{}\" is not supported.".format(item))
             return True
     return process_projects(results, projects, args)
 
@@ -319,11 +317,11 @@ def process_directories(results, processed, directories, args):
             working_directory, args.verbose, args.rules_file, "CLEANME")
 
         # Is recursion allowed?
-        allow_recursion = not getattr_build_rules(
+        allow_recursion = not getattr_build_rules_list(
             build_rules_list, ("CLEANME_NO_RECURSE", "NO_RECURSE"), False)
 
-        allow_files = getattr_build_rules(
-            build_rules_list, ("CLEANME_PROCESS_PROJECT_FILES",), True)
+        allow_files = getattr_build_rules_list(
+            build_rules_list, ("CLEANME_PROCESS_PROJECT_FILES", "PROCESS_PROJECT_FILES"), True)
 
         # Pass one, create a list of all projects to build
         projects = []
@@ -357,7 +355,7 @@ def process_directories(results, processed, directories, args):
                         if not add_project(projects, processed, os.path.join(
                                 full_name, _XCODEPROJECT_FILE), args):
                             print(
-                                ('"{}" is not supported on this platform.')
+                                ("\"{}\" is not supported on this platform.")
                                 .format(full_name))
                             return True
                         continue
@@ -402,12 +400,13 @@ def process_dependencies(results, processed, dependencies, args):
         True if processing should abort, False if not.
     """
 
+    # Test, in case it is None
     if dependencies:
         for item in dependencies:
             if os.path.isdir(item):
-                error = process_directories(results, processed, [item], args)
+                error = process_directories(results, processed, (item,), args)
             elif os.path.isfile(item):
-                error = process_files(results, processed, [item], args)
+                error = process_files(results, processed, (item,), args)
             else:
                 error = 0
             if error:
@@ -444,15 +443,15 @@ def main(working_directory=None, args=None):
         Zero on no error, non-zero on error
     """
 
+    # Make sure working_directory is properly set
+    if working_directory is None:
+        working_directory = os.getcwd()
+
     # Create the parser
     parser = create_parser()
 
     # Parse everything
     args = parser.parse_args(args=args)
-
-    # Make sure working_directory is properly set
-    if working_directory is None:
-        working_directory = os.getcwd()
 
     # Output default configuration
     if args.generate_build_rules:
@@ -489,18 +488,21 @@ def main(working_directory=None, args=None):
     error = 0
     for item in results:
         if item.error:
-            print('Errors detected in clean.')
+            print("Errors detected in clean.")
             error = item.error
             break
     else:
         if args.verbose:
-            print('Clean is successful!')
+            print("Clean is successful!")
 
     # Dump the error log if requested or an error
     if args.verbose or error:
         for item in results:
             if args.verbose or item.error:
                 print(item)
+
+    # In case clean is being called from a function,
+    # clear the build_rules.py cache
     clear_build_rules_cache()
     return error
 

@@ -26,7 +26,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 from burger import is_string, run_py_script
-from .core import BuildObject, BuildError
+from .build_objects import BuildObject, BuildError
 
 BUILD_LIST = (
     (1, "prebuild"),
@@ -171,7 +171,7 @@ class BuildPythonFile(BuildObject):
             # It's a function, output what is being called.
             if self.verbose:
                 print(
-                    'Calling {}({}) in {}'.format(
+                    "Calling {}({}) in {}".format(
                         self.function_ref.__name__,
                         self.create_parm_string(),
                         self.file_name))
