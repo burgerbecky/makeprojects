@@ -28,7 +28,7 @@ from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
     _XCODEPROJ_MATCH
 from .__init__ import __version__
 from .util import get_build_rules, was_processed, getattr_build_rules_list, \
-    fixup_args
+    fixup_args, getattr_build_rules
 from .build_objects import BuildError
 from .modules import add_documentation_modules, MODULES
 from .python import create_simple_script_object, create_build_rules_objects
@@ -154,10 +154,8 @@ def add_build_rules(projects, file_name, args, build_rules=None):
             "configuration": "all"}
 
         # Get the dependency list
-        dependencies = getattr(build_rules, "BUILDME_DEPENDENCIES", None)
-        if dependencies is None:
-            # Try the generic one
-            dependencies = getattr(build_rules, "DEPENDENCIES", None)
+        dependencies = getattr_build_rules(
+            build_rules, ("BUILDME_DEPENDENCIES", "DEPENDENCIES"), None)[0]
 
         if dependencies:
             # Ensure it's an iterable of strings

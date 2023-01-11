@@ -1353,29 +1353,16 @@ class PlatformTypes(IntEnum):
         Determine the PlatformTypes from the currently running platform.
 
         Returns:
-            PlatformType
+            PlatformTypes.windows, PlatformTypes.macosx, or PlatformTypes.linux
         """
 
         # Windows host?
-        temp = get_windows_host_type()
-        if temp:
-            win_table = {
-                "x86": PlatformTypes.win32,
-                "x64": PlatformTypes.win64,
-                "arm": PlatformTypes.winarm32,
-                "arm64": PlatformTypes.winarm64,
-                "ia64": PlatformTypes.winitanium}
-            return win_table.get(temp, PlatformTypes.win32)
+        if get_windows_host_type():
+            return PlatformTypes.windows
 
         # Mac host?
-        temp = get_mac_host_type()
-        if temp:
-            mac_table = {
-                "ppc": PlatformTypes.macosxppc32,
-                "ppc64": PlatformTypes.macosxppc64,
-                "x32": PlatformTypes.macosxintel32,
-                "x64": PlatformTypes.macosxintel64}
-            return mac_table.get(temp, PlatformTypes.macosxintel64)
+        if get_mac_host_type():
+            return PlatformTypes.macosx
 
         # Unknown platforms default to Linux
         return PlatformTypes.linux
@@ -1678,7 +1665,7 @@ def platformtype_short_code(configurations):
 ########################################
 
 
-def add_burgerlib(command, **kargs):
+def add_burgerlib(configuration):
     """
     Add burgerlib to a project.
 
@@ -1686,41 +1673,38 @@ def add_burgerlib(command, **kargs):
     this function to add burgerlib to the project.
 
     Args:
-        command: command parameter from rules()
-        kargs: kargs parameter from rules()
+        configuration: Configuration to modify
     Returns:
         Zero
 
     """
 
-    if command == "configuration_settings":
-        # Return the settings for a specific configuation
-        configuration = kargs["configuration"]
+    # Return the settings for a specific configuation
 
-        platform = configuration.platform
+    platform = configuration.platform
 
-        force_short = platform.is_macosx() or platform.is_ios()
-        lib_name = "burger{}".format(
-            configuration.get_suffix(
-                force_short=force_short))
-        if platform.is_android() or force_short:
-            lib_name = "lib{}.a".format(lib_name)
-        else:
-            lib_name = "{}.lib".format(lib_name)
-        configuration.libraries_list.append(lib_name)
+    force_short = platform.is_macosx() or platform.is_ios()
+    lib_name = "burger{}".format(
+        configuration.get_suffix(
+            force_short=force_short))
+    if platform.is_android() or force_short:
+        lib_name = "lib{}.a".format(lib_name)
+    else:
+        lib_name = "{}.lib".format(lib_name)
+    configuration.libraries_list.append(lib_name)
 
-        # Linux requires linking in OpenGL
-        if platform is PlatformTypes.linux:
-            configuration.libraries_list.append("GL")
+    # Linux requires linking in OpenGL
+    if platform is PlatformTypes.linux:
+        configuration.libraries_list.append("GL")
 
+    lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
+        platform.get_platform_folder())
+    configuration.library_folders_list.append(lib_dir)
+
+    # Include burger.h, however Codewarrior uses the library folder
+    if not configuration.project.solution.ide.is_codewarrior():
         lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
             platform.get_platform_folder())
-        configuration.library_folders_list.append(lib_dir)
-
-        # Include burger.h, however Codewarrior uses the library folder
-        if not configuration.project.solution.ide.is_codewarrior():
-            lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
-                platform.get_platform_folder())
-            configuration.include_folders_list.append(lib_dir)
+        configuration.include_folders_list.append(lib_dir)
 
     return 0

@@ -23,8 +23,7 @@ from burger import get_windows_host_type, convert_to_windows_slashes, \
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     platformtype_short_code
-from .defaults import get_configuration_settings
-from .build_rules import rules as default_rules
+from .defaults import settings_from_name, configuration_presets
 from .util import validate_enum_type, regex_dict, validate_boolean, \
     validate_string
 
@@ -616,6 +615,8 @@ class Configuration(Attributes):
     - ``vs_rules`` See Project.vs_rules
 
     Attributes:
+        name: Name of the configuration
+        platform: Platform to build
         source_folders_list: Don't allow source folders
         vs_props: Don't allow Visual Studio props files
         vs_targets: Don't allow Visual Studio targets files
@@ -635,13 +636,13 @@ class Configuration(Attributes):
     vs_targets = NoneProperty("_vs_targets")
     vs_rules = NoneProperty("_vs_rules")
 
-    def __init__(self, *args, **kargs):
+    def __init__(self, name, platform):
         """
         Init defaults.
 
         Args:
-            args: name and setting_name for get_configuration_settings()
-            kargs: List of defaults.
+            name: Name of the configuration
+            platform: Platform for the configuration
         """
 
         # Init the base class
@@ -649,36 +650,11 @@ class Configuration(Attributes):
 
         self._short_code = None
 
-        # Were there nameless parameters?
-        if args:
-            # Too many parameters?
-            if len(args) >= 3:
-                raise ValueError(
-                    "Only one or two nameless parameters are allowed")
-
-            # Get the default settings
-            setting_name = None
-            if len(args) == 2:
-                setting_name = args[1]
-            new_args = get_configuration_settings(args[0], setting_name)
-            if new_args is None:
-                new_args = {'name': args[0]}
-
-            # Were there defaults found?
-            for item in new_args:
-                # Only add, never override
-                if item not in kargs:
-                    kargs[item] = new_args[item]
-
-        # Check the default name
-        if not is_string(kargs.get('name', None)):
-            raise TypeError(
-                "string parameter 'name' is required")
-
-        # Set all the variables
-        for key in kargs.items():
-            setattr(self, key[0], key[1])
+        self.name = name
+        self.platform = platform
         self.project = None
+
+        settings_from_name(configuration=self)
 
     ########################################
 
@@ -717,27 +693,26 @@ class Configuration(Attributes):
 
     ########################################
 
-    def parse_attributes(self, build_rules_list, working_directory):
+    def parse_attributes(self, build_rules_list):
         """
         Initialize the default attributes.
 
         Args:
             build_rules_list: List to append a valid build_rules file instance.
-            working_directory: Full path name of the build_rules.py to load.
         """
 
-        default_rules('configuration_settings',
-                      working_directory=working_directory,
-                      configuration=self)
-        for rules in build_rules_list:
-            default = rules(
-                'configuration_settings',
-                working_directory=working_directory,
-                configuration=self)
+        # Set up the default entries
+        configuration_presets(configuration=self)
 
-            # Must test for zero, since None is a break.
-            if default != 0:
-                break
+        for build_rules in build_rules_list:
+            settings = getattr(build_rules, "configuration_settings", None)
+            if callable(settings):
+                result = settings(configuration=self)
+                # Must test for zero, since None is a break.
+                if result is not None:
+                    break
+
+        return result
 
     ########################################
 
@@ -920,7 +895,7 @@ class Project(Attributes):
         """
 
         if configuration is None or is_string(configuration):
-            configuration = Configuration(configuration)
+            configuration = Configuration(configuration, PlatformTypes.default())
 
         # Singular
         if not isinstance(configuration, Configuration):
@@ -1026,25 +1001,22 @@ class Project(Attributes):
 
     ########################################
 
-    def parse_attributes(self, build_rules_list, working_directory):
+    def parse_attributes(self, build_rules_list):
         """
         Initialize the default attributes.
 
         Args:
             build_rules_list: List to append a valid build_rules file instance.
-            working_directory: Full path name of the build_rules.py to load.
         """
 
-        default_rules('project_settings',
-                      working_directory=working_directory,
-                      project=self)
-        for rules in build_rules_list:
-            default = rules('project_settings',
-                            working_directory=working_directory,
-                            project=self)
-            # Must test for zero, since None is a break.
-            if default != 0:
-                break
+        for build_rules in build_rules_list:
+            project_settings = getattr(build_rules, "project_settings", None)
+            if callable(project_settings):
+                result = project_settings(project=self)
+                # Must test for zero, since None is a break.
+                if result is not None:
+                    break
+        return result
 
     ########################################
 
@@ -1494,6 +1466,7 @@ class Solution(Attributes):
 
         all_configurations_list = []
 
+        last_failed = None
         # Process all the projects and configurations
         for project in solution.get_project_list():
 
@@ -1504,11 +1477,13 @@ class Solution(Attributes):
             configuration_list = []
             if not project.configuration_list:
                 for item in ('Debug', 'Release'):
-                    project.add_configuration(item)
+                    project.add_configuration(item, project.platform)
 
             for configuration in project.configuration_list:
                 if generator.test(ide, configuration.platform):
                     configuration_list.append(configuration)
+                else:
+                    last_failed = configuration.platform
 
             # Sort the configurations to ensure consistency
             configuration_list = sorted(
@@ -1525,6 +1500,12 @@ class Solution(Attributes):
                     configuration.custom_rules)
                 configuration.exclude_list_regex = translate_to_regex_match(
                     configuration.exclude_list)
+
+        # No configurations passed? Abort
+        if not configuration_list:
+            print("Generator for IDE \"{}\" is incompatible with platform \"{}\"".format(
+                ide, last_failed))
+            return 10
 
         # Get the platform code
         solution.platform_code = platformtype_short_code(

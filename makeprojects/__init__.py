@@ -73,12 +73,12 @@ from re import compile as re_compile
 from .core import SourceFile, Configuration, Project, Solution
 from .enums import IDETypes, PlatformTypes, FileTypes, ProjectTypes, \
     add_burgerlib
-from .defaults import get_configuration_settings
+from .defaults import settings_from_name
 
 ########################################
 
 # Current version of the library as a numeric tuple
-__numversion__ = (0, 13, 1)
+__numversion__ = (0, 14, 0)
 
 # Current version of the library
 __version__ = ".".join([str(num) for num in __numversion__])
@@ -273,7 +273,7 @@ def new_solution(name=None, platform=None, project_type=None):
     project = Project(name=name, platform=platform, project_type=project_type)
     solution.add_project(project)
     for item in ("Debug", "Internal", "Release"):
-        settings = get_configuration_settings(item)
+        settings = settings_from_name(item)
         settings["platform"] = platform
         project.add_configuration(new_configuration(settings))
     return solution

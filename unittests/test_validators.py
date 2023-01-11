@@ -281,7 +281,7 @@ class TestValidators(unittest.TestCase):
         with self.assertRaises(ValueError):
             t.value = "Fail"
 
-        c = Configuration("Release")
+        c = Configuration("Release", None)
 
         t = VSBooleanProperty.validate(
             "GlobalOptimizations", c, default=False,

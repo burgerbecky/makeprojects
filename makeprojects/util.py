@@ -209,6 +209,26 @@ def load_build_rules(path_name, clear_cache=False):
 ########################################
 
 
+def _do_getattr_build_rules(build_rules, attribute):
+    """
+    Internal function to test attributes
+
+    Args:
+        build_rules: Module of the build_rules.py to test
+        attribute: Attribute string to test with
+    Returns:
+        (None or found value, True if value is None)
+    See Also:
+        getattr_build_rules
+    """
+
+    result = getattr(build_rules, attribute, None)
+    test = result is not None
+    return result, test
+
+########################################
+
+
 def getattr_build_rules(build_rules, attributes, default=None):
     """
     Find an attribute in a build rules module.
@@ -231,20 +251,18 @@ def getattr_build_rules(build_rules, attributes, default=None):
         used.
     """
 
-    # Ensure if it is a single string
-
+    # If a single string, do the action as is
     if is_string(attributes):
-        result = getattr(build_rules, attributes, None)
-        if result is not None:
-            return result, True
-    else:
-        # It's a list of attributes?
-        for attribute in attributes:
-            result = getattr(build_rules, attribute, None)
-            if result is not None:
-                return result, True
+        return _do_getattr_build_rules(build_rules, attributes)
 
-    # Return the default value
+    # It's a list of attributes
+    for attribute in attributes:
+        # Perform the action until there's a hit
+        result = _do_getattr_build_rules(build_rules, attribute)
+        if result[1]:
+            return result
+
+    # Return the default value, no hit
     return default, False
 
 ########################################

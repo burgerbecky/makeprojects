@@ -25,6 +25,7 @@ from burger import save_text_file, delete_file, Interceptstdout
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import makeprojects
+from makeprojects.config import BUILD_RULES_PY
 
 # Line to import the burger library
 _IMPORT_BURGER = "import burger"
@@ -135,7 +136,7 @@ class TestCleanme(unittest.TestCase):
         source_dir = self.mkdir(self.tmpdir, "source")
 
         # Write out the build_rules.py file
-        build_rules_py = os.path.join(self.tmpdir, "build_rules.py")
+        build_rules_py = os.path.join(self.tmpdir, BUILD_RULES_PY)
 
         # First test is to check if clean() is callable
         save_text_file(build_rules_py, [
@@ -183,7 +184,7 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, "build_rules.py")
+        build_rules = os.path.join(self.tmpdir, BUILD_RULES_PY)
 
         save_text_file(build_rules, [
             "CLEANME_GENERIC = True",
@@ -239,8 +240,8 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, "build_rules.py")
-        a_build_rules = os.path.join(a_dir, "build_rules.py")
+        build_rules = os.path.join(self.tmpdir, BUILD_RULES_PY)
+        a_build_rules = os.path.join(a_dir, BUILD_RULES_PY)
 
         # Test CLEANME_CONTINUE = False
         save_text_file(build_rules, [
@@ -380,8 +381,8 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, "build_rules.py")
-        a_build_rules = os.path.join(a_dir, "build_rules.py")
+        build_rules = os.path.join(self.tmpdir, BUILD_RULES_PY)
+        a_build_rules = os.path.join(a_dir, BUILD_RULES_PY)
 
         # Test CLEANME_CONTINUE = False
         save_text_file(build_rules, [
@@ -442,8 +443,8 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, "build_rules.py")
-        a_build_rules = os.path.join(a_dir, "build_rules.py")
+        build_rules = os.path.join(self.tmpdir, BUILD_RULES_PY)
+        a_build_rules = os.path.join(a_dir, BUILD_RULES_PY)
 
         # Test CLEANME_NO_RECURSE = True
         save_text_file(build_rules, [
@@ -494,7 +495,7 @@ class TestCleanme(unittest.TestCase):
         foo_cpp = self.save_text_file(self.tmpdir, "foo.cpp")
         a_foo_txt = self.save_text_file(a_dir, "foo.txt")
         b_dir = self.mkdir(a_dir, "b")
-        b_build_rules = os.path.join(b_dir, "build_rules.py")
+        b_build_rules = os.path.join(b_dir, BUILD_RULES_PY)
         b_foo_txt = self.save_text_file(b_dir, "foo.txt")
         b_foo_cpp = self.save_text_file(b_dir, "foo.cpp")
 
@@ -539,8 +540,8 @@ class TestCleanme(unittest.TestCase):
         a_foo_cpp = self.save_text_file(a_dir, "foo.cpp")
 
         # Write out the build_rules.py files
-        build_rules = os.path.join(self.tmpdir, "build_rules.py")
-        a_build_rules = os.path.join(a_dir, "build_rules.py")
+        build_rules = os.path.join(self.tmpdir, BUILD_RULES_PY)
+        a_build_rules = os.path.join(a_dir, BUILD_RULES_PY)
 
         # Test CLEANME_NO_RECURSE = True
         save_text_file(build_rules, [

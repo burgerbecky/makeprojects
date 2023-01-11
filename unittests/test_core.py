@@ -50,52 +50,52 @@ class TestCore(unittest.TestCase):
 
         # Must be empty on start
         self.assertEqual(a.define_list, [])
-        a.define_list = 'a'
-        self.assertEqual(a.define_list, ['a'])
-        a.define_list = ['a', 'b', 'c']
-        self.assertEqual(a.define_list, ['a', 'b', 'c'])
+        a.define_list = "a"
+        self.assertEqual(a.define_list, ["a"])
+        a.define_list = ["a", "b", "c"]
+        self.assertEqual(a.define_list, ["a", "b", "c"])
         a.define_list = 1
-        self.assertEqual(a.define_list, ['1'])
+        self.assertEqual(a.define_list, ["1"])
         a.define_list = [1, 2, 3]
-        self.assertEqual(a.define_list, ['1', '2', '3'])
-        a.define_list.extend(['a', 'b'])
-        self.assertEqual(a.define_list, ['1', '2', '3', 'a', 'b'])
+        self.assertEqual(a.define_list, ["1", "2", "3"])
+        a.define_list.extend(["a", "b"])
+        self.assertEqual(a.define_list, ["1", "2", "3", "a", "b"])
 
         # Test platform
         self.assertIsNone(a.platform)
-        a.platform = 'windows'
+        a.platform = "windows"
         self.assertIs(a.platform, PlatformTypes.windows)
         a.platform = PlatformTypes.maccarbon
         self.assertIs(a.platform, PlatformTypes.maccarbon)
-        a.platform = 'carbon'
+        a.platform = "carbon"
         self.assertIs(a.platform, PlatformTypes.maccarbon)
         with self.assertRaises(ValueError):
             a.platform = 1
         with self.assertRaises(TypeError):
-            a.platform = 'myplatform'
+            a.platform = "myplatform"
         a.platform = None
         self.assertIsNone(a.platform)
 
         # Test project_type
         self.assertIsNone(a.project_type)
-        a.project_type = 'dll'
+        a.project_type = "dll"
         self.assertIs(a.project_type, ProjectTypes.sharedlibrary)
         a.project_type = ProjectTypes.app
         self.assertIs(a.project_type, ProjectTypes.app)
-        a.project_type = 'lib'
+        a.project_type = "lib"
         self.assertIs(a.project_type, ProjectTypes.library)
         with self.assertRaises(ValueError):
             a.project_type = 1
         with self.assertRaises(TypeError):
-            a.project_type = 'myproject_type'
+            a.project_type = "myproject_type"
         a.project_type = None
         self.assertIsNone(a.project_type)
 
         # Test debug (Tests validate_boolean)
         self.assertIsNone(a.debug)
-        a.debug = 'true'
+        a.debug = "true"
         self.assertIs(a.debug, True)
-        a.debug = 'f'
+        a.debug = "f"
         self.assertIs(a.debug, False)
         a.debug = False
         self.assertIs(a.debug, False)
@@ -104,7 +104,7 @@ class TestCore(unittest.TestCase):
         a.debug = 0.0
         self.assertIs(a.debug, False)
         with self.assertRaises(ValueError):
-            a.debug = 'myproject_type'
+            a.debug = "myproject_type"
         with self.assertRaises(ValueError):
             a.debug = self
         a.debug = None
@@ -112,14 +112,14 @@ class TestCore(unittest.TestCase):
 
         # test link_time_code_generation
         self.assertIsNone(a.link_time_code_generation)
-        a.link_time_code_generation = 'true'
+        a.link_time_code_generation = "true"
         self.assertIs(a.link_time_code_generation, True)
-        a.link_time_code_generation = 'f'
+        a.link_time_code_generation = "f"
         self.assertIs(a.link_time_code_generation, False)
         a.link_time_code_generation = False
         self.assertIs(a.link_time_code_generation, False)
         with self.assertRaises(ValueError):
-            a.link_time_code_generation = 'crappy'
+            a.link_time_code_generation = "crappy"
         with self.assertRaises(ValueError):
             a.link_time_code_generation = self
         a.link_time_code_generation = None
@@ -127,14 +127,14 @@ class TestCore(unittest.TestCase):
 
         # test optimization
         self.assertIsNone(a.optimization)
-        a.optimization = 'true'
+        a.optimization = "true"
         self.assertIs(a.optimization, True)
-        a.optimization = 'f'
+        a.optimization = "f"
         self.assertIs(a.optimization, False)
         a.optimization = False
         self.assertIs(a.optimization, False)
         with self.assertRaises(ValueError):
-            a.optimization = 'garbage'
+            a.optimization = "garbage"
         with self.assertRaises(ValueError):
             a.optimization = self
         a.optimization = None
@@ -142,14 +142,14 @@ class TestCore(unittest.TestCase):
 
         # test analyze
         self.assertIsNone(a.analyze)
-        a.analyze = 'true'
+        a.analyze = "true"
         self.assertIs(a.analyze, True)
-        a.analyze = 'false'
+        a.analyze = "false"
         self.assertIs(a.analyze, False)
         a.analyze = False
         self.assertIs(a.analyze, False)
         with self.assertRaises(ValueError):
-            a.analyze = 'chasm'
+            a.analyze = "chasm"
         with self.assertRaises(ValueError):
             a.analyze = self
         a.analyze = None
@@ -157,14 +157,14 @@ class TestCore(unittest.TestCase):
 
         # test use_mfc
         self.assertIsNone(a.use_mfc)
-        a.use_mfc = 'true'
+        a.use_mfc = "true"
         self.assertIs(a.use_mfc, True)
-        a.use_mfc = 'false'
+        a.use_mfc = "false"
         self.assertIs(a.use_mfc, False)
         a.use_mfc = False
         self.assertIs(a.use_mfc, False)
         with self.assertRaises(ValueError):
-            a.use_mfc = 'anchovy'
+            a.use_mfc = "anchovy"
         with self.assertRaises(ValueError):
             a.use_mfc = self
         a.use_mfc = None
@@ -172,14 +172,14 @@ class TestCore(unittest.TestCase):
 
         # test use_mfc
         self.assertIsNone(a.use_atl)
-        a.use_atl = 'true'
+        a.use_atl = "true"
         self.assertIs(a.use_atl, True)
-        a.use_atl = 'false'
+        a.use_atl = "false"
         self.assertIs(a.use_atl, False)
         a.use_atl = False
         self.assertIs(a.use_atl, False)
         with self.assertRaises(ValueError):
-            a.use_atl = 'garden'
+            a.use_atl = "garden"
         with self.assertRaises(ValueError):
             a.use_atl = self
         a.use_atl = None
@@ -187,14 +187,14 @@ class TestCore(unittest.TestCase):
 
         # test clr_support
         self.assertIsNone(a.clr_support)
-        a.clr_support = 'true'
+        a.clr_support = "true"
         self.assertIs(a.clr_support, True)
-        a.clr_support = 'n'
+        a.clr_support = "n"
         self.assertIs(a.clr_support, False)
         a.clr_support = False
         self.assertIs(a.clr_support, False)
         with self.assertRaises(ValueError):
-            a.clr_support = 'elvis'
+            a.clr_support = "elvis"
         with self.assertRaises(ValueError):
             a.clr_support = self
         a.clr_support = None
@@ -202,10 +202,10 @@ class TestCore(unittest.TestCase):
 
         # test name
         self.assertIsNone(a.name)
-        a.name = 'projectname'
-        self.assertEqual(a.name, 'projectname')
-        a.name = 'new'
-        self.assertEqual(a.name, 'new')
+        a.name = "projectname"
+        self.assertEqual(a.name, "projectname")
+        a.name = "new"
+        self.assertEqual(a.name, "new")
         with self.assertRaises(ValueError):
             a.name = False
         with self.assertRaises(ValueError):
@@ -217,10 +217,10 @@ class TestCore(unittest.TestCase):
 
         # test working_directory
         self.assertIsNone(a.working_directory)
-        a.working_directory = 'c:\\directory'
-        self.assertEqual(a.working_directory, 'c:\\directory')
-        a.working_directory = 'temp'
-        self.assertEqual(a.working_directory, 'temp')
+        a.working_directory = "c:\\directory"
+        self.assertEqual(a.working_directory, "c:\\directory")
+        a.working_directory = "temp"
+        self.assertEqual(a.working_directory, "temp")
         with self.assertRaises(ValueError):
             a.working_directory = False
         with self.assertRaises(ValueError):
@@ -232,10 +232,10 @@ class TestCore(unittest.TestCase):
 
         # test deploy_folder
         self.assertIsNone(a.deploy_folder)
-        a.deploy_folder = '/usr/local/bin'
-        self.assertEqual(a.deploy_folder, '/usr/local/bin')
-        a.deploy_folder = 'temp'
-        self.assertEqual(a.deploy_folder, 'temp')
+        a.deploy_folder = "/usr/local/bin"
+        self.assertEqual(a.deploy_folder, "/usr/local/bin")
+        a.deploy_folder = "temp"
+        self.assertEqual(a.deploy_folder, "temp")
         with self.assertRaises(ValueError):
             a.deploy_folder = True
         with self.assertRaises(ValueError):
@@ -247,14 +247,14 @@ class TestCore(unittest.TestCase):
 
         # test fastcall
         self.assertIsNone(a.fastcall)
-        a.fastcall = 'true'
+        a.fastcall = "true"
         self.assertIs(a.fastcall, True)
-        a.fastcall = 'n'
+        a.fastcall = "n"
         self.assertIs(a.fastcall, False)
         a.fastcall = False
         self.assertIs(a.fastcall, False)
         with self.assertRaises(ValueError):
-            a.fastcall = 'elvis'
+            a.fastcall = "elvis"
         with self.assertRaises(ValueError):
             a.fastcall = self
         a.fastcall = None
@@ -272,7 +272,7 @@ class TestCore(unittest.TestCase):
             c = Configuration()
 
         # Create a configuration
-        c = Configuration('Release')
+        c = Configuration("Release", None)
 
         # Test parent
         self.assertIsNone(c.parent)
@@ -289,11 +289,11 @@ class TestCore(unittest.TestCase):
             c.ide = None
 
         # test short_code
-        self.assertEqual(c.short_code, 'rel')
-        c.short_code = '/usr/local/bin'
-        self.assertEqual(c.short_code, '/usr/local/bin')
-        c.short_code = 'temp'
-        self.assertEqual(c.short_code, 'temp')
+        self.assertEqual(c.short_code, "rel")
+        c.short_code = "/usr/local/bin"
+        self.assertEqual(c.short_code, "/usr/local/bin")
+        c.short_code = "temp"
+        self.assertEqual(c.short_code, "temp")
         with self.assertRaises(ValueError):
             c.short_code = True
         with self.assertRaises(ValueError):
@@ -301,7 +301,7 @@ class TestCore(unittest.TestCase):
         with self.assertRaises(ValueError):
             c.short_code = ValueError
         c.short_code = None
-        self.assertEqual(c.short_code, 'Release')
+        self.assertEqual(c.short_code, "Release")
 
 ########################################
 
@@ -336,11 +336,11 @@ class TestCore(unittest.TestCase):
 
         # Test ide
         self.assertIsNone(s.ide)
-        s.ide = 'vs2022'
+        s.ide = "vs2022"
         self.assertIs(s.ide, IDETypes.vs2022)
         s.ide = IDETypes.xcode11
         self.assertIs(s.ide, IDETypes.xcode11)
-        s.ide = 'codeblocks'
+        s.ide = "codeblocks"
         self.assertIs(s.ide, IDETypes.codeblocks)
         with self.assertRaises(ValueError):
             s.ide = False
@@ -354,5 +354,5 @@ class TestCore(unittest.TestCase):
 
 ########################################
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

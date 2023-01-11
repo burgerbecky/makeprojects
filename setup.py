@@ -68,13 +68,12 @@ INSTALL_REQUIRES = [
     "enum34 >= 1.0.0",
     "burger >= 1.2.7",
     "argparse >= 1.0",
-    "glob2 >= 0.6",
-    "funcsigs >= 1.0"
+    "glob2 >= 0.6"
 ]
 
 # Project classifiers
 CLASSIFIERS = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Topic :: Software Development",

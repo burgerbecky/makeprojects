@@ -3293,7 +3293,8 @@ class VCLinkerTool(VS2003Tool):
                 ('/MACHINE:X64', 'X64')
             ])
 
-        self.add_default(VSStringListProperty('TargetMachine', None, enum_list))
+        self.add_default(VSStringListProperty(
+            'TargetMachine', None, enum_list))
 
         # This is a duplication of what is in 2008 for sorting
         if ide < IDETypes.vs2008:
@@ -4104,15 +4105,31 @@ class VS2003Configuration(VS2003XML):
             VSStringProperty('OutputDirectory', 'bin\\'),
             VSStringProperty('IntermediateDirectory', vs_intdirectory),
             VSStringProperty('ConfigurationType', vs_configuration_type),
-            VSStringProperty('UseOfMFC', '0'),
+            VSStringProperty("UseOfMFC", None),
+            VSStringProperty("UseOfATL", None),
             BoolATLMinimizesCRunTimeLibraryUsage(configuration),
-            VSStringProperty('CharacterSet', '1'),
+            VSStringProperty("CharacterSet", None),
             VSStringProperty('DeleteExtensionsOnClean', None),
             VSStringProperty('ManagedExtensions', None),
             VSStringProperty('WholeProgramOptimization',
                            vs_link_time_code_generation),
             VSStringProperty('ReferencesPath', None)
         ])
+
+        if platform.is_windows():
+            if configuration.use_mfc is not None:
+                self.set_attribute(
+                    "UseOfMFC", "1" if configuration.use_mfc else "0")
+            if configuration.use_atl is not None:
+                self.set_attribute(
+                    "UseOfATL", "1" if configuration.use_atl else "0")
+            if ide > IDETypes.vs2003 and configuration.clr_support is not None:
+                self.set_attribute("ManagedExtensions",
+                                   "1" if configuration.clr_support else "0")
+
+            item = configuration.get_chained_value("vs_CharacterSet")
+            self.set_attribute(
+                "CharacterSet", {"Unicode": "1", "MultiByte": "2"}.get(item, None))
 
         # Include all the data chunks
         self.vcprebuildeventtool = VCPreBuildEventTool(configuration)
@@ -4294,7 +4311,8 @@ class VS2003FileConfiguration(VS2003XML):
                         record = rule[key]
                         for item in record:
                             value = record[item]
-                            enum_table = lookup_enum_value(tool_enums, item, None)
+                            enum_table = lookup_enum_value(
+                                tool_enums, item, None)
                             if enum_table:
                                 new_value = lookup_enum_value(
                                     enum_table[1], value, None)
@@ -4338,7 +4356,8 @@ class VS2003FileConfiguration(VS2003XML):
                                 self.add_element(element)
 
                             value = record[item]
-                            enum_table = lookup_enum_value(tool_enums, item, None)
+                            enum_table = lookup_enum_value(
+                                tool_enums, item, None)
                             if enum_table:
                                 new_value = lookup_enum_value(
                                     enum_table[1], value, None)

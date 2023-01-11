@@ -212,3 +212,43 @@ util.was_processed
 util.fixup_args
 ^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::fixup_args
+
+
+Defaults
+--------
+
+defaults.settings_from_name
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::settings_from_name
+
+defaults.configuration_presets
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::configuration_presets
+
+defaults.get_project_name
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::get_project_name
+
+defaults.get_project_type
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::get_project_type
+
+defaults.get_platform
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::get_platform
+
+defaults.guess_ide
+^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::guess_ide
+
+defaults.get_ide
+^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::get_ide
+
+defaults.default_configuration_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::default_configuration_list
+
+defaults.get_configuration_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::defaults::get_configuration_list

@@ -56,13 +56,14 @@ def test(ide, platform_type):
     if platform_type in (PlatformTypes.win32, PlatformTypes.win64):
         return True
 
-    if ide is IDETypes.vs2010:
-        if platform_type is PlatformTypes.xbox360:
-            return True
+    if platform_type in (PlatformTypes.winarm32, PlatformTypes.winarm64):
+        return ide >= IDETypes.vs2017
 
-    if ide >= IDETypes.vs2015:
-        if platform_type is PlatformTypes.xboxone:
-            return True
+    if platform_type is PlatformTypes.xbox360:
+        return IDETypes.vs2010 <= ide <= IDETypes.vs2017
+
+    if platform_type is PlatformTypes.xboxone:
+        return ide >= IDETypes.vs2015
 
     if ide < IDETypes.vs2017:
         if platform_type in (PlatformTypes.ps3, PlatformTypes.vita):
@@ -90,10 +91,6 @@ def test(ide, platform_type):
 
     if ide >= IDETypes.vs2015:
         if platform_type in (PlatformTypes.switch32, PlatformTypes.switch64):
-            return True
-
-    if ide >= IDETypes.vs2017:
-        if platform_type in (PlatformTypes.winarm32, PlatformTypes.winarm64):
             return True
 
     return False
@@ -815,12 +812,16 @@ class VS2010Configuration(VS2010XML):
             elif platform.is_android():
                 platform_toolset = "Clang_3_8"
 
-        android_min_api = None
-        android_target_api = None
+        self.add_tags((
+            ('ConfigurationType', configuration_type),
+            # Enable debug libraries
+            ('UseDebugLibraries', truefalse(
+                configuration.debug)),
+            ('PlatformToolset', platform_toolset)
+        ))
 
         # Handle android minimum tool set
         if platform.is_android():
-            android_target_api = 'android-24'
             if platform in (PlatformTypes.androidintel64,
                             PlatformTypes.androidarm64):
                 # 64 bit support was introduced in android 21
@@ -828,24 +829,24 @@ class VS2010Configuration(VS2010XML):
                 android_min_api = 'android-21'
             else:
                 android_min_api = 'android-9'
+            self.add_tag("AndroidMinAPI", android_min_api)
+            self.add_tag("AndroidTargetAPI", "android-24")
 
-        self.add_tags((
-            ('ConfigurationType', configuration_type),
-            # Enable debug libraries
-            ('UseDebugLibraries', truefalse(
-                configuration.debug)),
-            ('PlatformToolset', platform_toolset),
-            ('AndroidMinAPI', android_min_api),
-            ('AndroidTargetAPI', android_target_api),
-            ('WholeProgramOptimization', truefalse(
-                configuration.link_time_code_generation)),
-            ('CharacterSet', 'Unicode')
-        ))
+        self.add_tag("WholeProgramOptimization", truefalse(
+            configuration.link_time_code_generation))
+
+        item = configuration.get_chained_value("vs_CharacterSet")
+        if item:
+            self.add_tag("CharacterSet", item)
 
         if platform.is_windows():
-            self.add_tag("UseOfMfc", truefalse(configuration.use_mfc))
-            self.add_tag("UseOfAtl", truefalse(configuration.use_atl))
-            self.add_tag("CLRSupport", truefalse(configuration.clr_support))
+            if configuration.use_mfc is not None:
+                self.add_tag("UseOfMfc", truefalse(configuration.use_mfc))
+            if configuration.use_atl is not None:
+                self.add_tag("UseOfAtl", truefalse(configuration.use_atl))
+            if configuration.clr_support is not None:
+                self.add_tag("CLRSupport", truefalse(
+                    configuration.clr_support))
 
         # Nintendo Switch SDK location
         if platform.is_switch():
