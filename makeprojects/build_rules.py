@@ -116,7 +116,8 @@ def prebuild(working_directory, configuration):
             Configuration to build, ``all`` if no configuration was requested.
 
     Returns:
-        None if allowing parent folder to execute, otherwise an integer error code.
+        None if allowing parent folder to execute, otherwise an integer error
+        code.
     """
     return None
 
@@ -143,7 +144,8 @@ def build(working_directory, configuration):
             Configuration to build, ``all`` if no configuration was requested.
 
     Returns:
-        None if allowing parent folder to execute, otherwise an integer error code.
+        None if allowing parent folder to execute, otherwise an integer error
+        code.
     """
     return None
 
@@ -169,7 +171,8 @@ def postbuild(working_directory, configuration):
             Configuration to build, ``all`` if no configuration was requested.
 
     Returns:
-        None if allowing parent folder to execute, otherwise an integer error code.
+        None if allowing parent folder to execute, otherwise an integer error
+        code.
     """
     return None
 
@@ -223,11 +226,15 @@ def project_settings(project):
     """
     Set up defines and default libraries.
 
-    Adjust the default settings for the project to generate. Usually it's setting
-    the location of source code or perforce support.
+    Adjust the default settings for the project to generate. Usually it's
+    setting the location of source code or perforce support.
 
     Args:
         project: Project record to update.
+
+    Returns:
+        None, to continue processing, zero is no error and stop processing,
+        any other number is an error code.
     """
     return None
 
@@ -243,6 +250,10 @@ def configuration_settings(configuration):
 
     Args:
         configuration: Configuration class instance to update.
+
+    Returns:
+        None, to continue processing, zero is no error and stop processing,
+        any other number is an error code.
     """
     return None
 

@@ -1687,7 +1687,7 @@ def add_burgerlib(configuration):
     lib_name = "burger{}".format(
         configuration.get_suffix(
             force_short=force_short))
-    if platform.is_android() or force_short:
+    if platform.is_android() or platform is PlatformTypes.linux or force_short:
         lib_name = "lib{}.a".format(lib_name)
     else:
         lib_name = "{}.lib".format(lib_name)

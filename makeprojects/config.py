@@ -31,6 +31,9 @@ Match *.x360sl
 @var makeprojects._VITACG_MATCH
 Match *.vitacg
 
+@var makeprojects._MAKEFILE_MATCH
+Match *.mak
+
 @var makeprojects.config.BUILD_RULES_PY
 build_rules.py file to detect secondly
 
@@ -58,19 +61,22 @@ from burger import get_windows_host_type
 _XCODEPROJECT_FILE = "project.pbxproj"
 
 # Match *.xcodeproj
-_XCODEPROJ_MATCH = re_compile("(?ms).*\\.xcodeproj\\Z")
+_XCODEPROJ_MATCH = re_compile("(?is).*\\.xcodeproj\\Z")
 
 # Match *.hlsl
-_HLSL_MATCH = re_compile("(?ms).*\\.hlsl\\Z")
+_HLSL_MATCH = re_compile("(?is).*\\.hlsl\\Z")
 
 # Match *.glsl
-_GLSL_MATCH = re_compile("(?ms).*\\.glsl\\Z")
+_GLSL_MATCH = re_compile("(?is).*\\.glsl\\Z")
 
 # Match *.x360sl
-_X360SL_MATCH = re_compile("(?ms).*\\.x360sl\\Z")
+_X360SL_MATCH = re_compile("(?is).*\\.x360sl\\Z")
 
 # Match *.vitacg
-_VITACG_MATCH = re_compile("(?ms).*\\.vitacg\\Z")
+_VITACG_MATCH = re_compile("(?is).*\\.vitacg\\Z")
+
+# Match *.mak
+_MAKEFILE_MATCH = re_compile("(?is).*\\.mak\\Z")
 
 # build_rules.py file to detect secondly
 BUILD_RULES_PY = "build_rules.py"
