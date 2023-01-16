@@ -21,6 +21,12 @@ List of IDETypes the makefile module supports.
 
 @var makeprojects.makefile._BASH_DELETE_EMPTY_FOLDER
 Bash command to delete an empty folder
+
+@var makeprojects.makefile._DEPLOY
+Deploy a file without source control
+
+@var makeprojects.makefile._DEPLOY_PERFORCE
+Using perforce, deploy a file
 """
 
 # pylint: disable=consider-using-f-string
@@ -45,6 +51,24 @@ SUPPORTED_IDES = (IDETypes.make,)
 # q: Hide control characters, A: Don't list . and .., L: Dereference linke
 _BASH_DELETE_EMPTY_FOLDER = ("\t@if [ -d {0} ] && files=$$(ls -qAL -- {0}) "
                              "&& [ -z \"$$files\" ]; then rm -fd {0}; fi")
+
+# Deploy a file without source control
+_DEPLOY = (
+    "\t@cp -T \"$@\" \"{0}{1}\"",
+)
+
+# Using perforce, deploy a file
+_DEPLOY_PERFORCE = (
+    "\t@if [ -f /bin/wslpath ]; then \\",
+    "\tp4.exe edit $$(wslpath -a -w '{0}{1}'); \\",
+    "\tcp -T \"$@\" \"{0}{1}\"; \\",
+    "\tp4.exe revert -a $$(wslpath -a -w '{0}{1}'); \\",
+    "\telse \\",
+    "\tp4 edit \"{0}{1}\"; \\",
+    "\tcp -T \"$@\" \"{0}{1}\"; \\",
+    "\tp4 revert -a \"{0}{1}\"; \\",
+    "\tfi"
+)
 
 ########################################
 
@@ -1119,65 +1143,51 @@ class MakeProject(object):
         ))
 
         for configuration in self.configuration_list:
+
+            # Create the final exe name
+            binary_name = self.solution.name + "mak" + \
+                configuration.platform.get_short_code(
+                )[-3:] + configuration.short_code
+
+            # Libaries require a prefix and suffix
             if configuration.project_type is ProjectTypes.library:
-                suffix = ".a"
-                prefix = "lib"
-            else:
-                suffix = ""
-                prefix = ""
+                binary_name = "lib" + binary_name + ".a"
 
             line_list.append("")
             line_list.append(
-                "bin/" + prefix + self.solution.name + "mak" +
-                configuration.platform.get_short_code()[-3:] +
-                configuration.short_code +
-                suffix + ": $(OBJS) " +
+                "bin/" + binary_name + ": $(OBJS) " +
                 self.solution.makefile_filename + " | bin")
 
+            # Invoke the proper linker for a library or exe
             if configuration.project_type is ProjectTypes.library:
                 line_list.append("\t@ar -rcs $@ $(OBJS)")
-                if configuration.deploy_folder:
-                    deploy_folder = convert_to_linux_slashes(
-                        configuration.deploy_folder,
-                        force_ending_slash=True)[:-1]
-                    line_list.extend(
-                        (
-                            "\t@if [ -f /bin/wslpath ]; then \\",
-                            "\tp4.exe edit $$(wslpath -a -w '{}/$(@F)'); \\".format(
-                                deploy_folder),
-                            "\tcp -T \"$@\" \"{}/$(@F)\"; \\".format(deploy_folder),
-                            "\tp4.exe revert -a $$(wslpath -a -w '{}/$(@F)'); \\".format(
-                                deploy_folder),
-                            "\telse \\",
-                            "\tp4 edit \"{}/$(@F)\"; \\".format(deploy_folder),
-                            "\tcp -T \"$@\" \"{}/$(@F)\"; \\".format(deploy_folder),
-                            "\tp4 revert -a \"{}/$(@F)\"; \\".format(deploy_folder),
-                            "\tfi"))
             else:
                 line_list.append(
                     "\t@$(LINK) -o $@ $(OBJS) "
                     "$(LFlags$(CONFIG)$(TARGET))")
-                if configuration.deploy_folder:
-                    deploy_folder = convert_to_linux_slashes(
-                        configuration.deploy_folder,
-                        force_ending_slash=True)[:-1]
-                    line_list.extend((
-                        "\t@if [ -f /bin/wslpath ]; then \\",
-                        "\tp4.exe edit $$(wslpath -a -w '{}/{}'); \\".format(
-                            deploy_folder, self.solution.name),
-                        "\tcp -T \"$@\" \"{}/{}\"; \\".format(
-                            deploy_folder, self.solution.name),
-                        "\tp4.exe revert -a $$(wslpath -a -w '{}/{}'); \\".format(
-                            deploy_folder, self.solution.name),
-                        "\telse \\",
-                        "\tp4 edit \"{}/{}\"; \\".format(
-                            deploy_folder, self.solution.name),
-                        "\tcp -T \"$@\" \"{}/{}\"; \\".format(
-                            deploy_folder, self.solution.name),
-                        "\tp4 revert -a \"{}/{}\"; \\".format(
-                            deploy_folder, self.solution.name),
-                        "\tfi"
-                    ))
+
+            # Does this file need deployment?
+            if configuration.deploy_folder:
+
+                # Convert to proper slashes and make sure there's an
+                # ending slash
+                deploy_folder = convert_to_linux_slashes(
+                    configuration.deploy_folder,
+                    force_ending_slash=True)
+
+                # Insert the script
+                if not configuration.project_type.is_library():
+
+                    # Executables use the native name
+                    binary_name = self.solution.name
+
+                # Which command to use? Perforce or not?
+                if configuration.get_chained_value("perforce"):
+                    deploy_command = _DEPLOY_PERFORCE
+                else:
+                    deploy_command = _DEPLOY
+                for item in deploy_command:
+                    line_list.append(item.format(deploy_folder, binary_name))
 
         line_list.extend((
             "",
