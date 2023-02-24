@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 1995-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2023 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -25,6 +25,7 @@ List of IDETypes the watcom module supports.
 # pylint: disable=consider-using-f-string
 # pylint: disable=super-with-arguments
 # pylint: disable=useless-object-inheritance
+# pylint: disable=too-many-lines
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -34,12 +35,39 @@ from burger import save_text_file_if_newer, encapsulate_path_linux, \
     convert_to_linux_slashes, convert_to_windows_slashes, where_is_watcom, \
     get_windows_host_type
 
-from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+try:
+    from wslwinreg import convert_to_windows_path
+except ImportError:
+    pass
+
+from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
+    get_output_template
 from .build_objects import BuildObject, BuildError
 
-_WATCOMFILE_MATCH = re_compile('(?is).*\\.wmk\\Z')
+_WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
 SUPPORTED_IDES = (IDETypes.watcom,)
+
+########################################
+
+
+def fixup_env(item):
+    """
+    Check if a path has an environment variable.
+    If an pathname starts with $(XXX), then it needs to be invoking 
+    and environment variable. Watcom uses the form $(%XXX) so insert a
+    percent sign to convert if needed
+
+    Args:
+        item: String to check
+
+    Returns:
+        Updated pathname using $(%XXX) format
+    """
+
+    if item.startswith("$("):
+        item = item[:2] + "%" + item[2:]
+    return item
 
 ########################################
 
@@ -64,9 +92,7 @@ class BuildWatcomFile(BuildObject):
         """
 
         super(BuildWatcomFile, self).__init__(
-            file_name,
-            priority,
-            configuration=configuration)
+            file_name, priority, configuration=configuration)
         self.verbose = verbose
 
     def build(self):
@@ -90,33 +116,37 @@ class BuildWatcomFile(BuildObject):
         if watcom_path is None:
             return BuildError(
                 0, self.file_name,
-                msg='{} requires Watcom to be installed to build!'.format(
+                msg="{} requires Watcom to be installed to build!".format(
                     self.file_name))
 
         # Watcom requires the path set up so it can access link files
-        saved_path = os.environ['PATH']
-        if get_windows_host_type():
+        exe_name = where_is_watcom("wmake", verbose=self.verbose)
+
+        saved_path = os.environ["PATH"]
+        if get_windows_host_type() or exe_name.endswith(".exe"):
             new_path = os.pathsep.join(
                 (os.path.join(
-                    watcom_path, 'binnt'), os.path.join(
-                        watcom_path, 'binw')))
-        else:
-            new_path = os.path.join(watcom_path, 'binl')
+                    watcom_path, "binnt"), os.path.join(
+                        watcom_path, "binw")))
+            file_name = convert_to_windows_path(self.file_name)
 
-        exe_name = where_is_watcom('wmake', verbose=self.verbose)
-        os.environ['PATH'] = new_path + os.pathsep + saved_path
+        else:
+            new_path = os.path.join(watcom_path, "binl")
+            file_name = self.file_name
+
+        os.environ["PATH"] = new_path + os.pathsep + saved_path
 
         # Set the configuration target
-        cmd = [exe_name, '-e', '-h', '-f', self.file_name, self.configuration]
+        cmd = [exe_name, "-e", "-h", "-f", file_name, self.configuration]
 
         # Iterate over the commands
         if self.verbose:
-            print(' '.join(cmd))
+            print(" ".join(cmd))
 
         result = self.run_command(cmd, self.verbose)
 
         # Restore the path variable
-        os.environ['PATH'] = saved_path
+        os.environ["PATH"] = saved_path
 
         # Return the error code
         return result
@@ -135,8 +165,7 @@ class BuildWatcomFile(BuildObject):
         Returns:
             None if not implemented, otherwise an integer error code.
         """
-        return BuildError(0, self.file_name,
-                          msg="Watcom doesn't support cleaning")
+        return self.build()
 
 ########################################
 
@@ -171,7 +200,7 @@ def create_build_object(file_name, priority=50,
     """
 
     if not configurations:
-        return [BuildWatcomFile(file_name, priority, 'all', verbose)]
+        return [BuildWatcomFile(file_name, priority, "all", verbose)]
 
     results = []
     for configuration in configurations:
@@ -201,16 +230,19 @@ def create_clean_object(file_name, priority=50,
     """
 
     if not configurations:
-        return [BuildWatcomFile(file_name, priority, 'clean', verbose)]
+        return [BuildWatcomFile(file_name, priority, "clean", verbose)]
 
     results = []
     for configuration in configurations:
+
+        # If clean is invoked, pass it through
+        if configuration != "clean" and not configuration.startswith("clean_"):
+
+            # Convert Release to clean_Release
+            configuration = "clean_" + configuration
+
         results.append(
-            BuildWatcomFile(
-                file_name,
-                priority,
-                configuration,
-                verbose))
+            BuildWatcomFile(file_name, priority, configuration, verbose))
     return results
 
 ########################################
@@ -231,8 +263,55 @@ def test(ide, platform_type):
     return platform_type in (
         PlatformTypes.win32, PlatformTypes.msdos4gw, PlatformTypes.msdosx32)
 
+########################################
 
-class Project(object):
+
+def generate(solution):
+    """
+    Create a project file for Watcom.
+
+    Given a Solution object, create an appropriate Watcom WMAKE
+    file to allow this project to build.
+
+    Args:
+        solution: Solution instance.
+
+    Returns:
+        Zero if no error, non-zero on error.
+    """
+
+    # Failsafe
+    if solution.ide not in SUPPORTED_IDES:
+        return 10
+
+    # Create the output filename and pass it to the generator
+    # so it can reference itself in make targets
+    solution.watcom_filename = "{}{}{}.wmk".format(
+        solution.name, solution.ide_code, solution.platform_code)
+
+    # Create an instance of the generator
+    exporter = WatcomProject(solution)
+
+    # Output the actual project file
+    watcom_lines = []
+    error = exporter.generate(watcom_lines)
+    if error:
+        return error
+
+    # Save the file if it changed
+    save_text_file_if_newer(
+        os.path.join(solution.working_directory, solution.watcom_filename),
+        watcom_lines,
+        bom=False,
+        perforce=solution.perforce,
+        verbose=solution.verbose)
+    return 0
+
+
+########################################
+
+
+class WatcomProject(object):
     """
     Root object for a Watcom IDE project file
     Created with the name of the project, the IDE code
@@ -259,17 +338,17 @@ class Project(object):
         for project in solution.project_list:
 
             # Process the filenames
-            project.get_file_list([FileTypes.h,
-                                   FileTypes.cpp,
-                                   FileTypes.c,
-                                   FileTypes.x86,
-                                   ])
+            project.get_file_list([FileTypes.h, FileTypes.cpp,
+                                   FileTypes.c, FileTypes.x86,])
 
             # Add to the master list
             self.configuration_list.extend(project.configuration_list)
 
             # Create sets of configuration names and projects
             for configuration in project.configuration_list:
+
+                configuration.watcommake_name = configuration.name + \
+                    configuration.platform.get_short_code()
 
                 # Add only if not already present
                 for item in self.configuration_names:
@@ -287,138 +366,422 @@ class Project(object):
     def write_header(self, line_list):
         """
         Write the header for a Watcom wmake file
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
         """
 
         line_list.extend([
-            '#',
-            '# Build ' + self.solution.name + ' with WMAKE',
-            '# Generated with makeprojects',
-            '#',
-            '# Require the environment variable WATCOM set to the OpenWatcom '
-            'folder',
-            '# Example: WATCOM=C:\\WATCOM',
-            '#',
-            '',
-            '# This speeds up the building process for Watcom because it',
-            '# keeps the apps in memory and doesn\'t have '
-            'to reload for every source file',
-            '# Note: There is a bug that if the wlib app is loaded, '
-            'it will not',
-            '# get the proper WOW file if a full build is performed',
-            '',
-            '# The bug is gone from Watcom 1.2',
-            '',
-            '!ifdef %WATCOM',
-            '!ifdef __LOADDLL__',
-            '!loaddll wcc $(%WATCOM)/binnt/wccd',
-            '!loaddll wccaxp $(%WATCOM)/binnt/wccdaxp',
-            '!loaddll wcc386 $(%WATCOM)/binnt/wccd386',
-            '!loaddll wpp $(%WATCOM)/binnt/wppdi86',
-            '!loaddll wppaxp $(%WATCOM)/binnt/wppdaxp',
-            '!loaddll wpp386 $(%WATCOM)/binnt/wppd386',
-            '!loaddll wlink $(%WATCOM)/binnt/wlinkd',
-            '!loaddll wlib $(%WATCOM)/binnt/wlibd',
-            '!endif',
-            '!endif'])
+            "#",
+            "# Build " + self.solution.name + " with WMAKE",
+            "# Generated with makeprojects.watcom",
+            "#",
+            "# Require the environment variable WATCOM set to the OpenWatcom "
+            "folder",
+            "# Example: WATCOM=C:\\WATCOM",
+            "#",
+            "",
+            "# This speeds up the building process for Watcom because it",
+            "# keeps the apps in memory and doesn't have "
+            "to reload for every source file",
+            "# Note: There is a bug that if the wlib app is loaded, "
+            "it will not",
+            "# get the proper WOW file if a full build is performed",
+            "",
+            "# The bug is gone from Watcom 1.2",
+            "",
+            "!ifdef %WATCOM",
+            "!ifdef __LOADDLL__",
+            "!loaddll wcc $(%WATCOM)/binnt/wccd",
+            "!loaddll wccaxp $(%WATCOM)/binnt/wccdaxp",
+            "!loaddll wcc386 $(%WATCOM)/binnt/wccd386",
+            "!loaddll wpp $(%WATCOM)/binnt/wppdi86",
+            "!loaddll wppaxp $(%WATCOM)/binnt/wppdaxp",
+            "!loaddll wpp386 $(%WATCOM)/binnt/wppd386",
+            "!loaddll wlink $(%WATCOM)/binnt/wlinkd",
+            "!loaddll wlib $(%WATCOM)/binnt/wlibd",
+            "!endif",
+            "!endif"])
+        return 0
 
-        # Default configuration
+    ########################################
+
+    def _write_phony_all(self, line_list):
+        """
+        Generate ``all`` symbolic target
+
+        Args:
+            line_list: List of lines of text generated.
+        """
+
+        target_list = []
+        for item in self.configuration_names:
+            target_list.append(item.name)
+
+        line_all = "all: " + " ".join(target_list) + " .SYMBOLIC"
+        line_clean = "clean: " + \
+            " ".join(["clean_" + x for x in target_list]) + " .SYMBOLIC"
+
+        line_list.extend((
+            "",
+            "#",
+            "# List the names of all of the final binaries to build and clean",
+            "#",
+            "",
+            line_all,
+            "\t@%null",
+            "",
+            line_clean,
+            "\t@%null"
+        ))
+
+    ########################################
+
+    def _write_phony_configurations(self, line_list):
+        """
+        Generate symbolic configuration targets
+
+        Args:
+            line_list: List of lines of text generated.
+        """
+
+        # Only generate if there are configurations
+        if self.configuration_names:
+            line_list.extend((
+                "",
+                "#",
+                "# Configurations",
+                "#"
+            ))
+
+            for configuration in self.configuration_names:
+                target_list = []
+                for platform in self.platforms:
+                    target_list.append(
+                        configuration.name +
+                        platform.get_short_code())
+
+                line_configuration = configuration.name + \
+                    ": " + " ".join(target_list) + " .SYMBOLIC"
+                line_clean = "clean_" + configuration.name + ": " + \
+                    " ".join(["clean_" + x for x in target_list]) + \
+                    " .SYMBOLIC"
+
+                line_list.extend(("",
+                                  line_configuration,
+                                  "\t@%null",
+                                  "",
+                                  line_clean,
+                                  "\t@%null"
+                                  ))
+
+    ########################################
+
+    def _write_phony_platforms(self, line_list):
+        """
+        Generate a list of platforms
+
+        Args:
+            line_list: List of lines of text generated.
+        """
+
+        # Only generate if there are platforms
+        if self.platforms:
+            line_list.extend((
+                "",
+                "#",
+                "# Platforms",
+                "#"
+            ))
+
+            for platform in self.platforms:
+
+                short_code = platform.get_short_code()
+
+                target_list = []
+                for configuration in self.configuration_list:
+                    target_list.append(
+                        configuration.name +
+                        short_code)
+
+                line_platform = short_code + \
+                    ": " + " ".join(target_list) + " .SYMBOLIC"
+                line_clean = "clean_" + short_code + ": " + \
+                    " ".join(["clean_" + x for x in target_list]) + \
+                    " .SYMBOLIC"
+
+                line_list.extend(("",
+                                  line_platform,
+                                  "\t@%null",
+                                  "",
+                                  line_clean,
+                                  "\t@%null"))
+
+    ########################################
+
+    def _write_phony_binaries(self, line_list):
+        """
+        Generate phony targets for binaries.
+
+        Args:
+            line_list: List of lines of text generated.
+        """
+
+        if self.configuration_list:
+
+            line_list.extend((
+                "",
+                "#",
+                "# List of binaries to build or clean",
+                "#"
+            ))
+
+            for configuration in self.configuration_list:
+                template = get_output_template(
+                    configuration.project_type, configuration.platform)
+
+                platform_short_code = configuration.platform.get_short_code()
+                target_name = configuration.name + platform_short_code
+                bin_folder = self.solution.name + "wat" + \
+                    platform_short_code[-3:] + configuration.short_code
+                bin_name = template.format(bin_folder)
+
+                line_list.extend((
+                    "",
+                    target_name + ": .SYMBOLIC",
+                    "\t@if not exist bin @mkdir bin",
+   	                "\t@if not exist \"temp\\{0}\" @mkdir \"temp\\{0}\"".format(
+   	                    bin_folder),
+                    "\t@set CONFIG=" + configuration.name,
+                    "\t@set TARGET=" + platform_short_code,
+                    "\t@%make bin\\" + bin_name,
+                    "",
+                    "clean_" + target_name + ": .SYMBOLIC",
+                    "\t@if exist temp\\{0} @rmdir /s /q temp\\{0}".format(
+                        bin_folder),
+                    "\t@if exist bin\\{0} @del /q bin\\{0}".format(
+                        bin_name),
+                    # Test if the directory is empty, if so, delete the directory
+                    "\t@-if exist bin @rmdir bin 2>NUL",
+                    "\t@-if exist temp @rmdir temp 2>NUL"
+                ))
+
+    ########################################
+
+    def write_all_targets(self, line_list):
+        """
+        Output all of the .SYMBOLIC targets.
+        Create all of the targets, starting with all, and then all the
+        configurations, followed by the clean targets
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Save the "All" targets
+        self._write_phony_all(line_list)
+
+        # Save the configuration targets.
+        self._write_phony_configurations(line_list)
+
+        # Save the platform targets.
+        self._write_phony_platforms(line_list)
+
+        # Generate the list of final binaries
+        self._write_phony_binaries(line_list)
+
+        return 0
+
+    ########################################
+
+    def write_directory_targets(self, line_list):
+        """
+        Create directory and make file targets
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend((
+            "",
+            "#",
+            "# Create the folder for the binary output",
+            "#",
+            "",
+            "bin:",
+            "\t@if not exist bin @mkdir bin",
+            "",
+            "temp:",
+            "\t@if not exist temp @mkdir temp"
+        ))
+
+        line_list.extend((
+            "",
+            "#",
+            "# Disable building this make file",
+            "#",
+            "",
+            self.solution.watcom_filename + ":",
+            "\t@%null"))
+        return 0
+
+    ########################################
+
+    @staticmethod
+    def write_test_variables(line_list):
+        """
+        Create tests for environment variables
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        variable_list = ["BURGER_SDKS", "WATCOM"]
+
+        if variable_list:
+            line_list.extend((
+                "",
+                "#",
+                "# Required environment variables",
+                "#"
+            ))
+            for variable in variable_list:
+                line_list.extend((
+                    "",
+                    "!ifndef %" + variable,
+                    ("!error the environment variable {} "
+                     "was not declared").format(variable),
+                    "!endif"
+                ))
+        return 0
+
+    ########################################
+
+    def write_configurations(self, line_list):
+        """
+        Write configuration list.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Default configuration, assume Release or use
+        # the one found first.
         config = None
         for item in self.configuration_list:
-            if item.name == 'Release':
-                config = 'Release'
-            elif config is None:
+            if item.name == "Release":
+                config = "Release"
+                break
+            if config is None:
                 config = item.name
+
+        # Nothing in self.configuration_list?
         if config is None:
-            config = 'Release'
+            config = "Release"
 
         line_list.extend([
-            '',
-            '#',
-            '# Default configuration',
-            '#',
-            '',
-            '!ifndef CONFIG',
-            'CONFIG = ' + config,
-            '!endif'
+            "",
+            "#",
+            "# Default configuration",
+            "#",
+            "",
+            "!ifndef CONFIG",
+            "CONFIG = " + config,
+            "!endif"
         ])
 
-        # Default platform
-        target = None
-        # Get all the configuration names
-        for platform in self.platforms:
-            if platform is PlatformTypes.msdos4gw:
-                target = platform.get_short_code()
-            elif target is None:
-                target = platform.get_short_code()
-        if target is None:
-            target = 'Release'
+        # Default platform is Dos4GW unless it's not in the list
+        target = PlatformTypes.msdos4gw.get_short_code()
+        if self.platforms and PlatformTypes.msdos4gw not in self.platforms:
+            target = self.platforms[0].get_short_code()
 
         line_list.extend([
-            '',
-            '#',
-            '# Default target',
-            '#',
-            '',
-            '!ifndef TARGET',
-            'TARGET = ' + target,
-            '!endif'
+            "",
+            "#",
+            "# Default target",
+            "#",
+            "",
+            "!ifndef TARGET",
+            "TARGET = " + target,
+            "!endif"
         ])
 
         line_list.extend([
-            '',
-            '#',
-            '# Directory name fragments',
-            '#',
-            ''
+            "",
+            "#",
+            "# Directory name fragments",
+            "#"
         ])
 
+        # List all platforms
+        line_list.append("")
         for platform in self.platforms:
             line_list.append(
-                'TARGET_SUFFIX_{0} = {1}'.format(
+                "TARGET_SUFFIX_{0} = {1}".format(
                     platform.get_short_code(),
                     platform.get_short_code()[-3:]))
 
-        line_list.append('')
+        line_list.append("")
         for item in self.configuration_names:
-            line_list.append('CONFIG_SUFFIX_{0} = {1}'.format(item.name,
+            line_list.append("CONFIG_SUFFIX_{0} = {1}".format(item.name,
                                                               item.short_code))
 
+        # Save the base name of the temp directory
         line_list.extend([
-            '',
-            '#',
-            '# Set the set of known files supported',
-            '# Note: They are in the reverse order of building. .c is '
-            'built first, then .x86',
-            '# until the .exe or .lib files are built',
-            '#',
-            '',
-            '.extensions:',
-            '.extensions: .exe .exp .lib .obj .h .cpp .x86 .c .i86',
+            "",
+            "#",
+            "# Base name of the temp directory",
+            "#",
+            "",
+            "BASE_TEMP_DIR = temp\\" + self.solution.name,
+            "BASE_SUFFIX = wat$(TARGET_SUFFIX_$(%TARGET))"
+            "$(CONFIG_SUFFIX_$(%CONFIG))",
+            "TEMP_DIR = temp\\{0}$(BASE_SUFFIX)".format(self.solution.name)
+        ])
+
+        line_list.extend([
+            "",
+            "#",
+            "# Set the set of known files supported",
+            "# Note: They are in the reverse order of building. .c is "
+            "built first, then .x86",
+            "# until the .exe or .lib files are built",
+            "#",
+            "",
+            ".extensions:",
+            ".extensions: .exe .exp .lib .obj .h .cpp .x86 .c .i86",
         ])
         return 0
+
+    ########################################
 
     def write_source_dir(self, line_list):
         """
         Write out the list of directories for the source
-        """
 
-        # Save the refernence BURGER_SDKS
-        line_list.extend([
-            '',
-            '#',
-            '# Ensure sdks are pulled from the environment',
-            '#',
-            '',
-            'BURGER_SDKS = $(%BURGER_SDKS)'
-        ])
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
 
         # Set the folders for the source code to search
         line_list.extend([
-            '',
-            '#',
-            '# SOURCE_DIRS = Work directories for the source code',
-            '#',
-            ''
+            "",
+            "#",
+            "# SOURCE_DIRS = Work directories for the source code",
+            "#",
+            ""
         ])
 
         # Extract the directories from the files
@@ -427,207 +790,287 @@ class Project(object):
         source_folders = []
         for configuration in self.configuration_list:
             for item in configuration.get_unique_chained_list(
-                    '_source_include_list'):
+                    "_source_include_list"):
                 if item not in source_folders:
                     source_folders.append(item)
 
             for item in configuration.get_unique_chained_list(
-                    'include_folders_list'):
+                    "include_folders_list"):
                 if item not in include_folders:
                     include_folders.append(item)
 
         if source_folders:
-            colon = '='
+            colon = "="
             for item in sorted(source_folders):
                 line_list.append(
-                    'SOURCE_DIRS ' +
+                    "SOURCE_DIRS " +
                     colon +
                     encapsulate_path_linux(item))
-                colon = '+=;'
+                colon = "+=;"
         else:
-            line_list.append('SOURCE_DIRS =')
-
-        # Save the project name
-        line_list.extend([
-            '',
-            '#',
-            '# Name of the output library',
-            '#',
-            '',
-            'PROJECT_NAME = ' + self.solution.name])
-
-        # Save the base name of the temp directory
-        line_list.extend([
-            '',
-            '#',
-            '# Base name of the temp directory',
-            '#',
-            '',
-            'BASE_TEMP_DIR = temp/$(PROJECT_NAME)',
-            'BASE_SUFFIX = wat$(TARGET_SUFFIX_$(%TARGET))'
-            '$(CONFIG_SUFFIX_$(%CONFIG))',
-            'TEMP_DIR = $(BASE_TEMP_DIR)$(BASE_SUFFIX)'
-        ])
-
-        # Save the final binary output directory
-        line_list.extend([
-            '',
-            '#',
-            '# Binary directory',
-            '#',
-            '',
-            'DESTINATION_DIR = bin'
-        ])
+            line_list.append("SOURCE_DIRS =")
 
         # Extra include folders
         line_list.extend([
-            '',
-            '#',
-            '# INCLUDE_DIRS = Header includes',
-            '#',
-            '',
-            'INCLUDE_DIRS = $(SOURCE_DIRS)'
+            "",
+            "#",
+            "# INCLUDE_DIRS = Header includes",
+            "#",
+            "",
+            "INCLUDE_DIRS = $(SOURCE_DIRS)"
         ])
 
         for item in include_folders:
+            item = fixup_env(item)
             line_list.append(
-                'INCLUDE_DIRS +=;' +
+                "INCLUDE_DIRS +=;" +
                 convert_to_linux_slashes(item))
 
         return 0
 
+    ########################################
+
     @staticmethod
-    def write_rules(line_list):
+    def _setwatcomdirs(line_list):
         """
         Output the default rules for building object code
         """
 
         # Set the search directories for source files
         line_list.extend([
-            '',
-            '#',
-            '# Tell WMAKE where to find the files to work with',
-            '#',
-            '',
-            '.c: $(SOURCE_DIRS)',
-            '.cpp: $(SOURCE_DIRS)',
-            '.x86: $(SOURCE_DIRS)',
-            '.i86: $(SOURCE_DIRS)'
+            "",
+            "#",
+            "# Tell WMAKE where to find the files to work with",
+            "#",
+            "",
+            ".c: $(SOURCE_DIRS)",
+            ".cpp: $(SOURCE_DIRS)",
+            ".x86: $(SOURCE_DIRS)",
+            ".i86: $(SOURCE_DIRS)"
         ])
+
+    ########################################
+
+    def _setcppflags(self, line_list):
+        """
+        Output the default rules for C and C++
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # C and C++ flags
+        line_list.extend((
+            "",
+            "#",
+            "# Set the compiler flags for each of the build types",
+            "#",
+            ""))
+
+        for configuration in self.configuration_list:
+            entries = ["CFlags" + configuration.watcommake_name + "="]
+
+            if configuration.platform is PlatformTypes.msdos4gw:
+                entries.append("-bt=DOS")
+                entries.append("-i=\"$(%WATCOM)/h;$(%WATCOM)/h/nt\"")
+
+            elif configuration.platform is PlatformTypes.msdosx32:
+                entries.append("-bt=DOS")
+                entries.append("-i=\"$(%WATCOM)/h\"")
+
+            else:
+                entries.append("-bt=NT")
+                entries.append("-dTYPE_BOOL=1")
+                entries.append("-dTARGET_CPU_X86=1")
+                entries.append("-dTARGET_OS_WIN32=1")
+                entries.append("-i=\"$(%WATCOM)/h;$(%WATCOM)/h/nt\"")
+
+            # Enable debug information
+            if configuration.debug:
+                entries.append("-d2")
+            else:
+                entries.append("-d0")
+
+            # Enable optimization
+            if configuration.optimization:
+                entries.append("-oaxsh")
+            else:
+                entries.append("-od")
+
+            # Add defines
+            define_list = configuration.get_chained_list("define_list")
+            for item in define_list:
+                entries.append("-D" + item)
+
+            line_list.append(" ".join(entries))
+        return 0
+
+    ########################################
+
+    def _setasmflags(self, line_list):
+        """
+        Output the default rules for assembler
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Global assembler flags
+        line_list.extend((
+            "",
+            "#",
+            "# Set the assembler flags for each of the build types",
+            "#",
+            ""))
+
+        for configuration in self.configuration_list:
+            entries = ["AFlags" + configuration.watcommake_name + "="]
+
+            if configuration.platform.is_windows():
+                entries.append("-d__WIN32__=1")
+
+            # Add defines
+            define_list = configuration.get_chained_list("define_list")
+            for item in define_list:
+                entries.append("-D" + item)
+
+            line_list.append(" ".join(entries))
+        return 0
+
+    ########################################
+
+    def _setlinkerflags(self, line_list):
+        """
+        Output the default rules for linker
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend((
+            "",
+            "#",
+            "# Set the Linker flags for each of the build types",
+            "#",
+            ""))
+
+        for configuration in self.configuration_list:
+            entries = ["LFlags" + configuration.watcommake_name + "="]
+
+            if configuration.platform is PlatformTypes.msdos4gw:
+                entries.append("system dos4g")
+
+            elif configuration.platform is PlatformTypes.msdosx32:
+                entries.append("system x32r")
+
+            else:
+                entries.append("system nt")
+
+            # Add libraries
+
+            if not configuration.project_type.is_library():
+                lib_list = configuration.get_unique_chained_list(
+                    "library_folders_list")
+                if lib_list:
+                    entries.append("libp")
+                    entries.append(";".join([fixup_env(x) for x in lib_list]))
+
+                lib_list = configuration.get_unique_chained_list(
+                    "libraries_list")
+
+                if lib_list:
+                    entries.append("LIBRARY")
+                    entries.append(",".join(lib_list))
+
+            line_list.append(" ".join(entries))
+
+        return 0
+
+    ########################################
+
+    def write_rules(self, line_list):
+        """
+        Output the default rules for building object code
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        self._setwatcomdirs(line_list)
+        self._setcppflags(line_list)
+        self._setasmflags(line_list)
+        self._setlinkerflags(line_list)
 
         # Global compiler flags
         line_list.extend([
-            '',
-            '#',
-            '# Set the compiler flags for each of the build types',
-            '#',
-            '',
-            'CFlagsDebug=-d_DEBUG -d2 -od',
-            'CFlagsInternal=-d_DEBUG -d2 -oaxsh',
-            'CFlagsRelease=-dNDEBUG -d0 -oaxsh',
-            '',
-            '#',
-            '# Set the flags for each target operating system',
-            '#',
-            '',
-            'CFlagscom=-bt=com -d__COM__=1 -i="$(%BURGER_SDKS)/dos/burgerlib;'
-            '$(%BURGER_SDKS)/dos/x32;$(%WATCOM)/h"',
-            'CFlagsdosx32=-bt=DOS -d__X32__=1 '
-            '-i="$(%BURGER_SDKS)/dos/burgerlib;'
-            '$(%BURGER_SDKS)/dos/x32;$(%WATCOM)/h"',
-            'CFlagsdos4gw=-bt=DOS -d__DOS4G__=1 '
-            '-i="$(%BURGER_SDKS)/dos/burgerlib;'
-            '$(%BURGER_SDKS)/dos/sosaudio;$(%WATCOM)/h;$(%WATCOM)/h/nt"',
-            'CFlagsw32=-bt=NT -dGLUT_DISABLE_ATEXIT_HACK -dGLUT_NO_LIB_PRAGMA '
-            '-dTARGET_CPU_X86=1 -dTARGET_OS_WIN32=1 -dTYPE_BOOL=1 -dUNICODE '
-            '-d_UNICODE -dWIN32_LEAN_AND_MEAN '
-            '-i="$(%BURGER_SDKS)/windows/burgerlib;'
-            '$(%BURGER_SDKS)/windows/opengl;$(%BURGER_SDKS)/windows/directx9;'
-            '$(%BURGER_SDKS)/windows/windows5;'
-            '$(%BURGER_SDKS)/windows/quicktime7;'
-            '$(%WATCOM)/h;$(%WATCOM)/h/nt"',
-            '',
-            '#',
-            '# Set the WASM flags for each of the build types',
-            '#',
-            '',
-            'AFlagsDebug=-d_DEBUG',
-            'AFlagsInternal=-d_DEBUG',
-            'AFlagsRelease=-dNDEBUG',
-            '',
-            '#',
-            '# Set the WASM flags for each operating system',
-            '#',
-            '',
-            'AFlagscom=-d__COM__=1',
-            'AFlagsdosx32=-d__X32__=1',
-            'AFlagsdos4gw=-d__DOS4G__=1',
-            'AFlagsw32=-d__WIN32__=1',
-            '',
-            'LFlagsDebug=',
-            'LFlagsInternal=',
-            'LFlagsRelease=',
-            '',
-            'LFlagscom=format dos com libp $(%BURGER_SDKS)/dos/burgerlib',
-            'LFlagsx32=system x32r libp $(%BURGER_SDKS)/dos/burgerlib;'
-            '$(%BURGER_SDKS)/dos/x32',
-            'LFlagsdos4gw=system dos4g libp $(%BURGER_SDKS)/dos/burgerlib;'
-            '$(%BURGER_SDKS)/dos/sosaudio',
-            'LFlagsw32=system nt libp $(%BURGER_SDKS)/windows/burgerlib;'
-            '$(%BURGER_SDKS)/windows/directx9 LIBRARY VERSION.lib,opengl32.lib,'
-            'winmm.lib,shell32.lib,shfolder.lib',
-            '',
-            '# Now, set the compiler flags',
-            '',
-            'CL=WCC386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 '
-            '-wcd=7 -i="$(INCLUDE_DIRS)"',
-            'CP=WPP386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 '
-            '-wcd=7 -i="$(INCLUDE_DIRS)"',
-            'ASM=WASM -5r -fp6 -w4 -zq -d__WATCOM__=1',
-            'LINK=*WLINK option caseexact option quiet PATH $(%WATCOM)/binnt;'
-            '$(%WATCOM)/binw;.',
-            '',
-            '# Set the default build rules',
-            '# Requires ASM, CP to be set',
-            '',
-            '# Macro expansion is on page 93 of the C//C++ Tools User\'s Guide',
-            '# $^* = C:\\dir\\target (No extension)',
-            '# $[* = C:\\dir\\dep (No extension)',
-            '# $^@ = C:\\dir\\target.ext',
-            '# $^: = C:\\dir\\',
-            '',
-            '.i86.obj : .AUTODEPEND',
-            '\t@echo $[&.i86 / $(%CONFIG) / $(%TARGET)',
-            '\t@$(ASM) -0 -w4 -zq -d__WATCOM__=1 $(AFlags$(%CONFIG)) '
-            '$(AFlags$(%TARGET)) $[*.i86 -fo=$^@ -fr=$^*.err',
-            '',
-            '.x86.obj : .AUTODEPEND',
-            '\t@echo $[&.x86 / $(%CONFIG) / $(%TARGET)',
-            '\t@$(ASM) $(AFlags$(%CONFIG)) $(AFlags$(%TARGET)) '
-            '$[*.x86 -fo=$^@ -fr=$^*.err',
-            '',
-            '.c.obj : .AUTODEPEND',
-            '\t@echo $[&.c / $(%CONFIG) / $(%TARGET)',
-            '\t@$(CL) $(CFlags$(%CONFIG)) $(CFlags$(%TARGET)) $[*.c '
-            '-fo=$^@ -fr=$^*.err',
-            '',
-            '.cpp.obj : .AUTODEPEND',
-            '\t@echo $[&.cpp / $(%CONFIG) / $(%TARGET)',
-            '\t@$(CP) $(CFlags$(%CONFIG)) $(CFlags$(%TARGET)) $[*.cpp '
-            '-fo=$^@ -fr=$^*.err'
+            "",
+            "# Now, set the compiler flags",
+            "",
+            "CL=WCC386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 "
+            "-wcd=7 -i=\"$(INCLUDE_DIRS)\"",
+            "CP=WPP386 -6r -fp6 -w4 -ei -j -mf -zq -zp=8 "
+            "-wcd=7 -i=\"$(INCLUDE_DIRS)\"",
+            "ASM=WASM -5r -fp6 -w4 -zq -d__WATCOM__=1",
+            "LINK=*WLINK option caseexact option quiet PATH $(%WATCOM)/binnt;"
+            "$(%WATCOM)/binw;.",
+            "",
+            "# Set the default build rules",
+            "# Requires ASM, CP to be set",
+            "",
+            "# Macro expansion is on page 93 of the C/C++ Tools User's Guide",
+            "# $^* = C:\\dir\\target (No extension)",
+            "# $[* = C:\\dir\\dep (No extension)",
+            "# $^@ = C:\\dir\\target.ext",
+            "# $^: = C:\\dir\\",
+            "",
+            ".i86.obj : .AUTODEPEND",
+            "\t@echo $[&.i86 / $(%CONFIG) / $(%TARGET)",
+            "\t@$(ASM) -0 -w4 -zq -d__WATCOM__=1 $(AFlags$(%CONFIG)"
+            "$(%TARGET)) $[*.i86 -fo=$^@ -fr=$^*.err",
+            "",
+            ".x86.obj : .AUTODEPEND",
+            "\t@echo $[&.x86 / $(%CONFIG) / $(%TARGET)",
+            "\t@$(ASM) $(AFlags$(%CONFIG)$(%TARGET)) "
+            "$[*.x86 -fo=$^@ -fr=$^*.err",
+            "",
+            ".c.obj : .AUTODEPEND",
+            "\t@echo $[&.c / $(%CONFIG) / $(%TARGET)",
+            "\t@$(CL) $(CFlags$(%CONFIG)$(%TARGET)) $[*.c "
+            "-fo=$^@ -fr=$^*.err",
+            "",
+            ".cpp.obj : .AUTODEPEND",
+            "\t@echo $[&.cpp / $(%CONFIG) / $(%TARGET)",
+            "\t@$(CP) $(CFlags$(%CONFIG)$(%TARGET)) $[*.cpp "
+            "-fo=$^@ -fr=$^*.err"
         ])
         return 0
 
+    ########################################
+
     def write_files(self, line_list):
         """
-        Output the list of object files to create
+        Output the list of object files to create.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
         """
+
         line_list.extend([
-            '',
-            '#',
-            '# Object files to work with for the library',
-            '#',
-            ''
+            "",
+            "#",
+            "# Object files to work with for the library",
+            "#",
+            ""
         ])
 
         obj_list = []
@@ -643,166 +1086,89 @@ class Project(object):
 
                 tempfile = convert_to_linux_slashes(
                     item.relative_pathname)
-                index = tempfile.rfind('.')
+                index = tempfile.rfind(".")
                 if index == -1:
                     entry = tempfile
                 else:
                     entry = tempfile[:index]
 
-                index = entry.rfind('/')
+                index = entry.rfind("/")
                 if index != -1:
                     entry = entry[index + 1:]
 
                 obj_list.append(entry)
 
         if obj_list:
-            colon = 'OBJS= '
+            colon = "OBJS= "
             for item in sorted(obj_list):
-                line_list.append(colon + '$(A)/' + item + '.obj &')
-                colon = '\t'
-            # Remove the ' &' from the last line
+                line_list.append(colon + "$(A)/" + item + ".obj &")
+                colon = "\t"
+            # Remove the " &" from the last line
             line_list[-1] = line_list[-1][:-2]
 
         else:
-            line_list.append('OBJS=')
+            line_list.append("OBJS=")
         return 0
 
-    def write_all_target(self, line_list):
-        """
-        Output the "all" rule
-        """
-
-        line_list.extend([
-            '',
-            '#',
-            '# List the names of all of the final binaries to build',
-            '#',
-            ''
-        ])
-
-        target_list = ['all:']
-        for item in self.configuration_names:
-            target_list.append(item.name)
-        target_list.append('.SYMBOLIC')
-        line_list.append(' '.join(target_list))
-        line_list.append('\t@%null')
-
-        line_list.extend([
-            '',
-            '#',
-            '# Configurations',
-            '#'
-        ])
-
-        # Build targets for configuations
-        for configuration in self.configuration_names:
-            line_list.append('')
-            target_list = [configuration.name + ':']
-            for platform in self.platforms:
-                target_list.append(
-                    configuration.name +
-                    platform.get_short_code())
-            target_list.append('.SYMBOLIC')
-            line_list.append(' '.join(target_list))
-            line_list.append('\t@%null')
-
-        # Build targets for platforms
-        for platform in self.platforms:
-            line_list.append('')
-            target_list = [platform.get_short_code() + ':']
-            for configuration in self.configuration_list:
-                target_list.append(
-                    configuration.name +
-                    platform.get_short_code())
-            target_list.append('.SYMBOLIC')
-            line_list.append(' '.join(target_list))
-            line_list.append('\t@%null')
-
-        for configuration in self.configuration_list:
-            if configuration.project_type is ProjectTypes.library:
-                suffix = 'lib'
-            else:
-                suffix = 'exe'
-            platform = configuration.platform
-            line_list.append('')
-            line_list.append(
-                '{0}{1}: .SYMBOLIC'.format(
-                    configuration.name,
-                    platform.get_short_code()))
-            line_list.append('\t@if not exist "$(DESTINATION_DIR)" '
-                             '@mkdir "$(DESTINATION_DIR)"')
-            name = 'wat' + platform.get_short_code(
-            )[-3:] + configuration.short_code
-            line_list.append('\t@if not exist "$(BASE_TEMP_DIR){0}" '
-                             '@mkdir "$(BASE_TEMP_DIR){0}"'.format(name))
-            line_list.append('\t@set CONFIG=' + configuration.name)
-            line_list.append('\t@set TARGET=' + platform.get_short_code())
-            line_list.append(
-                '\t@%make $(DESTINATION_DIR)\\$(PROJECT_NAME)wat' +
-                platform.get_short_code()[-3:] +
-                configuration.short_code + '.' + suffix)
-
-        line_list.extend([
-            '',
-            '#',
-            '# Disable building this make file',
-            '#',
-            '',
-            self.solution.watcom_filename + ':',
-            '\t@%null'
-        ])
-        return 0
+    ########################################
 
     def write_builds(self, line_list):
         """
         Output the rule to build the exes/libs
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
         """
 
         line_list.extend([
-            '',
-            '#',
-            '# A = The object file temp folder',
-            '#'
+            "",
+            "#",
+            "# A = The object file temp folder",
+            "#"
         ])
 
         for configuration in self.configuration_list:
             if configuration.project_type is ProjectTypes.library:
-                suffix = '.lib'
+                suffix = ".lib"
             else:
-                suffix = '.exe'
-            line_list.append('')
+                suffix = ".exe"
+            line_list.append("")
             line_list.append(
-                'A = $(BASE_TEMP_DIR)wat' +
+                "A = $(BASE_TEMP_DIR)wat" +
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code)
 
             line_list.append(
-                '$(DESTINATION_DIR)\\$(PROJECT_NAME)wat' +
+                "bin\\" + self.solution.name + "wat" +
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code + suffix +
-                ': $+$(OBJS)$- ' + self.solution.watcom_filename)
+                ": $+$(OBJS)$- " + self.solution.watcom_filename)
 
             if configuration.project_type is ProjectTypes.library:
 
                 line_list.extend([
-                    '\t@SET WOW=$+$(OBJS)$-',
-                    '\t@WLIB -q -b -c -n $^@ @WOW'
+                    "\t@SET WOW=$+$(OBJS)$-",
+                    "\t@WLIB -q -b -c -n $^@ @WOW"
                 ])
 
                 if configuration.deploy_folder:
                     deploy_folder = convert_to_windows_slashes(
                         configuration.deploy_folder,
                         force_ending_slash=True)[:-1]
+                    deploy_folder = fixup_env(deploy_folder)
                     line_list.extend([
-                        '\t@p4 edit "{}\\$^."'.format(deploy_folder),
-                        '\t@copy /y "$^@" "{}\\$^."'.format(deploy_folder),
-                        '\t@p4 revert -a "{}\\$^."'.format(deploy_folder)
+                        "\t@p4 edit \"{}\\$^.\"".format(deploy_folder),
+                        "\t@copy /y \"$^@\" \"{}\\$^.\"".format(deploy_folder),
+                        "\t@p4 revert -a \"{}\\$^.\"".format(deploy_folder)
                     ])
             else:
                 line_list.extend([
-                    '\t@SET WOW={$+$(OBJS)$-}',
-                    '\t@$(LINK) $(LFlags$(%TARGET)) $(LFlags$(%CONFIG)) '
-                    'LIBRARY burger$(BASE_SUFFIX).lib NAME $^@ FILE @wow'
+                    "\t@SET WOW={$+$(OBJS)$-}",
+                    "\t@$(LINK) $(LFlags" + configuration.name + \
+                    configuration.platform.get_short_code() + ") "
+                    "NAME $^@ FILE @wow"
                 ])
 
         return 0
@@ -811,62 +1177,24 @@ class Project(object):
 
     def generate(self, line_list=None):
         """
-        Write out the Watcom project.
+        Write out the watcom make project.
 
         Args:
             line_list: string list to save the XML text
+        Returns:
+            Zero on no error, non-zero on error.
         """
 
         if line_list is None:
             line_list = []
 
         self.write_header(line_list)
+        self.write_all_targets(line_list)
+        self.write_directory_targets(line_list)
+        self.write_test_variables(line_list)
+        self.write_configurations(line_list)
         self.write_source_dir(line_list)
         self.write_rules(line_list)
         self.write_files(line_list)
-        self.write_all_target(line_list)
         self.write_builds(line_list)
         return 0
-
-########################################
-
-
-def generate(solution):
-    """
-    Create a project file for Watcom.
-
-    Given a Solution object, create an appropriate Watcom WMAKE
-    file to allow this project to build.
-
-    Args:
-        solution: Solution instance.
-
-    Returns:
-        Zero if no error, non-zero on error.
-    """
-
-    # Failsafe
-    if solution.ide not in SUPPORTED_IDES:
-        return 10
-
-    # Create the output filename and pass it to the generator
-    # so it can reference itself in make targets
-    solution.watcom_filename = '{}{}{}.wmk'.format(
-        solution.name, solution.ide_code, solution.platform_code)
-
-    exporter = Project(solution)
-
-    # Output the actual project file
-    watcom_lines = []
-    error = exporter.generate(watcom_lines)
-    if error:
-        return error
-
-    # Save the file if it changed
-    save_text_file_if_newer(
-        os.path.join(solution.working_directory, solution.watcom_filename),
-        watcom_lines,
-        bom=False,
-        perforce=solution.perforce,
-        verbose=solution.verbose)
-    return 0

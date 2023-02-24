@@ -952,6 +952,8 @@ class PlatformTypes(IntEnum):
         iigs: Apple IIgs
     """
 
+    # pylint: disable=too-many-public-methods
+
     windows = 0
     windowsintel = 1
     windowsarm = 2
@@ -1064,6 +1066,16 @@ class PlatformTypes(IntEnum):
         return self in (PlatformTypes.xbox,
                         PlatformTypes.xbox360, PlatformTypes.xboxone)
 
+    def is_microsoft(self):
+        """
+        Determine if the platform is a Microsoft platform.
+
+        Returns:
+            True if the platform is for Xbox, or Windows.
+        """
+
+        return self.is_windows() or self.is_xbox() or self.is_msdos()
+
     def is_macosx(self):
         """
         Determine if the platform is macOS.
@@ -1161,6 +1173,26 @@ class PlatformTypes(IntEnum):
         return self in (PlatformTypes.switch,
                         PlatformTypes.switch32, PlatformTypes.switch64)
 
+    def is_nintendo(self):
+        """
+        Determine if the platform is from Nintendo.
+
+        Returns:
+            True if it's a Nintendo platform
+        """
+        return self.is_switch() or self in (PlatformTypes.wii, PlatformTypes.wiiu,
+            PlatformTypes.ds, PlatformTypes.dsi)
+
+    def is_sony(self):
+        """
+        Determine if it is a Sony platform.
+
+        Returns:
+            True if the platform is one from Sony
+        """
+        return self in (PlatformTypes.ps1, PlatformTypes.ps2, PlatformTypes.ps3,
+            PlatformTypes.ps4, PlatformTypes.ps5, PlatformTypes.vita)
+
     def get_platform_folder(self):
         """
         Return the name of a folder that would hold platform specific files.
@@ -1180,7 +1212,7 @@ class PlatformTypes(IntEnum):
             PlatformTypes.ps4: "ps4",
             PlatformTypes.ps5: "ps5",
             PlatformTypes.psp: "psp",
-            PlatformTypes.vita: "vita",
+            PlatformTypes.vita: "psvita",
             PlatformTypes.xbox: "xbox",
             PlatformTypes.xbox360: "xbox360",
             PlatformTypes.xboxone: "xboxone",
@@ -1198,7 +1230,7 @@ class PlatformTypes(IntEnum):
         if self.is_windows():
             return "windows"
         if self.is_msdos():
-            return "dos"
+            return "msdos"
         if self.is_macosx():
             return "macosx"
         if self.is_ios():
@@ -1665,6 +1697,72 @@ def platformtype_short_code(configurations):
 ########################################
 
 
+def get_output_template(project_type, platform):
+    """
+    Determine the file prefix and suffix for the binary.
+
+    Using the project type and platform, determine if the final binary name
+    template so that if the output was used with format(), it will create the
+    binary filename appropriate for the platform.
+
+    Args:
+        project_type: ProjectTypes enum
+        platform: PlatformTypes enum
+
+    Returns:
+        String to be used with format() to create the final name.
+    """
+
+    # pylint: disable=too-many-return-statements
+
+    # Empty projects don't need processing
+    if project_type is ProjectTypes.empty:
+        return "{}"
+
+    # Handle static libraries
+    if project_type is ProjectTypes.library:
+
+        # Microsoft platforms use .lib
+        if platform.is_microsoft():
+            return "{}.lib"
+
+        return "lib{}.a"
+
+    # Handle shared libraries
+    # Seems no one can agree to naming convention
+    if project_type is ProjectTypes.sharedlibrary:
+        if platform.is_switch():
+            return "lib{}.nro"
+
+        if platform.is_sony():
+            return "lib{}.prx"
+
+        if platform.is_darwin():
+            return "lib{}.dylib"
+
+        if platform.is_microsoft():
+            return "{}.dll"
+
+        return "lib{}.so"
+
+    # Handle executables
+
+    if platform.is_switch():
+        return "{}.nso"
+
+    if platform.is_windows() or platform.is_msdos():
+        return "{}.exe"
+
+    if platform.is_xbox():
+        return "{}.xex"
+
+    # All other cases
+    return "{}"
+
+
+########################################
+
+
 def add_burgerlib(configuration):
     """
     Add burgerlib to a project.
@@ -1683,7 +1781,7 @@ def add_burgerlib(configuration):
 
     platform = configuration.platform
 
-    force_short = platform.is_macosx() or platform.is_ios()
+    force_short = platform.is_darwin()
     lib_name = "burger{}".format(
         configuration.get_suffix(
             force_short=force_short))

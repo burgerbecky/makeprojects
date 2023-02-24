@@ -40,7 +40,8 @@ import os
 from burger import save_text_file_if_newer, encapsulate_path_linux, \
     convert_to_linux_slashes, host_machine
 
-from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
+    get_output_template
 from .build_objects import BuildObject, BuildError
 from .config import _MAKEFILE_MATCH
 
@@ -535,15 +536,14 @@ class MakeProject(object):
             ))
 
             for configuration in self.configuration_list:
-                if configuration.project_type is ProjectTypes.library:
-                    template = "lib{}.a"
-                else:
-                    template = "{}"
+                template = get_output_template(
+                    configuration.project_type, configuration.platform)
 
                 platform_short_code = configuration.platform.get_short_code()
                 target_name = configuration.name + platform_short_code
-                bin_name = self.solution.name + "mak" + \
+                bin_folder = self.solution.name + "mak" + \
                     platform_short_code[-3:] + configuration.short_code
+                bin_name = template.format(bin_folder)
 
                 line_list.extend((
                     "",
@@ -553,11 +553,11 @@ class MakeProject(object):
                     configuration.name +
                     " TARGET=" + platform_short_code +
                     " -f " + self.solution.makefile_filename +
-                    " bin/" + template.format(bin_name),
+                    " bin/" + bin_name,
                     "",
                     ".PHONY: clean_" + target_name,
                     "clean_" + target_name + ":",
-                    "\t@-rm -rf temp/" + bin_name,
+                    "\t@-rm -rf temp/" + bin_folder,
                     "\t@-rm -f bin/" + bin_name,
                     # Test if the directory is empty, if so, delete the directory
                     _BASH_DELETE_EMPTY_FOLDER.format("bin"),
@@ -838,6 +838,10 @@ class MakeProject(object):
             else:
                 entries.append("-Og")
 
+            # Enable relocation for shared libraries
+            if configuration.project_type is ProjectTypes.sharedlibrary:
+                entries.append("-fPIC")
+
             # Add defines
             define_list = configuration.get_chained_list("define_list")
             for item in define_list:
@@ -906,6 +910,9 @@ class MakeProject(object):
             # Enable debug information
             if configuration.debug:
                 entries.append("-g")
+
+            if configuration.project_type is ProjectTypes.sharedlibrary:
+                entries.append("-shared")
 
             # Add libraries
 
@@ -1150,8 +1157,9 @@ class MakeProject(object):
                 )[-3:] + configuration.short_code
 
             # Libaries require a prefix and suffix
-            if configuration.project_type is ProjectTypes.library:
-                binary_name = "lib" + binary_name + ".a"
+            template = get_output_template(
+                configuration.project_type, configuration.platform)
+            binary_name = template.format(binary_name)
 
             line_list.append("")
             line_list.append(

@@ -340,7 +340,7 @@ def process_directories(results, processed, directories, args):
                 args)
 
         # Iterate over the directory to find all the other files
-        if allow_files:
+        if allow_files or (args.recursive and allow_recursion):
             for entry in os.listdir(working_directory):
 
                 full_name = os.path.join(working_directory, entry)
@@ -349,7 +349,7 @@ def process_directories(results, processed, directories, args):
                 if os.path.isdir(full_name):
 
                     # Special case for xcode, if it's a *.xcodeproj
-                    if _XCODEPROJ_MATCH.match(entry):
+                    if allow_files and _XCODEPROJ_MATCH.match(entry):
 
                         # Check if it's an xcode project file, if so, add it
                         if not add_project(projects, processed, os.path.join(
@@ -371,7 +371,7 @@ def process_directories(results, processed, directories, args):
 
                 # It's a file, process it, if possible
                 # Don't double process the rules file
-                if args.rules_file != entry:
+                if (args.rules_file != entry) and allow_files:
                     add_project(projects, processed, full_name, args)
 
         # The list is ready, process it in priority order

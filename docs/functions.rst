@@ -158,6 +158,10 @@ enums.platformtype_short_code
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::enums::platformtype_short_code
 
+enums.get_output_template
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::enums::get_output_template
+
 Util
 ----
 
