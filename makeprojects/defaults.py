@@ -175,6 +175,13 @@ def configuration_presets(configuration):
         if platform is PlatformTypes.ps4:
             define_list.append("__ORBIS2__")
 
+            # Include default libraries
+            libraries_list.extend(("SceSysmodule_stub_weak", "ScePosix_stub_weak",
+                                  "SceVideoOut_stub_weak", "ScePad_stub_weak",
+                                  "SceVideodec2_stub_weak", "SceAudiodec_stub_weak",
+                                  "SceAudioOut_stub_weak", "SceGnmDriver_stub_weak",
+                                  "SceGnm", "SceGnmx", "SceGpuAddress"))
+
         # Playstation 5 (Not needed)
         # if platform is PlatformTypes.ps5:
         #    define_list.append("__PROSPERO__")
@@ -468,6 +475,9 @@ def guess_ide(platform):
 
     if platform in (PlatformTypes.xboxone, PlatformTypes.switch):
         return IDETypes.vs2017
+
+    if platform in (PlatformTypes.xboxgdk, PlatformTypes.xboxonex):
+        return IDETypes.vs2022
 
     if platform in (PlatformTypes.ps4, PlatformTypes.ps5,
             PlatformTypes.stadia, PlatformTypes.android):

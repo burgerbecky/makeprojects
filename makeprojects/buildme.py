@@ -121,7 +121,7 @@ def add_build_rules(projects, file_name, args, build_rules=None):
 
     Given a build_rules.py to parse, check it for a BUILD_LIST
     and use that for scanning for functions to call. If BUILD_LIST
-    doesn't exist, use @ref python.BUILD_LIST instead.
+    doesn't exist, use @ref makeprojects.python.BUILD_LIST instead.
 
     All valid entries will be appended to the projects list.
 

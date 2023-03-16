@@ -62,7 +62,7 @@ def test(ide, platform_type):
     if platform_type is PlatformTypes.xbox360:
         return IDETypes.vs2010 <= ide <= IDETypes.vs2017
 
-    if platform_type is PlatformTypes.xboxone:
+    if platform_type.is_xboxone():
         return ide >= IDETypes.vs2015
 
     if ide < IDETypes.vs2017:
@@ -798,7 +798,7 @@ class VS2010Configuration(VS2010XML):
                         platform_toolset = platform_toolset[:-3]
 
             # Xbox ONE uses this tool chain
-            elif platform is PlatformTypes.xboxone:
+            elif platform.is_xboxone():
                 platformtoolsets_one = {
                     IDETypes.vs2017: 'v141',
                     IDETypes.vs2019: 'v142',
@@ -1075,7 +1075,7 @@ class VS2010ClCompile(VS2010XML):
 
         if configuration.debug:
             optimization = 'Disabled'
-            if platform is PlatformTypes.xboxone:
+            if platform.is_xboxone():
                 runtime_library = 'MultiThreadedDebugDLL'
             else:
                 runtime_library = 'MultiThreadedDebug'
@@ -1087,7 +1087,7 @@ class VS2010ClCompile(VS2010XML):
             inline_assembly_optimization = None
         else:
             optimization = 'MinSpace'
-            if platform is PlatformTypes.xboxone:
+            if platform.is_xboxone():
                 runtime_library = 'MultiThreadedDLL'
             else:
                 runtime_library = 'MultiThreaded'
@@ -1278,35 +1278,44 @@ class VS2010Link(VS2010XML):
             configuration: Configuration record to extract defaults.
         """
 
-        # Too many branches
-        # pylint: disable=R0912
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
 
         ## Parent configuration
         self.configuration = configuration
 
-        VS2010XML.__init__(self, 'Link')
+        VS2010XML.__init__(self, "Link")
 
         platform = configuration.platform
         project_type = configuration.project_type
 
         # Start with a copy (To prevent damaging the original list)
         library_folders = configuration.get_unique_chained_list(
-            'library_folders_list')
+            "library_folders_list")
 
         if library_folders:
-            library_folders = '{};%(AdditionalLibraryDirectories)'.format(
-                packed_paths(library_folders, slashes='\\'))
+            library_folders = "{};%(AdditionalLibraryDirectories)".format(
+                packed_paths(library_folders, slashes="\\"))
         else:
             library_folders = None
 
         additional_libraries = configuration.get_unique_chained_list(
-            'libraries_list')
+            "libraries_list")
         if additional_libraries:
-            if platform is PlatformTypes.xboxone:
-                additional_libraries = '{}'.format(
+            if platform.is_xboxone():
+                additional_libraries = "{}".format(
                     packed_paths(additional_libraries))
             else:
-                additional_libraries = '{};%(AdditionalDependencies)'.format(
+                if platform in (PlatformTypes.ps4, PlatformTypes.ps5):
+                    libs = []
+                    for item in additional_libraries:
+                        if item.startswith("-l"):
+                            libs.append(item)
+                        else:
+                            libs.append("-l" + item)
+                    additional_libraries = libs
+
+                additional_libraries = "{};%(AdditionalDependencies)".format(
                     packed_paths(additional_libraries))
         else:
             additional_libraries = None
@@ -1318,44 +1327,44 @@ class VS2010Link(VS2010XML):
 
         if platform.is_windows():
             if project_type is ProjectTypes.tool:
-                subsystem = 'Console'
+                subsystem = "Console"
             else:
-                subsystem = 'Windows'
+                subsystem = "Windows"
 
             if platform is PlatformTypes.win32:
-                targetmachine = 'MachineX86'
+                targetmachine = "MachineX86"
             elif platform is PlatformTypes.winarm32:
-                targetmachine = 'MachineARM'
+                targetmachine = "MachineARM"
             elif platform is PlatformTypes.winarm64:
-                targetmachine = 'MachineARM64'
+                targetmachine = "MachineARM64"
             else:
-                targetmachine = 'MachineX64'
+                targetmachine = "MachineX64"
 
         if platform is PlatformTypes.vita:
             if project_type in (ProjectTypes.tool, ProjectTypes.app):
-                data_stripping = 'StripFuncsAndData'
-                duplicate_stripping = 'true'
+                data_stripping = "StripFuncsAndData"
+                duplicate_stripping = "true"
 
         if configuration.optimization:
-            enable_comdat_folding = 'true'
-            optimize_references = 'true'
+            enable_comdat_folding = "true"
+            optimize_references = "true"
         else:
             enable_comdat_folding = None
-            optimize_references = 'false'
+            optimize_references = "false"
 
         self.add_tags((
-            ('AdditionalLibraryDirectories', library_folders),
-            ('AdditionalDependencies', additional_libraries),
-            ('SubSystem', subsystem),
-            ('TargetMachine', targetmachine),
-            ('DataStripping', data_stripping),
-            ('DuplicateStripping', duplicate_stripping),
-            ('OptimizeReferences', optimize_references),
-            ('GenerateDebugInformation', 'true'),
-            ('EnableCOMDATFolding', enable_comdat_folding)
+            ("AdditionalLibraryDirectories", library_folders),
+            ("AdditionalDependencies", additional_libraries),
+            ("SubSystem", subsystem),
+            ("TargetMachine", targetmachine),
+            ("DataStripping", data_stripping),
+            ("DuplicateStripping", duplicate_stripping),
+            ("OptimizeReferences", optimize_references),
+            ("GenerateDebugInformation", "true"),
+            ("EnableCOMDATFolding", enable_comdat_folding)
         ))
 
-        if configuration.get_chained_value('profile'):
+        if configuration.get_chained_value("profile"):
             self.add_tag("Profile", "true")
 
 ########################################
@@ -1801,49 +1810,75 @@ class VS2010vcprojfilter(VS2010XML):
         # Which project type?
         ide = project.ide
         if ide < IDETypes.vs2015:
-            version = '4.0'
+            version = "4.0"
         else:
-            version = '14.0'
+            version = "14.0"
 
         VS2010XML.__init__(
-            self, 'Project',
-            {'ToolsVersion': version,
-             'xmlns': 'http://schemas.microsoft.com/developer/msbuild/2003'})
+            self, "Project",
+            {"ToolsVersion": version,
+             "xmlns": "http://schemas.microsoft.com/developer/msbuild/2003"})
 
         ## Main ItemGroup
-        self.main_element = VS2010XML('ItemGroup')
+        self.main_element = VS2010XML("ItemGroup")
         self.add_element(self.main_element)
 
         groups = []
-        self.write_filter_group(FileTypes.h, groups, 'ClInclude')
-        self.write_filter_group(FileTypes.cpp, groups, 'ClCompile')
-        self.write_filter_group(FileTypes.c, groups, 'ClCompile')
-        self.write_filter_group(FileTypes.rc, groups, 'ResourceCompile')
-        self.write_filter_group(FileTypes.hlsl, groups, 'HLSL')
-        self.write_filter_group(FileTypes.x360sl, groups, 'X360SL')
-        self.write_filter_group(FileTypes.vitacg, groups, 'VitaCGCompile')
-        self.write_filter_group(FileTypes.glsl, groups, 'GLSL')
-        self.write_filter_group(FileTypes.appxmanifest, groups, 'AppxManifest')
+        self.write_filter_group(FileTypes.h, groups, "ClInclude")
+        self.write_filter_group(FileTypes.cpp, groups, "ClCompile")
+        self.write_filter_group(FileTypes.c, groups, "ClCompile")
+        self.write_filter_group(FileTypes.rc, groups, "ResourceCompile")
+        self.write_filter_group(FileTypes.hlsl, groups, "HLSL")
+        self.write_filter_group(FileTypes.x360sl, groups, "X360SL")
+        self.write_filter_group(FileTypes.vitacg, groups, "VitaCGCompile")
+        self.write_filter_group(FileTypes.glsl, groups, "GLSL")
+        self.write_filter_group(FileTypes.appxmanifest, groups, "AppxManifest")
 
         # Visual Studio 2015 and later have a "compiler" for ico files
         if ide >= IDETypes.vs2015:
-            self.write_filter_group(FileTypes.ico, groups, 'Image')
+            self.write_filter_group(FileTypes.ico, groups, "Image")
         else:
-            self.write_filter_group(FileTypes.ico, groups, 'None')
+            self.write_filter_group(FileTypes.ico, groups, "None")
 
         # Remove all duplicate in the groups
-        groupset = sorted(set(groups))
+        groupset = set(groups)
+
+        # In the edge case that empty, intermediate groups need to be created
+        # create them here
+        for item in list(groupset):
+            chunk = None
+            while True:
+                # Scan for directory delimiter
+                index = item.find("\\")
+                if index == -1:
+                    break
+
+                # Got the first entry?
+                if chunk is None:
+                    chunk = item[:index]
+                else:
+                    # Sub directory
+                    chunk = chunk + "\\" + item[:index]
+
+                # Check if the intermediate entry is not already in the list
+                groupset.add(chunk)
+
+                # Remove the chunk
+                item = item[index + 1:]
+
+        # Sort them
+        groupset = sorted(groupset)
 
         # Output the group list
         for item in groupset:
             item = convert_to_windows_slashes(item)
             groupuuid = get_uuid(
                 project.vs_output_filename + item)
-            filterxml = VS2010XML('Filter', {'Include': item})
+            filterxml = VS2010XML("Filter", {"Include": item})
             self.main_element.add_element(filterxml)
             filterxml.add_element(
                 VS2010XML(
-                    'UniqueIdentifier',
+                    "UniqueIdentifier",
                     contents=groupuuid))
 
     ########################################
@@ -1857,18 +1892,21 @@ class VS2010vcprojfilter(VS2010XML):
 
         # Iterate over the list
         for item in source_file_filter(self.project.codefiles, file_type):
+
             # Get the Visual Studio group name
             groupname = item.get_group_name()
-            if groupname != '':
+            if groupname != "":
+
                 # Add to the list of groups found
                 groups.append(groupname)
+
                 # Write out the record
                 element = VS2010XML(
                     compilername, {
-                        'Include': convert_to_windows_slashes(
+                        "Include": convert_to_windows_slashes(
                             item.relative_pathname)})
                 self.main_element.add_element(element)
-                element.add_element(VS2010XML('Filter', contents=groupname))
+                element.add_element(VS2010XML("Filter", contents=groupname))
 
     ########################################
 

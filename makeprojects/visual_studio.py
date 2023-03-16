@@ -23,10 +23,14 @@ Dict of version year strings 2003-2012 to integers
 
 @var makeprojects.visual_studio._VS_SDK_ENV_VARIABLE
 Dict of environment variables for game consoles
+
+@var makeprojects.visual_studio._VS_SLOW_MSBUILD
+Tuple of Visual Studio targets that build slowly with msbuild
 """
 
 # pylint: disable=consider-using-f-string
 # pylint: disable=invalid-name
+# pylint: disable=too-many-lines
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -83,6 +87,7 @@ _VS_SDK_ENV_VARIABLE = {
     "Xbox 360": "XEDK",             # Xbox 360
     "Xbox ONE": "DurangoXDK",       # Xbox ONE
     "Wii": "REVOLUTION_SDK_ROOT",   # Nintendo Wii
+    "Cafe": "CAFE_ROOT_DOS",        # Nintendo WiiU
     "NX32": "NINTENDO_SDK_ROOT",    # Nintendo Switch
     "NX64": "NINTENDO_SDK_ROOT",    # Nintendo Switch
     "GGP": "GGP_SDK_PATH",          # Google Stadia
@@ -93,6 +98,20 @@ _VS_SDK_ENV_VARIABLE = {
     "x64-Android-NVIDIA": "NVPACK_ROOT",        # nVidia android tools
     "Tegra-Android": "NVPACK_ROOT"              # nVidia android tools
 }
+
+# List of visual studio targets that are slower using msbuild
+_VS_SLOW_MSBUILD = (
+    "PS3",                      # PS3
+    "ORBIS",                    # PS4
+    "Prospero",                 # PS5
+    "PSP",                      # PSP
+    "PSVita",                   # PS Vita
+    "ARM-Android-NVIDIA",       # nVidia android tools
+    "AArch64-Android-NVIDIA",   # nVidia android tools
+    "x86-Android-NVIDIA",       # nVidia android tools
+    "x64-Android-NVIDIA",       # nVidia android tools
+    "Tegra-Android"
+)
 
 ########################################
 
@@ -223,6 +242,105 @@ class BuildVisualStudioFile(BuildObject):
 
     ########################################
 
+    def build_clean(self, build=True):
+        """
+        Build or clean a visual studio .sln file.
+
+        Supports Visual Studio 2005 - 2022. Supports platforms Win32, x64,
+        Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
+        Xbox ONE, Switch, Wii
+
+        Args:
+            build: If true, build, otherwise clean
+
+        Returns:
+            List of BuildError objects
+
+        See Also:
+            parse_sln_file
+        """
+
+        # Get the target
+        targettypes = self.configuration.rsplit('|')
+
+        # Locate the proper version of Visual Studio for this .sln file
+        # Note, some platforms, like the Sony ones, build really slowly
+        # if invoked directly with MSBUILD.
+
+        vstudiopath = None
+        if len(targettypes) >= 2:
+
+            # Is it a platform that supports 64 bit msbuild?
+            if targettypes[1] not in _VS_SLOW_MSBUILD:
+                vstudiopath = where_is_visual_studio(
+                    self.vs_version, "msbuild.exe")
+
+        # MSBUILD not found? Use the IDE instead.
+        if vstudiopath is None:
+            vstudiopath = where_is_visual_studio(self.vs_version, "devenv.com")
+
+        # Is Visual studio installed? Abort if not.
+        if vstudiopath is None:
+            msg = (
+                '{} requires Visual Studio version {}'
+                ' to be installed to build!').format(
+                self.file_name, self.vs_version)
+            print(msg, file=sys.stderr)
+            return BuildError(0, self.file_name, msg=msg)
+
+        # Certain targets require an installed SDK
+        # verify that the SDK is installed before trying to build
+
+        if len(targettypes) >= 2:
+            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
+            if test_env:
+                if os.getenv(test_env, default=None) is None:
+                    msg = (
+                        "Target {} was detected but the environment variable {}"
+                        " was not found.").format(
+                        targettypes[1], test_env)
+                    print(msg, file=sys.stderr)
+                    return BuildError(
+                        0,
+                        self.file_name,
+                        configuration=self.configuration,
+                        msg=msg)
+
+        # Create the build or clean command
+        # Note: Use the single line form, because Windows will not
+        # process the target properly due to the presence of the | character
+        # which causes piping.
+
+        if vstudiopath.endswith(".com"):
+
+            # Use IDE
+            # Visual Studio 2003 doesn't support setting platforms, just use the
+            # configuration name
+            if self.vs_version == 2003:
+                target = targettypes[0]
+            else:
+                target = self.configuration
+
+            build = "/Build" if build else "/Clean"
+            cmd = [vstudiopath, convert_to_windows_path(
+                self.file_name), build, target]
+        else:
+            build = "-t:Build" if build else "-t:Clean"
+
+            # Use MSBuild
+            cmd = [vstudiopath, build, "-v:m", "-noLogo", "-m",
+                "-p:Configuration={0};Platform={1}".format(
+                    targettypes[0], targettypes[1]), convert_to_windows_path(
+                    self.file_name)]
+
+        if self.verbose:
+            print(" ".join(cmd))
+        sys.stdout.flush()
+
+        return self.run_command(cmd, self.verbose)
+
+    ########################################
+
     def build(self):
         """
         Build a visual studio .sln file.
@@ -237,56 +355,7 @@ class BuildVisualStudioFile(BuildObject):
             parse_sln_file
         """
 
-        # Locate the proper version of Visual Studio for this .sln file
-        vstudiopath = where_is_visual_studio(self.vs_version)
-
-        # Is Visual studio installed?
-        if vstudiopath is None:
-            msg = (
-                '{} requires Visual Studio version {}'
-                ' to be installed to build!').format(
-                self.file_name, self.vs_version)
-            print(msg, file=sys.stderr)
-            return BuildError(0, self.file_name, msg=msg)
-
-        # Certain targets require an installed SDK
-        # verify that the SDK is installed before trying to build
-
-        targettypes = self.configuration.rsplit('|')
-        if len(targettypes) >= 2:
-            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
-            if test_env:
-                if os.getenv(test_env, default=None) is None:
-                    msg = (
-                        'Target {} was detected but the environment variable {}'
-                        ' was not found.').format(
-                        targettypes[1], test_env)
-                    print(msg, file=sys.stderr)
-                    return BuildError(
-                        0,
-                        self.file_name,
-                        configuration=self.configuration,
-                        msg=msg)
-
-        # Create the build command
-        # Note: Use the single line form, because Windows will not
-        # process the target properly due to the presence of the | character
-        # which causes piping.
-
-        # Visual Studio 2003 doesn't support setting platforms, just use the
-        # configuration name
-        if self.vs_version == 2003:
-            target = targettypes[0]
-        else:
-            target = self.configuration
-
-        cmd = [vstudiopath, convert_to_windows_path(
-            self.file_name), '/Build', target]
-        if self.verbose:
-            print(' '.join(cmd))
-        sys.stdout.flush()
-
-        return self.run_command(cmd, self.verbose)
+        return self.build_clean(True)
 
     ########################################
 
@@ -303,55 +372,7 @@ class BuildVisualStudioFile(BuildObject):
             None if not implemented, otherwise an integer error code.
         """
 
-        # Locate the proper version of Visual Studio for this .sln file
-        vstudiopath = where_is_visual_studio(self.vs_version)
-
-        # Is Visual studio installed?
-        if vstudiopath is None:
-            msg = (
-                '{} requires Visual Studio version {}'
-                ' to be installed to build!').format(
-                self.file_name, self.vs_version)
-            print(msg, file=sys.stderr)
-            return BuildError(0, self.file_name, msg=msg)
-
-        # Certain targets require an installed SDK
-        # verify that the SDK is installed before trying to build
-
-        targettypes = self.configuration.rsplit('|')
-        if len(targettypes) >= 2:
-            test_env = _VS_SDK_ENV_VARIABLE.get(targettypes[1], None)
-            if test_env:
-                if os.getenv(test_env, default=None) is None:
-                    msg = (
-                        'Target {} was detected but the environment variable {}'
-                        ' was not found.').format(
-                        targettypes[1], test_env)
-                    print(msg, file=sys.stderr)
-                    return BuildError(
-                        0,
-                        self.file_name,
-                        configuration=self.configuration,
-                        msg=msg)
-
-        # Create the build command
-        # Note: Use the single line form, because Windows will not
-        # process the target properly due to the presence of the | character
-        # which causes piping.
-
-        # Visual Studio 2003 doesn't support setting platforms, just use the
-        # configuration name
-        if self.vs_version == 2003:
-            target = targettypes[0]
-        else:
-            target = self.configuration
-
-        cmd = [vstudiopath, self.file_name, '/Clean', target]
-        if self.verbose:
-            print(' '.join(cmd))
-        sys.stdout.flush()
-
-        return self.run_command(cmd, self.verbose)
+        return self.build_clean(False)
 
 
 ########################################

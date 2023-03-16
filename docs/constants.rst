@@ -136,9 +136,9 @@ config.DEFAULT_BUILD_RULES
 Build Constants
 ---------------
 
-buildme.BUILD_LIST
+python.BUILD_LIST
 ^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::BUILD_LIST
+.. doxygenvariable:: makeprojects::python::BUILD_LIST
 
 buildme.CODEWARRIOR_ERRORS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^

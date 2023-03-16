@@ -9,7 +9,7 @@ setup.py sdist bdist_wheel
 twine upload --verbose dist/*
 setup.py flake8
 
-Copyright 2013-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+Copyright 2013-2023 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
@@ -41,6 +41,7 @@ PROJECT_KEYWORDS = [
     "visualstudio",
     "codeblocks",
     "watcom",
+    "ps3",
     "ps4",
     "ps5",
     "xboxone",
@@ -66,7 +67,7 @@ with io.open(os.path.join(CWD, "README.rst"), encoding="utf-8") as filep:
 INSTALL_REQUIRES = [
     "setuptools >= 17.1",
     "enum34 >= 1.0.0",
-    "burger >= 1.2.7",
+    "burger >= 1.2.8",
     "argparse >= 1.0",
     "glob2 >= 0.6"
 ]

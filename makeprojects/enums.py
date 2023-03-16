@@ -191,7 +191,7 @@ class FileTypes(IntEnum):
         Args:
             test_name: Filename to test
         Returns:
-            A @ref FileTypes member or None on failure
+            A @ref makeprojects.enums.FileTypes member or None on failure
         See Also:
             makeprojects.enums._FILETYPES_LOOKUP
         """
@@ -391,7 +391,7 @@ class ProjectTypes(IntEnum):
         Args:
             project_type_name: Project type string to test.
         Returns:
-            A @ref ProjectTypes member or None on failure.
+            A @ref makeprojects.enums.ProjectTypes member or None on failure.
         """
 
         # Already a ProjectTypes?
@@ -641,7 +641,7 @@ class IDETypes(IntEnum):
         Args:
             ide_name: Platform string to test.
         Returns:
-            A @ref IDETypes member or None on failure.
+            A @ref makeprojects.enums.IDETypes member or None on failure.
         """
 
         # pylint: disable=too-many-return-statements
@@ -895,6 +895,7 @@ class PlatformTypes(IntEnum):
         macosxppc64: Mac OSX PowerPC 64 bit only
         macosxintel32: Mac OSX Intel 32 bit only
         macosxintel64: Mac OSX Intel 64 bit only
+        macosxarm64: Mac OSX ARM 64 bit only
 
         macos9: Mac OS 9, all CPUs
         macos968k: Mac OS 9 680x0 only
@@ -913,6 +914,8 @@ class PlatformTypes(IntEnum):
         xbox: Microsoft Xbox classic
         xbox360: Microsoft Xbox 360
         xboxone: Microsoft Xbox ONE
+        xboxgdk: Microsoft Xbox ONE GDK
+        xboxonex: Microsoft Xbox ONE Series X GDK
 
         ps1: Sony PS1
         ps2: Sony PS2
@@ -968,62 +971,65 @@ class PlatformTypes(IntEnum):
     macosxppc64 = 10
     macosxintel32 = 11
     macosxintel64 = 12
+    macosxarm64 = 13
 
-    macos9 = 13
-    macos968k = 14
-    macos9ppc = 15
-    maccarbon = 16
-    maccarbon68k = 17
-    maccarbonppc = 18
+    macos9 = 14
+    macos968k = 15
+    macos9ppc = 16
+    maccarbon = 17
+    maccarbon68k = 18
+    maccarbonppc = 19
 
-    ios = 19
-    ios32 = 20
-    ios64 = 21
-    iosemu = 22
-    iosemu32 = 23
-    iosemu64 = 24
+    ios = 20
+    ios32 = 21
+    ios64 = 22
+    iosemu = 23
+    iosemu32 = 24
+    iosemu64 = 25
 
-    xbox = 25
-    xbox360 = 26
-    xboxone = 27
+    xbox = 26
+    xbox360 = 27
+    xboxone = 28
+    xboxgdk = 29
+    xboxonex = 30
 
-    ps1 = 28
-    ps2 = 29
-    ps3 = 30
-    ps4 = 31
-    ps5 = 32
-    psp = 33
-    vita = 34
+    ps1 = 31
+    ps2 = 32
+    ps3 = 33
+    ps4 = 34
+    ps5 = 35
+    psp = 36
+    vita = 37
 
-    wii = 35
-    wiiu = 36
-    switch = 37
-    switch32 = 38
-    switch64 = 39
+    wii = 38
+    wiiu = 39
+    switch = 40
+    switch32 = 41
+    switch64 = 42
 
-    dsi = 40
-    ds = 41
+    dsi = 43
+    ds = 44
 
-    stadia = 42
-    android = 43
-    shield = 44
-    amico = 45
-    ouya = 46
-    tegra = 47
-    androidarm32 = 48
-    androidarm64 = 49
-    androidintel32 = 50
-    androidintel64 = 51
+    stadia = 45
+    android = 46
+    shield = 47
+    amico = 48
+    ouya = 49
+    tegra = 50
+    androidarm32 = 51
+    androidarm64 = 52
+    androidintel32 = 53
+    androidintel64 = 54
 
-    linux = 52
+    linux = 55
 
-    msdos = 53
-    msdos4gw = 54
-    msdosx32 = 55
+    msdos = 56
+    msdos4gw = 57
+    msdosx32 = 58
 
-    beos = 56
+    beos = 59
 
-    iigs = 57
+    iigs = 60
 
     def get_short_code(self):
         """
@@ -1063,8 +1069,18 @@ class PlatformTypes(IntEnum):
             True if the platform is for Xbox, Xbox 360, or Xbox ONE.
         """
 
-        return self in (PlatformTypes.xbox,
-                        PlatformTypes.xbox360, PlatformTypes.xboxone)
+        return self in (PlatformTypes.xbox, PlatformTypes.xbox360,
+                        PlatformTypes.xboxone, PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
+
+    def is_xboxone(self):
+        """
+        Determine if the platform is a version of the Xbox ONE.
+
+        Returns:
+            True if the platform is for Xbox ONE.
+        """
+
+        return self in (PlatformTypes.xboxone, PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
 
     def is_microsoft(self):
         """
@@ -1086,7 +1102,7 @@ class PlatformTypes(IntEnum):
 
         return self in (PlatformTypes.macosx, PlatformTypes.macosxppc32,
                         PlatformTypes.macosxppc64, PlatformTypes.macosxintel32,
-                        PlatformTypes.macosxintel64)
+                        PlatformTypes.macosxintel64, PlatformTypes.macosxarm64)
 
     def is_ios(self):
         """
@@ -1215,7 +1231,6 @@ class PlatformTypes(IntEnum):
             PlatformTypes.vita: "psvita",
             PlatformTypes.xbox: "xbox",
             PlatformTypes.xbox360: "xbox360",
-            PlatformTypes.xboxone: "xboxone",
             PlatformTypes.ds: "ds",
             PlatformTypes.dsi: "dsi",
             PlatformTypes.wii: "wii",
@@ -1229,6 +1244,8 @@ class PlatformTypes(IntEnum):
             return platform_folder
         if self.is_windows():
             return "windows"
+        if self.is_xboxone():
+            return "xboxone"
         if self.is_msdos():
             return "msdos"
         if self.is_macosx():
@@ -1340,7 +1357,7 @@ class PlatformTypes(IntEnum):
         Args:
             platform_name: Platform string to test.
         Returns:
-            A @ref PlatformTypes member or None on failure.
+            A @ref makeprojects.enums.PlatformTypes member or None on failure.
         See Also:
             makeprojects.enums._PLATFORMTYPES_READABLE
         """
@@ -1374,7 +1391,8 @@ class PlatformTypes(IntEnum):
 
             specials = {
                 "macos": PlatformTypes.macos9,
-                "carbon": PlatformTypes.maccarbon
+                "carbon": PlatformTypes.maccarbon,
+                "scarlett": PlatformTypes.xboxonex
             }
             return specials.get(test_name, None)
         return None
@@ -1438,6 +1456,7 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.macosxppc64: "osxp64",
     PlatformTypes.macosxintel32: "osxx86",
     PlatformTypes.macosxintel64: "osxx64",
+    PlatformTypes.macosxarm64: "osxa64",
     PlatformTypes.macos9: "mac",            # Mac OS targets (Pre-OSX)
     PlatformTypes.macos968k: "mac68k",
     PlatformTypes.macos9ppc: "macppc",
@@ -1453,6 +1472,8 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.xbox: "xbx",              # Microsoft Xbox versions
     PlatformTypes.xbox360: "x36",
     PlatformTypes.xboxone: "one",
+    PlatformTypes.xboxgdk: "gdk",
+    PlatformTypes.xboxonex: "gdx",
     PlatformTypes.ps1: "ps1",               # Sony platforms
     PlatformTypes.ps2: "ps2",
     PlatformTypes.ps3: "ps3",
@@ -1500,6 +1521,8 @@ _PLATFORMTYPES_VS = {
     PlatformTypes.xbox: ("Xbox",),
     PlatformTypes.xbox360: ("Xbox 360",),
     PlatformTypes.xboxone: ("Durango",),
+    PlatformTypes.xboxgdk: ("Gaming.Xbox.XboxOne.x64",),
+    PlatformTypes.xboxonex: ("Gaming.Xbox.Scarlett.x64",),
 
     # Sony platforms
     PlatformTypes.ps3: ("PS3",),
@@ -1547,6 +1570,7 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.macosxppc64: "Apple macOS PowerPC 64",
     PlatformTypes.macosxintel32: "Apple macOS x86",
     PlatformTypes.macosxintel64: "Apple macOS x64",
+    PlatformTypes.macosxarm64: "Apple macOS ARM 64",
 
     # Mac OS targets (Pre-OSX)
     PlatformTypes.macos9: "Apple MacOS 9 PPC and 68k",
@@ -1568,6 +1592,9 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.xbox: "Microsoft Xbox",
     PlatformTypes.xbox360: "Microsoft Xbox 360",
     PlatformTypes.xboxone: "Microsoft Xbox ONE",
+    PlatformTypes.xboxgdk: "Microsoft Xbox ONE GDK",
+    PlatformTypes.xboxonex: "Microsoft Xbox ONE Series X GDK",
+
     # Sony platforms
     PlatformTypes.ps1: "Sony PS1",
     PlatformTypes.ps2: "Sony PS2",
@@ -1631,7 +1658,8 @@ _PLATFORMTYPES_EXPANDED = {
         PlatformTypes.macosxppc32,
         PlatformTypes.macosxppc64,
         PlatformTypes.macosxintel32,
-        PlatformTypes.macosxintel64),
+        PlatformTypes.macosxintel64,
+        PlatformTypes.macosxarm64),
     PlatformTypes.macos9: (
         PlatformTypes.macos968k,
         PlatformTypes.macos9ppc),

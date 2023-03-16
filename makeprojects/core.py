@@ -45,8 +45,8 @@ class Attributes(object):
         exclude_list: List of files to exclude from directory scanning
         cw_environment_variables: List of CodeWarrior environment variables
         custom_rules: Custom build rules
-        platform: @ref enums.PlatformTypes enum for target platform
-        project_type: @ref enums.ProjectTypes enum for target output
+        platform: @ref makeprojects.enums.PlatformTypes enum for target platform
+        project_type: @ref makeprojects.enums.ProjectTypes enum for target output
         debug: Boolean for debug information generation
         link_time_code_generation: Boolean for LTCG
         optimization: Boolean for optimization enable
@@ -60,18 +60,18 @@ class Attributes(object):
         fastcall: Boolean, True if fastcall is requested
         _source_include_list: Generated file folder list
         _platform: platform value
-        _project_type: True @ref project_type
-        _debug: True @ref debug
-        _link_time_code_generation: True @ref link_time_code_generation
-        _optimization: True @ref optimization
-        _analyze: True @ref analyze
-        _use_mfc: True @ref use_mfc
-        _use_atl: True @ref use_atl
-        _clr_support: True @ref clr_support
-        _name: True @ref name
-        _working_directory: True @ref working_directory
-        _deploy_folder: True @ref deploy_folder
-        _fastcall: None @ref fastcall
+        _project_type: True @ref makeprojects.core.Attributes.project_type
+        _debug: True @ref makeprojects.core.Attributes.debug
+        _link_time_code_generation: True @ref makeprojects.core.Attributes.link_time_code_generation
+        _optimization: True @ref makeprojects.core.Attributes.optimization
+        _analyze: True @ref makeprojects.core.Attributes.analyze
+        _use_mfc: True @ref makeprojects.core.Attributes.use_mfc
+        _use_atl: True @ref makeprojects.core.Attributes.use_atl
+        _clr_support: True @ref makeprojects.core.Attributes.clr_support
+        _name: True @ref makeprojects.core.Attributes.name
+        _working_directory: True @ref makeprojects.core.Attributes.working_directory
+        _deploy_folder: True @ref makeprojects.core.Attributes.deploy_folder
+        _fastcall: None @ref makeprojects.core.Attributes.fastcall
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -468,13 +468,13 @@ class SourceFile(object):
     for processing.
 
     @note
-    For hash consistency, @ref relative_pathname has all directory slashes
+    For hash consistency, @ref makeprojects.core.SourceFile.relative_pathname has all directory slashes
     in Windows format "\" instead of Linux/BSD format on all platforms.
 
     Attributes:
         relative_pathname: File base name with extension
         working_directory: Directory the file is relative to
-        type: File type enumeration, @ref enums.FileTypes
+        type: File type enumeration, @ref makeprojects.enums.FileTypes
     """
 
     def __init__(self, relative_pathname, working_directory, filetype):
@@ -608,7 +608,7 @@ class Configuration(Attributes):
     - ``link_time_code_generation`` Enable link time code genration
 
     If any of these attributes are read, they will always return None.
-    To modify them, use the parent @ref Project
+    To modify them, use the parent @ref makeprojects.core.Project
     - ``source_folders_list`` See Project.source_folders_list
     - ``vs_props`` See Project.vs_props
     - ``vs_targets`` See Project.vs_targets
@@ -622,9 +622,9 @@ class Configuration(Attributes):
         vs_targets: Don't allow Visual Studio targets files
         vs_rules: Don't allow Visual Studio rules files
         project: Project this Configuration is attached to.
-        ide: Get the @ref enums.IDETypes of the parent (Read only)
+        ide: Get the @ref makeprojects.enums.IDETypes of the parent (Read only)
         short_code: Short config string for file name suffix
-        _short_code: True @ref short_code
+        _short_code: True @ref makeprojects.core.Configuration.short_code
 
     See Also:
         Project, Solution
@@ -1227,12 +1227,12 @@ class Solution(Attributes):
         suffix_enable: Boolean for enabling unique suffixes
         name: Solution name
         working_directory: Working directory for the solution
-        ide: @ref enums.IDETypes of the IDE being generated for
+        ide: @ref makeprojects.enums.IDETypes of the IDE being generated for
         ide_code: IDE code for generation
         platform_code: Platform code for generation
         project_list: List of dependent projects
-        project_type: @ref enums.ProjectTypes enum for target output
-        _ide: Private instance of @ref enums.IDETypes
+        project_type: @ref makeprojects.enums.ProjectTypes enum for target output
+        _ide: Private instance of @ref makeprojects.enums.IDETypes
     """
 
     # pylint: disable=too-many-instance-attributes

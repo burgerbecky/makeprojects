@@ -184,7 +184,7 @@ class TestEnums(unittest.TestCase):
         for item in PlatformTypes:
             if item in (PlatformTypes.macosx, PlatformTypes.macosxppc32,
                         PlatformTypes.macosxppc64, PlatformTypes.macosxintel32,
-                        PlatformTypes.macosxintel64):
+                        PlatformTypes.macosxintel64, PlatformTypes.macosxarm64):
                 self.assertTrue(item.is_macosx())
             else:
                 self.assertFalse(item.is_macosx())
@@ -265,6 +265,7 @@ class TestEnums(unittest.TestCase):
             ("ouya", PlatformTypes.ouya),
             ("switch", PlatformTypes.switch),
             ("xboxone", PlatformTypes.xboxone),
+            ("scarlett", PlatformTypes.xboxonex),
             ("stadia", PlatformTypes.stadia),
             ("ps5", PlatformTypes.ps5)
         )
