@@ -41,7 +41,7 @@ from uuid import NAMESPACE_DNS, UUID
 from re import compile as re_compile
 from hashlib import md5
 from burger import save_text_file_if_newer, convert_to_windows_slashes, \
-    escape_xml_cdata, escape_xml_attribute, is_string, where_is_visual_studio, \
+    escape_xml_cdata, escape_xml_attribute, where_is_visual_studio, \
     load_text_file
 
 try:
@@ -54,27 +54,32 @@ from .validators import VSBooleanProperty, VSStringProperty, VSEnumProperty, \
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
+from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
+from .visual_studio_utils import get_path_property, convert_file_name_vs2010
+
+########################################
+
 
 SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
 
-_SLNFILE_MATCH = re_compile('(?is).*\\.sln\\Z')
+_SLNFILE_MATCH = re_compile("(?is).*\\.sln\\Z")
 
 _VS_VERSION_YEARS = {
-    '2012': 2012,
-    '2013': 2013,
-    '14': 2015,
-    '15': 2017,
-    '16': 2019,
-    '17': 2022
+    "2012": 2012,
+    "2013": 2013,
+    "14": 2015,
+    "15": 2017,
+    "16": 2019,
+    "17": 2022
 }
 
 _VS_OLD_VERSION_YEARS = {
-    '8.00': 2003,
-    '9.00': 2005,
-    '10.00': 2008,
-    '11.00': 2010,
-    '12.00': 2012
+    "8.00": 2003,
+    "9.00": 2005,
+    "10.00": 2008,
+    "11.00": 2010,
+    "12.00": 2012
 }
 
 _VS_SDK_ENV_VARIABLE = {
@@ -145,7 +150,7 @@ def parse_sln_file(full_pathname):
     target_list = []
 
     if file_lines:
-        # Not looking for 'Visual Studio'
+        # Not looking for "Visual Studio"
         looking_for_visual_studio = False
 
         # Not looking for EndGlobalSection
@@ -154,19 +159,19 @@ def parse_sln_file(full_pathname):
         # Parse
         for line in file_lines:
 
-            # Scanning for 'EndGlobalSection'?
+            # Scanning for "EndGlobalSection"?
 
             if looking_for_end_global_section:
 
                 # Once the end of the section is reached, end
-                if 'EndGlobalSection' in line:
+                if "EndGlobalSection" in line:
                     looking_for_end_global_section = False
                 else:
 
-                    # The line contains 'Debug|Win32 = Debug|Win32'
+                    # The line contains "Debug|Win32 = Debug|Win32"
                     # Split it in half at the equals sign and then
                     # remove the whitespace and add to the list
-                    target = line.split('=')[-1].strip()
+                    target = line.split("=")[-1].strip()
                     if target not in target_list:
                         target_list.append(target)
                 continue
@@ -174,9 +179,9 @@ def parse_sln_file(full_pathname):
             # Scanning for the secondary version number in Visual Studio 2012 or
             # higher
 
-            if looking_for_visual_studio and '# Visual Studio' in line:
-                # The line contains '# Visual Studio 15' or '# Visual Studio
-                # Version 16'
+            if looking_for_visual_studio and "# Visual Studio" in line:
+                # The line contains "# Visual Studio 15" or "# Visual Studio
+                # Version 16"
 
                 # Use the version number to determine which visual studio to
                 # launch
@@ -185,9 +190,9 @@ def parse_sln_file(full_pathname):
                 continue
 
             # Get the version number
-            if 'Microsoft Visual Studio Solution File' in line:
+            if "Microsoft Visual Studio Solution File" in line:
                 # The line contains
-                # 'Microsoft Visual Studio Solution File, Format Version 12.00'
+                # "Microsoft Visual Studio Solution File, Format Version 12.00"
                 # The number is in the last part of the line
                 # Use the version string to determine which visual studio to
                 # launch
@@ -198,15 +203,15 @@ def parse_sln_file(full_pathname):
                 continue
 
             # Look for this section, it contains the configurations
-            if '(SolutionConfigurationPlatforms)' in line or \
-                    '(ProjectConfiguration)' in line:
+            if "(SolutionConfigurationPlatforms)" in line or \
+                    "(ProjectConfiguration)" in line:
                 looking_for_end_global_section = True
 
     # Exit with the results
     if not vs_version:
         print(
-            ('The visual studio solution file {} '
-             'is corrupt or an unknown version!').format(full_pathname),
+            ("The visual studio solution file {} "
+             "is corrupt or an unknown version!").format(full_pathname),
             file=sys.stderr)
     return (target_list, vs_version)
 
@@ -261,7 +266,7 @@ class BuildVisualStudioFile(BuildObject):
         """
 
         # Get the target
-        targettypes = self.configuration.rsplit('|')
+        targettypes = self.configuration.rsplit("|")
 
         # Locate the proper version of Visual Studio for this .sln file
         # Note, some platforms, like the Sony ones, build really slowly
@@ -500,23 +505,6 @@ def test(ide, platform_type):
     # Only vs 2005 and 2008 support Windows 64
     return platform_type is PlatformTypes.win64
 
-########################################
-
-
-def convert_file_name_vs2010(item):
-    """ Convert macros from to Visual Studio 2003-2008
-    Args:
-        item: Filename string
-    Returns:
-        String with converted macros
-    """
-    if is_string(item):
-        item = item.replace('%(RootDir)%(Directory)', '$(InputDir)')
-        item = item.replace('%(FileName)', '$(InputName)')
-        item = item.replace('%(Extension)', '$(InputExt)')
-        item = item.replace('%(FullPath)', '$(InputPath)')
-        item = item.replace('%(Identity)', '$(InputPath)')
-    return item
 
 ########################################
 
@@ -1644,7 +1632,7 @@ def BoolExcludedFromBuild(default=None):
     Returns:
         None or VSBooleanProperty object.
     """
-    return VSBooleanProperty('ExcludedFromBuild', default=default)
+    return VSBooleanProperty("ExcludedFromBuild", default=default)
 
 ########################################
 
@@ -3994,25 +3982,32 @@ class VS2003References(VS2003XML):
         Set the defaults.
         """
 
-        VS2003XML.__init__(self, 'References')
+        VS2003XML.__init__(self, "References")
+
 
 ########################################
 
 
-class VS2003DefaultToolFile(VS2003XML):
+class VS2003ToolFile(VS2003XML):
     """
-    Visual Studio 2003-2008 References record
+    Visual Studio 2005-2008 Tool record
     """
 
-    def __init__(self, rules):
+    def __init__(self, rules, project):
         """
         Set the defaults.
         """
 
+        # Is the file local to the project? If so, declare as a ToolFile,
+        # otherwise it's a rules file found in the IDE's folders
+        rule_path = os.path.join(project.working_directory, rules)
+        if os.path.isfile(rule_path):
+            toolfile = "ToolFile"
+        else:
+            toolfile = "DefaultToolFile"
+
         VS2003XML.__init__(
-            self, 'DefaultToolFile', [
-                VSStringProperty(
-                    'FileName', rules)])
+            self, toolfile, [get_path_property(rules)])
 
 ########################################
 
@@ -4038,7 +4033,7 @@ class VS2003ToolFiles(VS2003XML):
 
         for rules in project.vs_rules:
             rules = convert_to_windows_slashes(rules)
-            self.add_element(VS2003DefaultToolFile(rules))
+            self.add_element(VS2003ToolFile(rules, project))
 
 ########################################
 
@@ -4285,110 +4280,207 @@ class VS2003FileConfiguration(VS2003XML):
         # pylint: disable=too-many-statements
 
         self.configuration = configuration
+        self.source_file = source_file
 
-        VS2003XML.__init__(self, 'FileConfiguration', [
+        VS2003XML.__init__(self, "FileConfiguration", [
             StringName(configuration.vs_configuration_name)])
 
-        # Check if it's excluded
-        for exclude in configuration.exclude_list_regex:
-            if exclude(base_name):
-                self.add_default(BoolExcludedFromBuild(True))
+        self.check_for_exclusion(base_name)
 
         # Set up the element
         tool_name = None
         tool_enums = {}
 
         if source_file.type in (FileTypes.cpp, FileTypes.c):
-            tool_name = 'VCCLCompilerTool'
+            tool_name = "VCCLCompilerTool"
         elif source_file.type is FileTypes.hlsl:
-            tool_name = 'HLSL'
+            tool_name = "HLSL"
             tool_enums = HLSL_ENUMS
         elif source_file.type is FileTypes.glsl:
-            tool_name = 'GLSL'
+            tool_name = "GLSL"
+        elif source_file.type is FileTypes.x86:
+            tool_name = "MASM"
+            tool_enums = MASM_ENUMS
+        elif source_file.type is FileTypes.x64:
+            tool_name = "MASM64"
 
-        # pylint: disable:
         if not tool_name:
             return
 
+        # Get all the rules to apply
         rule_list = (
             configuration.custom_rules,
             configuration.parent.custom_rules,
             configuration.parent.parent.custom_rules)
 
         if configuration.ide is IDETypes.vs2003 \
-                and tool_name != 'VCCLCompilerTool':
+                and tool_name != "VCCLCompilerTool":
 
-            if tool_name == 'HLSL':
-                make_command = make_hlsl_command
-            elif tool_name == 'GLSL':
-                make_command = make_glsl_command
-            else:
+            self.handle_vs2003_rules(
+                rule_list, base_name, tool_name, tool_enums)
+        else:
+            self.handle_vs2005_rules(
+                rule_list, base_name, tool_name, tool_enums)
+
+    def check_for_exclusion(self, base_name):
+        """
+        Given a filename, check if it's excluded from the build
+
+        If the source file is in the exclusion list, or it's an assembly
+        file for the wrong build target, mark it as excluded from the build
+
+        Args:
+            base_name: Base name of the file to check
+        """
+
+        configuration = self.configuration
+        source_file = self.source_file
+
+        # Check if it's excluded from the discard regex
+        for exclude in configuration.exclude_list_regex:
+            if exclude(base_name):
+                self.add_default(BoolExcludedFromBuild(True))
                 return
 
-            element_dict = {}
-            for rule in rule_list:
-                for key in rule:
-                    if key(base_name):
-                        record = rule[key]
-                        for item in record:
-                            value = record[item]
-                            enum_table = lookup_enum_value(
-                                tool_enums, item, None)
-                            if enum_table:
-                                new_value = lookup_enum_value(
-                                    enum_table[1], value, None)
-                                if new_value is not None:
-                                    value = str(new_value)
+        # Special case, only build assembly files on the proper cpu
+        if source_file.type is FileTypes.x86:
+            if configuration.platform is not PlatformTypes.win32:
+                self.add_default(BoolExcludedFromBuild(True))
+                return
 
-                            element_dict[item] = value
+        if source_file.type is FileTypes.x64:
+            if configuration.platform is not PlatformTypes.win64:
+                self.add_default(BoolExcludedFromBuild(True))
 
-            if element_dict:
-                cmd, description, outputs = make_command(element_dict)
-                if cmd:
-                    element = VS2003Tool('VCCustomBuildTool')
-                    self.add_element(element)
+    def handle_vs2003_rules(self, rule_list, base_name, tool_name, tool_enums):
+        """
+        Since 2003 doesn't use rule files, do it all manually
+        """
 
-                    # Describe the build step
-                    element.add_default(
-                        StringDescription(
-                            convert_file_name_vs2010(description)))
+        # pylint: disable=too-many-nested-blocks
 
-                    # Command line to perform the build
-                    element.add_default(
-                        StringCommandLine(
-                            convert_file_name_vs2010(cmd)))
-
-                    # List of files created by this build step
-                    element.add_default(
-                        VSStringListProperty(
-                            'Outputs',
-                            [convert_file_name_vs2010(x)
-                             for x in outputs]))
-
+        if tool_name == "HLSL":
+            make_command = make_hlsl_command
+        elif tool_name == "GLSL":
+            make_command = make_glsl_command
+        elif tool_name == "MASM":
+            make_command = make_masm_command
         else:
-            element = None
-            for rule in rule_list:
-                for key in rule:
-                    if key(base_name):
-                        record = rule[key]
-                        for item in record:
-                            if element is None:
-                                element = VS2003Tool(tool_name)
-                                self.add_element(element)
+            return
 
-                            value = record[item]
-                            enum_table = lookup_enum_value(
-                                tool_enums, item, None)
-                            if enum_table:
-                                new_value = lookup_enum_value(
-                                    enum_table[1], value, None)
-                                if new_value is not None:
-                                    value = str(new_value)
+        # Dictionary of commands
+        element_dict = {}
 
-                            element.add_default(
-                                VSStringProperty(
-                                    item,
-                                    convert_file_name_vs2010(value)))
+        # Iterate over the rule list tuple
+        for rule in rule_list:
+
+            # The key is a regex
+            for key in rule:
+
+                # Match the filename?
+                if key(base_name):
+
+                    # Get the list of records
+                    records = rule[key]
+                    for item in records:
+                        value = records[item]
+
+                        # Is it an enumeration?
+                        enum_table = lookup_enum_value(
+                            tool_enums, item, None)
+
+                        # Look it up from the table
+                        if enum_table:
+                            new_value = lookup_enum_value(
+                                enum_table[1], value, None)
+                            if new_value is not None:
+                                value = str(new_value)
+
+                        # Set the command line switch
+                        element_dict[item] = value
+
+        # Were there any overrides?
+        cmd, description, outputs = make_command(element_dict)
+        if cmd:
+            element = VS2003Tool("VCCustomBuildTool")
+            self.add_element(element)
+
+            # Describe the build step
+            element.add_default(
+                StringDescription(
+                    convert_file_name_vs2010(description)))
+
+            # Command line to perform the build
+            element.add_default(
+                StringCommandLine(
+                    convert_file_name_vs2010(cmd)))
+
+            # List of files created by this build step
+            element.add_default(
+                VSStringListProperty(
+                    "Outputs",
+                    [convert_file_name_vs2010(x)
+                        for x in outputs]))
+
+    def handle_vs2005_rules(self, rule_list, base_name, tool_name, tool_enums):
+        """
+        Check if there are rules or records specific to a configuration
+
+        Args:
+            rule_list: Tuple of dicts for all rules to apply
+            base_name: Name of the file to check
+            tool_name: Name of the build tool
+            tool_enums: Enumeration lookup for the specific tool
+        """
+
+        # No elements yet
+        tool_root = None
+
+        # Hack, since the x86 file extension is not used by the masm plug in,
+        # force its existance so the file extension is mapped
+        if tool_name == "MASM":
+            tool_root = VS2003Tool(tool_name)
+            self.add_element(tool_root)
+
+        # pylint: disable=too-many-nested-blocks
+
+        # Iterate over the list of dicts
+        for rule in rule_list:
+
+            # Found a dict, get the key, it's a regex
+            for key in rule:
+
+                # Match?
+                if key(base_name):
+
+                    # Get the dict of rules to set
+                    records = rule[key]
+                    for item in records:
+
+                        # Make sure the tool is created
+                        if tool_root is None:
+                            tool_root = VS2003Tool(tool_name)
+                            self.add_element(tool_root)
+
+                        # Get the keyword
+                        value = records[item]
+
+                        # If an enumeration, look up the table
+                        enum_table = lookup_enum_value(
+                            tool_enums, item, None)
+
+                        # Table found, remap
+                        if enum_table:
+                            new_value = lookup_enum_value(
+                                enum_table[1], value, None)
+                            if new_value is not None:
+                                value = str(new_value)
+
+                        # Add the rule
+                        tool_root.add_default(
+                            VSStringProperty(
+                                item,
+                                convert_file_name_vs2010(value)))
 
 
 ########################################
@@ -4416,9 +4508,7 @@ class VS2003File(VS2003XML):
         self.project = project
         vs_name = source_file.vs_name
         VS2003XML.__init__(
-            self, 'File', [
-                VSStringProperty('RelativePath',
-                               vs_name)], force_pair=True)
+            self, "File", [get_path_property(vs_name)], force_pair=True)
 
         # Add in the file customizations
 
@@ -4684,7 +4774,9 @@ def generate(solution):
                                FileTypes.rc,
                                FileTypes.ico,
                                FileTypes.hlsl,
-                               FileTypes.glsl])
+                               FileTypes.glsl,
+                               FileTypes.x86,
+                               FileTypes.x64])
 
         # Create the project file template
         exporter = VS2003vcproj(project)

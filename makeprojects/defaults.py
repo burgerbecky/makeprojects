@@ -145,7 +145,7 @@ def configuration_presets(configuration):
             libraries_list.extend(
                 ["Kernel32.lib", "Gdi32.lib", "Shell32.lib", "Ole32.lib",
                  "User32.lib", "Advapi32.lib", "version.lib", "Ws2_32.lib",
-                 "Comctl32.lib"])
+                 "Comctl32.lib", "WinMM.lib"])
 
             define_list.extend(["_WINDOWS", "WIN32_LEAN_AND_MEAN"])
             if platform in (PlatformTypes.win64,

@@ -78,7 +78,7 @@ from .defaults import settings_from_name
 ########################################
 
 # Current version of the library as a numeric tuple
-__numversion__ = (0, 14, 3)
+__numversion__ = (0, 14, 4)
 
 # Current version of the library
 __version__ = ".".join([str(num) for num in __numversion__])

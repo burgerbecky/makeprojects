@@ -881,6 +881,7 @@ class WatcomProject(object):
                 entries.append("-i=\"$(%WATCOM)/h\"")
 
             else:
+                entries.append("-bm")
                 entries.append("-bt=NT")
                 entries.append("-dTYPE_BOOL=1")
                 entries.append("-dTARGET_CPU_X86=1")

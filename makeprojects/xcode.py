@@ -591,7 +591,7 @@ XCBUILD_FLAGS = (
     ("MACH_O_TYPE", "string", "mh_execute"),
 
     # Deployment minimum OS
-    ("MACOSX_DEPLOYMENT_TARGET", "string", "10.4"),
+    ("MACOSX_DEPLOYMENT_TARGET", "string", ""),
 
     # Kernel module name
     ("MODULE_NAME", "string", None),
@@ -1388,7 +1388,7 @@ class JSONDict(JSONRoot):
             return 0
 
         # Disable if there are no values?
-        if self.disable_if_empty and not self.value:
+        if self.disable_if_empty and self.value is not None:
             return 0
 
         # Determine the indentation
@@ -2446,6 +2446,11 @@ class XCBuildConfiguration(JSONDict):
                 (ide >= IDETypes.xcode4 and owner.pbxtype != "PBXProject"):
             build_settings.add_item(
                 JSONEntry("SDKROOT", value=solution._xc_sdkroot))
+            if configuration.platform.is_macosx():
+                build_settings.add_item(
+                    JSONEntry("SDKROOT[arch=ppc64]", value="macosx10.5"))
+                build_settings.add_item(
+                    JSONEntry("SDKROOT[arch=ppc]", value="macosx10.5"))
 
         if owner.pbxtype == "PBXProject":
             # Insert the flags (and overrides)
@@ -2455,7 +2460,7 @@ class XCBuildConfiguration(JSONDict):
                         JSONEntry(
                             item[0],
                             value=item[2],
-                            enabled=bool(item[2])))
+                            enabled=item[2] is not None))
                 elif item[1] == "stringarray":
                     temp_array = JSONArray(item[0], disable_if_empty=True)
                     build_settings.add_item(temp_array)
@@ -2604,7 +2609,8 @@ class XCBuildConfiguration(JSONDict):
             cpus.extend(("i386", "x86_64"))
 
         elif self.configuration.platform in (PlatformTypes.ios32, PlatformTypes.ios64):
-            cpus.extend(("armv7", "armv7s", "arm64"))
+            # cpus.extend(("armv7", "armv7s", "arm64"))
+            cpus.extend(("armv6", "armv7", "i386", "x86_64"))
 
         item = build_settings.find_item("ARCHS")
         item.value = make_jsonarray(cpus)
@@ -3192,16 +3198,19 @@ class XCProject(JSONDict):
 
                 if ioslibrary is True:
 
-                    output = deploy_folder + "${PRODUCT_NAME}"
-                    command = _PERFORCE_PATH + " edit " + deploy_folder + "${PRODUCT_NAME}\\n" + \
+                    output = deploy_folder + "${FULL_PRODUCT_NAME}"
+                    command = "export SUFFIX=${PRODUCT_NAME:${#PRODUCT_NAME}-6:6}\\n" + \
+                        _PERFORCE_PATH + " edit " + deploy_folder + "${FULL_PRODUCT_NAME}\\n" + \
                         "lipo -output " + deploy_folder + \
-                        "${PRODUCT_NAME} -create ${BUILD_ROOT}/" + \
+                        "${FULL_PRODUCT_NAME} -create ${BUILD_ROOT}/" + \
                         solution.name + idecode + \
-                        "dev/lib" + solution.name + idecode + \
-                        "dev.a ${BUILD_ROOT}/" + \
+                        "dev${SUFFIX}/lib" + solution.name + idecode + \
+                        "dev${SUFFIX}.a ${BUILD_ROOT}/" + \
                         solution.name + idecode + \
-                        "sim/lib" + solution.name + \
-                        idecode + "sim.a\\n"
+                        "sim${SUFFIX}/lib" + solution.name + \
+                        idecode + "sim${SUFFIX}.a\\n" + \
+                        _PERFORCE_PATH + " revert -a " + \
+                        deploy_folder + "${FULL_PRODUCT_NAME}\\n"
                 elif project.project_type is ProjectTypes.library:
 
                     output = ("{0}lib${{PRODUCT_NAME}}.a").format(

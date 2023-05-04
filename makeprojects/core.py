@@ -468,8 +468,8 @@ class SourceFile(object):
     for processing.
 
     @note
-    For hash consistency, @ref makeprojects.core.SourceFile.relative_pathname has all directory slashes
-    in Windows format "\" instead of Linux/BSD format on all platforms.
+    For hash consistency, @ref makeprojects.core.SourceFile.relative_pathname has all directory
+    slashes in Windows format "\" instead of Linux/BSD format on all platforms.
 
     Attributes:
         relative_pathname: File base name with extension
