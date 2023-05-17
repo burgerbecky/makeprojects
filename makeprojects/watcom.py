@@ -43,31 +43,11 @@ except ImportError:
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
+from .watcom_util import fixup_env, get_custom_list, get_output_list
 
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
 SUPPORTED_IDES = (IDETypes.watcom,)
-
-########################################
-
-
-def fixup_env(item):
-    """
-    Check if a path has an environment variable.
-    If an pathname starts with $(XXX), then it needs to be invoking 
-    and environment variable. Watcom uses the form $(%XXX) so insert a
-    percent sign to convert if needed
-
-    Args:
-        item: String to check
-
-    Returns:
-        Updated pathname using $(%XXX) format
-    """
-
-    if item.startswith("$("):
-        item = item[:2] + "%" + item[2:]
-    return item
 
 ########################################
 
@@ -298,6 +278,9 @@ def generate(solution):
     if error:
         return error
 
+    # Handle any post processing
+    watcom_lines = solution.post_process(watcom_lines)
+
     # Save the file if it changed
     save_text_file_if_newer(
         os.path.join(solution.working_directory, solution.watcom_filename),
@@ -322,6 +305,8 @@ class WatcomProject(object):
         platforms: List of all platform types
         configuration_list: List of all configurations
         configuration_names: List of configuration names
+        custom_list: List of custom built files
+        output_list: List of custom output files
     """
 
     def __init__(self, solution):
@@ -334,12 +319,19 @@ class WatcomProject(object):
         self.configuration_list = []
         self.configuration_names = []
 
+        # Init the list of custom rules
+        custom_list = []
+
         # Process all the projects and configurations
         for project in solution.project_list:
 
-            # Process the filenames
-            project.get_file_list([FileTypes.h, FileTypes.cpp,
-                                   FileTypes.c, FileTypes.x86,])
+            # Process the filename types supported by Open Watcom
+            project.get_file_list(
+                [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.x86,
+                 FileTypes.hlsl, FileTypes.glsl])
+
+            # Keep a copy of the filenames for now
+            codefiles = project.codefiles
 
             # Add to the master list
             self.configuration_list.extend(project.configuration_list)
@@ -360,6 +352,15 @@ class WatcomProject(object):
                 # Add platform if not already found
                 if configuration.platform not in self.platforms:
                     self.platforms.append(configuration.platform)
+
+                # Get the rule list
+                rule_list = (configuration.custom_rules,
+                    configuration.parent.custom_rules,
+                    configuration.parent.parent.custom_rules)
+                get_custom_list(custom_list, rule_list, codefiles)
+
+        self.custom_list = custom_list
+        self.output_list = get_output_list(custom_list)
 
     ########################################
 
@@ -404,6 +405,44 @@ class WatcomProject(object):
             "!loaddll wlib $(%WATCOM)/binnt/wlibd",
             "!endif",
             "!endif"])
+        return 0
+
+    ########################################
+
+    def write_output_list(self, line_list):
+        """
+        Output the list of object files to create.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend([
+            "",
+            "#",
+            "# Custom output files",
+            "#",
+            ""
+        ])
+
+        # Get a list of custom files
+        output_list = self.output_list
+        if not output_list:
+            line_list.append("EXTRA_OBJS=")
+            return 0
+
+        colon = "EXTRA_OBJS= "
+        for item in output_list:
+            line_list.append(
+                colon +
+                convert_to_linux_slashes(
+                    item) + " &")
+            colon = "\t"
+
+        # Remove the " &" from the last line
+        line_list[-1] = line_list[-1][:-2]
         return 0
 
     ########################################
@@ -548,6 +587,7 @@ class WatcomProject(object):
                     platform_short_code[-3:] + configuration.short_code
                 bin_name = template.format(bin_folder)
 
+                # Instructions to build
                 line_list.extend((
                     "",
                     target_name + ": .SYMBOLIC",
@@ -556,14 +596,26 @@ class WatcomProject(object):
    	                    bin_folder),
                     "\t@set CONFIG=" + configuration.name,
                     "\t@set TARGET=" + platform_short_code,
-                    "\t@%make bin\\" + bin_name,
+                    "\t@%make bin\\" + bin_name
+                ))
+
+                # Instructions to clean
+                line_list.extend((
                     "",
-                    "clean_" + target_name + ": .SYMBOLIC",
+                    "clean_" + target_name + ": .SYMBOLIC"
+                ))
+
+                # Optional custom outputs
+                if self.output_list:
+                    line_list.append("\t@rm -f $(EXTRA_OBJS)")
+
+                line_list.extend((
                     "\t@if exist temp\\{0} @rmdir /s /q temp\\{0}".format(
                         bin_folder),
                     "\t@if exist bin\\{0} @del /q bin\\{0}".format(
                         bin_name),
-                    # Test if the directory is empty, if so, delete the directory
+                    # Test if the directory is empty, if so, delete the
+                    # directory
                     "\t@-if exist bin @rmdir bin 2>NUL",
                     "\t@-if exist temp @rmdir temp 2>NUL"
                 ))
@@ -633,8 +685,7 @@ class WatcomProject(object):
 
     ########################################
 
-    @staticmethod
-    def write_test_variables(line_list):
+    def write_test_variables(self, line_list):
         """
         Create tests for environment variables
 
@@ -644,8 +695,17 @@ class WatcomProject(object):
             Zero
         """
 
-        variable_list = ["BURGER_SDKS", "WATCOM"]
+        # Scan all entries and make sure all duplicates are purged
+        variable_list = set()
 
+        for project in self.solution.project_list:
+
+            # Create sets of configuration names and projects
+            for configuration in project.configuration_list:
+                variable_list.update(
+                    configuration.get_unique_chained_list("env_variable_list"))
+
+        # Anything found?
         if variable_list:
             line_list.extend((
                 "",
@@ -653,7 +713,7 @@ class WatcomProject(object):
                 "# Required environment variables",
                 "#"
             ))
-            for variable in variable_list:
+            for variable in sorted(variable_list):
                 line_list.extend((
                     "",
                     "!ifndef %" + variable,
@@ -1077,27 +1137,23 @@ class WatcomProject(object):
         obj_list = []
         if self.solution.project_list:
             codefiles = self.solution.project_list[0].codefiles
-        else:
-            codefiles = []
 
-        for item in codefiles:
-            if item.type is FileTypes.c or \
-                    item.type is FileTypes.cpp or \
-                    item.type is FileTypes.x86:
+            for item in codefiles:
+                if item.type in (FileTypes.c, FileTypes.cpp, FileTypes.x86):
 
-                tempfile = convert_to_linux_slashes(
-                    item.relative_pathname)
-                index = tempfile.rfind(".")
-                if index == -1:
-                    entry = tempfile
-                else:
-                    entry = tempfile[:index]
+                    tempfile = convert_to_linux_slashes(
+                        item.relative_pathname)
+                    index = tempfile.rfind(".")
+                    if index == -1:
+                        entry = tempfile
+                    else:
+                        entry = tempfile[:index]
 
-                index = entry.rfind("/")
-                if index != -1:
-                    entry = entry[index + 1:]
+                    index = entry.rfind("/")
+                    if index != -1:
+                        entry = entry[index + 1:]
 
-                obj_list.append(entry)
+                    obj_list.append(entry)
 
         if obj_list:
             colon = "OBJS= "
@@ -1109,6 +1165,62 @@ class WatcomProject(object):
 
         else:
             line_list.append("OBJS=")
+        return 0
+
+########################################
+
+    def write_custom_files(self, line_list):
+        """
+        Output the list of object files to create.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Get a list of custom files
+        output_list = self.output_list
+        if not output_list:
+            return 0
+
+        line_list.extend([
+            "",
+            "#",
+            "# Build custom files",
+            "#"
+        ])
+
+        output_list = list(self.output_list)
+        # Output the execution lines
+        while output_list:
+
+            output = output_list[0]
+
+            entry = None
+            for item in self.custom_list:
+                for output_test in item[2]:
+                    if output_test == output:
+                        entry = item
+                        break
+                if entry:
+                    break
+
+            else:
+                output_list.remove(output)
+                continue
+
+            line_list.append("")
+            line_list.append(
+                " ".join(entry[2]) + " : " +
+                convert_to_linux_slashes(
+                    entry[3].relative_pathname))
+            line_list.append("\t@echo " + entry[1])
+            line_list.append("\t@cmd /c & " + fixup_env(entry[0]))
+
+            for output_test in entry[2]:
+                output_list.remove(output_test)
+
         return 0
 
     ########################################
@@ -1145,7 +1257,7 @@ class WatcomProject(object):
                 "bin\\" + self.solution.name + "wat" +
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code + suffix +
-                ": $+$(OBJS)$- " + self.solution.watcom_filename)
+                ": $(EXTRA_OBJS) $+$(OBJS)$- " + self.solution.watcom_filename)
 
             if configuration.project_type is ProjectTypes.library:
 
@@ -1190,6 +1302,7 @@ class WatcomProject(object):
             line_list = []
 
         self.write_header(line_list)
+        self.write_output_list(line_list)
         self.write_all_targets(line_list)
         self.write_directory_targets(line_list)
         self.write_test_variables(line_list)
@@ -1197,5 +1310,6 @@ class WatcomProject(object):
         self.write_source_dir(line_list)
         self.write_rules(line_list)
         self.write_files(line_list)
+        self.write_custom_files(line_list)
         self.write_builds(line_list)
         return 0

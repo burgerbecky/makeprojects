@@ -24,8 +24,9 @@ def get_path_property(pathname):
     """
     If a path is relative, return the proper object
 
-    Check if a pathname starts with a ".", which means it's relative to the project.
-    If so, return a RelativePath string, otherwise retirn a FileName string.
+    Check if a pathname starts with a ".", which means it's relative to the
+    project. If so, return a RelativePath string, otherwise retirn a FileName
+    string.
 
     Args:
         pathname: Pathname to test

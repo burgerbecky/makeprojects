@@ -38,8 +38,11 @@ String list entries for HLSL, switch, quote parameters
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+from burger import convert_to_linux_slashes
+
 from .validators import lookup_enum_append_keys, lookup_booleans, \
     lookup_strings, lookup_string_lists
+from .util import convert_file_name
 
 # Enumerations for HLSL Optimization
 HLSL_OPTIMIZATION = (
@@ -135,7 +138,7 @@ HLSL_STRING_LISTS = (
 ########################################
 
 
-def make_hlsl_command(command_dict):
+def make_hlsl_command(command_dict, source_file):
     """ Create HLSL command line
     Args:
         command_dict: Dict with command overrides
@@ -180,5 +183,13 @@ def make_hlsl_command(command_dict):
         cmd.append("{}\"{}\"".format(temp_int, temp))
         outputs.append(temp)
 
-    description = "fxc %(FileName)%(Extension)..."
-    return " ".join(cmd), description, outputs
+    # Convert the pathnames to literal paths
+    cmd = convert_file_name(" ".join(cmd), source_file)
+    description = convert_file_name(
+        "fxc %(FileName)%(Extension)...", source_file)
+    outputs = [
+        convert_to_linux_slashes(convert_file_name(x, source_file))
+        for x in outputs]
+
+    # Return the outputs
+    return cmd, description, outputs

@@ -19,6 +19,7 @@ Name, default, switch, generates output, quote parameters
 from __future__ import absolute_import, print_function, unicode_literals
 
 from .validators import lookup_booleans, lookup_strings, lookup_enum_append_keys
+from .util import convert_file_name
 
 # Enumerations for MASM warning levels
 MASM_WARNINGLEVEL = (
@@ -55,7 +56,7 @@ MASM_STRINGS = (
 ########################################
 
 
-def make_masm_command(command_dict):
+def make_masm_command(command_dict, source_file):
     """
     Create MASM command line
 
@@ -75,5 +76,9 @@ def make_masm_command(command_dict):
     outputs = lookup_strings(cmd, MASM_STRINGS, command_dict)
     cmd.append("/Ta\"%(FullPath)\"")
 
-    description = "Assembling %(FileName)%(Extension)..."
-    return " ".join(cmd), description, outputs
+    cmd = convert_file_name(" ".join(cmd), source_file)
+    description = convert_file_name(
+        "Assembling %(FileName)%(Extension)...", source_file)
+    outputs = [convert_file_name(x, source_file) for x in outputs]    
+
+    return cmd, description, outputs

@@ -41,6 +41,7 @@ class Attributes(object):
         library_folders_list: List of folders to add to linker include list
         libraries_list: List of libraries to link
         frameworks_list: Darwin frameworks list
+        env_variable_list: List of required environment variables
         exclude_from_build_list: List of patterns to exclude from this config
         exclude_list: List of files to exclude from directory scanning
         cw_environment_variables: List of CodeWarrior environment variables
@@ -81,6 +82,7 @@ class Attributes(object):
     library_folders_list = StringListProperty("_library_folders_list")
     libraries_list = StringListProperty("_libraries_list")
     frameworks_list = StringListProperty("_frameworks_list")
+    env_variable_list = StringListProperty("_env_variable_list")
     exclude_from_build_list = StringListProperty("_exclude_from_build_list")
     exclude_list = StringListProperty("_exclude_list")
     cw_environment_variables = StringListProperty("_cw_environment_variables")
@@ -96,6 +98,7 @@ class Attributes(object):
         self.library_folders_list = []
         self.libraries_list = []
         self.frameworks_list = []
+        self.env_variable_list = []
         self.exclude_from_build_list = []
         self.exclude_list = []
         self.cw_environment_variables = []
@@ -491,7 +494,7 @@ class SourceFile(object):
 
         # Sanity check
         if not isinstance(filetype, FileTypes):
-            raise TypeError("parameter 'filetype' must be of type FileTypes")
+            raise TypeError("parameter \"filetype\" must be of type FileTypes")
 
         self.relative_pathname = convert_to_windows_slashes(relative_pathname)
         self.working_directory = working_directory
@@ -602,6 +605,7 @@ class Configuration(Attributes):
     - ``library_folders_list`` List of directories for libraries
     - ``libraries_list`` List of libraries to include
     - ``frameworks_list`` List of frameworks to include (macOS/iOS)
+    - ``env_variable_list`` List of required environment variables
     - ``define_list`` List of defines for compilation
     - ``debug`` True if debugging defaults are enabled
     - ``optimization`` 0-4 level of optimization
@@ -675,7 +679,7 @@ class Configuration(Attributes):
         Return the short code
         """
 
-        short_code = getattr(self, '_short_code', None)
+        short_code = getattr(self, "_short_code", None)
         if short_code is None:
             return self.name
         return short_code
@@ -684,7 +688,7 @@ class Configuration(Attributes):
         """
         Set the filename suffix
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: New short code
         """
         self._short_code = validate_string(value)
@@ -739,9 +743,9 @@ class Configuration(Attributes):
                 platform_text = platform_text[:3]
         else:
             # Platform neutral
-            platform_text = ''
+            platform_text = ""
 
-        return '{}{}{}'.format(
+        return "{}{}{}".format(
             self.ide.get_short_code(),
             platform_text,
             self.short_code)
@@ -758,19 +762,19 @@ class Configuration(Attributes):
 
         result_list = []
         for item in self.__dict__.items():
-            if item[0] == 'parent':
+            if item[0] == "parent":
                 continue
-            if item[0] == 'project':
+            if item[0] == "project":
                 result_list.append(
-                    'Project: "{}"'.format(
+                    "Project: \"{}\"".format(
                         item[1].name))
                 continue
-            item_name = item[0][1:] if item[0].startswith('_') else item[0]
+            item_name = item[0][1:] if item[0].startswith("_") else item[0]
             result_list.append(
-                '{0}: {1!s}'.format(
+                "{0}: {1!s}".format(
                     item_name,
                     item[1]))
-        return 'Configuration: ' + ', '.join(result_list)
+        return "Configuration: " + ", ".join(result_list)
 
     ########################################
 
@@ -818,11 +822,11 @@ class Project(Attributes):
 
     # pylint: disable=too-many-instance-attributes
 
-    source_folders_list = StringListProperty('_source_folders_list')
-    source_files_list = StringListProperty('_source_files_list')
-    vs_props = StringListProperty('_vs_props')
-    vs_targets = StringListProperty('_vs_targets')
-    vs_rules = StringListProperty('_vs_rules')
+    source_folders_list = StringListProperty("_source_folders_list")
+    source_files_list = StringListProperty("_source_files_list")
+    vs_props = StringListProperty("_vs_props")
+    vs_targets = StringListProperty("_vs_targets")
+    vs_rules = StringListProperty("_vs_rules")
 
     def __init__(self, name=None, **kargs):
         """
@@ -836,7 +840,7 @@ class Project(Attributes):
         # Init the base class
         super(Project, self).__init__()
 
-        self.source_folders_list = ['.', 'source', 'src']
+        self.source_folders_list = [".", "source", "src"]
         self.source_files_list = []
         self.vs_props = []
         self.vs_targets = []
@@ -860,7 +864,7 @@ class Project(Attributes):
         self.codefiles = []
         self.file_list = None
         self.include_list = None
-        self.platform_code = ''
+        self.platform_code = ""
 
         # Set all the variables
         for key in kargs.items():
@@ -888,18 +892,19 @@ class Project(Attributes):
         configurations that this project is managing.
 
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             configuration: Reference to an instance of a Configuration.
         Raises:
             TypeError
         """
 
         if configuration is None or is_string(configuration):
-            configuration = Configuration(configuration, PlatformTypes.default())
+            configuration = Configuration(
+                configuration, PlatformTypes.default())
 
         # Singular
         if not isinstance(configuration, Configuration):
-            raise TypeError(("parameter 'configuration' "
+            raise TypeError(("parameter \"configuration\" "
                              "must be of type Configuration"))
             # Set the configuration's parent
 
@@ -936,7 +941,7 @@ class Project(Attributes):
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError(
-                "parameter 'project' must be of type Project or name")
+                "parameter \"project\" must be of type Project or name")
 
         project.solution = self.solution
         project.parent = self.solution
@@ -979,7 +984,7 @@ class Project(Attributes):
         """
 
         if not self.configuration_list:
-            for item in ('Debug', 'Release'):
+            for item in ("Debug", "Release"):
                 self.add_configuration(Configuration(item, platform=platform))
         else:
 
@@ -1104,14 +1109,14 @@ class Project(Attributes):
 
         # Get the files to exclude in this
         self.exclude_list_regex = translate_to_regex_match(
-            self.get_unique_chained_list('exclude_list'))
+            self.get_unique_chained_list("exclude_list"))
 
         self.file_list = []
         self.include_list = set()
 
         working_directory = self.working_directory
 
-        for item in self.get_unique_chained_list('source_files_list'):
+        for item in self.get_unique_chained_list("source_files_list"):
             if not os.path.isabs(item):
                 abs_path = os.path.abspath(
                     os.path.join(working_directory, item))
@@ -1143,11 +1148,11 @@ class Project(Attributes):
                         os.path.dirname(abs_path), working_directory))
 
         # Pull in all the source folders and scan them
-        for item in self.get_unique_chained_list('source_folders_list'):
+        for item in self.get_unique_chained_list("source_folders_list"):
 
             # Is it a recursive test?
             recurse = False
-            if item.endswith('/*.*'):
+            if item.endswith("/*.*"):
                 # Remove the trailing /*.*
                 item = item[:-4]
                 recurse = True
@@ -1160,7 +1165,7 @@ class Project(Attributes):
         # results so it doesn't matter what platform generated the
         # file list, it's the same output.
         self.codefiles = sorted(
-            self.file_list, key=attrgetter('relative_pathname'))
+            self.file_list, key=attrgetter("relative_pathname"))
         self._source_include_list = sorted(self.include_list)
 
         # Cleanup
@@ -1180,21 +1185,21 @@ class Project(Attributes):
 
         result_list = []
         for item in self.__dict__.items():
-            if item[0] == 'parent':
+            if item[0] == "parent":
                 continue
-            if item[0] == 'solution':
+            if item[0] == "solution":
                 if item[1] is None:
                     continue
                 result_list.append(
-                    'Solution: "{}"'.format(
+                    "Solution: \"{}\"".format(
                         item[1].name))
                 continue
-            item_name = item[0][1:] if item[0].startswith('_') else item[0]
+            item_name = item[0][1:] if item[0].startswith("_") else item[0]
             result_list.append(
-                '{0}: {1!s}'.format(
+                "{0}: {1!s}".format(
                     item_name,
                     item[1]))
-        return 'Project: ' + ', '.join(result_list)
+        return "Project: " + ", ".join(result_list)
 
     def __str__(self):
         """
@@ -1232,6 +1237,7 @@ class Solution(Attributes):
         platform_code: Platform code for generation
         project_list: List of dependent projects
         project_type: @ref makeprojects.enums.ProjectTypes enum for target output
+        post_process: Python function to handle post processing
         _ide: Private instance of @ref makeprojects.enums.IDETypes
     """
 
@@ -1264,6 +1270,7 @@ class Solution(Attributes):
         self.perforce = True
         self.verbose = False
         self.suffix_enable = True
+        self.post_process = lambda a: a
 
         working_directory = os.getcwd()
 
@@ -1281,8 +1288,8 @@ class Solution(Attributes):
             self.project_type = ProjectTypes.default()
 
         self.project_list = []
-        self.ide_code = ''
-        self.platform_code = ''
+        self.ide_code = ""
+        self.platform_code = ""
 
         # Set all the variables
         for key in kargs.items():
@@ -1300,7 +1307,7 @@ class Solution(Attributes):
         """
         Set the IDE type with validation
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             value: None or new IDE type
         """
         self._ide = validate_enum_type(value, IDETypes)
@@ -1317,7 +1324,7 @@ class Solution(Attributes):
         projects that this solution is managing.
 
         Args:
-            self: The 'this' reference.
+            self: The "this" reference.
             project: Reference to an instance of a Project.
             project_type: Type of project to create.
         """
@@ -1328,7 +1335,7 @@ class Solution(Attributes):
         # Sanity check
         if not isinstance(project, Project):
             raise TypeError(
-                "parameter 'project' must be of type Project or name")
+                "parameter \"project\" must be of type Project or name")
 
         project.solution = self
         project.parent = self
@@ -1458,7 +1465,7 @@ class Solution(Attributes):
             if ide in generator.SUPPORTED_IDES:
                 break
         else:
-            print('IDE {} is not supported.'.format(ide))
+            print("IDE {} is not supported.".format(ide))
             return 10
 
         # Convert keys that need to be regexes from *.cpp to regex
@@ -1476,7 +1483,7 @@ class Solution(Attributes):
             # Purge unsupported configurations
             configuration_list = []
             if not project.configuration_list:
-                for item in ('Debug', 'Release'):
+                for item in ("Debug", "Release"):
                     project.add_configuration(item, project.platform)
 
             for configuration in project.configuration_list:
@@ -1503,8 +1510,9 @@ class Solution(Attributes):
 
         # No configurations passed? Abort
         if not configuration_list:
-            print("Generator for IDE \"{}\" is incompatible with platform \"{}\"".format(
-                ide, last_failed))
+            print(
+                "Generator for IDE \"{}\" is incompatible with platform \"{}\"".format(
+                    ide, last_failed))
             return 10
 
         # Get the platform code
@@ -1530,7 +1538,7 @@ class Solution(Attributes):
                 continue
             item_name = item[0][1:] if item[0].startswith("_") else item[0]
             result_list.append(
-                '{0}: {1!s}'.format(
+                "{0}: {1!s}".format(
                     item_name,
                     item[1]))
         return "Solution: " + ", ".join(result_list)

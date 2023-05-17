@@ -586,7 +586,8 @@ def BoolPerUserRedirection(configuration):
         None or VSBooleanProperty object.
     """
     if configuration.ide > IDETypes.vs2005:
-        return VSBooleanProperty.vs_validate('PerUserRedirection', configuration)
+        return VSBooleanProperty.vs_validate(
+            "PerUserRedirection", configuration)
     return None
 
 
@@ -1930,7 +1931,7 @@ def do_tree(xml_entry, filter_name, tree, groups):
             # Found, add all the elements into this filter
             for fileitem in sorted(
                     groups[merged],
-                    key=operator.attrgetter('vs_name')):
+                    key=operator.attrgetter("vs_name")):
                 new_filter.add_element(VS2003File(fileitem, xml_entry.project))
 
         tree_key = tree[item]
@@ -4145,7 +4146,8 @@ class VS2003Configuration(VS2003XML):
 
             item = configuration.get_chained_value("vs_CharacterSet")
             self.set_attribute(
-                "CharacterSet", {"Unicode": "1", "MultiByte": "2"}.get(item, None))
+                "CharacterSet",
+                {"Unicode": "1", "MultiByte": "2"}.get(item, None))
 
         # Include all the data chunks
         self.vcprebuildeventtool = VCPreBuildEventTool(configuration)
@@ -4400,27 +4402,23 @@ class VS2003FileConfiguration(VS2003XML):
                         element_dict[item] = value
 
         # Were there any overrides?
-        cmd, description, outputs = make_command(element_dict)
+        cmd, description, outputs = make_command(element_dict, self.source_file)
         if cmd:
             element = VS2003Tool("VCCustomBuildTool")
             self.add_element(element)
 
             # Describe the build step
             element.add_default(
-                StringDescription(
-                    convert_file_name_vs2010(description)))
+                StringDescription(description))
 
             # Command line to perform the build
             element.add_default(
-                StringCommandLine(
-                    convert_file_name_vs2010(cmd)))
+                StringCommandLine(cmd))
 
             # List of files created by this build step
             element.add_default(
                 VSStringListProperty(
-                    "Outputs",
-                    [convert_file_name_vs2010(x)
-                        for x in outputs]))
+                    "Outputs", outputs))
 
     def handle_vs2005_rules(self, rule_list, base_name, tool_name, tool_enums):
         """

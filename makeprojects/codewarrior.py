@@ -726,7 +726,7 @@ class SearchPathAndFlags(object):
             root: Root pathname
             recursive: Boolean, True allows recursion
         """
-        if path.startswith('$(CodeWarrior)'):
+        if path.startswith("$(CodeWarrior)"):
             recursive = True
 
         self.settings = [
@@ -1442,18 +1442,6 @@ class Project(object):
 
             # Create sets of configuration names and projects
             for configuration in project.configuration_list:
-                if not configuration.library_folders_list:
-                    if project.platform.is_windows():
-                        configuration.library_folders_list = [
-                            '$(CodeWarrior)/MSL',
-                            '$(CodeWarrior)/Win32-x86 Support']
-                        if not configuration.project_type.is_library():
-                            if configuration.debug:
-                                configuration.libraries_list.append(
-                                    'MSL_All_x86_D.lib')
-                            else:
-                                configuration.libraries_list.append(
-                                    'MSL_All_x86.lib')
 
                 configuration.cw_name = configuration.name
 
@@ -1499,7 +1487,7 @@ class Project(object):
 
                 # System include folders
                 temp_list = configuration.get_unique_chained_list(
-                    '_library_folders_list')
+                    "_library_folders_list")
                 if temp_list:
                     systemsearchpaths = target.addsetting('SystemSearchPaths')
                     for item in temp_list:
@@ -1508,7 +1496,7 @@ class Project(object):
                             SearchPathAndFlags(
                                 solution.project_list[0].platform,
                                 item,
-                                'CodeWarrior',
+                                "Project",
                                 False))
 
                 # Generic settings for all platforms
@@ -1555,7 +1543,7 @@ class Project(object):
                 liblist = []
                 if not configuration.project_type.is_library():
                     liblist = configuration.get_unique_chained_list(
-                        'libraries_list')
+                        "libraries_list")
 
                 # Generate the file and group lists
                 if alllists or liblist:

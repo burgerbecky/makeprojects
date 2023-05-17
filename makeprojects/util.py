@@ -22,7 +22,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import re
 import fnmatch
-from burger import string_to_bool, is_string, import_py_script, norm_paths
+from burger import string_to_bool, is_string, import_py_script, norm_paths, \
+    convert_to_linux_slashes
 from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
 
 # pylint: disable=consider-using-f-string
@@ -517,3 +518,41 @@ def fixup_args(args):
         # Leave the directory in the list
         temp_list.append(item)
     args.directories = temp_list
+
+
+########################################
+
+
+def convert_file_name(item, source_file):
+    """
+    Convert macros to literal filename strings
+
+    Args:
+        item: Filename string
+        source_file: SourceFile object
+    Returns:
+        String with converted macros
+    """
+
+    # Only convert if the input is really a string
+    if is_string(item):
+
+        # Convert the filename to a full path
+        full_path = convert_to_linux_slashes(source_file.relative_pathname)
+
+        # Split from parent directory and filename
+        index = full_path.rfind("/")
+        file_name = full_path if index == -1 else full_path[index + 1:]
+        file_dir = full_path if index == -1 else full_path[:index + 1]
+
+        # Split the filename from the name and the extension
+        index = file_name.rfind(".")
+        extension = file_name if index == -1 else file_name[index:]
+        base_name = file_name if index == -1 else file_name[:index]
+
+        item = item.replace("%(RootDir)%(Directory)", file_dir)
+        item = item.replace("%(FileName)", base_name)
+        item = item.replace("%(Extension)", extension)
+        item = item.replace("%(FullPath)", full_path)
+        item = item.replace("%(Identity)", full_path)
+    return item

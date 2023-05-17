@@ -112,7 +112,8 @@ class BuildMakeFile(BuildObject):
         # Running under Linux?
         if host_machine() != "linux":
             return BuildError(
-                0, self.file_name, msg="{} can only processed on Linux like hosts!".format(
+                0, self.file_name,
+                msg="{} can only processed on Linux like hosts!".format(
                     self.file_name))
         return None
 
@@ -559,7 +560,8 @@ class MakeProject(object):
                     "clean_" + target_name + ":",
                     "\t@-rm -rf temp/" + bin_folder,
                     "\t@-rm -f bin/" + bin_name,
-                    # Test if the directory is empty, if so, delete the directory
+                    # Test if the directory is empty, if so, delete the
+                    # directory
                     _BASH_DELETE_EMPTY_FOLDER.format("bin"),
                     _BASH_DELETE_EMPTY_FOLDER.format("temp")
                 ))
@@ -628,8 +630,7 @@ class MakeProject(object):
 
     ########################################
 
-    @staticmethod
-    def write_test_variables(line_list):
+    def write_test_variables(self, line_list):
         """
         Create tests for environment variables
 
@@ -639,7 +640,15 @@ class MakeProject(object):
             Zero
         """
 
-        variable_list = ["BURGER_SDKS"]
+        # Scan all entries and make sure all duplicates are purged
+        variable_list = set()
+
+        for project in self.solution.project_list:
+
+            # Create sets of configuration names and projects
+            for configuration in project.configuration_list:
+                variable_list.update(
+                    configuration.get_unique_chained_list("env_variable_list"))
 
         if variable_list:
             line_list.extend((

@@ -131,6 +131,12 @@ def configuration_presets(configuration):
 
         ide = configuration.project.ide
 
+        # Force a test for the WATCOM environment variable
+        # for Watcom for Windows or DOS
+        if ide is IDETypes.watcom:
+            if platform.is_windows() or platform.is_msdos():
+                configuration.env_variable_list = ["WATCOM"]
+
         # Windows specific defines
         if platform.is_windows():
 
@@ -157,11 +163,6 @@ def configuration_presets(configuration):
             # Command line tools need this define
             if configuration.project_type is ProjectTypes.tool:
                 define_list.append("_CONSOLE")
-
-            # Watcom and Codeblocks need these for OpenGL
-            if ide in (IDETypes.watcom, IDETypes.codeblocks):
-                define_list.append("GLUT_DISABLE_ATEXIT_HACK")
-                define_list.append("GLUT_NO_LIB_PRAGMA")
 
         # MSDos with DOS4GW extender
         if platform is PlatformTypes.msdos4gw:

@@ -18,7 +18,10 @@ Name, default, switch, generates output, quote parameters
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+from burger import convert_to_linux_slashes
+
 from .validators import lookup_booleans, lookup_strings
+from .util import convert_file_name
 
 # Boolean list for GLSL, Name, Default, switches
 GLSL_BOOLEANS = (
@@ -38,7 +41,7 @@ GLSL_STRINGS = (
 ########################################
 
 
-def make_glsl_command(command_dict):
+def make_glsl_command(command_dict, source_file):
     """ Create GLSL command line
     Args:
         command_dict: Dict with command overrides
@@ -47,13 +50,15 @@ def make_glsl_command(command_dict):
     """
 
     # Create the initial command line
-    cmd = [
-        ("\"$(VS71COMNTOOLS)..\\..\\..\\Microsoft Visual Studio 8\\"
-         "vc\\bin\\stripcomments.exe\""),
-        "\"%(FullPath)\""]
+    cmd = ["stripcomments.exe", "\"%(FullPath)\""]
 
     lookup_booleans(cmd, GLSL_BOOLEANS, command_dict)
     outputs = lookup_strings(cmd, GLSL_STRINGS, command_dict)
 
-    description = "Stripcomments %(FileName)%(Extension)..."
-    return " ".join(cmd), description, outputs
+    cmd = convert_file_name(" ".join(cmd), source_file)
+    description = convert_file_name(
+        "Stripcomments %(FileName)%(Extension)...", source_file)
+    outputs = [
+        convert_to_linux_slashes(convert_file_name(x, source_file))
+        for x in outputs]
+    return cmd, description, outputs
