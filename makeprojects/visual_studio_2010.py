@@ -127,54 +127,54 @@ def generate_solution_file(solution_lines, solution):
 
     headers = {
         IDETypes.vs2003: (
-            'Microsoft Visual Studio Solution File, Format Version 8.00',
+            "Microsoft Visual Studio Solution File, Format Version 8.00",
         ),
         IDETypes.vs2005: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 9.00',
-            '# Visual Studio 2005'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 9.00",
+            "# Visual Studio 2005"),
         IDETypes.vs2008: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 10.00',
-            '# Visual Studio 2008'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 10.00",
+            "# Visual Studio 2008"),
         IDETypes.vs2010: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 11.00',
-            '# Visual Studio 2010'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 11.00",
+            "# Visual Studio 2010"),
         IDETypes.vs2012: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 2012'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio 2012"),
         IDETypes.vs2013: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 2013',
-            'VisualStudioVersion = 12.0.31101.0',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio 2013",
+            "VisualStudioVersion = 12.0.31101.0",
+            "MinimumVisualStudioVersion = 10.0.40219.1"),
         IDETypes.vs2015: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 14',
-            'VisualStudioVersion = 14.0.25123.0',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio 14",
+            "VisualStudioVersion = 14.0.25123.0",
+            "MinimumVisualStudioVersion = 10.0.40219.1"),
         IDETypes.vs2017: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio 15',
-            'VisualStudioVersion = 15.0.28307.645',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio 15",
+            "VisualStudioVersion = 15.0.28307.645",
+            "MinimumVisualStudioVersion = 10.0.40219.1"),
         IDETypes.vs2019: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio Version 16',
-            'VisualStudioVersion = 16.0.28803.452',
-            'MinimumVisualStudioVersion = 10.0.40219.1'),
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio Version 16",
+            "VisualStudioVersion = 16.0.28803.452",
+            "MinimumVisualStudioVersion = 10.0.40219.1"),
         IDETypes.vs2022: (
-            '',
-            'Microsoft Visual Studio Solution File, Format Version 12.00',
-            '# Visual Studio Version 17',
-            'VisualStudioVersion = 17.1.32210.238',
-            'MinimumVisualStudioVersion = 10.0.40219.1')
+            "",
+            "Microsoft Visual Studio Solution File, Format Version 12.00",
+            "# Visual Studio Version 17",
+            "VisualStudioVersion = 17.1.32210.238",
+            "MinimumVisualStudioVersion = 10.0.40219.1")
     }
 
     # Insert the header to the output stream
@@ -693,7 +693,7 @@ class VS2010Globals(VS2010XML):
 
         ## Parent project
         self.project = project
-        VS2010XML.__init__(self, 'PropertyGroup', {'Label': 'Globals'})
+        VS2010XML.__init__(self, "PropertyGroup", {"Label": "Globals"})
 
         ide = project.ide
 
@@ -706,32 +706,45 @@ class VS2010Globals(VS2010XML):
                     break
 
         self.add_tags((
-            ('ProjectName', project.name),
-            ('ProjectGuid', '{{{}}}'.format(project.vs_uuid))
+            ("ProjectName", project.name),
+            ("ProjectGuid", "{{{}}}".format(project.vs_uuid))
         ))
 
         if found_android:
             self.add_tags((
-                ('Keyword', 'Android'),
-                ('MinimumVisualStudioVersion', '14.0'),
-                ('ApplicationType', 'Android'),
-                ('ApplicationTypeRevision', '3.0')
+                ("Keyword", "Android"),
+                ("MinimumVisualStudioVersion", "14.0"),
+                ("ApplicationType", "Android"),
+                ("ApplicationTypeRevision", "3.0")
             ))
         else:
-            platform_version = None
-            if ide >= IDETypes.vs2019:
-                platform_version = '10.0'
-            elif ide >= IDETypes.vs2015:
+            # Was there an override?
+            platform_version = project.vs_platform_version
 
-                # Special case if using the Xbox ONE toolset
-                for configuration in project.configuration_list:
-                    if configuration.platform is PlatformTypes.xboxone:
-                        platform_version = '8.1'
-                        break
-                else:
-                    platform_version = '10.0.18362.0'
+            # Create a default
+            if platform_version is None:
 
-            self.add_tag("WindowsTargetPlatformVersion", platform_version)
+                # Visual Studio 2019 and higher allows using "Latest"
+                # SDK
+                if ide in (IDETypes.vs2019, IDETypes.vs2022):
+                    platform_version = "10.0"
+
+                # Visual Studio 2015-2017 require explicit SDK
+                elif ide in (IDETypes.vs2015, IDETypes.vs2017):
+
+                    # Special case if using the Xbox ONE toolset
+                    # The Xbox ONE XDK requires 8.1, the GDK does not
+                    for configuration in project.configuration_list:
+                        if configuration.platform is PlatformTypes.xboxone:
+                            platform_version = "8.1"
+                            break
+                    else:
+                        # Set to the latest installed with 2017
+                        platform_version = "10.0.17763.0"
+
+            self.add_tag(
+                "WindowsTargetPlatformVersion",
+                platform_version)
 
 
 ########################################

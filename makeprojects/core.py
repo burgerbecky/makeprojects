@@ -19,11 +19,12 @@ from operator import attrgetter
 from copy import deepcopy
 from burger import get_windows_host_type, convert_to_windows_slashes, \
     convert_to_linux_slashes, is_string, translate_to_regex_match, \
-    StringListProperty, BooleanProperty, NoneProperty
+    StringListProperty, BooleanProperty, NoneProperty, StringProperty
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     platformtype_short_code
-from .defaults import settings_from_name, configuration_presets
+from .defaults import settings_from_name, configuration_presets, \
+    project_presets
 from .util import validate_enum_type, regex_dict, validate_boolean, \
     validate_string
 
@@ -617,6 +618,7 @@ class Configuration(Attributes):
     - ``vs_props`` See Project.vs_props
     - ``vs_targets`` See Project.vs_targets
     - ``vs_rules`` See Project.vs_rules
+    - ``vs_platform_version`` See Project.vs_platform_version
 
     Attributes:
         name: Name of the configuration
@@ -625,6 +627,7 @@ class Configuration(Attributes):
         vs_props: Don't allow Visual Studio props files
         vs_targets: Don't allow Visual Studio targets files
         vs_rules: Don't allow Visual Studio rules files
+        vs_platform_version: Visual Studio platform SDK version
         project: Project this Configuration is attached to.
         ide: Get the @ref makeprojects.enums.IDETypes of the parent (Read only)
         short_code: Short config string for file name suffix
@@ -639,6 +642,7 @@ class Configuration(Attributes):
     vs_props = NoneProperty("_vs_props")
     vs_targets = NoneProperty("_vs_targets")
     vs_rules = NoneProperty("_vs_rules")
+    vs_platform_version = NoneProperty("_vs_platform_version")
 
     def __init__(self, name, platform):
         """
@@ -807,6 +811,7 @@ class Project(Attributes):
         vs_props: List of props files for Visual Studio
         vs_targets: List of targets file for Visual Studio
         vs_rules: List of rules file for Visual Studio 2005-2008
+        vs_platform_version: Visual Studio platform SDK version
         name: Project name
         working_directory: Working directory for the project
         solution: No parent solution yet
@@ -827,6 +832,7 @@ class Project(Attributes):
     vs_props = StringListProperty("_vs_props")
     vs_targets = StringListProperty("_vs_targets")
     vs_rules = StringListProperty("_vs_rules")
+    vs_platform_version = StringProperty("_vs_platform_version")
 
     def __init__(self, name=None, **kargs):
         """
@@ -845,6 +851,7 @@ class Project(Attributes):
         self.vs_props = []
         self.vs_targets = []
         self.vs_rules = []
+        self.vs_platform_version = None
 
         working_directory = os.getcwd()
 
@@ -1014,10 +1021,13 @@ class Project(Attributes):
             build_rules_list: List to append a valid build_rules file instance.
         """
 
+        # Set up the default entries
+        project_presets(project=self)
+
         for build_rules in build_rules_list:
-            project_settings = getattr(build_rules, "project_settings", None)
-            if callable(project_settings):
-                result = project_settings(project=self)
+            settings = getattr(build_rules, "project_settings", None)
+            if callable(settings):
+                result = settings(project=self)
                 # Must test for zero, since None is a break.
                 if result is not None:
                     break
@@ -1227,6 +1237,7 @@ class Solution(Attributes):
         vs_props: Don't allow Visual Studio props files
         vs_targets: Don't allow Visual Studio targets files
         vs_rules: Don't allow Visual Studio rules files
+        vs_platform_version: Visual Studio platform SDK version
         perforce: Boolean for using perforce
         verbose: Boolean for verbose output
         suffix_enable: Boolean for enabling unique suffixes
@@ -1248,6 +1259,7 @@ class Solution(Attributes):
     vs_props = NoneProperty("_vs_props")
     vs_targets = NoneProperty("_vs_targets")
     vs_rules = NoneProperty("_vs_rules")
+    vs_platform_version = NoneProperty("_vs_platform_version")
     perforce = BooleanProperty("_perforce")
     verbose = BooleanProperty("_verbose")
     suffix_enable = BooleanProperty("_suffix_enable")

@@ -4782,6 +4782,9 @@ def generate(solution):
         # Convert to a text file
         project_lines = exporter.generate(ide=solution.ide)
 
+        # Handle any post processing
+        project_lines = solution.post_process(project_lines)
+
         # Save the text
         save_text_file_if_newer(
             os.path.join(

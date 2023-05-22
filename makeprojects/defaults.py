@@ -97,6 +97,21 @@ def settings_from_name(configuration):
             setattr(configuration, item[0], item[1])
     return configuration
 
+########################################
+
+
+def project_presets(project):
+    """
+    Set the default settings for a project.
+
+    Scan a project for a platform and an ide and set up compiler macros
+    and other settings that are default for the specific platform.
+
+    Args:
+        project: Project record to update.
+    """
+
+    return None
 
 ########################################
 
@@ -177,11 +192,18 @@ def configuration_presets(configuration):
             define_list.append("__ORBIS2__")
 
             # Include default libraries
-            libraries_list.extend(("SceSysmodule_stub_weak", "ScePosix_stub_weak",
-                                  "SceVideoOut_stub_weak", "ScePad_stub_weak",
-                                  "SceVideodec2_stub_weak", "SceAudiodec_stub_weak",
-                                  "SceAudioOut_stub_weak", "SceGnmDriver_stub_weak",
-                                  "SceGnm", "SceGnmx", "SceGpuAddress"))
+            libraries_list.extend((
+                "SceSysmodule_stub_weak",
+                "ScePosix_stub_weak",
+                "SceVideoOut_stub_weak",
+                "ScePad_stub_weak",
+                "SceVideodec2_stub_weak",
+                "SceAudiodec_stub_weak",
+                "SceAudioOut_stub_weak",
+                "SceGnmDriver_stub_weak",
+                "SceGnm",
+                "SceGnmx",
+                "SceGpuAddress"))
 
         # Playstation 5 (Not needed)
         # if platform is PlatformTypes.ps5:
@@ -319,7 +341,8 @@ def configuration_presets(configuration):
 ########################################
 
 
-def get_project_name(build_rules_list, working_directory, verbose=False, project_name=None):
+def get_project_name(build_rules_list, working_directory,
+                     verbose=False, project_name=None):
     """
     Determine the project name.
 
@@ -384,8 +407,8 @@ def get_project_type(build_rules_list, verbose=False, project_type=None):
         if not isinstance(project_type, ProjectTypes):
             item = ProjectTypes.lookup(project_type)
             if not isinstance(item, ProjectTypes):
-                print("Project Type \"{}\" is not supported, using \"tool\".".format(
-                    project_type))
+                print(
+                    "Project Type \"{}\" is not supported, using \"tool\".".format(project_type))
                 project_type = ProjectTypes.tool
             else:
                 project_type = item
@@ -430,8 +453,8 @@ def get_platform(build_rules_list, verbose=False, platform=None):
         if not isinstance(platform, PlatformTypes):
             item = PlatformTypes.lookup(platform)
             if not isinstance(item, PlatformTypes):
-                print("Platform Type \"{}\" is not supported, using a default.".format(
-                    platform))
+                print(
+                    "Platform Type \"{}\" is not supported, using a default.".format(platform))
                 platform = PlatformTypes.default()
             else:
                 platform = item
@@ -471,7 +494,8 @@ def guess_ide(platform):
     if platform is PlatformTypes.wiiu:
         return IDETypes.vs2013
 
-    if platform in (PlatformTypes.ps3, PlatformTypes.vita, PlatformTypes.shield):
+    if platform in (PlatformTypes.ps3, PlatformTypes.vita,
+                    PlatformTypes.shield):
         return IDETypes.vs2015
 
     if platform in (PlatformTypes.xboxone, PlatformTypes.switch):
@@ -529,8 +553,8 @@ def get_ide(build_rules_list, verbose=False, ide=None, platform=None):
             if not isinstance(item, IDETypes):
                 ide = guess_ide(platform)
                 if not ide:
-                    print("IDE Type \"{}\" is not supported, using a default.".format(
-                        ide))
+                    print(
+                        "IDE Type \"{}\" is not supported, using a default.".format(ide))
                     ide = IDETypes.default()
             else:
                 ide = item
@@ -559,7 +583,8 @@ def default_configuration_list(platform, ide):
 
     # Xbox and Windows support link time code generation
     # as a platform
-    if ide.is_visual_studio() and platform.is_windows() or platform in (PlatformTypes.xbox360,):
+    if ide.is_visual_studio() and platform.is_windows(
+    ) or platform in (PlatformTypes.xbox360,):
         results.append("Release_LTCG")
 
     # Configurations specific to the Xbox 360
