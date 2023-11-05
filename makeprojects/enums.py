@@ -175,10 +175,11 @@ class FileTypes(IntEnum):
     a65 = 21
     ppc = 22
     a68 = 23
-    image = 24
-    ico = 25
-    icns = 26
-    appxmanifest = 27
+    s = 24
+    image = 25
+    ico = 26
+    icns = 27
+    appxmanifest = 28
 
     @staticmethod
     def lookup(test_name):
@@ -263,6 +264,7 @@ _FILETYPES_LOOKUP = {
     "a65": FileTypes.a65,               # 6502/65816 source code
     "ppc": FileTypes.ppc,               # PowerPC source code
     "a68": FileTypes.a68,               # 680x0 source code
+    "s": FileTypes.s,                   # Generic assembly code
     "ico": FileTypes.ico,               # Windows icon file
     "icns": FileTypes.icns,             # Mac OSX Icon file
     "png": FileTypes.image,             # Art files
@@ -304,6 +306,7 @@ _FILETYPES_READABLE = {
     FileTypes.a65: "6502/65816 assembly file",
     FileTypes.ppc: "PowerPC assembly file",
     FileTypes.a68: "680x0 assembly file",
+    FileTypes.s: "Generic assembly file",
     FileTypes.image: "Image file",
     FileTypes.ico: "Windows Icon file",
     FileTypes.icns: "macOS Icon file",
@@ -340,6 +343,39 @@ def source_file_filter(file_list, file_type_list):
             if item.type in file_type_list:
                 result_list.append(item)
     return result_list
+
+########################################
+
+
+def source_file_detect(file_list, file_type_list):
+    """
+    Detect if a file of a specific type exists
+
+    Note: file_type_list can either be a single enums.FileTypes enum or an
+        iterable list of enums.FileTypes
+
+    Args:
+        file_list: list of core.SourceFile entries.
+        file_type_list: enums.FileTypes to match.
+    Returns:
+        True if the FileTypes was found, False if not
+    """
+
+    # If a single item was passed, use a simple loop
+    if isinstance(file_type_list, FileTypes):
+        for item in file_list:
+            if item.type is file_type_list:
+
+                # Matched!
+                return True
+    else:
+        # A list was passed, so test against the list
+        for item in file_list:
+            if item.type in file_type_list:
+
+                # Matched!
+                return True
+    return False
 
 ########################################
 
@@ -611,7 +647,8 @@ class IDETypes(IntEnum):
         return self in (
             IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
             IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
-            IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14)
+            IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13,
+            IDETypes.xcode14)
 
     ########################################
 
@@ -897,9 +934,9 @@ class PlatformTypes(IntEnum):
         macosxintel64: Mac OSX Intel 64 bit only
         macosxarm64: Mac OSX ARM 64 bit only
 
-        macos9: Mac OS 9, all CPUs
-        macos968k: Mac OS 9 680x0 only
-        macos9ppc: Mac OS 9 PowerPC 32 bit only
+        macos: Mac OS 7-9, all CPUs
+        macos68k: Mac OS 7-9 680x0 only
+        macosppc: Mac OS 7-9 PowerPC 32 bit only
         maccarbon: Mac OS Carbon, all CPUs
         maccarbon68k: Mac OS Carbon 680x0 only (CFM)
         maccarbonppc: Mac OS Carbon PowerPC 32 bit only
@@ -957,79 +994,87 @@ class PlatformTypes(IntEnum):
 
     # pylint: disable=too-many-public-methods
 
-    windows = 0
-    windowsintel = 1
-    windowsarm = 2
-    win32 = 3
-    win64 = 4
-    winarm32 = 5
-    winarm64 = 6
-    winitanium = 7
+    msdos = 0
+    msdos4gw = 1
+    msdosx32 = 2
 
-    macosx = 8
-    macosxppc32 = 9
-    macosxppc64 = 10
-    macosxintel32 = 11
-    macosxintel64 = 12
-    macosxarm64 = 13
+    beos = 3
 
-    macos9 = 14
-    macos968k = 15
-    macos9ppc = 16
-    maccarbon = 17
-    maccarbon68k = 18
-    maccarbonppc = 19
+    iigs = 4
 
-    ios = 20
-    ios32 = 21
-    ios64 = 22
-    iosemu = 23
-    iosemu32 = 24
-    iosemu64 = 25
+    xbox = 5
+    xbox360 = 6
+    xboxone = 7
+    xboxgdk = 8
+    xboxonex = 9
 
-    xbox = 26
-    xbox360 = 27
-    xboxone = 28
-    xboxgdk = 29
-    xboxonex = 30
+    ps1 = 10
+    ps2 = 11
+    ps3 = 12
+    ps4 = 13
+    ps5 = 14
+    psp = 15
+    vita = 16
 
-    ps1 = 31
-    ps2 = 32
-    ps3 = 33
-    ps4 = 34
-    ps5 = 35
-    psp = 36
-    vita = 37
+    wii = 17
+    wiiu = 18
+    switch = 19
+    switch32 = 20
+    switch64 = 21
 
-    wii = 38
-    wiiu = 39
-    switch = 40
-    switch32 = 41
-    switch64 = 42
+    dsi = 22
+    ds = 23
 
-    dsi = 43
-    ds = 44
+    windows = 24
+    windowsintel = 25
+    windowsarm = 26
+    win32 = 27
+    win64 = 28
+    winarm32 = 29
+    winarm64 = 30
+    winitanium = 31
 
-    stadia = 45
-    android = 46
-    shield = 47
-    amico = 48
-    ouya = 49
-    tegra = 50
-    androidarm32 = 51
-    androidarm64 = 52
-    androidintel32 = 53
-    androidintel64 = 54
+    macosx = 32
+    macosxppc32 = 33
+    macosxppc64 = 34
+    macosxintel32 = 35
+    macosxintel64 = 36
+    macosxarm64 = 37
 
-    linux = 55
+    ios = 38
+    iosemu = 39
+    ios32 = 40
+    ios64 = 41
+    iosemu32 = 42
+    iosemu64 = 43
 
-    msdos = 56
-    msdos4gw = 57
-    msdosx32 = 58
+    mac = 44
+    mac68k = 45
+    macppc = 46
+    macclassic = 47
+    maccarbon = 48
 
-    beos = 59
+    mac68knear = 49
+    mac68knearfp = 50
+    mac68kfar = 51
+    mac68kfarfp = 52
+    mac68kcarbon = 53
 
-    iigs = 60
+    macppcclassic = 54
+    macppccarbon = 55
+
+    stadia = 56
+    android = 57
+    shield = 58
+    amico = 59
+    ouya = 60
+    tegra = 61
+    androidarm32 = 62
+    androidarm64 = 63
+    androidintel32 = 64
+    androidintel64 = 65
+
+    linux = 66
 
     def get_short_code(self):
         """
@@ -1069,8 +1114,9 @@ class PlatformTypes(IntEnum):
             True if the platform is for Xbox, Xbox 360, or Xbox ONE.
         """
 
-        return self in (PlatformTypes.xbox, PlatformTypes.xbox360,
-                        PlatformTypes.xboxone, PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
+        return self in (
+            PlatformTypes.xbox, PlatformTypes.xbox360, PlatformTypes.xboxone,
+            PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
 
     def is_xboxone(self):
         """
@@ -1080,7 +1126,8 @@ class PlatformTypes(IntEnum):
             True if the platform is for Xbox ONE.
         """
 
-        return self in (PlatformTypes.xboxone, PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
+        return self in (PlatformTypes.xboxone,
+                        PlatformTypes.xboxgdk, PlatformTypes.xboxonex)
 
     def is_microsoft(self):
         """
@@ -1136,6 +1183,27 @@ class PlatformTypes(IntEnum):
 
         return self.is_macos_classic() or self.is_macos_carbon()
 
+    def is_macos_68k(self):
+        """
+        Determine if the platform is MacOS 68K.
+
+        Returns:
+            True if Apple MacOS 1.0 through 8.1 using the 68k processor
+        """
+        return self in (PlatformTypes.mac68knear, PlatformTypes.mac68knearfp,
+                        PlatformTypes.mac68kfar, PlatformTypes.mac68kfarfp,
+                        PlatformTypes.mac68kcarbon, PlatformTypes.mac68k)
+
+    def is_macos_ppc(self):
+        """
+        Determine if the platform is MacOS PowerPC.
+
+        Returns:
+            True if Apple MacOS 7.0 through 9.2.2 using the PowerPC processor
+        """
+        return self in (PlatformTypes.macppcclassic, PlatformTypes.macppccarbon,
+                        PlatformTypes.macppc)
+
     def is_macos_carbon(self):
         """
         Determine if the platform is MacOS Carbon.
@@ -1143,8 +1211,8 @@ class PlatformTypes(IntEnum):
         Returns:
             True if the platform is Apple MacOS Carbon API.
         """
-        return self in (PlatformTypes.maccarbon, PlatformTypes.maccarbon68k,
-                        PlatformTypes.maccarbonppc)
+        return self in (PlatformTypes.maccarbon, PlatformTypes.mac68kcarbon,
+                        PlatformTypes.macppccarbon)
 
     def is_macos_classic(self):
         """
@@ -1153,8 +1221,11 @@ class PlatformTypes(IntEnum):
         Returns:
             True if the platform is Apple MacOS 1.0 through 9.2.2.
         """
-        return self in (PlatformTypes.macos9,
-                        PlatformTypes.macos968k, PlatformTypes.macos9ppc)
+        return self in (PlatformTypes.mac, PlatformTypes.macclassic,
+                        PlatformTypes.mac68k, PlatformTypes.macppc,
+                        PlatformTypes.mac68knear, PlatformTypes.mac68knearfp,
+                        PlatformTypes.mac68kfar, PlatformTypes.mac68kfarfp,
+                        PlatformTypes.macppcclassic)
 
     def is_msdos(self):
         """
@@ -1196,8 +1267,9 @@ class PlatformTypes(IntEnum):
         Returns:
             True if it's a Nintendo platform
         """
-        return self.is_switch() or self in (PlatformTypes.wii, PlatformTypes.wiiu,
-            PlatformTypes.ds, PlatformTypes.dsi)
+        return self.is_switch() or self in (
+            PlatformTypes.wii, PlatformTypes.wiiu, PlatformTypes.ds,
+            PlatformTypes.dsi)
 
     def is_sony(self):
         """
@@ -1289,7 +1361,19 @@ class PlatformTypes(IntEnum):
             return self.is_macosx() == second.is_macosx()
 
         # Test macos 1.0 - 9.2.2
-        if PlatformTypes.macos9 in (self, second):
+        if PlatformTypes.mac in (self, second):
+            return self.is_macos() == second.is_macos()
+
+        # Test macos 68K
+        if PlatformTypes.mac68k in (self, second):
+            return self.is_macos_68k() == second.is_macos_68k()
+
+        # Test macos PowerPC
+        if PlatformTypes.macppc in (self, second):
+            return self.is_macos_ppc() == second.is_macos_ppc()
+
+        # Test macos classic
+        if PlatformTypes.macclassic in (self, second):
             return self.is_macos_classic() == second.is_macos_classic()
 
         # Test macos Carbon
@@ -1390,7 +1474,10 @@ class PlatformTypes(IntEnum):
                             return item
 
             specials = {
-                "macos": PlatformTypes.macos9,
+                "macos": PlatformTypes.macosx,
+                "macos7": PlatformTypes.mac,
+                "macos8": PlatformTypes.mac,
+                "macos9": PlatformTypes.macppc,
                 "carbon": PlatformTypes.maccarbon,
                 "scarlett": PlatformTypes.xboxonex
             }
@@ -1457,12 +1544,18 @@ _PLATFORMTYPES_CODES = {
     PlatformTypes.macosxintel32: "osxx86",
     PlatformTypes.macosxintel64: "osxx64",
     PlatformTypes.macosxarm64: "osxa64",
-    PlatformTypes.macos9: "mac",            # Mac OS targets (Pre-OSX)
-    PlatformTypes.macos968k: "mac68k",
-    PlatformTypes.macos9ppc: "macppc",
+    PlatformTypes.mac: "mac",            # Mac OS targets (Pre-OSX)
+    PlatformTypes.mac68k: "mac68k",
+    PlatformTypes.macppc: "macppc",
+    PlatformTypes.macclassic: "mac",
     PlatformTypes.maccarbon: "car",
-    PlatformTypes.maccarbon68k: "car68k",
-    PlatformTypes.maccarbonppc: "carppc",
+    PlatformTypes.mac68knear: "mac68k",
+    PlatformTypes.mac68knearfp: "mac68kfp",
+    PlatformTypes.mac68kfar: "mac68kfar",
+    PlatformTypes.mac68kfarfp: "mac68kfarfp",
+    PlatformTypes.mac68kcarbon: "car68k",
+    PlatformTypes.macppcclassic: "macppc",
+    PlatformTypes.macppccarbon: "carppc",
     PlatformTypes.ios: "ios",               # iOS targets
     PlatformTypes.ios32: "iosa32",
     PlatformTypes.ios64: "iosa64",
@@ -1573,12 +1666,18 @@ _PLATFORMTYPES_READABLE = {
     PlatformTypes.macosxarm64: "Apple macOS ARM 64",
 
     # Mac OS targets (Pre-OSX)
-    PlatformTypes.macos9: "Apple MacOS 9 PPC and 68k",
-    PlatformTypes.macos968k: "Apple MacOS 9 68k",
-    PlatformTypes.macos9ppc: "Apple MacOS 9 PowerPC 32",
+    PlatformTypes.mac: "Apple MacOS PPC and 68k",
+    PlatformTypes.mac68k: "Apple MacOS 68k",
+    PlatformTypes.macppc: "Apple MacOS PowerPC",
+    PlatformTypes.macclassic: "Apple MacOS Classic",
     PlatformTypes.maccarbon: "Apple MacOS Carbon",
-    PlatformTypes.maccarbon68k: "Apple MacOS Carbon 68k",
-    PlatformTypes.maccarbonppc: "Apple MacOS Carbon PowerPC 32",
+    PlatformTypes.mac68knear: "Apple MacOS 68k",
+    PlatformTypes.mac68knearfp: "Apple MacOS 68k w/68881",
+    PlatformTypes.mac68kfar: "Apple MacOS 68k far",
+    PlatformTypes.mac68kfarfp: "Apple MacOS 68k far w/68881",
+    PlatformTypes.mac68kcarbon: "Apple MacOS CFM 68k",
+    PlatformTypes.macppcclassic: "Apple MacOS Classic PowerPC",
+    PlatformTypes.macppccarbon: "Apple MacOS Carbon PowerPC",
 
     # iOS targets
     PlatformTypes.ios: "Apple iOS",
@@ -1660,12 +1759,32 @@ _PLATFORMTYPES_EXPANDED = {
         PlatformTypes.macosxintel32,
         PlatformTypes.macosxintel64,
         PlatformTypes.macosxarm64),
-    PlatformTypes.macos9: (
-        PlatformTypes.macos968k,
-        PlatformTypes.macos9ppc),
+    PlatformTypes.mac: (
+        PlatformTypes.mac68knear,
+        PlatformTypes.mac68knearfp,
+        PlatformTypes.mac68kfar,
+        PlatformTypes.mac68kfarfp,
+        PlatformTypes.mac68kcarbon,
+        PlatformTypes.macppcclassic,
+        PlatformTypes.macppccarbon),
+    PlatformTypes.mac68k: (
+        PlatformTypes.mac68knear,
+        PlatformTypes.mac68knearfp,
+        PlatformTypes.mac68kfar,
+        PlatformTypes.mac68kfarfp,
+        PlatformTypes.mac68kcarbon),
+    PlatformTypes.macppc: (
+        PlatformTypes.macppcclassic,
+        PlatformTypes.macppccarbon),
+    PlatformTypes.macclassic: (
+        PlatformTypes.mac68knear,
+        PlatformTypes.mac68knearfp,
+        PlatformTypes.mac68kfar,
+        PlatformTypes.mac68kfarfp,
+        PlatformTypes.macppcclassic),
     PlatformTypes.maccarbon: (
-        PlatformTypes.maccarbon68k,
-        PlatformTypes.maccarbonppc),
+        PlatformTypes.mac68kcarbon,
+        PlatformTypes.macppccarbon),
     PlatformTypes.ios: (
         PlatformTypes.ios32,
         PlatformTypes.ios64),
@@ -1832,5 +1951,7 @@ def add_burgerlib(configuration):
         lib_dir = "$(BURGER_SDKS)/{}/burgerlib".format(
             platform.get_platform_folder())
         configuration.include_folders_list.append(lib_dir)
+
+    configuration.env_variable_list.append("BURGER_SDKS")
 
     return 0

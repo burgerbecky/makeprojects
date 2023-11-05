@@ -247,6 +247,9 @@ def configuration_presets(configuration):
             libraries_list.extend(
                 ["pixEvt.lib", "d3d11_x.lib", "combase.lib", "kernelx.lib",
                  "uuid.lib", "%(XboxExtensionsDependencies)"])
+            define_list.extend(["_XM_F16C_INTRINSICS_",
+                                "WINAPI_FAMILY=WINAPI_FAMILY_TV_TITLE",
+                                "__WRL_NO_DEFAULT_LIB__"])
 
         # Nintendo DSI specific defines
         if platform is PlatformTypes.dsi:
@@ -269,10 +272,16 @@ def configuration_presets(configuration):
 
         # Nintendo WiiU
         if platform is PlatformTypes.wiiu:
-            configuration.include_folders_list.append(
-                "$(CAFE_ROOT_DOS)\\system\\src\\tool\\gfx\\include")
-            configuration.include_folders_list.append(
-                "$(CAFE_ROOT_DOS)\\system\\include")
+            configuration.include_folders_list.extend((
+                "$(CAFE_ROOT)\\system\\src\\tool\\gfx\\include",
+                "$(CAFE_ROOT)\\system\\include"))
+            libraries_list.append("nn_act.a")
+            if configuration.debug:
+                configuration.library_folders_list.append(
+                    "$(CAFE_ROOT)\\system\\lib\\ghs\\cafe\\DEBUG")
+            else:
+                configuration.library_folders_list.append(
+                    "$(CAFE_ROOT)\\system\\lib\\ghs\\cafe\\NDEBUG")
 
         # Nintendo Switch
         if platform.is_switch():
@@ -293,13 +302,17 @@ def configuration_presets(configuration):
                 define_list.append("NN_ENABLE_ASSERT")
                 define_list.append("NN_ENABLE_ABORT_MESSAGE")
                 if configuration.optimization:
+                    configuration.switch_build_type = "Develop"
                     define_list.append("NN_SDK_BUILD_DEVELOP")
                 else:
+                    configuration.switch_build_type = "Debug"
                     define_list.append("NN_SDK_BUILD_DEBUG")
             else:
+                configuration.switch_build_type = "Release"
                 define_list.append("NN_SDK_BUILD_RELEASE")
                 define_list.append("NN_DISABLE_ASSERT")
                 define_list.append("NN_DISABLE_ABORT_MESSAGE")
+            define_list.append("ALLOW_OLD_MEM_FUNCS")
 
         # Linux platform
         if platform is PlatformTypes.linux:
@@ -408,7 +421,9 @@ def get_project_type(build_rules_list, verbose=False, project_type=None):
             item = ProjectTypes.lookup(project_type)
             if not isinstance(item, ProjectTypes):
                 print(
-                    "Project Type \"{}\" is not supported, using \"tool\".".format(project_type))
+                    "Project Type \"{}\" is not supported, "
+                    "using \"tool\".".format(
+                        project_type))
                 project_type = ProjectTypes.tool
             else:
                 project_type = item
@@ -454,7 +469,8 @@ def get_platform(build_rules_list, verbose=False, platform=None):
             item = PlatformTypes.lookup(platform)
             if not isinstance(item, PlatformTypes):
                 print(
-                    "Platform Type \"{}\" is not supported, using a default.".format(platform))
+                    "Platform Type \"{}\" is not supported, "
+                    "using a default.".format(platform))
                 platform = PlatformTypes.default()
             else:
                 platform = item
@@ -554,7 +570,8 @@ def get_ide(build_rules_list, verbose=False, ide=None, platform=None):
                 ide = guess_ide(platform)
                 if not ide:
                     print(
-                        "IDE Type \"{}\" is not supported, using a default.".format(ide))
+                        "IDE Type \"{}\" is not supported, "
+                        "using a default.".format(ide))
                     ide = IDETypes.default()
             else:
                 ide = item

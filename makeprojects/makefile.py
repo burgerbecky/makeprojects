@@ -44,6 +44,7 @@ from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
 from .config import _MAKEFILE_MATCH
+from .watcom_util import get_custom_list, get_output_list
 
 # List of IDES this module supports
 SUPPORTED_IDES = (IDETypes.make,)
@@ -297,6 +298,9 @@ def generate(solution):
     if error:
         return error
 
+    # Handle any post processing
+    makefile_lines = solution.post_process(makefile_lines)
+
     # Save the file if it changed
     save_text_file_if_newer(
         os.path.join(solution.working_directory, solution.makefile_filename),
@@ -320,6 +324,8 @@ class MakeProject(object):
         platforms: List of all platform types
         configuration_list: List of all configurations
         configuration_names: List of configuration names
+        custom_list: List of custom built files
+        output_list: List of custom output files
     """
 
     def __init__(self, solution):
@@ -335,12 +341,19 @@ class MakeProject(object):
         self.configuration_list = []
         self.configuration_names = []
 
+        # Init the list of custom rules
+        custom_list = []
+
         # Process all the projects and configurations
         for project in solution.project_list:
 
             # Process the filenames
-            project.get_file_list((FileTypes.h, FileTypes.cpp,
-                                   FileTypes.c, FileTypes.x86))
+            project.get_file_list(
+                [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.x86,
+                 FileTypes.x64, FileTypes.glsl])
+
+            # Keep a copy of the filenames for now
+            codefiles = project.codefiles
 
             # Add to the master list
             self.configuration_list.extend(project.configuration_list)
@@ -362,6 +375,15 @@ class MakeProject(object):
                 if configuration.platform not in self.platforms:
                     self.platforms.append(configuration.platform)
 
+                # Get the rule list
+                rule_list = (configuration.custom_rules,
+                    configuration.parent.custom_rules,
+                    configuration.parent.parent.custom_rules)
+                get_custom_list(custom_list, rule_list, codefiles)
+
+        self.custom_list = custom_list
+        self.output_list = get_output_list(custom_list)
+
     ########################################
 
     def write_header(self, line_list):
@@ -377,9 +399,46 @@ class MakeProject(object):
         line_list.extend((
             "#",
             "# Build " + self.solution.name + " with make",
-            "#",
             "# Generated with makeprojects.makefile",
             "#"))
+        return 0
+
+    ########################################
+
+    def write_output_list(self, line_list):
+        """
+        Output the list of object files to create.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend([
+            "",
+            "#",
+            "# Custom output files",
+            "#",
+            ""
+        ])
+
+        # Get a list of custom files
+        output_list = self.output_list
+        if not output_list:
+            line_list.append("EXTRA_OBJS:=")
+            return 0
+
+        colon = "EXTRA_OBJS:= "
+        for item in output_list:
+            line_list.append(
+                colon +
+                convert_to_linux_slashes(
+                    item) + " \\")
+            colon = "\t"
+
+        # Remove the " &" from the last line
+        line_list[-1] = line_list[-1][:-2]
         return 0
 
     ########################################
@@ -558,6 +617,7 @@ class MakeProject(object):
                     "",
                     ".PHONY: clean_" + target_name,
                     "clean_" + target_name + ":",
+                    "\t@-rm -f $(EXTRA_OBJS)",
                     "\t@-rm -rf temp/" + bin_folder,
                     "\t@-rm -f bin/" + bin_name,
                     # Test if the directory is empty, if so, delete the
@@ -882,14 +942,13 @@ class MakeProject(object):
         for configuration in self.configuration_list:
             entries = ["AFlags" + configuration.make_name + ":="]
 
-            # Enable debug information
-            if configuration.debug:
-                entries.append("-g")
-
             # Add defines
             define_list = configuration.get_chained_list("define_list")
             for item in define_list:
-                entries.append("-D" + item)
+                if item.find("=") == -1:
+                    entries.append("--defsym " + item + "=1")
+                else:
+                    entries.append("--defsym " + item)
 
             line_list.append(" ".join(entries))
         return 0
@@ -986,6 +1045,18 @@ class MakeProject(object):
             "@echo $(<F) / $(CONFIG) / $(TARGET); \\",
             "$(CP) $(CFlags$(CONFIG)$(TARGET)) $< -o $@ "
             "-MT '$@' -MMD -MF '$*.d'",
+            "endef",
+            "",
+            "define BUILD_ASMX86=",
+            "@echo $(<F) / $(CONFIG) / $(TARGET); \\",
+            "$(AS) --defsym __i386__=1 $(AFlags$(CONFIG)$(TARGET)) $< -o $@ "
+            "-MD '$*.d'",
+            "endef",
+            "",
+            "define BUILD_ASMX64=",
+            "@echo $(<F) / $(CONFIG) / $(TARGET); \\",
+            "$(AS) --defsym __amd64__=1 $(AFlags$(CONFIG)$(TARGET)) $< -o $@ "
+            "-MD '$*.d'",
             "endef"
         ))
         return 0
@@ -1017,9 +1088,8 @@ class MakeProject(object):
             codefiles = []
 
         for item in codefiles:
-            if item.type is FileTypes.c or \
-                    item.type is FileTypes.cpp or \
-                    item.type is FileTypes.x86:
+            if item.type in (FileTypes.c, FileTypes.cpp,
+                             FileTypes.x86, FileTypes.x64):
 
                 tempfile = convert_to_linux_slashes(
                     item.relative_pathname)
@@ -1076,9 +1146,8 @@ class MakeProject(object):
             codefiles = []
 
         for item in codefiles:
-            if item.type is FileTypes.c or \
-                    item.type is FileTypes.cpp or \
-                    item.type is FileTypes.x86:
+            if item.type in (FileTypes.c, FileTypes.cpp,
+                             FileTypes.x86, FileTypes.x64):
 
                 entry = convert_to_linux_slashes(
                     item.relative_pathname)
@@ -1131,12 +1200,72 @@ class MakeProject(object):
                 build_cpp = "BUILD_CPP"
                 if item.endswith(".c"):
                     build_cpp = "BUILD_C"
+                elif item.endswith(".x86"):
+                    build_cpp = "BUILD_ASMX86"
+                elif item.endswith(".x64"):
+                    build_cpp = "BUILD_ASMX64"
 
                 line_list.extend(
                     ("",
                      "$(TEMP_DIR)/{0}.o: {1} ; $({2})".format(entry,
                         item, build_cpp)
                      ))
+        return 0
+
+    ########################################
+
+    def write_custom_files(self, line_list):
+        """
+        Output the list of object files to create.
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Get a list of custom files
+        output_list = self.output_list
+        if not output_list:
+            return 0
+
+        line_list.extend([
+            "",
+            "#",
+            "# Build custom files",
+            "#"
+        ])
+
+        output_list = list(self.output_list)
+        # Output the execution lines
+        while output_list:
+
+            output = output_list[0]
+
+            entry = None
+            for item in self.custom_list:
+                for output_test in item[2]:
+                    if output_test == output:
+                        entry = item
+                        break
+                if entry:
+                    break
+
+            else:
+                output_list.remove(output)
+                continue
+
+            line_list.append("")
+            line_list.append(
+                " ".join(entry[2]) + " : " +
+                convert_to_linux_slashes(
+                    entry[3].relative_pathname))
+            line_list.append("\t@echo " + entry[1])
+            line_list.append("\t@" + convert_to_linux_slashes(entry[0]))
+
+            for output_test in entry[2]:
+                output_list.remove(output_test)
+
         return 0
 
     ########################################
@@ -1172,7 +1301,7 @@ class MakeProject(object):
 
             line_list.append("")
             line_list.append(
-                "bin/" + binary_name + ": $(OBJS) " +
+                "bin/" + binary_name + ": $(EXTRA_OBJS) $(OBJS) " +
                 self.solution.makefile_filename + " | bin")
 
             # Invoke the proper linker for a library or exe
@@ -1246,6 +1375,7 @@ class MakeProject(object):
             line_list = []
 
         self.write_header(line_list)
+        self.write_output_list(line_list)
         self.write_default_goal(line_list)
         self.write_phony_targets(line_list)
         self.write_directory_targets(line_list)
@@ -1265,6 +1395,7 @@ class MakeProject(object):
         self.write_rules(line_list)
         self.write_files(line_list)
         self.write_all_target(line_list)
+        self.write_custom_files(line_list)
         self.write_builds(line_list)
 
         # Release the endif

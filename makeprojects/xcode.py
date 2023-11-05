@@ -25,14 +25,8 @@ Regex for matching files with *.xcodeproj
 @var makeprojects.xcode._XCODE_SUFFIXES
 List of filename suffixes for xcode versions
 
-@var makeprojects.xcode.TABS
-Default tab format for XCode
-
 @var makeprojects.xcode._TEMP_EXE_NAME
 Build executable pathname
-
-@var makeprojects.xcode._XCODESAFESET
-Valid characters for XCode strings without quoting
 
 @var makeprojects.xcode._PERFORCE_PATH
 Path of the perforce executable
@@ -42,21 +36,6 @@ Supported IDE codes for the XCode exporter
 
 @var makeprojects.xcode.OBJECT_VERSIONS
 Version values
-
-@var makeprojects.xcode.OBJECT_ORDER
-Order of XCode objects
-
-@var makeprojects.xcode.FLATTENED_OBJECTS
-List of XCode objects that flatten their children
-
-@var makeprojects.xcode.FILE_REF_LAST_KNOWN
-Dictionary for mapping FileTypes to XCode file types
-
-@var makeprojects.xcode.FILE_REF_DIR
-Map of root directories
-
-@var makeprojects.xcode.XCBUILD_FLAGS
-List of XCBuildConfiguration settings for compilation
 """
 
 # pylint: disable=too-many-arguments
@@ -68,21 +47,23 @@ List of XCBuildConfiguration settings for compilation
 
 from __future__ import absolute_import, print_function, unicode_literals
 
-import hashlib
 import os
 import sys
-import string
+
 from re import compile as re_compile
 from operator import attrgetter, itemgetter
 
 from burger import create_folder_if_needed, save_text_file_if_newer, \
-    convert_to_windows_slashes, convert_to_linux_slashes, PY2, \
+    convert_to_linux_slashes, PY2, \
     get_mac_host_type, where_is_xcode, run_command
-from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes
+from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
+    source_file_detect
 from .core import SourceFile, Configuration, Project
 from .config import _XCODEPROJECT_FILE
 from .build_objects import BuildError, BuildObject
-from .xcode_utils import get_sdk_root
+from .xcode_utils import get_sdk_root, calcuuid, JSONDict, JSONEntry, \
+    JSONArray, JSONObjects, PBXBuildRuleGLSL, PBXFileReference, \
+    PBXShellScriptBuildPhase, PBXBuildFile, PBXGroup
 
 # Notes for macOS:
 # Xcode 3 is the only one that builds PowerPC
@@ -103,32 +84,19 @@ _XCODE_SUFFIXES = (
     ("x12", 12), ("x13", 13)
 )
 
-# Default tab format for XCode
-TABS = "\t"
-
 # Build executable pathname
 _TEMP_EXE_NAME = "${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}"
-
-# Valid characters for XCode strings without quoting
-_XCODESAFESET = frozenset(string.ascii_letters + string.digits + "_$./")
 
 # Path of the perforce executable
 _PERFORCE_PATH = "/opt/local/bin/p4"
 
 # Supported IDE codes for the XCode exporter
 SUPPORTED_IDES = (
-    IDETypes.xcode3,
-    IDETypes.xcode4,
-    IDETypes.xcode5,
-    IDETypes.xcode6,
-    IDETypes.xcode7,
-    IDETypes.xcode8,
-    IDETypes.xcode9,
-    IDETypes.xcode10,
-    IDETypes.xcode11,
-    IDETypes.xcode12,
-    IDETypes.xcode13,
-    IDETypes.xcode14)
+    IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5,
+    IDETypes.xcode6, IDETypes.xcode7, IDETypes.xcode8,
+    IDETypes.xcode9, IDETypes.xcode10, IDETypes.xcode11,
+    IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14
+)
 
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
 OBJECT_VERSIONS = {
@@ -148,597 +116,12 @@ OBJECT_VERSIONS = {
     IDETypes.xcode14: ("56", "1400", "Xcode 14.0", None)
 }
 
-# This is the order of XCode chunks that match the way
-# that XCode outputs them.
-OBJECT_ORDER = (
-    "PBXAggregateTarget",
-    "PBXBuildFile",
-    "PBXBuildRule",
-    "PBXContainerItemProxy",
-    "PBXCopyFilesBuildPhase",
-    "PBXFileReference",
-    "PBXFrameworksBuildPhase",
-    "PBXGroup",
-    "PBXNativeTarget",
-    "PBXProject",
-    "PBXReferenceProxy",
-    "PBXResourcesBuildPhase",
-    "PBXShellScriptBuildPhase",
-    "PBXSourcesBuildPhase",
-    "PBXTargetDependency",
-    "XCBuildConfiguration",
-    "XCConfigurationList"
-)
-
-# List of XCode objects that flatten their children
-FLATTENED_OBJECTS = (
-    "PBXBuildFile",
-    "PBXFileReference"
-)
-
-# Dictionary for mapping FileTypes to XCode file types
-FILE_REF_LAST_KNOWN = {
-    FileTypes.library: None,
-    FileTypes.exe: None,
-    FileTypes.frameworks: "wrapper.framework",
-    FileTypes.glsl: "sourcecode.glsl",
-    FileTypes.xml: "text.xml",
-    FileTypes.xcconfig: "text.xcconfig",
-    FileTypes.cpp: "sourcecode.cpp.objcpp",
-    FileTypes.c: "source.c.c",
-    FileTypes.h: "sourcecode.c.h"
-}
-
-# Map of root directories
-FILE_REF_DIR = {
-    FileTypes.library: "BUILT_PRODUCTS_DIR",
-    FileTypes.exe: "BUILT_PRODUCTS_DIR",
-    FileTypes.frameworks: "SDKROOT",
-    FileTypes.cpp: "SOURCE_ROOT",
-    FileTypes.c: "SOURCE_ROOT"
-}
-
-# Name / type / default
-XCBUILD_FLAGS = (
-    # Locations of any sparse SDKs
-    ("ADDITIONAL_SDKS", "string", None),
-
-    # Group permission of deployment
-    ("ALTERNATE_GROUP", "string", None),
-
-    # File permissions of deployment
-    ("ALTERNATE_MODE", "string", None),
-
-    # Owner permission of deployment
-    ("ALTERNATE_OWNER", "string", None),
-
-    # Specific files to apply deployment permissions
-    ("ALTERNATE_PERMISSIONS_FILES", "string", None),
-
-    # Always search user paths in C++
-    ("ALWAYS_SEARCH_USER_PATHS", "boolean", None),
-
-    # Copy Files Build Phase will plist and strings to encoding
-    ("APPLY_RULES_IN_COPY_FILES", "boolean", None),
-
-    # Default CPUs
-    ("ARCHS", "stringarray", None),
-
-    # List of build variants
-    ("BUILD_VARIANTS", "stringarray", None),
-
-    # Name of executable that loads the bundle
-    ("BUNDLE_LOADER", "string", None),
-
-    # Name of the code signing certificate
-    ("CODE_SIGN_IDENTITY", "string", None),
-
-    # Path to property list containing rules for signing
-    ("CODE_SIGN_RESOURCE_RULES_PATH", "string", None),
-
-    # Path for build products
-    ("CONFIGURATION_BUILD_DIR", "string",
-     "$(SYMROOT)/$(PRODUCT_NAME)"),
-
-    # Path for temp files
-    ("CONFIGURATION_TEMP_DIR", "string",
-     "$(SYMROOT)/$(PRODUCT_NAME)"),
-
-    # Does copying preserve classic mac resource forks?
-    ("COPYING_PRESERVES_HFS_DATA", "boolean", None),
-
-    # Strip debug symbols?
-    ("COPY_PHASE_STRIP", "boolean", None),
-
-    # Numeric project version
-    ("CURRENT_PROJECT_VERSION", "string", None),
-
-    # Strip dead code?
-    ("DEAD_CODE_STRIPPING", "boolean", "YES"),
-
-    # Type of debug symbols
-    ("DEBUG_INFORMATION_FORMAT", "string", "dwarf"),
-
-    # Are there valid deployment location settings?
-    ("DEPLOYMENT_LOCATION", "boolean", None),
-
-    # Process deployment files
-    ("DEPLOYMENT_POSTPROCESSING", "boolean", None),
-
-    # Destination root folder for deployment
-    ("DSTROOT", "string", None),
-
-    # Compatible version of the dynamic library
-    ("DYLIB_COMPATIBILITY_VERSION", "string", None),
-
-    # Numeric version of the dynamic library
-    ("DYLIB_CURRENT_VERSION", "string", None),
-
-    # Enable OpenMP
-    ("ENABLE_OPENMP_SUPPORT", "boolean", None),
-
-    # Files and folders to ignore on search.
-    ("EXCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES", "string", None),
-
-    # Extension for executables
-    ("EXECUTABLE_EXTENSION", "string", None),
-
-    # Prefix for executables
-    ("EXECUTABLE_PREFIX", "string", None),
-
-    # File with symbols to export
-    ("EXPORTED_SYMBOLS_FILE", "string", None),
-
-    # Array of directories to search for Frameworks
-    ("FRAMEWORK_SEARCH_PATHS", "stringarray", None),
-
-    # Version of the framework being generated
-    ("FRAMEWORK_VERSION", "string", None),
-
-    # PowerPC only, enable altivec
-    ("GCC_ALTIVEC_EXTENSIONS", "boolean", None),
-
-    # Enable vectorization on loops
-    ("GCC_AUTO_VECTORIZATION", "boolean", None),
-
-    # Default "char" to unsigned if set to true
-    ("GCC_CHAR_IS_UNSIGNED_CHAR", "boolean", None),
-
-    # It true, assume no exceptions on new()
-    ("GCC_CHECK_RETURN_VALUE_OF_OPERATOR_NEW", "boolean", None),
-
-    # Use CodeWarrior inline assembly syntax
-    ("GCC_CW_ASM_SYNTAX", "boolean", "YES"),
-
-    # Use the latest version of the Objective C++ dialect
-    ("GCC_C_LANGUAGE_STANDARD", "string", "gnu99"),
-
-    # Sets the level of debugging symbols in the output
-    ("GCC_DEBUGGING_SYMBOLS", "string", None),
-
-    # Set YES for no relocatable code
-    ("GCC_DYNAMIC_NO_PIC", "boolean", "NO"),
-
-    # Enable the asm keyword
-    ("GCC_ENABLE_ASM_KEYWORD", "boolean", None),
-
-    # Enable built in functions like memcpy().
-    ("GCC_ENABLE_BUILTIN_FUNCTIONS", "boolean", None),
-
-    # Disable CPP Exceptionsstaticlib
-    ("GCC_ENABLE_CPP_EXCEPTIONS", "boolean", "NO"),
-
-    # Disable CPP RTTI
-    ("GCC_ENABLE_CPP_RTTI", "boolean", "NO"),
-
-    # Build everything as Objective C++
-    ("GCC_INPUT_FILETYPE", "string", None),
-
-    # Program flow for profiling.
-    ("GCC_INSTRUMENT_PROGRAM_FLOW_ARCS", "boolean", None),
-
-    # Link with static to dynamic libraries
-    ("GCC_LINK_WITH_DYNAMIC_LIBRARIES", "boolean", None),
-
-    # Enable 64 bit registers for powerpc 64 bit
-    ("GCC_MODEL_PPC64", "boolean", "NO"),
-    ("GCC_MODEL_PPC64[arch=ppc64]", "boolean", "YES"),
-
-    # Tune for specific cpu
-    ("GCC_MODEL_TUNING", "string", "G4"),
-    ("GCC_MODEL_TUNING[arch=ppc64]", "string", "G5"),
-
-    # Don't share global variables
-    ("GCC_NO_COMMON_BLOCKS", "boolean", None),
-
-    # Call C++ constuctors on objective-c code
-    ("GCC_OBJC_CALL_CXX_CDTORS", "boolean", None),
-
-    # bool takes one byte, not 4
-    ("GCC_ONE_BYTE_BOOL", "boolean", None),
-
-    # Optimizations level
-    ("GCC_OPTIMIZATION_LEVEL", "string", "s"),
-
-    # C++ dialects
-    ("GCC_PFE_FILE_C_DIALECTS", "string", None),
-
-    # Use a precompiled header
-    ("GCC_PRECOMPILE_PREFIX_HEADER", "boolean", None),
-
-    # Name of the precompiled header
-    ("GCC_PREFIX_HEADER", "string", None),
-
-    # Defines
-    ("GCC_PREPROCESSOR_DEFINITIONS", "stringarray", None),
-
-    # Disabled defines
-    ("GCC_PREPROCESSOR_DEFINITIONS_NOT_USED_IN_PRECOMPS", "string", None),
-
-    # Reuse constant strings
-    ("GCC_REUSE_STRINGS", "boolean", None),
-
-    # Shorten enums
-    ("GCC_SHORT_ENUMS", "boolean", None),
-
-    # Use strict aliasing
-    ("GCC_STRICT_ALIASING", "boolean", None),
-
-    # Assume extern symbols are private
-    ("GCC_SYMBOLS_PRIVATE_EXTERN", "boolean", None),
-
-    # Don't emit code to make the static constructors thread safe
-    ("GCC_THREADSAFE_STATICS", "boolean", "NO"),
-
-    # Causes warnings about missing function prototypes to become errors
-    ("GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS", "boolean", None),
-
-    # Non conformant code errors become warnings.
-    ("GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS", "boolean", None),
-
-    # Warnings are errors
-    ("GCC_TREAT_WARNINGS_AS_ERRORS", "boolean", None),
-
-    # Enable unrolling loops
-    ("GCC_UNROLL_LOOPS", "boolean", None),
-
-    # Allow native prcompiling support
-    ("GCC_USE_GCC3_PFE_SUPPORT", "boolean", None),
-
-    # Default to using a register for all function calls
-    ("GCC_USE_INDIRECT_FUNCTION_CALLS", "boolean", None),
-
-    # Default to long calls
-    ("GCC_USE_REGISTER_FUNCTION_CALLS", "boolean", None),
-
-    # Allow searching default system include folders.
-    ("GCC_USE_STANDARD_INCLUDE_SEARCHING", "boolean", None),
-
-    # Which compiler to use
-    ("GCC_VERSION", "string", "com.apple.compilers.llvm.clang.1_0"),
-
-    # Note: com.apple.compilers.llvmgcc42 generates BAD CODE for ppc64 and 4.2
-    # doesn't work at all for ppc64. Only gcc 4.0 is safe for ppc64
-    # i386 compiler llvmgcc42 has issues with 64 bit code in xcode3
-    ("GCC_VERSION[sdk=macosx10.4]", "string", "com.apple.compilers.llvmgcc42"),
-    ("GCC_VERSION[sdk=macosx10.5]", "string", "com.apple.compilers.llvmgcc42"),
-    ("GCC_VERSION[sdk=macosx10.5][arch=i386]", "string", "4.2"),
-    ("GCC_VERSION[sdk=macosx10.5][arch=ppc64]", "string", "4.0"),
-
-    # Warn of 64 bit value become 32 bit automatically
-    ("GCC_WARN_64_TO_32_BIT_CONVERSION", "boolean", "YES"),
-
-    # Warn about deprecated functions
-    ("GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS", "boolean", None),
-
-    # Warn about invalid use of offsetof()
-    ("GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO", "boolean", None),
-
-    # Warn about missing ending newline in source code.
-    ("GCC_WARN_ABOUT_MISSING_NEWLINE", "boolean", None),
-
-    # Warn about missing function prototypes
-    ("GCC_WARN_ABOUT_MISSING_PROTOTYPES", "boolean", "YES"),
-
-    # Warn if the sign of a pointer changed.
-    ("GCC_WARN_ABOUT_POINTER_SIGNEDNESS", "boolean", "YES"),
-
-    # Warn if return type is missing a value.
-    ("GCC_WARN_ABOUT_RETURN_TYPE", "boolean", "YES"),
-
-    # Objective-C Warn if required methods are missing in class implementation
-    ("GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL", "boolean", "YES"),
-
-    # Warn if a switch statement is missing enumeration entries
-    ("GCC_WARN_CHECK_SWITCH_STATEMENTS", "boolean", "YES"),
-
-    # Warn if Effective C++ violations are present.
-    ("GCC_WARN_EFFECTIVE_CPLUSPLUS_VIOLATIONS", "boolean", None),
-
-    # Warn is macOS stype "APPL" 4 character constants exist.
-    ("GCC_WARN_FOUR_CHARACTER_CONSTANTS", "boolean", None),
-
-    # Warn if virtual functions become hidden.
-    ("GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS", "boolean", "YES"),
-
-    # Disable all warnings.
-    ("GCC_WARN_INHIBIT_ALL_WARNINGS", "boolean", None),
-
-    # Warn if union initializers are not fully bracketed.
-    ("GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED", "boolean", "NO"),
-
-    # Warn if parentheses are missing from nested statements.
-    ("GCC_WARN_MISSING_PARENTHESES", "boolean", "YES"),
-
-    # Warn if a class didn't declare its destructor as virtual if derived.
-    ("GCC_WARN_NON_VIRTUAL_DESTRUCTOR", "boolean", "YES"),
-
-    # Warn if non-C++ standard keywords are used
-    ("GCC_WARN_PEDANTIC", "boolean", None),
-
-    # Warn if implict type conversions occur.
-    ("GCC_WARN_PROTOTYPE_CONVERSION", "boolean", "YES"),
-
-    # Warn if a variable becomes shadowed.
-    ("GCC_WARN_SHADOW", "boolean", "YES"),
-
-    # Warn if signed and unsigned values are compared.
-    ("GCC_WARN_SIGN_COMPARE", "boolean", None),
-
-    # Validate printf() and scanf().
-    ("GCC_WARN_TYPECHECK_CALLS_TO_PRINTF", "boolean", "YES"),
-
-    # Warn if a variable is clobbered by setjmp() or not initialized.
-    ("GCC_WARN_UNINITIALIZED_AUTOS", "boolean", "YES"),
-
-    # Warn if a pragma is used that"s not know by this compiler.
-    ("GCC_WARN_UNKNOWN_PRAGMAS", "boolean", None),
-
-    # Warn if a static function is never used.
-    ("GCC_WARN_UNUSED_FUNCTION", "boolean", "YES"),
-
-    # Warn if a label is declared but not used.
-    ("GCC_WARN_UNUSED_LABEL", "boolean", "YES"),
-
-    # Warn if a function parameter isn"t used.
-    ("GCC_WARN_UNUSED_PARAMETER", "boolean", "YES"),
-
-    # Warn if a value isn't used.
-    ("GCC_WARN_UNUSED_VALUE", "boolean", "YES"),
-
-    # Warn if a variable isn't used.
-    ("GCC_WARN_UNUSED_VARIABLE", "boolean", "YES"),
-
-    # Merge object files into a single file (static libraries)
-    ("GENERATE_MASTER_OBJECT_FILE", "boolean", None),
-
-    # Force generating a package information file
-    ("GENERATE_PKGINFO_FILE", "boolean", None),
-
-    # Insert profiling code
-    ("GENERATE_PROFILING_CODE", "boolean", "NO"),
-
-    # List of search paths for headers
-    ("HEADER_SEARCH_PATHS", "stringarray", None),
-
-    # Directories for recursive search
-    ("INCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES", "string", None),
-
-    # Expand the build settings in the plist file
-    ("INFOPLIST_EXPAND_BUILD_SETTINGS", "boolean", None),
-
-    # Name of the plist file
-    ("INFOPLIST_FILE", "string", None),
-
-    # Preprocessor flags for the plist file
-    ("INFOPLIST_OTHER_PREPROCESSOR_FLAGS", "string", None),
-
-    # Output file format for the plist
-    ("INFOPLIST_OUTPUT_FORMAT", "string", None),
-
-    # Prefix header for plist
-    ("INFOPLIST_PREFIX_HEADER", "string", None),
-
-    # Allow preprocessing of the plist file
-    ("INFOPLIST_PREPROCESS", "boolean", None),
-
-    # Defines for the plist file
-    ("INFOPLIST_PREPROCESSOR_DEFINITIONS", "stringarray", None),
-
-    # Initialization routine name
-    ("INIT_ROUTINE", "string", None),
-
-    # BSD group to attach for the installed executable
-    ("INSTALL_GROUP", "string", None),
-
-    # File mode flags for installed executable
-    ("INSTALL_MODE_FLAG", "string", None),
-
-    # Owner account for installed executable
-    ("INSTALL_OWNER", "string", None),
-
-    # Path for installed executable
-    ("INSTALL_PATH", "string", None),
-
-    # Keep private externs private
-    ("KEEP_PRIVATE_EXTERNS", "boolean", None),
-
-    # Change the interal  name of the dynamic library
-    ("LD_DYLIB_INSTALL_NAME", "string", None),
-
-    # Generate a map file for dynamic libraries
-    ("LD_GENERATE_MAP_FILE", "boolean", None),
-
-    # Path for the map file
-    ("LD_MAP_FILE_PATH", "string", None),
-
-    # Flags to pass to a library using OpenMP
-    ("LD_OPENMP_FLAGS", "string", None),
-
-    # List of paths to search for a library
-    ("LD_RUNPATH_SEARCH_PATHS", "string", None),
-
-    # List of directories to search for libraries
-    ("LIBRARY_SEARCH_PATHS", "stringarray", None),
-
-    # Display mangled names in linker
-    ("LINKER_DISPLAYS_MANGLED_NAMES", "boolean", None),
-
-    # Link the standard libraries
-    ("LINK_WITH_STANDARD_LIBRARIES", "boolean", None),
-
-    # Type of Mach-O file
-    ("MACH_O_TYPE", "string", "mh_execute"),
-
-    # Deployment minimum OS
-    ("MACOSX_DEPLOYMENT_TARGET", "string", ""),
-
-    # Kernel module name
-    ("MODULE_NAME", "string", None),
-
-    # Kernel driver start function name
-    ("MODULE_START", "string", None),
-
-    # Kernel driver stop function name
-    ("MODULE_STOP", "string", None),
-
-    # Version number of the kernel driver
-    ("MODULE_VERSION", "string", None),
-
-    # Root folder for intermediate files
-    ("OBJROOT", "string", "temp"),
-
-    # If YES, only build the active CPU for fast recompilation
-    ("ONLY_ACTIVE_ARCH", "boolean", "NO"),
-
-    # Path to file for order of functions to link
-    ("ORDER_FILE", "string", None),
-
-    # Extra flags to pass to the C compiler
-    ("OTHER_CFLAGS", "string", None),
-
-    # Extra flags to pass to the code sign tool
-    ("OTHER_CODE_SIGN_FLAGS", "string", None),
-
-    # Extra flags to pass to the C++ compiler
-    ("OTHER_CPLUSPLUSFLAGS", "string", None),
-
-    # Extra flags to pass to the linker
-    ("OTHER_LDFLAGS", "stringarray", None),
-
-    # Extra flags to pass to the unit test tool
-    ("OTHER_TEST_FLAGS", "string", None),
-
-    # Output file format for the plist file
-    ("PLIST_FILE_OUTPUT_FORMAT", "string", None),
-
-    # Prebind the functions together
-    ("PREBINDING", "boolean", "YES"),
-
-    # Include headers included in precompiler header
-    ("PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR", "boolean", None),
-
-    # Flags to pass for pre-linker
-    ("PRELINK_FLAGS", "string", None),
-
-    # Libraries to use for pre-linking
-    ("PRELINK_LIBS", "string", None),
-
-    # Don't deleate dead code initializers
-    ("PRESERVE_DEAD_CODE_INITS_AND_TERMS", "boolean", None),
-
-    # Path to copy private headers for building
-    ("PRIVATE_HEADERS_FOLDER_PATH", "string", None),
-
-    # Product name
-    ("PRODUCT_NAME", "string", "$(TARGET_NAME)"),
-
-    # Path to copy public headers for building
-    ("PUBLIC_HEADERS_FOLDER_PATH", "string", None),
-
-    # Paths to search for rez
-    ("REZ_SEARCH_PATHS", "string", None),
-
-    # Scan source code for include files for dependency graph generation.
-    ("SCAN_ALL_SOURCE_FILES_FOR_INCLUDES", "boolean", None),
-
-    # SDK to use to for this build
-    ("SDKROOT", "string", None),
-
-    # Flags for the section reordering
-    ("SECTORDER_FLAGS", "string", None),
-
-    # Strip symbols in a seperate pass
-    ("SEPARATE_STRIP", "boolean", None),
-
-    # Edit symbols with nmedit
-    ("SEPARATE_SYMBOL_EDIT", "boolean", None),
-
-    # Path for directory for precompiled header files
-    ("SHARED_PRECOMPS_DIR", "string", None),
-
-    # Skip the install phase in deployment
-    ("SKIP_INSTALL", "boolean", None),
-
-    # Type of libary for Standard C
-    ("STANDARD_C_PLUS_PLUS_LIBRARY_TYPE", "string", None),
-
-    # Encoding for Strings file for localization
-    ("STRINGS_FILE_OUTPUT_ENCODING", "string", "UTF-8"),
-
-    # Flags to pass to the symbol stripper
-    ("STRIPFLAGS", "string", None),
-
-    # Set to YES to strip symbols from installed product
-    ("STRIP_INSTALLED_PRODUCT", "boolean", None),
-
-    # Style of symbol stripping
-    ("STRIP_STYLE", "string", None),
-
-    # Products are placed in this folder
-    ("SYMROOT", "string", "temp"),
-
-    # Path to the executable that accepts unit test bundles
-    ("TEST_HOST", "string", None),
-
-    # Path to unit test tool
-    ("TEST_RIG", "string", None),
-
-    # Path to file with symbols to NOT export
-    ("UNEXPORTED_SYMBOLS_FILE", "string", None),
-
-    # Paths to user headers
-    ("USER_HEADER_SEARCH_PATHS", "string", None),
-
-    # List of allowable cpu architectures
-    ("VALID_ARCHS", "string", None),
-
-    # Name of the executable that creates the version info.
-    ("VERSIONING_SYSTEM", "string", None),
-
-    # User name of the invoker of the version tool
-    ("VERSION_INFO_BUILDER", "string", None),
-
-    # Allow exporting the version information
-    ("VERSION_INFO_EXPORT_DECL", "string", None),
-
-    # Name of the file for version information
-    ("VERSION_INFO_FILE", "string", None),
-
-    # Version info prefix
-    ("VERSION_INFO_PREFIX", "string", None),
-
-    # Version info suffix
-    ("VERSION_INFO_SUFFIX", "string", None),
-
-    # List of additional warning flags to pass to the compiler.
-    ("WARNING_CFLAGS", "stringarray", None),
-
-    # List of additional warning flags to pass to the linker.
-    ("WARNING_LDFLAGS", "stringarray", None),
-
-    # Extension for product wrappers
-    ("WRAPPER_EXTENSION", "string", None)
+# Supported input files
+SUPPORTED_FILES = (
+    FileTypes.icns, FileTypes.h, FileTypes.cpp, FileTypes.c,
+    FileTypes.m, FileTypes.mm, FileTypes.ppc, FileTypes.x64,
+    FileTypes.x86, FileTypes.frameworks, FileTypes.exe,
+    FileTypes.library, FileTypes.glsl
 )
 
 ########################################
@@ -1057,575 +440,54 @@ def test(ide, platform_type):
 ########################################
 
 
-def calcuuid(input_str):
+def add_XCBuildConfiguration(build_settings, configuration):
     """
-    Given a string, create a 96 bit unique hash for XCode
+    Update the settings for a XCBuildConfiguration
 
     Args:
-        input_str: string to hash
-    Returns:
-        96 bit hash string in upper case.
+        build_settings: List of build settings
+        configuration: Configuration to use
     """
 
-    temphash = hashlib.md5(convert_to_windows_slashes(
-        input_str).encode("utf-8")).hexdigest()
+    # pylint: disable=protected-access
+
+    ide = configuration.ide
+    solution = configuration.project.solution
+
+    # Xcode 13 and higher (ARM), requires code signing
+    if ide >= IDETypes.xcode13:
+        build_settings.add_dict_entry(
+            "CODE_SIGN_IDENTITY", "-")
+        build_settings.add_dict_entry(
+            "CODE_SIGN_IDENTITY[sdk=macosx*]", "Apple Development")
+        build_settings.add_dict_entry(
+            "CODE_SIGN_STYLE", "Automatic")
+        build_settings.add_dict_entry(
+            "CONFIGURATION_BUILD_DIR", "$(SYMROOT)/$(PRODUCT_NAME)$(SUFFIX)")
+        build_settings.add_dict_entry(
+            "CONFIGURATION_TEMP_DIR", "$(SYMROOT)/$(PRODUCT_NAME)$(SUFFIX)")
+        build_settings.add_dict_entry(
+            "DEVELOPMENT_TEAM", "SK433TW842")
+        build_settings.add_dict_entry(
+            "PROVISIONING_PROFILE_SPECIFIER", "")
+
+    # Set the default SDKROOT
+    build_settings.add_dict_entry("SDKROOT", solution._xc_sdkroot)
+
+    # Only add for Xcode 3, since Xcode 4 and higher doesn't support PPC
+    if configuration.platform.is_macosx() and ide < IDETypes.xcode4:
+        build_settings.add_dict_entry(
+            "SDKROOT[arch=ppc64]", "macosx10.5")
+        build_settings.add_dict_entry(
+            "SDKROOT[arch=ppc]", "macosx10.5")
+
+    if ide >= IDETypes.xcode13:
+        build_settings.add_dict_entry(
+            "SUFFIX",
+            solution.ide_code +
+            solution.platform_code +
+            configuration.short_code)
 
-    # Take the hash string and only use the top 96 bits
-
-    return temphash[0:24].upper()
-
-########################################
-
-
-def quote_string_if_needed(input_path):
-    """
-    Quote a string for XCode.
-
-    XCode requires quotes for certain characters. If any illegal character
-    exist in the string, the string will be reencoded to a quoted string using
-    XCode JSON rules.
-
-    Args:
-        input_path: string to encapsulate.
-    Returns:
-        Original input string if XCode can accept it or properly quoted
-    """
-
-    # If there are any illegal characters, break
-    for item in input_path:
-        if item not in _XCODESAFESET:
-            break
-    else:
-        # No illegal characters in the string
-        if not input_path:
-            return "\"\""
-        return input_path
-
-    # Quote the escaped string.
-    return "\"{}\"".format(input_path.replace("\"", "\\\""))
-
-########################################
-
-
-class JSONRoot(object):
-    """
-    XCode JSON root object
-
-    Every JSON entry for XCode derives from this object and has a minimum of a
-    name, comment, uuid and an enabled flag.
-
-    Attributes:
-        name: Object's name (Can also be the uuid)
-        comment: Optional object's comment field
-        uuid: Optional uuid
-        enabled: If True, output this object in generated output.
-        suffix: Optional suffix used in generated output.
-        value: Value
-    """
-
-    def __init__(self, name, comment=None, uuid=None,
-                 suffix=";", enabled=True, value=None):
-        """
-        Initialize the JSONRoot entry.
-
-        Args:
-            name: Name of this object
-            comment: Optional comment
-            uuid: uuid hash of the object
-            suffix: string to append at the end of the generated line of output.
-            enabled: If False, don't output this object in the generated object.
-            value: Optional value
-        """
-
-        self.name = name
-        self.comment = comment
-        self.uuid = uuid
-        self.enabled = enabled
-        self.suffix = suffix
-        self.value = value
-
-    def add_item(self, item):
-        """
-        Append an item to the array.
-
-        Args:
-            item: JSONRoot based object.
-        """
-
-        self.value.append(item)
-
-    def find_item(self, name):
-        """
-        Find a named item.
-
-        Args:
-            name: Name of the item to locate
-        Returns:
-            Reference to item or None if not found.
-        """
-
-        for item in self.value:
-            if item.name == name:
-                return item
-        return None
-
-########################################
-
-
-class JSONEntry(JSONRoot):
-    """
-    XCode JSON single line entry.
-
-    Each JSON entry for XCode consists of the name followed by an optional
-    comment, and an optional value and then a mandatory suffix.
-    """
-
-    def __init__(self, name, comment=None, value=None,
-                 suffix=";", enabled=True):
-        """
-        Initialize the JSONEntry.
-
-        Args:
-            name: Name of this object
-            comment: Optional comment
-            value: Optional value
-            suffix: string to append at the end of the generated line of output.
-            enabled: If False, don't output this object in the generated object.
-        """
-
-        JSONRoot.__init__(
-            self,
-            name=name,
-            comment=comment,
-            suffix=suffix,
-            enabled=enabled,
-            value=value)
-
-    def generate(self, line_list, indent=0):
-        """
-        Generate the text lines for this XML element.
-
-        Args:
-            line_list: list object to have text lines appended to
-            indent: number of tabs to insert (For recursion)
-        """
-
-        if not self.enabled:
-            return 0
-
-        # Determine the indentation
-        tabs = TABS * indent
-
-        # Set the value string
-        value = "" if self.value is None else " = " + \
-            quote_string_if_needed(self.value)
-
-        # Set the comment string
-        comment = "" if self.comment is None else " /* {} */".format(
-            self.comment)
-
-        line_list.append(
-            "{}{}{}{}{}".format(
-                tabs,
-                quote_string_if_needed(self.name),
-                value,
-                comment,
-                self.suffix))
-        return 0
-
-########################################
-
-
-class JSONArray(JSONRoot):
-    """
-    XCode JSON array.
-
-    Each JSON entry for XCode consists of the name followed by an optional
-    comment, and an optional value and then a mandatory suffix.
-
-    Attributes:
-        disable_if_empty: True if output is disabled if the list is empty
-    """
-
-    def __init__(self, name, comment=None, value=None, suffix=";",
-                 enabled=True, disable_if_empty=False):
-        """
-        Initialize the entry.
-
-        Args:
-            name: Name of this object
-            comment: Optional comment
-            value: List of default values
-            suffix: Suffix, either ";" or ","
-            enabled: If False, don't output this object in the generated object.
-            disable_if_empty: If True, don't output if no items in the list.
-        """
-
-        if value is None:
-            value = []
-
-        JSONRoot.__init__(
-            self,
-            name=name,
-            comment=comment,
-            suffix=suffix,
-            enabled=enabled,
-            value=value)
-
-        self.disable_if_empty = disable_if_empty
-
-    def generate(self, line_list, indent=0):
-        """
-        Generate the text lines for this XML element.
-        Args:
-            line_list: list object to have text lines appended to
-            indent: number of tabs to insert (For recursion)
-        """
-
-        if not self.enabled:
-            return 0
-
-        # Disable if there are no values?
-        if self.disable_if_empty and not self.value:
-            return 0
-
-        # Determine the indentation
-        tabs = TABS * indent
-        indent = indent + 1
-
-        # Get the optional comment
-        comment = "" if self.comment is None else " /* {} */".format(
-            self.comment)
-
-        # Generate the array opening
-        line_list.append("{}{}{} = (".format(tabs, self.name, comment))
-
-        # Generate the array
-        for item in self.value:
-            item.generate(line_list, indent=indent)
-
-        # Generate the array closing
-        line_list.append("{}){}".format(tabs, self.suffix))
-        return 0
-
-
-def make_jsonarray(input_array):
-    """
-    Convert an iterable of strings into JSONArray entries.
-
-    Args:
-        input_array: Iterable of strings.
-    Returns:
-        list of JSONEntry items.
-    """
-
-    result = []
-    for item in input_array:
-        result.append(JSONEntry(item, suffix=","))
-    return result
-
-########################################
-
-
-class JSONDict(JSONRoot):
-    """
-    XCode JSON dictionary
-
-    Each JSON entry for XCode consists of the name followed by an optional
-    comment, and an optional value and then a mandatory suffix.
-
-    Attributes:
-        disable_if_empty: True if output is disabled if the list is empty
-        isa: "Is a" name
-    """
-
-    def __init__(self, name, isa=None, comment=None, value=None,
-                 suffix=";", uuid=None, enabled=True, disable_if_empty=False):
-        """
-        Initialize the entry.
-
-        Args:
-            name: Name of this object
-            isa: "Is a" type of dictionary object
-            comment: Optional comment
-            value: List of default values
-            suffix: Suffix, either ";" or ","
-            uuid: uuid hash of the object
-            enabled: If False, don't output this object in the generated object.
-            disable_if_empty: If True, don't output if no items in the list.
-        """
-
-        if uuid is None:
-            uuid = ""
-
-        if value is None:
-            value = []
-
-        JSONRoot.__init__(
-            self,
-            name=name,
-            comment=comment,
-            uuid=uuid,
-            suffix=suffix,
-            enabled=enabled,
-            value=value)
-
-        self.disable_if_empty = disable_if_empty
-        self.isa = isa
-
-        if isa is not None:
-            self.add_item(JSONEntry("isa", value=isa))
-
-    def generate(self, line_list, indent=0):
-        """
-        Generate the text lines for this XML element.
-        Args:
-            line_list: list object to have text lines appended to
-            indent: number of tabs to insert (For recursion)
-        """
-
-        if not self.enabled:
-            return 0
-
-        # Disable if there are no values?
-        if self.disable_if_empty and self.value is not None:
-            return 0
-
-        # Determine the indentation
-        tabs = TABS * indent
-        indent = indent + 1
-
-        # Get the optional comment"
-        comment = "" if self.comment is None else " /* {} */".format(
-            self.comment)
-
-        # Generate the dictionary opening
-        line_list.append("{}{}{} = {{".format(tabs, self.name, comment))
-
-        # Generate the dictionary
-        for item in self.value:
-            item.generate(line_list, indent=indent)
-
-        # Generate the dictionary closing
-        line_list.append("{}}}{}".format(tabs, self.suffix))
-        return 0
-
-########################################
-
-
-class JSONObjects(JSONDict):
-    """
-    XCode JSON dictionary
-
-    Each JSON entry for XCode consists of the name followed by an optional
-    comment, and an optional value and then a mandatory suffix.
-    """
-
-    def __init__(self, name, uuid=None, enabled=True):
-        """
-        Initialize the entry.
-
-        Args:
-            name: Name of this object
-            uuid: uuid hash of the object
-            enabled: If False, don't output this object in the generated object.
-        """
-
-        JSONDict.__init__(self, name, uuid=uuid, enabled=enabled)
-
-    def get_entries(self, isa):
-        """
-        Return a list of items that match the isa name.
-
-        Args:
-            isa: isa name string.
-        Returns:
-            List of entires found, can be an empty list.
-        """
-
-        item_list = []
-        for item in self.value:
-            if item.isa == isa:
-                item_list.append(item)
-        return item_list
-
-    def generate(self, line_list, indent=0):
-        """
-        Generate the text lines for this XML element.
-        Args:
-            line_list: list object to have text lines appended to
-            indent: number of tabs to insert (For recursion)
-        """
-
-        if not self.enabled:
-            return 0
-
-        # Determine the indentation
-        tabs = TABS * indent
-        indent = indent + 1
-
-        # Set the optional comment
-        comment = "" if self.comment is None else " /* {} */".format(
-            self.comment)
-
-        # Generate the dictionary opening
-        line_list.append("{}{}{} = {{".format(tabs, self.name, comment))
-
-        # Output the objects in "isa" order for XCode
-        for object_group in OBJECT_ORDER:
-            item_list = []
-            for item in self.value:
-                if item.isa == object_group:
-                    item_list.append(item)
-
-            if item_list:
-
-                # Sort by uuid
-                item_list = sorted(item_list, key=attrgetter("uuid"))
-
-                # Using the name of the class, output the array of data items
-                line_list.append("")
-                line_list.append("/* Begin {} section */".format(object_group))
-                for item in item_list:
-
-                    # Because Apple hates me. Flatten these records instead
-                    # of putting the data on individual lines, because, just
-                    # because.
-
-                    if object_group in FLATTENED_OBJECTS:
-                        # Generate the lines
-                        temp_list = []
-                        item.generate(temp_list, indent=0)
-                        # Flatten it and strip the tabs
-                        temp = " ".join(temp_list).replace(TABS, "")
-
-                        # Remove this space to match the output of XCode
-                        temp = temp.replace(" isa", "isa")
-
-                        # Insert the flattened line
-                        line_list.append(tabs + TABS + temp)
-                    else:
-
-                        # Output the item as is
-                        item.generate(line_list, indent=indent)
-                line_list.append("/* End {} section */".format(object_group))
-
-        line_list.append("{}}}{}".format(tabs, self.suffix))
-        return 0
-
-########################################
-
-
-class PBXBuildFile(JSONDict):
-    """
-    Create a PBXBuildFile entry
-
-    Attributes:
-        file_reference: PBXFileReference of the file being compiled
-    """
-
-    def __init__(self, file_reference, output_reference):
-        """
-        Init the PBXBuildFile record.
-
-        Args:
-            file_reference: File reference of object to build
-            output_reference: File reference of lib/exe being built.
-        """
-
-        # Sanity check
-        if not isinstance(file_reference, PBXFileReference):
-            raise TypeError(
-                "parameter \"file_reference\" must be of type PBXFileReference")
-
-        if not isinstance(output_reference, PBXFileReference):
-            raise TypeError(
-                "parameter \"output_reference\" must be of type PBXFileReference")
-
-        # Make the uuid
-        uuid = calcuuid(
-            "PBXBuildFile" +
-            file_reference.source_file.relative_pathname +
-            output_reference.source_file.relative_pathname)
-
-        basename = os.path.basename(
-            file_reference.source_file.relative_pathname)
-
-        ref_type = "Frameworks" \
-            if file_reference.source_file.type is FileTypes.frameworks \
-            else "Sources"
-
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXBuildFile",
-            comment="{} in {}".format(basename, ref_type),
-            uuid=uuid)
-
-        # Add the uuid of the file reference
-        self.add_item(
-            JSONEntry(
-                name="fileRef",
-                value=file_reference.uuid,
-                comment=basename))
-
-        # PBXFileReference of the file being compiled
-        self.file_reference = file_reference
-
-########################################
-
-
-class BuildGLSL(JSONDict):
-    """
-    Each PBXBuildRule entry for building GLSL files.
-    """
-
-    def __init__(self, configuration):
-        """
-        Initialize the PBXBuildRule for GLSL
-
-        Args:
-            configuration: Configuration to test for IDE
-        """
-
-        uuid = calcuuid("PBXBuildRule" + "BuildGLSL")
-
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXBuildRule",
-            comment="PBXBuildRule",
-            uuid=uuid)
-
-        self.add_item(
-            JSONEntry(
-                name="compilerSpec",
-                value="com.apple.compilers.proxy.script"))
-        self.add_item(JSONEntry(name="filePatterns", value="*.glsl"))
-        self.add_item(JSONEntry(name="fileType", value="pattern.proxy"))
-        ide = configuration.ide
-        if ide >= IDETypes.xcode12:
-            self.add_item(JSONArray(name="inputFiles"))
-
-        self.add_item(JSONEntry(name="isEditable", value="1"))
-
-        output_files = JSONArray(name="outputFiles")
-        self.add_item(output_files)
-        output_files.add_item(
-            JSONEntry(
-                "${INPUT_FILE_DIR}/generated/${INPUT_FILE_BASE}.h",
-                suffix=","))
-
-        if ide >= IDETypes.xcode12:
-            self.add_item(JSONEntry(name="runOncePerArchitecture", value="0"))
-
-        self.add_item(
-            JSONEntry(
-                name="script",
-                value="${BURGER_SDKS}/macosx/bin/stripcomments "
-                "${INPUT_FILE_PATH}"
-                " -c -l g_${INPUT_FILE_BASE} "
-                "${INPUT_FILE_DIR}/generated/${INPUT_FILE_BASE}.h\\n"))
 
 ########################################
 
@@ -1678,92 +540,6 @@ class PBXContainerItemProxy(JSONDict):
         # PBXNativeTarget to build.
         self.native_target = native_target
 
-
-########################################
-
-
-class PBXFileReference(JSONDict):
-    """
-    Each PBXFileReference entry.
-
-    Get the filename path and XCode type
-
-    Attributes:
-        source_file: core.SourceFile record
-    """
-
-    def __init__(self, source_file, ide):
-        """
-        Initialize the PBXFileReference object.
-
-        Args:
-            source_file: core.SourceFile record
-            ide: IDETypes of the ide being built for.
-        """
-
-        # Sanity check
-        if not isinstance(source_file, SourceFile):
-            raise TypeError(
-                "parameter \"source_file\" must be of type SourceFile")
-
-        source_file.relative_pathname = convert_to_linux_slashes(
-            source_file.relative_pathname)
-
-        uuid = calcuuid("PBXFileReference" + source_file.relative_pathname)
-        basename = os.path.basename(source_file.relative_pathname)
-
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXFileReference",
-            comment=basename,
-            uuid=uuid)
-
-        # If not binary, assume UTF-8 encoding
-        if source_file.type not in (FileTypes.library, FileTypes.exe,
-                                    FileTypes.frameworks):
-            self.add_item(JSONEntry(name="fileEncoding", value="4"))
-
-        # If an output file, determine the output type
-        if source_file.type in (FileTypes.library, FileTypes.exe):
-            value = "archive.ar" if source_file.type is FileTypes.library \
-                else "wrapper.application" if basename.endswith(".app") else \
-                "compiled.mach-o.executable"
-            self.add_item(JSONEntry(name="explicitFileType", value=value))
-            self.add_item(JSONEntry(name="includeInIndex", value="0"))
-
-        # lastKnownFileType
-        value = FILE_REF_LAST_KNOWN.get(source_file.type, "sourcecode.c.h")
-        if value:
-
-            # XCode 3 doesn't support sourcecode.glsl
-            if ide < IDETypes.xcode5:
-                if value.endswith(".glsl"):
-                    value = "sourcecode"
-
-            self.add_item(JSONEntry(name="lastKnownFileType", value=value))
-
-        if source_file.type not in (FileTypes.library, FileTypes.exe):
-            self.add_item(JSONEntry(name="name", value=basename))
-
-        if source_file.type in (FileTypes.library, FileTypes.exe):
-            value = basename
-        elif source_file.type is FileTypes.frameworks:
-            value = "System/Library/Frameworks/" + basename
-        else:
-            value = source_file.relative_pathname
-        self.add_item(
-            JSONEntry(name="path", value=value))
-
-        self.add_item(
-            JSONEntry(
-                name="sourceTree",
-                value=FILE_REF_DIR.get(source_file.type, "SOURCE_ROOT")))
-
-        # core.SourceFile record
-        self.source_file = source_file
-
-
 ########################################
 
 
@@ -1789,7 +565,7 @@ class PBXFrameworksBuildPhase(JSONDict):
 
         uuid = calcuuid(
             "PBXFrameworksBuildPhase" +
-            file_reference.source_file.relative_pathname)
+            file_reference.relative_pathname)
 
         JSONDict.__init__(
             self,
@@ -1828,7 +604,7 @@ class PBXFrameworksBuildPhase(JSONDict):
             JSONEntry(
                 build_file.uuid,
                 comment=os.path.basename(
-                    build_file.file_reference.source_file.relative_pathname) +
+                    build_file.file_reference.relative_pathname) +
                 " in Frameworks", suffix=","))
 
     @staticmethod
@@ -1838,127 +614,6 @@ class PBXFrameworksBuildPhase(JSONDict):
         """
         return "Frameworks"
 
-
-########################################
-
-
-class PBXGroup(JSONDict):
-    """
-    Each PBXGroup entry
-
-    Attributes:
-        children: Children list
-        group_name: Name of this group
-        path: Root path for this group
-        group_list: List of child groups
-        file_list: List of child files
-    """
-
-    def __init__(self, group_name, path):
-        """
-        Init the PBXGroup.
-        """
-
-        # Create uuid, and handle an empty path
-        uuid_path = path
-        if path is None:
-            uuid_path = "<group>"
-        uuid = calcuuid("PBXGroup" + group_name + uuid_path)
-
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXGroup",
-            comment=group_name,
-            uuid=uuid)
-
-        children = JSONArray("children")
-        self.add_item(children)
-
-        self.add_item(
-            JSONEntry(
-                "name",
-                value=group_name,
-                enabled=path is None or group_name != path))
-
-        self.add_item(JSONEntry("path", value=path, enabled=path is not None))
-
-        value = "SOURCE_ROOT" if path is not None else "<group>"
-        self.add_item(JSONEntry("sourceTree", value=value))
-
-        self.children = children
-        self.group_name = group_name
-        self.path = path
-        self.group_list = []
-        self.file_list = []
-
-    def is_empty(self):
-        """
-        Return True if there are no entries in this group.
-
-        Returns:
-            True if this PBXGroup has no entries.
-        """
-        return not (self.group_list or self.file_list)
-
-    def add_file(self, file_reference):
-        """
-        Append a file uuid and name to the end of the list.
-
-        Args:
-            file_reference: PBXFileReference item to attach to this group.
-        """
-
-        # Sanity check
-        if not isinstance(file_reference, PBXFileReference):
-            raise TypeError(
-                "parameter \"file_reference\" must be of type PBXFileReference")
-
-        self.file_list.append(
-            (file_reference.uuid, os.path.basename(
-                file_reference.source_file.relative_pathname)))
-
-    def add_group(self, group):
-        """
-        Append a group to the end of the list.
-
-        Args:
-            group: PBXGroup item to attach to this group.
-        """
-
-        # Sanity check
-        if not isinstance(group, PBXGroup):
-            raise TypeError(
-                "parameter \"group\" must be of type PBXGroup")
-
-        self.group_list.append((group.uuid, group.group_name))
-
-    def generate(self, line_list, indent=0):
-        """
-        Write this record to output.
-
-        Args:
-            line_list: Line list to append new lines.
-            indent: number of tabs to insert (For recursion)
-        """
-
-        # Output groups first
-        for item in sorted(self.group_list, key=itemgetter(1)):
-            self.children.add_item(
-                JSONEntry(
-                    item[0],
-                    comment=item[1],
-                    suffix=","))
-
-        # Output files last
-        for item in sorted(self.file_list, key=itemgetter(1)):
-            self.children.add_item(
-                JSONEntry(
-                    item[0],
-                    comment=item[1],
-                    suffix=","))
-
-        return JSONDict.generate(self, line_list, indent)
 
 ########################################
 
@@ -1977,7 +632,7 @@ class PBXNativeTarget(JSONDict):
     """
 
     def __init__(self, parent, name, productreference,
-                 productname, producttype):
+                 productname, producttype, build_rules):
         """
         Init PBXNativeTarget
 
@@ -2010,6 +665,9 @@ class PBXNativeTarget(JSONDict):
 
         self.build_rules = JSONArray("buildRules")
         self.add_item(self.build_rules)
+        for item in build_rules:
+            self.build_rules.add_array_entry(
+                item.name).comment = "PBXBuildRule"
 
         self.dependencies = JSONArray("dependencies")
         self.add_item(self.dependencies)
@@ -2021,7 +679,7 @@ class PBXNativeTarget(JSONDict):
             JSONEntry(
                 "productReference",
                 value=productreference.uuid,
-                comment=productreference.source_file.relative_pathname))
+                comment=productreference.relative_pathname))
 
         self.add_item(
             JSONEntry(
@@ -2070,13 +728,6 @@ class PBXNativeTarget(JSONDict):
         """
         Write this record to output
         """
-
-        for item in self.parent.objects.get_entries("PBXBuildRule"):
-            self.build_rules.add_item(
-                JSONEntry(
-                    item.name,
-                    comment="PBXBuildRule",
-                    suffix=","))
 
         return JSONDict.generate(self, line_list, indent)
 
@@ -2130,12 +781,8 @@ class PBXProject(JSONDict):
             "buildConfigurationList",
             comment=(
                 "Build configuration list "
-                "for PBXProject \"{}{}{}\""
-            ).format(
-                solution.name,
-                solution.ide_code,
-                solution.platform_code),
-            enabled=False)
+                "for PBXProject \"{}\""
+            ).format(solution.name), enabled=False)
         self.add_item(self.build_config_list)
 
         self.add_item(
@@ -2158,7 +805,7 @@ class PBXProject(JSONDict):
 
         known_regions = JSONArray("knownRegions")
         self.add_item(known_regions)
-        known_regions.add_item(JSONEntry("en", suffix=","))
+        known_regions.add_array_entry("en")
 
         self.main_group = JSONEntry("mainGroup", enabled=False)
         self.add_item(self.main_group)
@@ -2195,66 +842,6 @@ class PBXProject(JSONDict):
         self.main_group.comment = rootgroup.group_name
         self.main_group.enabled = True
 
-########################################
-
-
-class PBXShellScriptBuildPhase(JSONDict):
-    """
-    Each PBXShellScriptBuildPhase entry
-
-    Attributes:
-        files: JSONArray of files
-    """
-
-    def __init__(self, input_data, output, command):
-        """
-        Init PBXShellScriptBuildPhase
-
-        Args:
-            input_data: Input file references
-            output: List of file that will be built
-            command: Script to build
-        """
-        uuid = calcuuid(
-            "PBXShellScriptBuildPhase" +
-            "".join(input_data) +
-            output +
-            command)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXShellScriptBuildPhase",
-            comment="ShellScript",
-            uuid=uuid)
-
-        self.add_item(JSONEntry("buildActionMask", value="2147483647"))
-        files = JSONArray("files")
-        self.add_item(files)
-        self.files = files
-
-        input_paths = JSONArray("inputPaths", disable_if_empty=True)
-        self.add_item(input_paths)
-        for item in input_data:
-            input_paths.add_item(JSONEntry(item, suffix=","))
-
-        output_paths = JSONArray("outputPaths")
-        self.add_item(output_paths)
-        output_paths.add_item(JSONEntry(output, suffix=","))
-
-        self.add_item(
-            JSONEntry(
-                "runOnlyForDeploymentPostprocessing",
-                value="0"))
-        self.add_item(JSONEntry("shellPath", value="/bin/sh"))
-        self.add_item(JSONEntry("shellScript", value="{}\\n".format(command)))
-        self.add_item(JSONEntry("showEnvVarsInLog", value="0"))
-
-    @staticmethod
-    def get_phase_name():
-        """
-        Return the build phase name for XCode.
-        """
-        return "ShellScript"
 
 ########################################
 
@@ -2279,7 +866,7 @@ class PBXSourcesBuildPhase(JSONDict):
         """
         uuid = calcuuid(
             "PBXSourcesBuildPhase" +
-            owner.source_file.relative_pathname)
+            owner.relative_pathname)
         JSONDict.__init__(
             self,
             name=uuid,
@@ -2306,10 +893,10 @@ class PBXSourcesBuildPhase(JSONDict):
 
         if item.file_reference.source_file.type == FileTypes.glsl:
             self.buildfirstlist.append([item, os.path.basename(
-                item.file_reference.source_file.relative_pathname)])
+                item.file_reference.relative_pathname)])
         else:
             self.buildlist.append([item, os.path.basename(
-                item.file_reference.source_file.relative_pathname)])
+                item.file_reference.relative_pathname)])
 
     @staticmethod
     def get_phase_name():
@@ -2414,7 +1001,8 @@ class XCBuildConfiguration(JSONDict):
 
         self.configuration = configuration
         ide = configuration.ide
-        solution = configuration.project.solution
+        project = configuration.project
+        solution = project.solution
 
         uuid = calcuuid("XCBuildConfiguration" +
                         owner.pbxtype + owner.targetname + configuration.name)
@@ -2425,159 +1013,704 @@ class XCBuildConfiguration(JSONDict):
             comment=configuration.name,
             uuid=uuid)
 
+        # Was there a configuration file?
         if configfilereference is not None:
-            self.add_item(
-                JSONEntry(
-                    "baseConfigurationReference",
-                    value=configfilereference.uuid,
-                    comment=os.path.basename(
-                        configfilereference.filename)))
+            self.add_dict_entry(
+                "baseConfigurationReference",
+                configfilereference.uuid).comment = os.path.basename(
+                configfilereference.filename)
 
         build_settings = JSONDict("buildSettings")
         self.add_item(build_settings)
         self.build_settings = build_settings
 
         if installpath:
-            build_settings.add_item(JSONEntry(
-                "INSTALL_PATH",
-                value="\"$(HOME)/Applications\""))
+            build_settings.add_dict_entry(
+                "INSTALL_PATH", "\"$(HOME)/Applications\"")
 
         if (ide < IDETypes.xcode4 and owner.pbxtype == "PBXProject") or \
                 (ide >= IDETypes.xcode4 and owner.pbxtype != "PBXProject"):
-            build_settings.add_item(
-                JSONEntry("SDKROOT", value=solution._xc_sdkroot))
-            if configuration.platform.is_macosx():
-                build_settings.add_item(
-                    JSONEntry("SDKROOT[arch=ppc64]", value="macosx10.5"))
-                build_settings.add_item(
-                    JSONEntry("SDKROOT[arch=ppc]", value="macosx10.5"))
+
+            add_XCBuildConfiguration(build_settings, configuration)
 
         if owner.pbxtype == "PBXProject":
-            # Insert the flags (and overrides)
-            for item in XCBUILD_FLAGS:
-                if item[1] in ("string", "boolean"):
-                    build_settings.add_item(
-                        JSONEntry(
-                            item[0],
-                            value=item[2],
-                            enabled=item[2] is not None))
-                elif item[1] == "stringarray":
-                    temp_array = JSONArray(item[0], disable_if_empty=True)
-                    build_settings.add_item(temp_array)
-                    if item[2]:
-                        for item2 in item[2]:
-                            temp_array.add_item(JSONEntry(item2, suffix=","))
 
-            # Set ARCHS
-            self.fixup_archs()
+            # Locations of any sparse SDKs
+            # build_settings.add_dict_entry("ADDITIONAL_SDKS")
 
-            if configuration.platform.is_ios():
-                platform_suffix = "ios"
-            else:
-                platform_suffix = "osx"
+            # Group permission of deployment
+            # build_settings.add_dict_entry("ALTERNATE_GROUP")
 
-            # Set profiling
-            if configuration.get_chained_value("profile"):
-                item = build_settings.find_item("GENERATE_PROFILING_CODE")
-                item.value = "YES"
+            # File permissions of deployment
+            # build_settings.add_dict_entry("ALTERNATE_MODE")
+
+            # Owner permission of deployment
+            # build_settings.add_dict_entry("ALTERNATE_OWNER")
+
+            # Specific files to apply deployment permissions
+            # build_settings.add_dict_entry("ALTERNATE_PERMISSIONS_FILES")
+
+            # Always search user paths in C++ (Hard code)
+            build_settings.add_dict_entry("ALWAYS_SEARCH_USER_PATHS", "NO")
+
+            # Copy Files Build Phase will plist and strings to encoding
+            # build_settings.add_dict_entry("APPLY_RULES_IN_COPY_FILES")
+
+            # Default CPUs
+            temp_array = JSONArray(
+                "ARCHS", disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
+            self.fixup_archs(temp_array)
+
+            # List of build variants
+            temp_array = JSONArray(
+                "BUILD_VARIANTS", disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
+
+            # Name of executable that loads the bundle
+            # build_settings.add_dict_entry("BUNDLE_LOADER")
+
+            # Xcode 14 has C++20, use it
+            if ide >= IDETypes.xcode14:
+                build_settings.add_dict_entry(
+                    "CLANG_CXX_LANGUAGE_STANDARD", "gnu++20")
+
+            # Name of the code signing certificate
+            # build_settings.add_dict_entry("CODE_SIGN_IDENTITY")
+
+            # Path to property list containing rules for signing
+            # build_settings.add_dict_entry("CODE_SIGN_RESOURCE_RULES_PATH")
+
+            # Path for build products
+            if ide < IDETypes.xcode13:
+                build_settings.add_dict_entry(
+                    "CONFIGURATION_BUILD_DIR",
+                    "$(SYMROOT)/$(PRODUCT_NAME)$(SUFFIX)")
+
+                # Path for temp files
+                build_settings.add_dict_entry(
+                    "CONFIGURATION_TEMP_DIR",
+                    "$(SYMROOT)/$(PRODUCT_NAME)$(SUFFIX)")
+
+            # Does copying preserve classic mac resource forks?
+            # build_settings.add_dict_entry("COPYING_PRESERVES_HFS_DATA")
+
+            # Strip debug symbols?
+            # build_settings.add_dict_entry("COPY_PHASE_STRIP")
+
+            # Numeric project version
+            # build_settings.add_dict_entry("CURRENT_PROJECT_VERSION")
+
+            # Strip dead code?
+            build_settings.add_dict_entry("DEAD_CODE_STRIPPING", "YES")
+
+            # Type of debug symbols (Use dwarf)
+            build_settings.add_dict_entry("DEBUG_INFORMATION_FORMAT", "dwarf")
+
+            # Are there valid deployment location settings?
+            # build_settings.add_dict_entry("DEPLOYMENT_LOCATION")
+
+            # Process deployment files
+            # build_settings.add_dict_entry("DEPLOYMENT_POSTPROCESSING")
+
+            # Destination root folder for deployment
+            # build_settings.add_dict_entry("DSTROOT")
+
+            # Compatible version of the dynamic library
+            # build_settings.add_dict_entry("DYLIB_COMPATIBILITY_VERSION")
+
+            # Numeric version of the dynamic library
+            # build_settings.add_dict_entry("DYLIB_CURRENT_VERSION")
+
+            # Enable OpenMP
+            # build_settings.add_dict_entry("ENABLE_OPENMP_SUPPORT")
+
+            # Files and folders to ignore on search.
+            # build_settings.add_dict_entry(
+            #   "EXCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES")
+
+            # Extension for executables
+            # build_settings.add_dict_entry("EXECUTABLE_EXTENSION")
+
+            # Prefix for executables
+            # build_settings.add_dict_entry("EXECUTABLE_PREFIX")
+
+            # File with symbols to export
+            # build_settings.add_dict_entry("EXPORTED_SYMBOLS_FILE")
+
+            # Array of directories to search for Frameworks
+            # build_settings.add_dict_entry("FRAMEWORK_SEARCH_PATHS")
+
+            # Version of the framework being generated
+            # build_settings.add_dict_entry("FRAMEWORK_VERSION")
+
+            # PowerPC only, enable altivec
+            # build_settings.add_dict_entry("GCC_ALTIVEC_EXTENSIONS")
+
+            # Enable vectorization on loops
+            # build_settings.add_dict_entry("GCC_AUTO_VECTORIZATION")
+
+            # Default "char" to unsigned if set to true
+            # build_settings.add_dict_entry("GCC_CHAR_IS_UNSIGNED_CHAR")
+
+            # It true, assume no exceptions on new()
+            # build_settings.add_dict_entry(
+            #   "GCC_CHECK_RETURN_VALUE_OF_OPERATOR_NEW")
+
+            # Use CodeWarrior inline assembly syntax
+            build_settings.add_dict_entry("GCC_CW_ASM_SYNTAX", "YES")
+
+            # Use the latest version of the Objective C++ dialect
+            item = "gnu99" if ide < IDETypes.xcode10 else "gnu11"
+            build_settings.add_dict_entry("GCC_C_LANGUAGE_STANDARD", item)
+
+            # Sets the level of debugging symbols in the output
+            # build_settings.add_dict_entry("GCC_DEBUGGING_SYMBOLS")
+
+            # Set YES for no relocatable code (NO is default)
+            if configuration.project_type is not ProjectTypes.sharedlibrary:
+                if ide < IDETypes.xcode12:
+                    build_settings.add_dict_entry("GCC_DYNAMIC_NO_PIC", "NO")
+                    build_settings.add_dict_entry(
+                        "GCC_DYNAMIC_NO_PIC[arch=i386]", "YES")
+                    if ide < IDETypes.xcode4:
+                        build_settings.add_dict_entry(
+                            "GCC_DYNAMIC_NO_PIC[arch=ppc64]", "YES")
+                        build_settings.add_dict_entry(
+                            "GCC_DYNAMIC_NO_PIC[arch=ppc]", "YES")
+
+            # Enable the asm keyword
+            # build_settings.add_dict_entry("GCC_ENABLE_ASM_KEYWORD")
+
+            # Enable built in functions like memcpy().
+            # build_settings.add_dict_entry("GCC_ENABLE_BUILTIN_FUNCTIONS")
+
+            # Disable CPP Exceptionsstaticlib
+            build_settings.add_dict_entry("GCC_ENABLE_CPP_EXCEPTIONS", "NO")
+
+            # Disable CPP RTTI
+            build_settings.add_dict_entry("GCC_ENABLE_CPP_RTTI", "NO")
+
+            # Build everything as Objective C++
+            # build_settings.add_dict_entry("GCC_INPUT_FILETYPE")
+
+            # Program flow for profiling.
+            # build_settings.add_dict_entry("GCC_INSTRUMENT_PROGRAM_FLOW_ARCS")
+
+            # Link with static to dynamic libraries
+            # build_settings.add_dict_entry("GCC_LINK_WITH_DYNAMIC_LIBRARIES")
+
+            # Enable 64 bit registers for powerpc 64 bit
+            if ide < IDETypes.xcode4:
+                build_settings.add_dict_entry(
+                    "GCC_MODEL_PPC64", "NO")
+                build_settings.add_dict_entry(
+                    "GCC_MODEL_PPC64[arch=ppc64]", "YES")
+
+            # Tune for specific cpu
+            if ide < IDETypes.xcode4:
+                build_settings.add_dict_entry(
+                    "GCC_MODEL_TUNING", "G4")
+                build_settings.add_dict_entry(
+                    "GCC_MODEL_TUNING[arch=ppc64]", "G5")
+
+            # Don't share global variables
+            # build_settings.add_dict_entry("GCC_NO_COMMON_BLOCKS")
+
+            # Call C++ constuctors on objective-c code
+            # build_settings.add_dict_entry("GCC_OBJC_CALL_CXX_CDTORS")
+
+            # bool takes one byte, not 4
+            # build_settings.add_dict_entry("GCC_ONE_BYTE_BOOL")
+
+            # Optimizations level
+            item = "s" if configuration.optimization else "0"
+            build_settings.add_dict_entry("GCC_OPTIMIZATION_LEVEL", item)
+
+            # C++ dialects
+            # build_settings.add_dict_entry("GCC_PFE_FILE_C_DIALECTS")
+
+            # Use a precompiled header
+            # build_settings.add_dict_entry("GCC_PRECOMPILE_PREFIX_HEADER")
+
+            # Name of the precompiled header
+            # build_settings.add_dict_entry("GCC_PREFIX_HEADER")
 
             # Set defines
-            item = build_settings.find_item("GCC_PREPROCESSOR_DEFINITIONS")
-            for define in configuration.get_chained_list("define_list"):
-                item.add_item(JSONEntry(define, suffix=","))
+            temp_array = JSONArray("GCC_PREPROCESSOR_DEFINITIONS",
+                             disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
+            for item in configuration.get_chained_list("define_list"):
+                temp_array.add_array_entry(item)
 
-            # Set optimization
-            item = build_settings.find_item("GCC_OPTIMIZATION_LEVEL")
-            if configuration.optimization:
-                item.value = "s"
-            else:
-                item.value = "0"
+            # Disabled defines
+            # build_settings.add_dict_entry(
+            #   "GCC_PREPROCESSOR_DEFINITIONS_NOT_USED_IN_PRECOMPS")
 
-            # Warn on autos is suprious for Debug builds
-            item = build_settings.find_item("GCC_WARN_UNINITIALIZED_AUTOS")
-            if configuration.optimization:
-                item.value = "YES"
-            else:
-                item.value = "NO"
+            # Reuse constant strings
+            # build_settings.add_dict_entry("GCC_REUSE_STRINGS")
 
-            # Set the unique output name
-            idecode = configuration.ide.get_short_code()
-            item = build_settings.find_item("PRODUCT_NAME")
-            item.value = (
-                "$(TARGET_NAME){}{}{}"
-            ).format(idecode, platform_suffix, configuration.short_code)
+            # Shorten enums
+            # build_settings.add_dict_entry("GCC_SHORT_ENUMS")
 
-            # Set the output type
-            item = build_settings.find_item("MACH_O_TYPE")
-            if configuration.project_type is ProjectTypes.library:
-                item.value = "staticlib"
-            elif configuration.project_type is ProjectTypes.sharedlibrary:
-                item.value = "mh_dylib"
-            else:
-                item.value = "mh_execute"
+            # Use strict aliasing
+            # build_settings.add_dict_entry("GCC_STRICT_ALIASING")
 
-            # Set the PIC type
-            item = build_settings.find_item("GCC_DYNAMIC_NO_PIC")
-            item.value = "NO"
-            if configuration.project_type is not ProjectTypes.sharedlibrary:
-                build_settings.add_item(JSONEntry(
-                    "GCC_DYNAMIC_NO_PIC[arch=i386]",
-                    value="YES",
-                    enabled=True))
-                build_settings.add_item(JSONEntry(
-                    "GCC_DYNAMIC_NO_PIC[arch=ppc64]",
-                    value="YES",
-                    enabled=True))
-                build_settings.add_item(JSONEntry(
-                    "GCC_DYNAMIC_NO_PIC[arch=ppc]",
-                    value="YES",
-                    enabled=True))
+            # Assume extern symbols are private
+            # build_settings.add_dict_entry("GCC_SYMBOLS_PRIVATE_EXTERN")
 
+            # Don't emit code to make the static constructors thread safe
+            build_settings.add_dict_entry("GCC_THREADSAFE_STATICS", "NO")
+
+            # Causes warnings about missing function prototypes to become errors
+            # build_settings.add_dict_entry(
+            #   "GCC_TREAT_IMPLICIT_FUNCTION_DECLARATIONS_AS_ERRORS")
+
+            # Non conformant code errors become warnings.
+            # build_settings.add_dict_entry(
+            #   "GCC_TREAT_NONCONFORMANT_CODE_ERRORS_AS_WARNINGS")
+
+            # Warnings are errors
+            # build_settings.add_dict_entry("GCC_TREAT_WARNINGS_AS_ERRORS")
+
+            # Enable unrolling loops
+            # build_settings.add_dict_entry("GCC_UNROLL_LOOPS")
+
+            # Allow native prcompiling support
+            # build_settings.add_dict_entry("GCC_USE_GCC3_PFE_SUPPORT")
+
+            # Default to using a register for all function calls
+            # build_settings.add_dict_entry("GCC_USE_INDIRECT_FUNCTION_CALLS")
+
+            # Default to long calls
+            # build_settings.add_dict_entry("GCC_USE_REGISTER_FUNCTION_CALLS")
+
+            # Allow searching default system include folders.
+            # build_settings.add_dict_entry(
+            #   "GCC_USE_STANDARD_INCLUDE_SEARCHING")
+
+            # Which compiler to use
+            if ide < IDETypes.xcode4 and configuration.platform.is_macosx():
+                build_settings.add_dict_entry("GCC_VERSION", "")
+
+                # Note: com.apple.compilers.llvmgcc42 generates BAD CODE for
+                # ppc64 and 4.2 doesn't work at all for ppc64. Only gcc 4.0 is
+                # safe for ppc64 i386 compiler llvmgcc42 has issues with 64 bit
+                # code in xcode3
+                build_settings.add_dict_entry("GCC_VERSION[arch=ppc64]", "4.0")
+                build_settings.add_dict_entry("GCC_VERSION[arch=ppc]", "4.0")
+
+            # Warn of 64 bit value become 32 bit automatically
+            build_settings.add_dict_entry(
+                "GCC_WARN_64_TO_32_BIT_CONVERSION", "YES")
+
+            # Warn about deprecated functions
+            # build_settings.add_dict_entry(
+            #   "GCC_WARN_ABOUT_DEPRECATED_FUNCTIONS")
+
+            # Warn about invalid use of offsetof()
+            # build_settings.add_dict_entry(
+            #   "GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO")
+
+            # Warn about missing ending newline in source code.
+            # build_settings.add_dict_entry("GCC_WARN_ABOUT_MISSING_NEWLINE")
+
+            # Warn about missing function prototypes
+            build_settings.add_dict_entry(
+                "GCC_WARN_ABOUT_MISSING_PROTOTYPES", "YES")
+
+            # Warn if the sign of a pointer changed.
+            build_settings.add_dict_entry(
+                "GCC_WARN_ABOUT_POINTER_SIGNEDNESS", "YES")
+
+            # Warn if return type is missing a value.
+            build_settings.add_dict_entry("GCC_WARN_ABOUT_RETURN_TYPE", "YES")
+
+            # Objective-C Warn if required methods are missing in class
+            # implementation
+            build_settings.add_dict_entry(
+                "GCC_WARN_ALLOW_INCOMPLETE_PROTOCOL", "YES")
+
+            # Warn if a switch statement is missing enumeration entries
+            build_settings.add_dict_entry(
+                "GCC_WARN_CHECK_SWITCH_STATEMENTS", "YES")
+
+            # Warn if Effective C++ violations are present.
+            # build_settings.add_dict_entry(
+            #   "GCC_WARN_EFFECTIVE_CPLUSPLUS_VIOLATIONS")
+
+            # Warn is macOS stype "APPL" 4 character constants exist.
+            # build_settings.add_dict_entry("GCC_WARN_FOUR_CHARACTER_CONSTANTS")
+
+            # Warn if virtual functions become hidden.
+            build_settings.add_dict_entry(
+                "GCC_WARN_HIDDEN_VIRTUAL_FUNCTIONS", "YES")
+
+            # Disable all warnings.
+            # build_settings.add_dict_entry("GCC_WARN_INHIBIT_ALL_WARNINGS")
+
+            # Warn if union initializers are not fully bracketed.
+            build_settings.add_dict_entry(
+                "GCC_WARN_INITIALIZER_NOT_FULLY_BRACKETED", "NO")
+
+            # Warn if parentheses are missing from nested statements.
+            build_settings.add_dict_entry(
+                "GCC_WARN_MISSING_PARENTHESES", "YES")
+
+            # Warn if a class didn't declare its destructor as virtual if
+            # derived.
+            build_settings.add_dict_entry(
+                "GCC_WARN_NON_VIRTUAL_DESTRUCTOR", "YES")
+
+            # Warn if non-C++ standard keywords are used
+            # build_settings.add_dict_entry("GCC_WARN_PEDANTIC")
+
+            # Warn if implict type conversions occur.
+            if ide < IDETypes.xcode12:
+                build_settings.add_dict_entry(
+                    "GCC_WARN_PROTOTYPE_CONVERSION", "YES")
+
+            # Warn if a variable becomes shadowed.
+            build_settings.add_dict_entry("GCC_WARN_SHADOW", "YES")
+
+            # Warn if signed and unsigned values are compared.
+            # build_settings.add_dict_entry("GCC_WARN_SIGN_COMPARE")
+
+            # Validate printf() and scanf().
+            build_settings.add_dict_entry(
+                "GCC_WARN_TYPECHECK_CALLS_TO_PRINTF", "YES")
+
+            # Warn if a variable is clobbered by setjmp() or not initialized.
+            # Warn on autos is spurious for Debug builds
+            item = "YES" if configuration.optimization else "NO"
+            build_settings.add_dict_entry("GCC_WARN_UNINITIALIZED_AUTOS", item)
+
+            # Warn if a pragma is used that"s not know by this compiler.
+            # build_settings.add_dict_entry("GCC_WARN_UNKNOWN_PRAGMAS")
+
+            # Warn if a static function is never used.
+            build_settings.add_dict_entry("GCC_WARN_UNUSED_FUNCTION", "YES")
+
+            # Warn if a label is declared but not used.
+            build_settings.add_dict_entry("GCC_WARN_UNUSED_LABEL", "YES")
+
+            # Warn if a function parameter isn"t used.
+            build_settings.add_dict_entry("GCC_WARN_UNUSED_PARAMETER", "YES")
+
+            # Warn if a value isn't used.
+            build_settings.add_dict_entry("GCC_WARN_UNUSED_VALUE", "YES")
+
+            # Warn if a variable isn't used.
+            build_settings.add_dict_entry("GCC_WARN_UNUSED_VARIABLE", "YES")
+
+            # Merge object files into a single file (static libraries)
+            # build_settings.add_dict_entry("GENERATE_MASTER_OBJECT_FILE")
+
+            # Force generating a package information file
+            # build_settings.add_dict_entry("GENERATE_PKGINFO_FILE")
+
+            # Insert profiling code
+            item = "YES" if configuration.get_chained_value(
+                "profile") else "NO"
+            build_settings.add_dict_entry("GENERATE_PROFILING_CODE", item)
+
+            # List of search paths for headers
+            temp_array = JSONArray("HEADER_SEARCH_PATHS",
+                                   disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
             # Location of extra header paths
-            item = build_settings.find_item("HEADER_SEARCH_PATHS")
-            for define in configuration.get_chained_list(
+            for item in configuration.get_chained_list(
                     "include_folders_list"):
-                item.add_item(JSONEntry(define, suffix=","))
+                temp_array.add_array_entry(item)
 
+            # Directories for recursive search
+            # build_settings.add_dict_entry(
+            #   "INCLUDED_RECURSIVE_SEARCH_PATH_SUBDIRECTORIES")
+
+            # Expand the build settings in the plist file
+            # build_settings.add_dict_entry("INFOPLIST_EXPAND_BUILD_SETTINGS")
+
+            # Name of the plist file
+            # build_settings.add_dict_entry("INFOPLIST_FILE")
+
+            # Preprocessor flags for the plist file
+            # build_settings.add_dict_entry(
+            #   "INFOPLIST_OTHER_PREPROCESSOR_FLAGS")
+
+            # Output file format for the plist
+            # build_settings.add_dict_entry("INFOPLIST_OUTPUT_FORMAT")
+
+            # Prefix header for plist
+            # build_settings.add_dict_entry("INFOPLIST_PREFIX_HEADER")
+
+            # Allow preprocessing of the plist file
+            # build_settings.add_dict_entry("INFOPLIST_PREPROCESS")
+
+            # Defines for the plist file
+            # build_settings.add_dict_entry(
+            #   "INFOPLIST_PREPROCESSOR_DEFINITIONS")
+
+            # Initialization routine name
+            # build_settings.add_dict_entry("INIT_ROUTINE")
+
+            # BSD group to attach for the installed executable
+            # build_settings.add_dict_entry("INSTALL_GROUP")
+
+            # File mode flags for installed executable
+            # build_settings.add_dict_entry("INSTALL_MODE_FLAG")
+
+            # Owner account for installed executable
+            # build_settings.add_dict_entry("INSTALL_OWNER")
+
+            # Keep private externs private
+            # build_settings.add_dict_entry("KEEP_PRIVATE_EXTERNS")
+
+            # Change the interal  name of the dynamic library
+            # build_settings.add_dict_entry("LD_DYLIB_INSTALL_NAME")
+
+            # Generate a map file for dynamic libraries
+            # build_settings.add_dict_entry("LD_GENERATE_MAP_FILE")
+
+            # Path for the map file
+            # build_settings.add_dict_entry("LD_MAP_FILE_PATH")
+
+            # Flags to pass to a library using OpenMP
+            # build_settings.add_dict_entry("LD_OPENMP_FLAGS")
+
+            # List of paths to search for a library
+            # build_settings.add_dict_entry("LD_RUNPATH_SEARCH_PATHS")
+
+            # List of directories to search for libraries
+            temp_array = JSONArray(
+                "LIBRARY_SEARCH_PATHS", disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
             # Location of libraries
-            item = build_settings.find_item("LIBRARY_SEARCH_PATHS")
-            for define in configuration.get_chained_list(
+            for item in configuration.get_chained_list(
                     "library_folders_list"):
-                item.add_item(JSONEntry(define, suffix=","))
+                temp_array.add_array_entry(item)
 
+            # Display mangled names in linker
+            # build_settings.add_dict_entry("LINKER_DISPLAYS_MANGLED_NAMES")
+
+            # Link the standard libraries
+            # build_settings.add_dict_entry("LINK_WITH_STANDARD_LIBRARIES")
+
+            # Type of Mach-O file
+            if configuration.project_type is ProjectTypes.library:
+                item = "staticlib"
+            elif configuration.project_type is ProjectTypes.sharedlibrary:
+                item = "mh_dylib"
+            else:
+                item = "mh_execute"
+            build_settings.add_dict_entry("MACH_O_TYPE", item)
+
+            # Deployment minimum OS
+            item = "10.5" if ide < IDETypes.xcode4 else "10.13"
+            build_settings.add_dict_entry("MACOSX_DEPLOYMENT_TARGET", item)
+            if ide < IDETypes.xcode4:
+                build_settings.add_dict_entry(
+                    "MACOSX_DEPLOYMENT_TARGET[arch=ppc]", "10.4")
+
+            # Kernel module name
+            # build_settings.add_dict_entry("MODULE_NAME")
+
+            # Kernel driver start function name
+            # build_settings.add_dict_entry("MODULE_START")
+
+            # Kernel driver stop function name
+            # build_settings.add_dict_entry("MODULE_STOP")
+
+            # Version number of the kernel driver
+            # build_settings.add_dict_entry("MODULE_VERSION")
+
+            # Root folder for intermediate files
+            build_settings.add_dict_entry("OBJROOT", "temp")
+
+            # If YES, only build the active CPU for fast recompilation
+            build_settings.add_dict_entry("ONLY_ACTIVE_ARCH", "NO")
+
+            # Path to file for order of functions to link
+            # build_settings.add_dict_entry("ORDER_FILE")
+
+            # Extra flags to pass to the C compiler
+            # build_settings.add_dict_entry("OTHER_CFLAGS")
+
+            # Extra flags to pass to the code sign tool
+            # build_settings.add_dict_entry("OTHER_CODE_SIGN_FLAGS")
+
+            # Extra flags to pass to the C++ compiler
+            # build_settings.add_dict_entry("OTHER_CPLUSPLUSFLAGS")
+
+            # Extra flags to pass to the linker
+            temp_array = JSONArray(
+                "OTHER_LDFLAGS", disable_if_empty=True, fold_array=True)
+            build_settings.add_item(temp_array)
             # Additional libraries
-            item = build_settings.find_item("OTHER_LDFLAGS")
-            for define in configuration.get_chained_list(
+            for item in configuration.get_chained_list(
                     "libraries_list"):
                 # Get rid of lib and .a
-                if define.startswith("lib"):
-                    define = define[3:]
-                if define.endswith(".a"):
-                    define = define[:-2]
-                item.add_item(JSONEntry("-l" + define, suffix=","))
+                if item.startswith("lib"):
+                    item = item[3:]
+                if item.endswith(".a"):
+                    item = item[:-2]
+                temp_array.add_array_entry("-l" + item)
+
+            # Extra flags to pass to the unit test tool
+            # build_settings.add_dict_entry("OTHER_TEST_FLAGS")
+
+            # Output file format for the plist file
+            # build_settings.add_dict_entry("PLIST_FILE_OUTPUT_FORMAT")
+
+            # Prebind the functions together
+            if ide < IDETypes.xcode12:
+                build_settings.add_dict_entry("PREBINDING", "YES")
+
+            # Include headers included in precompiler header
+            # build_settings.add_dict_entry(
+            #   "PRECOMPS_INCLUDE_HEADERS_FROM_BUILT_PRODUCTS_DIR")
+
+            # Flags to pass for pre-linker
+            # build_settings.add_dict_entry("PRELINK_FLAGS")
+
+            # Libraries to use for pre-linking
+            # build_settings.add_dict_entry("PRELINK_LIBS")
+
+            # Don't deleate dead code initializers
+            # build_settings.add_dict_entry(
+            #   "PRESERVE_DEAD_CODE_INITS_AND_TERMS")
+
+            # Path to copy private headers for building
+            # build_settings.add_dict_entry("PRIVATE_HEADERS_FOLDER_PATH")
+
+            # Product name
+            build_settings.add_dict_entry("PRODUCT_NAME", "$(TARGET_NAME)")
+
+            # Path to copy public headers for building
+            # build_settings.add_dict_entry("PUBLIC_HEADERS_FOLDER_PATH")
+
+            # Paths to search for rez
+            # build_settings.add_dict_entry("REZ_SEARCH_PATHS")
+
+            # Scan source code for include files for dependency
+            # graph generation.
+            # build_settings.add_dict_entry(
+            #   "SCAN_ALL_SOURCE_FILES_FOR_INCLUDES")
+
+            # SDK to use to for this build
+            if ide >= IDETypes.xcode10:
+                build_settings.add_dict_entry("SDKROOT", solution._xc_sdkroot)
+
+            # Flags for the section reordering
+            # build_settings.add_dict_entry("SECTORDER_FLAGS")
+
+            # Strip symbols in a seperate pass
+            # build_settings.add_dict_entry("SEPARATE_STRIP")
+
+            # Edit symbols with nmedit
+            # build_settings.add_dict_entry("SEPARATE_SYMBOL_EDIT")
+
+            # Path for directory for precompiled header files
+            # build_settings.add_dict_entry("SHARED_PRECOMPS_DIR")
+
+            # Skip the install phase in deployment
+            # build_settings.add_dict_entry("SKIP_INSTALL")
+
+            # Type of libary for Standard C
+            # build_settings.add_dict_entry("STANDARD_C_PLUS_PLUS_LIBRARY_TYPE")
+
+            # Encoding for Strings file for localization
+            build_settings.add_dict_entry(
+                "STRINGS_FILE_OUTPUT_ENCODING", "UTF-8")
+
+            # Flags to pass to the symbol stripper
+            # build_settings.add_dict_entry("STRIPFLAGS")
+
+            # Set to YES to strip symbols from installed product
+            # build_settings.add_dict_entry("STRIP_INSTALLED_PRODUCT")
+
+            # Style of symbol stripping
+            # build_settings.add_dict_entry("STRIP_STYLE")
+
+            # Suffix needed
+            if ide < IDETypes.xcode13:
+                build_settings.add_dict_entry(
+                    "SUFFIX",
+                    solution.ide_code +
+                    solution.platform_code +
+                    configuration.short_code)
+
+            # Products are placed in this folder
+            build_settings.add_dict_entry("SYMROOT", "temp")
+
+            # Path to the executable that accepts unit test bundles
+            # build_settings.add_dict_entry("TEST_HOST")
+
+            # Path to unit test tool
+            # build_settings.add_dict_entry("TEST_RIG")
+
+            # Path to file with symbols to NOT export
+            # build_settings.add_dict_entry("UNEXPORTED_SYMBOLS_FILE")
+
+            # Paths to user headers
+            # build_settings.add_dict_entry("USER_HEADER_SEARCH_PATHS")
+
+            # List of allowable cpu architectures
+            # build_settings.add_dict_entry("VALID_ARCHS")
+
+            # Name of the executable that creates the version info.
+            # build_settings.add_dict_entry("VERSIONING_SYSTEM")
+
+            # User name of the invoker of the version tool
+            # build_settings.add_dict_entry("VERSION_INFO_BUILDER")
+
+            # Allow exporting the version information
+            # build_settings.add_dict_entry("VERSION_INFO_EXPORT_DECL")
+
+            # Name of the file for version information
+            # build_settings.add_dict_entry("VERSION_INFO_FILE")
+
+            # Version info prefix
+            # build_settings.add_dict_entry("VERSION_INFO_PREFIX")
+
+            # Version info suffix
+            # build_settings.add_dict_entry("VERSION_INFO_SUFFIX")
+
+            # List of additional warning flags to pass to the compiler.
+            # build_settings.add_dict_entry("WARNING_CFLAGS")
+
+            # List of additional warning flags to pass to the linker.
+            # build_settings.add_dict_entry("WARNING_LDFLAGS")
+
+            # Extension for product wrappers
+            # build_settings.add_dict_entry("WRAPPER_EXTENSION")
+
+        else:
+
+            # Is this a simulator target?
+            if configuration.platform.is_ios():
+                if solution._xc_sdkroot == "iphoneos" and \
+                    configuration.platform in (
+                        PlatformTypes.iosemu32, PlatformTypes.iosemu64):
+                    build_settings.add_dict_entry("SDKROOT", "iphonesimulator")
 
         # Make sure they are in sorted order
         build_settings.value = sorted(
             build_settings.value, key=attrgetter("name"))
 
-        self.add_item(JSONEntry("name", value=configuration.name))
+        self.add_dict_entry("name", configuration.name)
 
     ########################################
 
-    def fixup_archs(self):
+    def fixup_archs(self, archs):
         """
         Based on the SDKROOT entry, set the default CPUs.
         """
 
+        # pylint: disable=protected-access
+
         # Start by getting the IDE and platform
         ide = self.configuration.ide
         sdkroot = self.configuration.project.solution._xc_sdkroot
-
-        # Start by getting SDKROOT
-        build_settings = self.build_settings
-
-        # Start with no CPUs
-        cpus = []
 
         # Test for supported cpus for macosx
         if self.configuration.platform.is_macosx():
@@ -2588,32 +1721,34 @@ class XCBuildConfiguration(JSONDict):
                 version = 6
 
             if ide is IDETypes.xcode3:
-                cpus.append("ppc")
+                archs.add_array_entry("ppc")
 
                 # macosx 10.3.9 is ppc 32 bit only
                 if version >= 4:
-                    cpus.append("ppc64")
+                    archs.add_array_entry("ppc64")
 
             # Xcode 14 dropped x86
             if ide < IDETypes.xcode14:
-                cpus.append("i386")
+                archs.add_array_entry("i386")
 
             # Everyone has x64
-            cpus.append("x86_64")
+            archs.add_array_entry("x86_64")
 
             # Xcode 12 supports arm64
             if ide >= IDETypes.xcode12:
-                cpus.append("arm64")
+                archs.add_array_entry("arm64")
 
-        elif self.configuration.platform in (PlatformTypes.iosemu32, PlatformTypes.iosemu64):
-            cpus.extend(("i386", "x86_64"))
+        elif self.configuration.platform in (
+                PlatformTypes.iosemu32, PlatformTypes.iosemu64):
+            archs.add_array_entry("i386")
+            archs.add_array_entry("x86_64")
 
-        elif self.configuration.platform in (PlatformTypes.ios32, PlatformTypes.ios64):
-            # cpus.extend(("armv7", "armv7s", "arm64"))
-            cpus.extend(("armv6", "armv7", "i386", "x86_64"))
-
-        item = build_settings.find_item("ARCHS")
-        item.value = make_jsonarray(cpus)
+        elif self.configuration.platform in (
+                PlatformTypes.ios32, PlatformTypes.ios64):
+            archs.add_array_entry("armv6")
+            archs.add_array_entry("armv7")
+            archs.add_array_entry("i386")
+            archs.add_array_entry("x86_64")
 
 ########################################
 
@@ -2714,70 +1849,53 @@ class XCProject(JSONDict):
         # pylint: disable=too-many-locals
         # pylint: disable=too-many-branches
 
-        # Parent solution
+        # Set the parent, uuid, and solution
         self.solution = solution
-
         uuid = calcuuid("PBXProjectRoot" + solution.xcode_folder_name)
 
         # Init the solution
         JSONDict.__init__(self, solution.name, uuid=uuid)
 
         # Initialize entries for master dictionary for the XCode project.
-        self.add_item(JSONEntry("archiveVersion", value="1"))
-        self.add_item(JSONDict("classes"))
-        self.add_item(
-            JSONEntry(
-                "objectVersion",
-                value=OBJECT_VERSIONS.get(solution.ide)[0]))
-
-        # Main object list
-        objects = JSONObjects("objects")
+        objects = self.init_root_entries()
         self.objects = objects
-        self.add_item(objects)
-
-        # UUID of the root object
-        rootobject = JSONEntry(
-            "rootObject",
-            value=uuid,
-            comment="Project object")
-        self.add_item(rootobject)
 
         idecode = solution.ide.get_short_code()
-        rootproject = PBXProject(uuid, solution)
+        rootproject = PBXProject(self.uuid, solution)
         objects.add_item(rootproject)
-
-        found_glsl = False
 
         # Process all the projects and configurations
         for project in solution.project_list:
 
-            # Process the filenames
-            project.get_file_list([FileTypes.icns,
-                                   FileTypes.h,
-                                   FileTypes.cpp,
-                                   FileTypes.c,
-                                   FileTypes.frameworks,
-                                   FileTypes.exe,
-                                   FileTypes.library,
-                                   FileTypes.glsl])
+            # Find all the input files
+            project.get_file_list(SUPPORTED_FILES)
 
-            framework_list = []
+            # Determine if there are frameworks, if so, add them to
+            # the input file list
+            framework_set = set()
             for configuration in project.configuration_list:
 
                 for item in configuration.frameworks_list:
-                    if item not in framework_list:
-                        framework_list.append(item)
+                    if item not in framework_set:
+                        framework_set.add(item)
                         project.codefiles.append(SourceFile(
                             item, "", FileTypes.frameworks))
 
+            # Make a list of build rules for files that need custom compilers
+            build_rules = []
+
+            # Check if there are GLSL Files
+            if source_file_detect(project.codefiles, FileTypes.glsl):
+                glsl_build_rule = PBXBuildRuleGLSL(solution.ide)
+                objects.add_item(glsl_build_rule)
+                build_rules.append(glsl_build_rule)
+
+            # Create all the file references
+            file_references = []
             for item in project.codefiles:
-
-                # If there were GLSL source files, add a custom build step
-                if not found_glsl and item.type is FileTypes.glsl:
-                    objects.add_item(BuildGLSL(project.configuration_list[0]))
-                    found_glsl = True
-
-                objects.add_item(PBXFileReference(item, solution.ide))
+                file_reference = PBXFileReference(item, solution.ide)
+                objects.add_item(file_reference)
+                file_references.append(file_reference)
 
             # What's the final output file?
             if project.project_type is ProjectTypes.library:
@@ -2789,16 +1907,21 @@ class XCProject(JSONDict):
                     "lib" + solution.name + idecode + libextension, "",
                     FileTypes.library), solution.ide)
                 objects.add_item(outputfilereference)
+
             elif project.project_type is ProjectTypes.app:
                 outputfilereference = PBXFileReference(SourceFile(
                     solution.name + ".app", "", FileTypes.exe), solution.ide)
                 objects.add_item(outputfilereference)
+
             elif project.project_type is not ProjectTypes.empty:
                 outputfilereference = PBXFileReference(SourceFile(
                     solution.name, "", FileTypes.exe), solution.ide)
                 objects.add_item(outputfilereference)
             else:
                 outputfilereference = None
+
+            if outputfilereference:
+                file_references.append(outputfilereference)
 
             # If a fat library, add references for dev and sim targets
             ioslibrary = False
@@ -2809,16 +1932,17 @@ class XCProject(JSONDict):
             if ioslibrary:
                 devfilereference = PBXFileReference(
                     SourceFile(
-                        "lib" + solution.name +
-                        idecode + "dev.a", "",
+                        "lib" + solution.name + "dev.a", "",
                         FileTypes.library), solution.ide)
                 objects.add_item(devfilereference)
+                file_references.append(devfilereference)
+
                 simfilereference = PBXFileReference(
                     SourceFile(
-                        "lib" + solution.name +
-                        idecode + "sim.a", "",
+                        "lib" + solution.name + "sim.a", "",
                         FileTypes.library), solution.ide)
                 objects.add_item(simfilereference)
+                file_references.append(simfilereference)
 
                 # Two targets for "fat" libraries
                 buildphase1 = PBXSourcesBuildPhase(
@@ -2834,9 +1958,11 @@ class XCProject(JSONDict):
 
                 # Add source files to compile for the ARM and the Intel libs
 
-                for item in objects.get_entries("PBXFileReference"):
-                    if item.source_file.type in (FileTypes.cpp, FileTypes.c,
-                            FileTypes.glsl):
+                for item in file_references:
+                    if item.source_file.type in (FileTypes.m, FileTypes.mm,
+                            FileTypes.cpp, FileTypes.c,
+                            FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
+                            FileTypes.x86):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -2865,9 +1991,11 @@ class XCProject(JSONDict):
                     framephase1 = PBXFrameworksBuildPhase(outputfilereference)
                     objects.add_item(framephase1)
 
-                    for item in objects.get_entries("PBXFileReference"):
-                        if item.source_file.type in (FileTypes.cpp, FileTypes.c,
-                                FileTypes.glsl):
+                    for item in file_references:
+                        if item.source_file.type in (FileTypes.m, FileTypes.mm,
+                                                     FileTypes.cpp, FileTypes.c,
+                                FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
+                                FileTypes.x86):
 
                             build_file = PBXBuildFile(
                                 item, outputfilereference)
@@ -2880,115 +2008,14 @@ class XCProject(JSONDict):
                             objects.add_item(build_file)
                             framephase1.add_build_file(build_file)
 
-            # Create the root file group and the Products group
-            groupproducts = PBXGroup("Products", None)
+            # Given the list of file references, create the
+            # directory tree for organizing the files
+            rootproject.set_root_group(
+                self.create_directory_tree(file_references))
 
-            grouproot = PBXGroup(solution.name, None)
-            objects.add_item(grouproot)
-
-            # No frameworks group unless one is warranted
-
-            frameworksgroup = None
-
-            # Insert all the file references into group
-            for item in objects.get_entries("PBXFileReference"):
-                # Products go into a special group
-                if item.source_file.type is FileTypes.exe:
-                    groupproducts.add_file(item)
-                elif item.source_file.type is FileTypes.library:
-                    groupproducts.add_file(item)
-                elif item.source_file.type is FileTypes.frameworks:
-
-                    # Create the group if needed
-
-                    if frameworksgroup is None:
-                        frameworksgroup = PBXGroup("Frameworks", None)
-                        objects.add_item(frameworksgroup)
-                        grouproot.add_group(frameworksgroup)
-
-                    frameworksgroup.add_file(item)
-                else:
-                    # Isolate the path
-                    index = item.source_file.relative_pathname.rfind("/")
-                    if index == -1:
-                        # Put in the root group
-                        grouproot.add_file(item)
-                    else:
-                        # Separate the path and name
-                        path = item.source_file.relative_pathname[0:index]
-                        #
-                        # See if a group already exists
-                        #
-                        found = False
-                        for matchgroup in objects.get_entries("PBXGroup"):
-                            if matchgroup.path is not None and \
-                                    matchgroup.path == path:
-                                # Add to a pre-existing group
-                                matchgroup.add_file(item)
-                                found = True
-                                break
-                        if found:
-                            continue
-
-                        # Group not found. Iterate and create the group
-                        # May need multiple levels
-
-                        #
-                        # Hack to remove preceding ../ entries
-                        #
-
-                        if path.startswith("../"):
-                            index = 3
-                        elif path.startswith("../../"):
-                            index = 6
-                        else:
-                            index = 0
-
-                        notdone = True
-                        previousgroup = grouproot
-                        while notdone:
-                            endindex = path[index:].find("/")
-                            if endindex == -1:
-                                # Final level, create group and add reference
-                                matchgroup = PBXGroup(
-                                    path[index:], path)
-                                objects.add_item(matchgroup)
-                                matchgroup.add_file(item)
-                                previousgroup.add_group(matchgroup)
-                                notdone = False
-                            else:
-                                #
-                                # See if a group already exists
-                                #
-                                temppath = path[0:index + endindex]
-                                found = False
-                                for matchgroup in objects.get_entries(
-                                        "PBXGroup"):
-                                    if matchgroup.path is None:
-                                        continue
-                                    if matchgroup.path == temppath:
-                                        found = True
-                                        break
-
-                                if not found:
-                                    matchgroup = PBXGroup(
-                                        path[index:index + endindex], temppath)
-                                    objects.add_item(matchgroup)
-                                    previousgroup.add_group(matchgroup)
-                                previousgroup = matchgroup
-                                index = index + endindex + 1
-
-            # Any output?
-            if not groupproducts.is_empty():
-                objects.add_item(groupproducts)
-                grouproot.add_group(groupproducts)
             # Create the config list for the root project
-
             configlistref = XCConfigurationList(
-                "PBXProject",
-                solution.name +
-                solution.ide_code +
-                solution.platform_code)
+                "PBXProject", solution.name)
             objects.add_item(configlistref)
             for configuration in project.configuration_list:
                 entry = self.addxcbuildconfigurationlist(
@@ -2996,7 +2023,6 @@ class XCProject(JSONDict):
                 configlistref.configuration_list.append(entry)
 
             rootproject.set_config_list(configlistref)
-            rootproject.set_root_group(grouproot)
 
             #
             # Create the PBXNativeTarget config chunks
@@ -3032,7 +2058,8 @@ class XCProject(JSONDict):
                     solution.name,
                     outputfilereference,
                     solution.name,
-                    outputtype)
+                    outputtype,
+                    build_rules)
                 objects.add_item(nativetarget1)
                 nativetarget1.set_config_list(configlistref)
                 rootproject.append_target(nativetarget1)
@@ -3052,17 +2079,19 @@ class XCProject(JSONDict):
                     configlistref.configuration_list.append(
                         self.addxcbuildconfigurationlist(
                             configuration, None, configlistref, False))
+
                 nativetarget1 = PBXNativeTarget(
                     self,
                     solution.name,
                     outputfilereference,
                     solution.name,
-                    outputtype)
+                    outputtype,
+                    [])
                 objects.add_item(nativetarget1)
                 nativetarget1.set_config_list(configlistref)
                 rootproject.append_target(nativetarget1)
 
-                targetname = solution.name + idecode + "dev"
+                targetname = solution.name + "dev"
                 configlistref = XCConfigurationList(
                     "PBXNativeTarget", targetname)
                 objects.add_item(configlistref)
@@ -3078,7 +2107,8 @@ class XCProject(JSONDict):
                     targetname,
                     devfilereference,
                     solution.name,
-                    outputtype)
+                    outputtype,
+                    build_rules)
                 objects.add_item(nativeprojectdev)
                 nativeprojectdev.set_config_list(configlistref)
                 rootproject.append_target(nativeprojectdev)
@@ -3089,23 +2119,35 @@ class XCProject(JSONDict):
                     nativeprojectdev, self.uuid)
                 objects.add_item(devcontainer)
 
-                targetname = solution.name + idecode + "sim"
+                targetname = solution.name + "sim"
                 configlistref = XCConfigurationList(
                     "PBXNativeTarget", targetname)
                 objects.add_item(configlistref)
                 for configuration in project.configuration_list:
+
+                    # Hack to change ios native to ios emulation platforms
+                    tempplatform = configuration.platform
+                    configuration.platform = {
+                        PlatformTypes.ios32: PlatformTypes.iosemu32,
+                        PlatformTypes.ios64: PlatformTypes.iosemu64}.get(
+                        tempplatform, tempplatform)
+
                     configlistref.configuration_list.append(
                         self.addxcbuildconfigurationlist(
                             configuration,
                             None,
                             configlistref,
                             False))
+                    # Restore configuration
+                    configuration.platform = tempplatform
+
                 nativeprojectsim = PBXNativeTarget(
                     self,
                     targetname,
                     simfilereference,
                     solution.name,
-                    outputtype)
+                    outputtype,
+                    build_rules)
                 objects.add_item(nativeprojectsim)
                 nativeprojectsim.set_config_list(configlistref)
                 rootproject.append_target(nativeprojectsim)
@@ -3135,7 +2177,7 @@ class XCProject(JSONDict):
                     # Copy the tool to the bin folder
                     input_data = [_TEMP_EXE_NAME]
                     output = ("${SRCROOT}/bin/"
-                        "${EXECUTABLE_NAME}")
+                        "${EXECUTABLE_NAME}${SUFFIX}")
 
                     command = (
                         "if [ ! -d ${{SRCROOT}}/bin ];"
@@ -3161,7 +2203,8 @@ class XCProject(JSONDict):
                         "/Contents/MacOS/"
                         "${EXECUTABLE_NAME}")
 
-                    command = "if [ ! -d ${SRCROOT}/bin ]; then mkdir ${SRCROOT}/bin; fi\\n" \
+                    command = "if [ ! -d ${SRCROOT}/bin ]; then mkdir " \
+                        "${SRCROOT}/bin; fi\\n" \
                         "${CP} -r " + _TEMP_EXE_NAME + ".app/ " \
                         "${SRCROOT}/bin/${EXECUTABLE_NAME}" + ".app/\\n" \
                         "mv ${SRCROOT}/bin/${EXECUTABLE_NAME}" + ".app" \
@@ -3189,31 +2232,27 @@ class XCProject(JSONDict):
                     input_data = [_TEMP_EXE_NAME]
                 else:
                     input_data = [
-                        "${BUILD_ROOT}/" + solution.name + idecode +
-                        "dev/lib" + solution.name + idecode + "dev.a",
-                        "${BUILD_ROOT}/" + solution.name + idecode +
-                        "sim/lib" +
-                        solution.name + idecode + "sim.a"
+                        "${BUILD_ROOT}/" + solution.name +
+                        "dev${SUFFIX}/lib" + solution.name + "dev.a",
+                        "${BUILD_ROOT}/" + solution.name +
+                        "sim${SUFFIX}/lib" + solution.name + "sim.a"
                     ]
 
                 if ioslibrary is True:
 
-                    output = deploy_folder + "${FULL_PRODUCT_NAME}"
-                    command = "export SUFFIX=${PRODUCT_NAME:${#PRODUCT_NAME}-6:6}\\n" + \
-                        _PERFORCE_PATH + " edit " + deploy_folder + "${FULL_PRODUCT_NAME}\\n" + \
-                        "lipo -output " + deploy_folder + \
-                        "${FULL_PRODUCT_NAME} -create ${BUILD_ROOT}/" + \
-                        solution.name + idecode + \
-                        "dev${SUFFIX}/lib" + solution.name + idecode + \
-                        "dev${SUFFIX}.a ${BUILD_ROOT}/" + \
-                        solution.name + idecode + \
-                        "sim${SUFFIX}/lib" + solution.name + \
-                        idecode + "sim${SUFFIX}.a\\n" + \
+                    output = deploy_folder + "lib${PRODUCT_NAME}${SUFFIX}.a"
+                    command = _PERFORCE_PATH + " edit " + output + "\\n" + \
+                        "lipo -output " + output + \
+                        " -create ${BUILD_ROOT}/" + \
+                        solution.name + "dev${SUFFIX}/lib" + \
+                        solution.name + "dev.a ${BUILD_ROOT}/" + \
+                        solution.name + "sim${SUFFIX}/lib" + \
+                        solution.name + "sim.a\\n" + \
                         _PERFORCE_PATH + " revert -a " + \
-                        deploy_folder + "${FULL_PRODUCT_NAME}\\n"
+                        output + "\\n"
                 elif project.project_type is ProjectTypes.library:
 
-                    output = ("{0}lib${{PRODUCT_NAME}}.a").format(
+                    output = ("{0}lib${{PRODUCT_NAME}}${{SUFFIX}}.a").format(
                         deploy_folder)
                     command = (
                         "{0} edit {1}\\n"
@@ -3263,9 +2302,170 @@ class XCProject(JSONDict):
             self.objects.add_item(entry)
         return entry
 
+    ########################################
+
+    def init_root_entries(self):
+        """
+        Init the root items for the XCProject
+
+        Creates the entries archiveVersion, classes, objectVersion,
+        objects, and rootObject
+
+        Returns:
+            objects, which is a JSONObjects object
+        """
+
+        # Always 1
+        self.add_item(JSONEntry("archiveVersion", value="1"))
+
+        # Always empty
+        self.add_item(JSONDict("classes"))
+
+        # Set to the version of XCode being generated for
+        self.add_item(
+            JSONEntry(
+                "objectVersion",
+                value=OBJECT_VERSIONS.get(self.solution.ide)[0]))
+
+        # Create the master object list
+        objects = JSONObjects("objects")
+        self.add_item(objects)
+
+        # UUID of the root object
+        rootobject = JSONEntry(
+            "rootObject",
+            value=self.uuid,
+            comment="Project object")
+        self.add_item(rootobject)
+
+        return objects
+
+    ########################################
+
+    def create_directory_tree(self, file_references):
+        """
+        Create the directory tree for all files in the project
+
+        Args:
+            file_references: List of all file references to map
+        """
+
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
+
+        # Main JSON object list
+        objects = self.objects
+
+        # Create the root file group and the Products group
+        group_products = PBXGroup("Products", None)
+
+        # No frameworks group unless one is warranted
+        framework_group = PBXGroup("Frameworks", None)
+
+        # Origin of the directory tree (This will be returned)
+        group_root = PBXGroup(self.solution.name, None)
+        objects.add_item(group_root)
+
+        # List of groups already made, to avoid making duplicates
+        groups_made = []
+
+        # pylint: disable=too-many-nested-blocks
+
+        # Insert all the file references into the proper group
+        for item in file_references:
+
+            # Products go into a special group
+            if item.source_file.type in (FileTypes.exe, FileTypes.library):
+                group_products.add_file(item)
+                continue
+
+            # Frameworks go into the FrameWorks group
+            if item.source_file.type is FileTypes.frameworks:
+                framework_group.add_file(item)
+                continue
+
+            # Add to the hierarchical groups
+
+            # Isolate the path
+            index = item.relative_pathname.rfind("/")
+            if index == -1:
+                # Put in the root group
+                group_root.add_file(item)
+                continue
+
+            # Separate the path and name
+            path = item.relative_pathname[0:index]
+
+            # See if a group already exists
+            for match_group in groups_made:
+
+                # Add to a pre-existing group if found
+                if match_group.path == path:
+                    match_group.add_file(item)
+                    break
+            else:
+
+                # Group not found. Iterate and create the group
+                # May need multiple levels
+
+                # Hack to remove preceding ../ entries
+                if path.startswith("../"):
+                    index = 3
+                elif path.startswith("../../"):
+                    index = 6
+                else:
+                    index = 0
+
+                previous_group = group_root
+                while True:
+
+                    # At the final directory level?
+                    endindex = path[index:].find("/")
+                    if endindex == -1:
+
+                        # Final level, create group and add reference
+                        match_group = PBXGroup(path[index:], path)
+                        objects.add_item(match_group)
+                        groups_made.append(match_group)
+                        previous_group.add_group(match_group)
+                        match_group.add_file(item)
+                        break
+
+                    # See if a group already exists at this level
+                    temppath = path[0:index + endindex]
+                    for match_group in groups_made:
+                        if match_group.path == temppath:
+                            break
+                    else:
+
+                        # Create an empty intermediate group
+                        match_group = PBXGroup(
+                            path[index:index + endindex], temppath)
+                        objects.add_item(match_group)
+                        groups_made.append(match_group)
+                        previous_group.add_group(match_group)
+
+                    # Next level into the group
+                    previous_group = match_group
+                    index = index + endindex + 1
+
+        # Add in the Products group if needed
+        if not group_products.is_empty():
+            objects.add_item(group_products)
+            group_root.add_group(group_products)
+
+        # Add in the Frameworks group if needed
+        if not framework_group.is_empty():
+            objects.add_item(framework_group)
+            group_root.add_group(framework_group)
+
+        return group_root
+
+    ########################################
+
     def generate(self, line_list, indent=0):
         """
-        Generate an XCode project files
+        Generate an entire XCode project file
 
         Args:
             line_list: Line list to append new lines.
@@ -3274,12 +2474,16 @@ class XCProject(JSONDict):
             Non-zero on error.
         """
 
-        # Write the XCode header
+        # Write the XCode header for charset
         line_list.append("// !$*UTF8*$!")
+
+        # Open brace for beginning
         line_list.append("{")
 
         # Increase indentatiopn
         indent = indent + 1
+
+        # Dump everything in the project
         for item in self.value:
             item.generate(line_list, indent)
 
@@ -3299,6 +2503,8 @@ def generate(solution):
     Returns:
         Numeric error code.
     """
+
+    # pylint: disable=protected-access
 
     # Failsafe
     if solution.ide not in SUPPORTED_IDES:

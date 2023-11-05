@@ -27,6 +27,8 @@ from burger import save_text_file_if_newer, convert_to_windows_slashes, \
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     source_file_filter
 from .visual_studio import get_uuid, create_deploy_script
+from .visual_studio_utils import wiiu_props, add_masm_support, \
+    get_toolset_version
 
 SUPPORTED_IDES = (
     IDETypes.vs2010,
@@ -187,8 +189,8 @@ def generate_solution_file(solution_lines, solution):
 
         # Save off the project record
         solution_lines.append(
-            ('Project("{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}") '
-             '= "{}", "{}", "{{{}}}"').format(
+            ("Project(\"{{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}}\") "
+             "= \"{}\", \"{}\", \"{{{}}}\"").format(
                  project.name,
                  project.vs_output_filename,
                  project.vs_uuid))
@@ -196,16 +198,16 @@ def generate_solution_file(solution_lines, solution):
         # Write out the dependencies, if any
         if project.project_list or solution.ide < IDETypes.vs2005:
             solution_lines.append(
-                '\tProjectSection(ProjectDependencies) = postProject')
+                "\tProjectSection(ProjectDependencies) = postProject")
             for dependent in project.project_list:
                 solution_lines.append(
-                    '\t\t{{{0}}} = {{{0}}}'.format(
+                    "\t\t{{{0}}} = {{{0}}}".format(
                         dependent.vs_uuid))
-            solution_lines.append('\tEndProjectSection')
-        solution_lines.append('EndProject')
+            solution_lines.append("\tEndProjectSection")
+        solution_lines.append("EndProject")
 
     # Begin the Global record
-    solution_lines.append('Global')
+    solution_lines.append("Global")
 
     # Visual Studio 2003 format is unique, write it out in its
     # own exporter
@@ -224,41 +226,41 @@ def generate_solution_file(solution_lines, solution):
 
         # List the configuration pairs (Like Xbox and Win32)
         solution_lines.append(
-            '\tGlobalSection(SolutionConfiguration) = preSolution')
+            "\tGlobalSection(SolutionConfiguration) = preSolution")
         for entry in config_list:
             # Since Visual Studio 2003 doesn't support
             # Platform/Configuration pairing,
             # it's faked with a space
-            solution_lines.append('\t\t{0} = {0}'.format(entry))
-        solution_lines.append('\tEndGlobalSection')
+            solution_lines.append("\t\t{0} = {0}".format(entry))
+        solution_lines.append("\tEndGlobalSection")
 
         # List all of the projects/configurations
         solution_lines.append(
-            '\tGlobalSection(ProjectConfiguration) = postSolution')
+            "\tGlobalSection(ProjectConfiguration) = postSolution")
         for project in solution.project_list:
             for configuration in project.configuration_list:
                 # Using the faked Platform/Configuration pair used above,
                 # create the appropriate pairs here and match them up.
                 solution_lines.append(
-                    '\t\t{{{0}}}.{1}.ActiveCfg = {2}'.format(
+                    "\t\t{{{0}}}.{1}.ActiveCfg = {2}".format(
                         project.vs_uuid,
                         configuration.name,
                         configuration.vs_configuration_name))
                 solution_lines.append(
-                    '\t\t{{{0}}}.{1}.Build.0 = {2}'.format(
+                    "\t\t{{{0}}}.{1}.Build.0 = {2}".format(
                         project.vs_uuid,
                         configuration.name,
                         configuration.vs_configuration_name))
-        solution_lines.append('\tEndGlobalSection')
+        solution_lines.append("\tEndGlobalSection")
 
         # Put in stubs for these records.
         solution_lines.append(
-            '\tGlobalSection(ExtensibilityGlobals) = postSolution')
-        solution_lines.append('\tEndGlobalSection')
+            "\tGlobalSection(ExtensibilityGlobals) = postSolution")
+        solution_lines.append("\tEndGlobalSection")
 
         solution_lines.append(
-            '\tGlobalSection(ExtensibilityAddIns) = postSolution')
-        solution_lines.append('\tEndGlobalSection')
+            "\tGlobalSection(ExtensibilityAddIns) = postSolution")
+        solution_lines.append("\tEndGlobalSection")
 
     # All other versions of Visual Studio 2005 and later use this format
     # for the configurations
@@ -269,60 +271,60 @@ def generate_solution_file(solution_lines, solution):
             # versions of Visual Studio
 
             solution_lines.append(
-                '\tGlobalSection(SolutionConfigurationPlatforms) = preSolution')
+                "\tGlobalSection(SolutionConfigurationPlatforms) = preSolution")
             for project in solution.project_list:
                 for configuration in project.configuration_list:
                     solution_lines.append(
-                        '\t\t{0} = {0}'.format(
+                        "\t\t{0} = {0}".format(
                             configuration.vs_configuration_name))
-            solution_lines.append('\tEndGlobalSection')
+            solution_lines.append("\tEndGlobalSection")
 
             # Write out the ProjectConfigurationPlatforms
             solution_lines.append(
-                '\tGlobalSection(ProjectConfigurationPlatforms) = postSolution')
+                "\tGlobalSection(ProjectConfigurationPlatforms) = postSolution")
 
             for project in solution.project_list:
                 for configuration in project.configuration_list:
                     solution_lines.append(
-                        '\t\t{{{0}}}.{1}.ActiveCfg = {1}'.format(
+                        "\t\t{{{0}}}.{1}.ActiveCfg = {1}".format(
                             project.vs_uuid,
                             configuration.vs_configuration_name))
                     solution_lines.append(
-                        '\t\t{{{0}}}.{1}.Build.0 = {1}'.format(
+                        "\t\t{{{0}}}.{1}.Build.0 = {1}".format(
                             project.vs_uuid,
                             configuration.vs_configuration_name))
 
-            solution_lines.append('\tEndGlobalSection')
+            solution_lines.append("\tEndGlobalSection")
 
         # Hide nodes section
         solution_lines.append(
-            '\tGlobalSection(SolutionProperties) = preSolution')
-        solution_lines.append('\t\tHideSolutionNode = FALSE')
-        solution_lines.append('\tEndGlobalSection')
+            "\tGlobalSection(SolutionProperties) = preSolution")
+        solution_lines.append("\t\tHideSolutionNode = FALSE")
+        solution_lines.append("\tEndGlobalSection")
 
         if solution.ide == IDETypes.vs2017:
             solution_lines.append(
-                '\tGlobalSection(ExtensibilityGlobals) = postSolution')
+                "\tGlobalSection(ExtensibilityGlobals) = postSolution")
             solution_lines.append(
-                '\t\tSolutionGuid = {DD9C6A72-2C1C-45F2-9450-8BE7001FEE33}')
-            solution_lines.append('\tEndGlobalSection')
+                "\t\tSolutionGuid = {DD9C6A72-2C1C-45F2-9450-8BE7001FEE33}")
+            solution_lines.append("\tEndGlobalSection")
 
         if solution.ide == IDETypes.vs2019:
             solution_lines.append(
-                '\tGlobalSection(ExtensibilityGlobals) = postSolution')
+                "\tGlobalSection(ExtensibilityGlobals) = postSolution")
             solution_lines.append(
-                '\t\tSolutionGuid = {6B996D51-9872-4B32-A08B-EBDBC2A3151F}')
-            solution_lines.append('\tEndGlobalSection')
+                "\t\tSolutionGuid = {6B996D51-9872-4B32-A08B-EBDBC2A3151F}")
+            solution_lines.append("\tEndGlobalSection")
 
         if solution.ide == IDETypes.vs2022:
             solution_lines.append(
-                '\tGlobalSection(ExtensibilityGlobals) = postSolution')
+                "\tGlobalSection(ExtensibilityGlobals) = postSolution")
             solution_lines.append(
-                '\t\tSolutionGuid = {B6FA54F0-2622-4700-BD43-73EB0EBEFE41}')
-            solution_lines.append('\tEndGlobalSection')
+                "\t\tSolutionGuid = {B6FA54F0-2622-4700-BD43-73EB0EBEFE41}")
+            solution_lines.append("\tEndGlobalSection")
 
     # Close it up!
-    solution_lines.append('EndGlobal')
+    solution_lines.append("EndGlobal")
     return 0
 
 
@@ -505,27 +507,27 @@ class VS2010XML():
             line_list = []
 
         # Determine the indentation
-        tabs = '  ' * indent
+        tabs = "  " * indent
 
         # Output the tag
-        line = '{0}<{1}'.format(tabs, escape_xml_cdata(self.name))
+        line = "{0}<{1}".format(tabs, escape_xml_cdata(self.name))
 
-        # Output tag with attributes and support '/>' closing
+        # Output tag with attributes and support "/>" closing
         for attribute in self.attributes:
-            line = '{0} {1}="{2}"'.format(line,
+            line = "{0} {1}=\"{2}\"".format(line,
                                           escape_xml_cdata(attribute[0]),
                                           escape_xml_attribute(attribute[1]))
 
         if not self.elements and not self.contents:
-            line_list.append(line + ' />')
+            line_list.append(line + " />")
             return line_list
 
         # Close the open tag
-        line = line + '>'
+        line = line + ">"
         if self.contents:
 
             # contents could be multi-line, deal with it.
-            lines = escape_xml_cdata(self.contents).split('\n')
+            lines = escape_xml_cdata(self.contents).split("\n")
             line = line + lines.pop(0)
             if lines:
                 line_list.append(line)
@@ -534,7 +536,7 @@ class VS2010XML():
 
         if not self.elements:
             line_list.append(
-                '{0}</{1}>'.format(line, escape_xml_cdata(self.name)))
+                "{0}</{1}>".format(line, escape_xml_cdata(self.name)))
             return line_list
 
         line_list.append(line)
@@ -542,7 +544,7 @@ class VS2010XML():
         for element in self.elements:
             element.generate(line_list, indent=indent + 1)
         # Close the current element
-        line_list.append('{0}</{1}>'.format(tabs, escape_xml_cdata(self.name)))
+        line_list.append("{0}</{1}>".format(tabs, escape_xml_cdata(self.name)))
         return line_list
 
     ########################################
@@ -555,7 +557,7 @@ class VS2010XML():
             Human readable string or None if the solution is invalid
         """
 
-        return '\n'.join(self.generate())
+        return "\n".join(self.generate())
 
     def __str__(self):
         """
@@ -588,12 +590,12 @@ class VS2010ProjectConfiguration(VS2010XML):
         self.configuration = configuration
 
         VS2010XML.__init__(
-            self, 'ProjectConfiguration', {
-                'Include':
+            self, "ProjectConfiguration", {
+                "Include":
                     configuration.vs_configuration_name})
 
-        self.add_tag('Configuration', configuration.name)
-        self.add_tag('Platform', configuration.vs_platform)
+        self.add_tag("Configuration", configuration.name)
+        self.add_tag("Platform", configuration.vs_platform)
 
 ########################################
 
@@ -614,8 +616,8 @@ class VS2010ProjectConfigurations(VS2010XML):
         ## Parent project
         self.project = project
 
-        VS2010XML.__init__(self, 'ItemGroup', {
-            'Label': 'ProjectConfigurations'})
+        VS2010XML.__init__(self, "ItemGroup", {
+            "Label": "ProjectConfigurations"})
 
         for configuration in project.configuration_list:
             self.add_element(VS2010ProjectConfiguration(configuration))
@@ -639,8 +641,8 @@ class VS2010NsightTegraProject(VS2010XML):
         ## Parent project
         self.project = project
 
-        VS2010XML.__init__(self, 'PropertyGroup', {
-            'Label': 'NsightTegraProject'})
+        VS2010XML.__init__(self, "PropertyGroup", {
+            "Label": "NsightTegraProject"})
 
         self.add_tag("NsightTegraProjectRevisionNumber", "11")
 
@@ -664,15 +666,15 @@ class VS2010ExtensionTargets(VS2010XML):
         ## Parent project
         self.project = project
 
-        VS2010XML.__init__(self, 'ImportGroup', {'Label': 'ExtensionTargets'})
+        VS2010XML.__init__(self, "ImportGroup", {"Label": "ExtensionTargets"})
 
         for props in project.vs_targets:
             props = convert_to_windows_slashes(props)
             self.add_element(
                 VS2010XML(
-                    'Import', {
-                        'Project': props,
-                        'Condition': "exists('{}')".format(props)}))
+                    "Import", {
+                        "Project": props,
+                        "Condition": "exists('{}')".format(props)}))
 
 
 ########################################
@@ -691,11 +693,34 @@ class VS2010Globals(VS2010XML):
             project: Project record to extract defaults.
         """
 
+        # pylint: disable=too-many-branches
+
         ## Parent project
         self.project = project
         VS2010XML.__init__(self, "PropertyGroup", {"Label": "Globals"})
 
         ide = project.ide
+
+        # Check for the special case of Xbox ONE
+        found_xbox = False
+        if ide >= IDETypes.vs2017:
+            for configuration in project.configuration_list:
+                if configuration.platform.is_xbox():
+                    found_xbox = True
+                    break
+
+        # Xbox ONE needs this entry
+        if found_xbox:
+            self.add_tag("ApplicationEnvironment", "title")
+
+        # Name of the project
+        self.add_tag("ProjectName", project.name)
+
+        # Set the language
+        if found_xbox:
+            self.add_tag("DefaultLanguage", "en-US")
+
+        self.add_tag("ProjectGuid", "{{{}}}".format(project.vs_uuid))
 
         # Check for the special case of Android for VS2022
         found_android = False
@@ -705,11 +730,6 @@ class VS2010Globals(VS2010XML):
                     found_android = True
                     break
 
-        self.add_tags((
-            ("ProjectName", project.name),
-            ("ProjectGuid", "{{{}}}".format(project.vs_uuid))
-        ))
-
         if found_android:
             self.add_tags((
                 ("Keyword", "Android"),
@@ -718,33 +738,50 @@ class VS2010Globals(VS2010XML):
                 ("ApplicationTypeRevision", "3.0")
             ))
         else:
-            # Was there an override?
-            platform_version = project.vs_platform_version
 
-            # Create a default
-            if platform_version is None:
+            # Test if WindowsTargetPlatformVersion is needed
+            for configuration in project.configuration_list:
+                if configuration.platform.is_switch():
+                    break
 
-                # Visual Studio 2019 and higher allows using "Latest"
-                # SDK
-                if ide in (IDETypes.vs2019, IDETypes.vs2022):
-                    platform_version = "10.0"
+            else:
+                # Was there an override?
+                platform_version = project.vs_platform_version
 
-                # Visual Studio 2015-2017 require explicit SDK
-                elif ide in (IDETypes.vs2015, IDETypes.vs2017):
+                # Create a default
+                if platform_version is None:
 
-                    # Special case if using the Xbox ONE toolset
-                    # The Xbox ONE XDK requires 8.1, the GDK does not
-                    for configuration in project.configuration_list:
-                        if configuration.platform is PlatformTypes.xboxone:
-                            platform_version = "8.1"
-                            break
-                    else:
-                        # Set to the latest installed with 2017
-                        platform_version = "10.0.17763.0"
+                    # Visual Studio 2019 and higher allows using "Latest"
+                    # SDK
+                    if ide in (IDETypes.vs2019, IDETypes.vs2022):
+                        platform_version = "10.0"
 
-            self.add_tag(
-                "WindowsTargetPlatformVersion",
-                platform_version)
+                    # Visual Studio 2015-2017 require explicit SDK
+                    elif ide in (IDETypes.vs2015, IDETypes.vs2017):
+
+                        # Special case if using the Xbox ONE toolset
+                        # The Xbox ONE XDK requires 8.1, the GDK does not
+                        for configuration in project.configuration_list:
+                            if configuration.platform is PlatformTypes.xboxone:
+                                platform_version = "8.1"
+                                break
+                        else:
+                            # Set to the latest installed with 2017
+                            platform_version = "10.0.17763.0"
+
+                self.add_tag(
+                    "WindowsTargetPlatformVersion",
+                    platform_version)
+
+        # The Xbox GDK requires to be declared as "C"
+        if ide >= IDETypes.vs2017:
+            for configuration in project.configuration_list:
+                if configuration.platform in (
+                        PlatformTypes.xboxgdk, PlatformTypes.xboxonex):
+                    self.add_tag(
+                        "GDKExtLibNames",
+                        "Xbox.Services.API.C")
+                    break
 
 
 ########################################
@@ -771,41 +808,41 @@ class VS2010Configuration(VS2010XML):
         vs_configuration_name = configuration.vs_configuration_name
 
         VS2010XML.__init__(
-            self, 'PropertyGroup',
-            {'Condition': "'$(Configuration)|$(Platform)'=='{}'".format(
+            self, "PropertyGroup",
+            {"Condition": "'$(Configuration)|$(Platform)'=='{}'".format(
                 vs_configuration_name),
-             'Label': 'Configuration'})
+             "Label": "Configuration"})
 
         platform = configuration.platform
         project_type = configuration.project_type
 
         # Set the configuration type
         if project_type in (ProjectTypes.app, ProjectTypes.tool):
-            configuration_type = 'Application'
+            configuration_type = "Application"
         elif project_type is ProjectTypes.sharedlibrary:
-            configuration_type = 'DynamicLibrary'
+            configuration_type = "DynamicLibrary"
         else:
-            configuration_type = 'StaticLibrary'
+            configuration_type = "StaticLibrary"
 
         # Which toolset to use?
         platform_toolset = configuration.get_chained_value(
-            'vs_platform_toolset')
+            "vs_platform_toolset")
         if not platform_toolset:
             if platform.is_windows():
                 platformtoolsets = {
-                    IDETypes.vs2010: 'v100',
-                    IDETypes.vs2012: 'v110_xp',
-                    IDETypes.vs2013: 'v120_xp',
-                    IDETypes.vs2015: 'v140_xp',
-                    IDETypes.vs2017: 'v141_xp',
-                    IDETypes.vs2019: 'v142',
-                    IDETypes.vs2022: 'v143'
+                    IDETypes.vs2010: "v100",
+                    IDETypes.vs2012: "v110_xp",
+                    IDETypes.vs2013: "v120_xp",
+                    IDETypes.vs2015: "v140_xp",
+                    IDETypes.vs2017: "v141_xp",
+                    IDETypes.vs2019: "v142",
+                    IDETypes.vs2022: "v143"
                 }
                 platform_toolset = platformtoolsets.get(
-                    configuration.ide, 'v141_xp')
+                    configuration.ide, "v141_xp")
 
                 # ARM targets must use the non-xp toolset
-                if platform_toolset.endswith('_xp'):
+                if platform_toolset.endswith("_xp"):
                     if platform in (PlatformTypes.winarm32,
                                     PlatformTypes.winarm64):
                         platform_toolset = platform_toolset[:-3]
@@ -813,12 +850,12 @@ class VS2010Configuration(VS2010XML):
             # Xbox ONE uses this tool chain
             elif platform.is_xboxone():
                 platformtoolsets_one = {
-                    IDETypes.vs2017: 'v141',
-                    IDETypes.vs2019: 'v142',
-                    IDETypes.vs2022: 'v143'
+                    IDETypes.vs2017: "v141",
+                    IDETypes.vs2019: "v142",
+                    IDETypes.vs2022: "v143"
                 }
                 platform_toolset = platformtoolsets_one.get(
-                    configuration.ide, 'v141')
+                    configuration.ide, "v141")
 
             # The default is 5.0, but currently the Android plug in is
             # causing warnings with __ANDROID_API__. Fall back to 3.8
@@ -826,11 +863,11 @@ class VS2010Configuration(VS2010XML):
                 platform_toolset = "Clang_3_8"
 
         self.add_tags((
-            ('ConfigurationType', configuration_type),
+            ("ConfigurationType", configuration_type),
             # Enable debug libraries
-            ('UseDebugLibraries', truefalse(
+            ("UseDebugLibraries", truefalse(
                 configuration.debug)),
-            ('PlatformToolset', platform_toolset)
+            ("PlatformToolset", platform_toolset)
         ))
 
         # Handle android minimum tool set
@@ -839,9 +876,9 @@ class VS2010Configuration(VS2010XML):
                             PlatformTypes.androidarm64):
                 # 64 bit support was introduced in android 21
                 # Lollipop 5.0
-                android_min_api = 'android-21'
+                android_min_api = "android-21"
             else:
-                android_min_api = 'android-9'
+                android_min_api = "android-9"
             self.add_tag("AndroidMinAPI", android_min_api)
             self.add_tag("AndroidTargetAPI", "android-24")
 
@@ -864,6 +901,14 @@ class VS2010Configuration(VS2010XML):
         # Nintendo Switch SDK location
         if platform.is_switch():
             self.add_tag("NintendoSdkRoot", "$(NINTENDO_SDK_ROOT)\\")
+            self.add_tag("NintendoSdkSpec", "NX")
+            item = getattr(configuration, "switch_build_type", "Debug")
+            self.add_tag("NintendoSdkBuildType", item)
+
+        # If Visual Studio 2022 for Windows or Xbox, use the 64 bit tools
+        if configuration.ide >= IDETypes.vs2022:
+            if platform.is_xbox() or platform.is_windows():
+                self.add_tag("PreferredToolArchitecture", "x64")
 
 
 ########################################
@@ -884,15 +929,15 @@ class VS2010ExtensionSettings(VS2010XML):
 
         ## Parent project
         self.project = project
-        VS2010XML.__init__(self, 'ImportGroup', {'Label': 'ExtensionSettings'})
+        VS2010XML.__init__(self, "ImportGroup", {"Label": "ExtensionSettings"})
 
         for props in project.vs_props:
             props = convert_to_windows_slashes(props)
             self.add_element(
                 VS2010XML(
-                    'Import', {
-                        'Project': props,
-                        'Condition': "exists('{}')".format(props)}))
+                    "Import", {
+                        "Project": props,
+                        "Condition": "exists('{}')".format(props)}))
 
 ########################################
 
@@ -912,7 +957,7 @@ class VS2010UserMacros(VS2010XML):
 
         ## Parent project
         self.project = project
-        VS2010XML.__init__(self, 'PropertyGroup', {'Label': 'UserMacros'})
+        VS2010XML.__init__(self, "PropertyGroup", {"Label": "UserMacros"})
 
 ########################################
 
@@ -933,18 +978,32 @@ class VS2010PropertySheets(VS2010XML):
         ## Parent project
         self.project = project
 
-        VS2010XML.__init__(self, 'ImportGroup', {'Label': 'PropertySheets'})
+        VS2010XML.__init__(self, "ImportGroup", {"Label": "PropertySheets"})
 
         self.add_element(
             VS2010XML(
-                'Import',
-                {'Project':
-                 '$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props',
-                 'Condition':
+                "Import",
+                {"Project":
+                 "$(UserRootDir)\\Microsoft.Cpp.$(Platform).user.props",
+                 "Condition":
                  "exists('$(UserRootDir)\\Microsoft.Cpp."
                  "$(Platform).user.props')",
-                 'Label':
-                 'LocalAppDataPlatform'}))
+                 "Label":
+                 "LocalAppDataPlatform"}))
+
+        # Switch requires projects settings from the Nintendo SDK
+        for configuration in project.configuration_list:
+            if configuration.platform.is_switch():
+                self.add_element(
+                    VS2010XML(
+                        "Import",
+                        {"Project":
+                        "$(NINTENDO_SDK_ROOT)\\Build\\VcProjectUtility\\"
+                        "ImportNintendoSdk.props",
+                        "Condition":
+                        "exists('$(NINTENDO_SDK_ROOT)\\Build\\"
+                        "VcProjectUtility\\ImportNintendoSdk.props')"}))
+                break
 
 
 ########################################
@@ -969,8 +1028,8 @@ class VS2010PropertyGroup(VS2010XML):
         vs_configuration_name = configuration.vs_configuration_name
 
         VS2010XML.__init__(
-            self, 'PropertyGroup',
-            {'Condition': "'$(Configuration)|$(Platform)'=='{}'".format(
+            self, "PropertyGroup",
+            {"Condition": "'$(Configuration)|$(Platform)'=='{}'".format(
                 vs_configuration_name)})
 
         platform = configuration.platform
@@ -980,56 +1039,101 @@ class VS2010PropertyGroup(VS2010XML):
 
         # Xbox 360 deployment file names
         if platform is PlatformTypes.xbox360:
-            remote_root = 'xe:\\$(ProjectName)'
-            image_xex_output = '$(OutDir)$(TargetName).xex'
+            remote_root = "xe:\\$(ProjectName)"
+            image_xex_output = "$(OutDir)$(TargetName).xex"
 
         suffix = configuration.get_suffix()
 
-        target_name = '$(ProjectName){}'.format(suffix)
+        target_name = "$(ProjectName){}".format(suffix)
         if platform.is_android():
-            target_name = 'lib' + target_name
+            target_name = "lib" + target_name
 
-        int_dir = '$(ProjectDir)temp\\$(ProjectName){}\\'.format(suffix)
+        int_dir = "$(ProjectDir)temp\\$(ProjectName){}\\".format(suffix)
 
         if platform is PlatformTypes.win32:
-            run_code_analysis = 'false'
+            run_code_analysis = "false"
 
         # Enable incremental linking
         self.add_tags((
-            ('LinkIncremental', truefalse(
+            ("LinkIncremental", truefalse(
                 not configuration.optimization)),
-            ('TargetName', target_name),
-            ('IntDir', int_dir),
-            ('OutDir', '$(ProjectDir)bin\\'),
-            ('RemoteRoot', remote_root),
-            ('ImageXexOutput', image_xex_output),
-            ('RunCodeAnalysis', run_code_analysis),
-            ('CodeAnalysisRuleSet', 'AllRules.ruleset'),
-
-            # This is needed for the Xbox 360
-            ('OutputFile', '$(OutDir)$(TargetName)$(TargetExt)')
+            ("TargetName", target_name),
+            ("IntDir", int_dir),
+            ("OutDir", "$(ProjectDir)bin\\"),
+            ("RemoteRoot", remote_root),
+            ("ImageXexOutput", image_xex_output),
+            ("RunCodeAnalysis", run_code_analysis),
+            ("CodeAnalysisRuleSet", "AllRules.ruleset")
         ))
+
+        # This is needed for the Xbox 360
+        self.add_tag("OutputFile", "$(OutDir)$(TargetName)$(TargetExt)")
 
         # For the love of all that is holy, the Xbox ONE requires
         # these entries as is.
         if platform is PlatformTypes.xboxone:
-            self.add_tags(
-                (('ExecutablePath',
-                  ('$(Console_SdkRoot)bin;$(VCInstallDir)bin\\x86_amd64;'
-                   '$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);'
-                   '$(VSInstallDir)Common7\\Tools\\bin;'
-                   '$(VSInstallDir)Common7\\tools;'
-                   '$(VSInstallDir)Common7\\ide;'
-                   '$(ProgramFiles)\\HTML Help Workshop;'
-                   '$(MSBuildToolsPath32);$(FxCopDir);$(PATH);')),
-                 ('IncludePath', '$(Console_SdkIncludeRoot)'),
-                 ('ReferencePath',
-                  '$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)'),
-                 ('LibraryPath', '$(Console_SdkLibPath)'),
-                 ('LibraryWPath',
-                  '$(Console_SdkLibPath);$(Console_SdkWindowsMetadataPath)'),
-                 ('GenerateManifest', 'false')
-                 ))
+            self.add_tag("ExecutablePath", (
+                "$(DurangoXdkTools);"
+                "$(DurangoXdkInstallPath)bin;"
+                "$(FXCToolPath);"
+                "$(VCInstallDir)bin\\x86_amd64;"
+                "$(VCInstallDir)bin;$(WindowsSDK_ExecutablePath_x86);"
+                "$(VSInstallDir)Common7\\Tools\\bin;"
+                "$(VSInstallDir)Common7\\tools;"
+                "$(VSInstallDir)Common7\\ide;"
+                "$(ProgramFiles)\\HTML Help Workshop;"
+                "$(MSBuildToolsPath32);"
+                "$(FxCopDir);"
+                "$(PATH)"))
+
+            self.add_tag("ReferencePath", (
+                "$(Console_SdkLibPath);"
+                "$(Console_SdkWindowsMetadataPath)"))
+
+            self.add_tag("LibraryPath", "$(Console_SdkLibPath)")
+
+            self.add_tag("LibraryWPath", (
+                "$(Console_SdkLibPath);"
+                "$(Console_SdkWindowsMetadataPath)"))
+
+            self.add_tag("IncludePath", (
+                "$(Console_SdkIncludeRoot)\\um;"
+                "$(Console_SdkIncludeRoot)\\shared;"
+                "$(Console_SdkIncludeRoot)\\winrt"))
+
+            self.add_tag("NativeExecutablePath", (
+                "$(DurangoXdkTools);"
+                "$(DurangoXdkInstallPath)bin;"
+                "$(FXCToolPath);"
+                "$(NativeExecutablePath)"))
+
+            self.add_tag("SlashAI", (
+                "$(Console_SdkWindowsMetadataPath);"
+                "$(VCInstallDir)vcpackages;"
+                "$(AdditionalUsingDirectories)"))
+
+            self.add_tag("RemoveExtraDeployFiles", "true")
+
+            self.add_tag("IsolateConfigurationsOnDeploy", "true")
+
+        # The Xbox GDK has its own fun
+        elif platform.is_xboxone():
+            self.add_tag("ExecutablePath", (
+                "$(Console_SdkRoot)bin;"
+                "$(Console_SdkToolPath);"
+                "$(ExecutablePath)"))
+
+            self.add_tag("IncludePath", "$(Console_SdkIncludeRoot)")
+
+            self.add_tag("ReferencePath", (
+                "$(Console_SdkLibPath);"
+                "$(Console_SdkWindowsMetadataPath)"))
+
+            self.add_tag("LibraryPath", "$(Console_SdkLibPath)")
+
+            self.add_tag("LibraryWPath", (
+                "$(Console_SdkLibPath);"
+                "$(Console_SdkWindowsMetadataPath)"))
 
         # Visual Studio Android puts multi-processor compilation here
         if platform.is_android() and configuration.ide >= IDETypes.vs2022:
@@ -1051,149 +1155,167 @@ class VS2010ClCompile(VS2010XML):
             configuration: Configuration record to extract defaults.
         """
 
-        # Too many branches
-        # Too many locals
-        # Too many statements
-        # pylint: disable=R0912,R0914,R0915
+        # I don't care
+        # pylint: disable=too-many-branches
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-locals
 
         ## Parent configuration
         self.configuration = configuration
 
-        VS2010XML.__init__(self, 'ClCompile')
+        VS2010XML.__init__(self, "ClCompile")
 
         platform = configuration.platform
 
-        # Prepend $(ProjectDir) to all source folders
-        include_folders = []
-        for item in configuration.get_unique_chained_list(
-                '_source_include_list'):
-            include_folders.append('$(ProjectDir){}'.format(item))
+        # Xbox ONE XDK is Windows RT
+        if platform is PlatformTypes.xboxone:
+            self.add_tag("CompileAsWinRT", "true")
 
-        include_folders.extend(configuration.get_unique_chained_list(
-            'include_folders_list'))
-
-        if include_folders:
-            include_folders = '{};%(AdditionalIncludeDirectories)'.format(
-                packed_paths(include_folders, slashes='\\'))
-        else:
-            include_folders = None
-
-        # Handle defines
-        define_list = configuration.get_chained_list('define_list')
-        if define_list:
-            define_list = '{};%(PreprocessorDefinitions)'.format(
-                packed_paths(define_list))
-        else:
-            define_list = None
-
+        # Get the optimization setting
         if configuration.debug:
-            optimization = 'Disabled'
-            if platform.is_xboxone():
-                runtime_library = 'MultiThreadedDebugDLL'
-            else:
-                runtime_library = 'MultiThreadedDebug'
-            omit_frame_pointers = 'false'
-            basic_runtime_checks = 'EnableFastChecks'
-            inline_function_expansion = 'OnlyExplicitInline'
-            intrinic_functions = None
-            buffer_security_check = None
-            inline_assembly_optimization = None
+            item = "Disabled"
+        elif platform is PlatformTypes.stadia:
+            item = "Full"
+        elif platform.is_android() and configuration.ide >= IDETypes.vs2022:
+            item = "Full"
         else:
-            optimization = 'MinSpace'
+            item = "MinSpace"
+        self.add_tag("Optimization", item)
+
+        # Get the required run time library
+        if configuration.debug:
             if platform.is_xboxone():
-                runtime_library = 'MultiThreadedDLL'
+                item = "MultiThreadedDebugDLL"
             else:
-                runtime_library = 'MultiThreaded'
-            omit_frame_pointers = 'true'
-            basic_runtime_checks = None
-            inline_function_expansion = 'AnySuitable'
-            intrinic_functions = 'true'
-            buffer_security_check = 'false'
-            inline_assembly_optimization = 'true'
+                item = "MultiThreadedDebug"
+        elif platform.is_xboxone():
+            item = "MultiThreadedDLL"
+        else:
+            item = "MultiThreaded"
+        self.add_tag("RuntimeLibrary", item)
+
+        # Xbox has AVX, so use it
+        if platform.is_xboxone():
+            self.add_tag(
+                "EnableEnhancedInstructionSet",
+                "AdvancedVectorExtensions")
 
         # Not supported on the Xbox 360
-        if platform is PlatformTypes.xbox360:
-            omit_frame_pointers = None
+        if platform is not PlatformTypes.xbox360:
 
-        optimization_level = None
-        branchless = None
-        cpp_language_std = None
+            # Omit the frame pointers?
+            if configuration.debug:
+                item = "false"
+            else:
+                item = "true"
+            self.add_tag("OmitFramePointers", item)
+
+        # Add runtime checks on debug
+        if configuration.debug:
+            self.add_tag("BasicRuntimeChecks", "EnableFastChecks")
+
+        # Don't do buffer checks on release builds
+        if not configuration.debug:
+            self.add_tag("BufferSecurityCheck", "false")
+
+        # Inline functions
+        if configuration.debug:
+            item = "OnlyExplicitInline"
+        else:
+            item = "AnySuitable"
+        self.add_tag("InlineFunctionExpansion", item)
+
+        # Intrinsic functions
+        if not configuration.debug:
+            self.add_tag("IntrinsicFunctions", "true")
+
+        # Inline assembly interleaving and optimizations
+        if not configuration.debug and platform is not PlatformTypes.xbox360:
+            self.add_tag("InlineAssemblyOptimization", "true")
+
+        # Always do a minimal rebuild
+        self.add_tag("MinimalRebuild", "false")
+
+        # Always include debugging information
+        self.add_tag("GenerateDebugInformation", "true")
+
+        # Prepend $(ProjectDir) to all source folders
+        temp_list = []
+        for item in configuration.get_unique_chained_list(
+                "_source_include_list"):
+            temp_list.append("$(ProjectDir){}".format(item))
+
+        temp_list.extend(configuration.get_unique_chained_list(
+            "include_folders_list"))
+
+        if temp_list:
+            temp_list = "{};%(AdditionalIncludeDirectories)".format(
+                packed_paths(temp_list, slashes="\\"))
+            self.add_tag("AdditionalIncludeDirectories", temp_list)
+
+        # Handle preprocessor defines
+        temp_list = configuration.get_chained_list("define_list")
+        if temp_list:
+            temp_list = "{};%(PreprocessorDefinitions)".format(
+                packed_paths(temp_list))
+            self.add_tag("PreprocessorDefinitions", temp_list)
+
+        # Warning level for errors
+        if platform is PlatformTypes.stadia or (
+                platform.is_android() and configuration.ide >= IDETypes.vs2022):
+            item = "EnableAllWarnings"
+        else:
+            item = "Level4"
+        self.add_tag("WarningLevel", item)
+
+        # Type of debug information
+        item = "OldStyle"
+        if platform.is_android() and configuration.ide >= IDETypes.vs2022:
+            item = None
+
+        # Handle Stadia
+        if platform is PlatformTypes.stadia:
+            item = None
+            if configuration.debug:
+                item = "FullDebug"
+        self.add_tag("DebugInformationFormat", item)
+
+        # Program database name
+        self.add_tag("ProgramDataBaseFileName", "$(OutDir)$(TargetName).pdb")
+
+        # Exception handling
+        item = "false"
+        if (platform.is_android() and configuration.ide >= IDETypes.vs2022) \
+                or platform is PlatformTypes.stadia:
+            item = "Disabled"
+        self.add_tag("ExceptionHandling", item)
+
+        # Floating point model
+        self.add_tag("FloatingPointModel", "Fast")
+
+        # Run time type info
+        self.add_tag("RuntimeTypeInfo", "false")
+
+        # Enable string pooling
+        self.add_tag("StringPooling", "true")
+
+        # Function level linking
+        self.add_tag("FunctionLevelLinking", "true")
+
         omit_frame_pointer = None
         stack_protector = None
         strict_aliasing = None
-        function_sections = None
-        cpp_language_standard = None
-
-        if platform in (PlatformTypes.ps3, PlatformTypes.ps4,
-                PlatformTypes.ps5):
-            if configuration.optimization:
-                optimization_level = 'Level2'
-                if platform is PlatformTypes.ps3:
-                    branchless = 'Branchless2'
-            else:
-                optimization_level = 'Level0'
-
-        if platform in (PlatformTypes.vita, PlatformTypes.ps3):
-            cpp_language_std = 'Cpp11'
 
         if platform.is_android():
             if not configuration.debug:
-                omit_frame_pointer = 'true'
-                optimization_level = 'O3'
-                stack_protector = 'false'
-            strict_aliasing = 'true'
-            function_sections = 'true'
-            cpp_language_standard = 'gnu++11'
+                omit_frame_pointer = "true"
+                stack_protector = "false"
+            strict_aliasing = "true"
 
         # Switch
         if platform.is_switch():
             if configuration.optimization:
                 omit_frame_pointer = "true"
-                optimization_level = "O3"
-
-        # Not used for Android Targets
-        warning_level = "Level4"
-        debug_information_format = "OldStyle"
-        exception_handling = "false"
-        if platform.is_android() and configuration.ide >= IDETypes.vs2022:
-            debug_information_format = None
-            warning_level = "EnableAllWarnings"
-            exception_handling = "Disabled"
-            if not configuration.debug:
-                optimization = "Full"
-
-        # Handle Stadia
-        if platform is PlatformTypes.stadia:
-            debug_information_format = None
-            warning_level = "EnableAllWarnings"
-            exception_handling = "Disabled"
-            if not configuration.debug:
-                optimization = "Full"
-            else:
-                debug_information_format = "FullDebug"
-
-        self.add_tags((
-            ('Optimization', optimization),
-            ('RuntimeLibrary', runtime_library),
-            ('OmitFramePointers', omit_frame_pointers),
-            ('BasicRuntimeChecks', basic_runtime_checks),
-            ('BufferSecurityCheck', buffer_security_check),
-            ('InlineFunctionExpansion', inline_function_expansion),
-            ('IntrinsicFunctions', intrinic_functions),
-            ('InlineAssemblyOptimization', inline_assembly_optimization),
-            ('MinimalRebuild', 'false'),
-            ('GenerateDebugInformation', 'true'),
-            ('AdditionalIncludeDirectories', include_folders),
-            ('PreprocessorDefinitions', define_list),
-            ('WarningLevel', warning_level),
-            ('DebugInformationFormat', debug_information_format),
-            ('ProgramDataBaseFileName', '$(OutDir)$(TargetName).pdb'),
-            ('ExceptionHandling', exception_handling),
-            ('FloatingPointModel', 'Fast'),
-            ('RuntimeTypeInfo', 'false'),
-            ('StringPooling', 'true'),
-            ('FunctionLevelLinking', 'true')
-        ))
 
         # Stadia multiprocessor compilation
         if platform is PlatformTypes.stadia:
@@ -1207,6 +1329,12 @@ class VS2010ClCompile(VS2010XML):
             self.add_tag("MultiProcessorCompilation", "true")
 
         self.add_tag("EnableFiberSafeOptimizations", "true")
+
+        # Xbox ONE has using directories to the tool chain
+        if platform.is_xboxone():
+            self.add_tag("AdditionalUsingDirectories", "$(SlashAI)")
+            if platform is not PlatformTypes.xboxone:
+                self.add_tag("SupportJustMyCode", "false")
 
         # Profiling on the xbox 360
         if platform is PlatformTypes.xbox360:
@@ -1230,11 +1358,29 @@ class VS2010ClCompile(VS2010XML):
             if configuration.fastcall:
                 self.add_tag("CallingConvention", "FastCall")
 
-        self.add_tags((
-            ('OptimizationLevel', optimization_level),
-            ('Branchless', branchless),
-            ('CppLanguageStd', cpp_language_std)
-        ))
+        # Set the optimization level
+        item = None
+        if platform in (PlatformTypes.ps3, PlatformTypes.ps4,
+                PlatformTypes.ps5):
+            if configuration.optimization:
+                item = "Level2"
+            else:
+                item = "Level0"
+        if platform.is_android() and configuration.optimization:
+            item = "O3"
+
+        if platform.is_switch() and configuration.optimization:
+            # Don't use O3, it generates bad code
+            item = "O2"
+        self.add_tag("OptimizationLevel", item)
+
+        # PS3 Branchless mode
+        if platform is PlatformTypes.ps3 and configuration.optimization:
+            self.add_tag("Branchless", "Branchless2")
+
+        # PS3 and Vita allow CPP 11
+        if platform in (PlatformTypes.vita, PlatformTypes.ps3):
+            self.add_tag("CppLanguageStd", "Cpp11")
 
         if platform in (PlatformTypes.ps4, PlatformTypes.ps5):
             self.add_tag("DisableSpecificWarnings", packed_paths(
@@ -1247,12 +1393,15 @@ class VS2010ClCompile(VS2010XML):
             self.add_tag("SetMessageToSilent", "1795")
 
         self.add_tags((
-            ('StackProtector', stack_protector),
-            ('OmitFramePointer', omit_frame_pointer),
-            ('StrictAliasing', strict_aliasing),
-            ('FunctionSections', function_sections),
-            ('CppLanguageStandard', cpp_language_standard)
+            ("StackProtector", stack_protector),
+            ("OmitFramePointer", omit_frame_pointer),
+            ("StrictAliasing", strict_aliasing)
         ))
+
+        # nVidia android has CPP11
+        if platform.is_android():
+            self.add_tag("FunctionSections", "true")
+            self.add_tag("CppLanguageStandard", "gnu++11")
 
         # Disable these features when compiling Intel Android
         # to disable warnings from clang for intel complaining
@@ -1302,48 +1451,55 @@ class VS2010Link(VS2010XML):
         platform = configuration.platform
         project_type = configuration.project_type
 
-        # Start with a copy (To prevent damaging the original list)
-        library_folders = configuration.get_unique_chained_list(
+        # Get the additional folders for libaries
+        item = configuration.get_unique_chained_list(
             "library_folders_list")
+        if item:
+            item = "{};%(AdditionalLibraryDirectories)".format(
+                packed_paths(item, slashes="\\"))
+            self.add_tag("AdditionalLibraryDirectories", item)
 
-        if library_folders:
-            library_folders = "{};%(AdditionalLibraryDirectories)".format(
-                packed_paths(library_folders, slashes="\\"))
-        else:
-            library_folders = None
-
-        additional_libraries = configuration.get_unique_chained_list(
+        # Are there any additional library binaries to add?
+        item = configuration.get_unique_chained_list(
             "libraries_list")
-        if additional_libraries:
+        if item:
+
+            # Xbox ONE only has the paths, nothing more
             if platform.is_xboxone():
-                additional_libraries = "{}".format(
-                    packed_paths(additional_libraries))
+                item = "{}".format(packed_paths(item))
             else:
+                # Playstation needs them converted to -l commands
                 if platform in (PlatformTypes.ps4, PlatformTypes.ps5):
                     libs = []
-                    for item in additional_libraries:
-                        if item.startswith("-l"):
-                            libs.append(item)
+                    for lib in item:
+                        if lib.startswith("-l"):
+                            libs.append(lib)
                         else:
-                            libs.append("-l" + item)
-                    additional_libraries = libs
+                            libs.append("-l" + lib)
+                    item = libs
 
-                additional_libraries = "{};%(AdditionalDependencies)".format(
-                    packed_paths(additional_libraries))
-        else:
-            additional_libraries = None
+                item = "{};%(AdditionalDependencies)".format(
+                    packed_paths(item))
 
-        subsystem = None
+            # Add the tag
+            self.add_tag("AdditionalDependencies", item)
+
+        # Is there a subsystem needed?
+        if platform.is_xboxone():
+            self.add_tag("SubSystem", "Console")
+
+        if platform.is_windows():
+            if project_type is ProjectTypes.tool:
+                item = "Console"
+            else:
+                item = "Windows"
+            self.add_tag("SubSystem", item)
+
         targetmachine = None
         data_stripping = None
         duplicate_stripping = None
 
         if platform.is_windows():
-            if project_type is ProjectTypes.tool:
-                subsystem = "Console"
-            else:
-                subsystem = "Windows"
-
             if platform is PlatformTypes.win32:
                 targetmachine = "MachineX86"
             elif platform is PlatformTypes.winarm32:
@@ -1358,24 +1514,30 @@ class VS2010Link(VS2010XML):
                 data_stripping = "StripFuncsAndData"
                 duplicate_stripping = "true"
 
-        if configuration.optimization:
-            enable_comdat_folding = "true"
-            optimize_references = "true"
-        else:
-            enable_comdat_folding = None
-            optimize_references = "false"
-
         self.add_tags((
-            ("AdditionalLibraryDirectories", library_folders),
-            ("AdditionalDependencies", additional_libraries),
-            ("SubSystem", subsystem),
             ("TargetMachine", targetmachine),
             ("DataStripping", data_stripping),
-            ("DuplicateStripping", duplicate_stripping),
-            ("OptimizeReferences", optimize_references),
-            ("GenerateDebugInformation", "true"),
-            ("EnableCOMDATFolding", enable_comdat_folding)
+            ("DuplicateStripping", duplicate_stripping)
         ))
+
+        # Optimize the references?
+        if configuration.optimization:
+            item = "true"
+        else:
+            item = "false"
+        self.add_tag("OptimizeReferences", item)
+
+        # Always add debug info
+        self.add_tag("GenerateDebugInformation", "true")
+
+        # Should common data/code be folded together?
+        if configuration.optimization:
+            self.add_tag("EnableCOMDATFolding", "true")
+
+        # Switch may have meta data for the final build
+        item = getattr(configuration, "switch_meta_source", None)
+        if item:
+            self.add_tag("FinalizeMetaSource", item)
 
         if configuration.get_chained_value("profile"):
             self.add_tag("Profile", "true")
@@ -1402,7 +1564,7 @@ class VS2010Deploy(VS2010XML):
         ## Parent configuration
         self.configuration = configuration
 
-        VS2010XML.__init__(self, 'Deploy')
+        VS2010XML.__init__(self, "Deploy")
 
         platform = configuration.platform
         project_type = configuration.project_type
@@ -1413,14 +1575,14 @@ class VS2010Deploy(VS2010XML):
 
         if not project_type.is_library():
             if platform is PlatformTypes.xbox360:
-                deployment_type = 'EmulateDvd'
-                dvd_emulation = 'ZeroSeekTimes'
-                deployment_files = '$(RemoteRoot)=$(ImagePath)'
+                deployment_type = "EmulateDvd"
+                dvd_emulation = "ZeroSeekTimes"
+                deployment_files = "$(RemoteRoot)=$(ImagePath)"
 
         self.add_tags((
-            ('DeploymentType', deployment_type),
-            ('DvdEmulationType', dvd_emulation),
-            ('DeploymentFiles', deployment_files)
+            ("DeploymentType", deployment_type),
+            ("DvdEmulationType", dvd_emulation),
+            ("DeploymentFiles", deployment_files)
         ))
 
 
@@ -1446,13 +1608,13 @@ class VS2010PostBuildEvent(VS2010XML):
         ## Parent configuration
         self.configuration = configuration
 
-        VS2010XML.__init__(self, 'PostBuildEvent')
+        VS2010XML.__init__(self, "PostBuildEvent")
 
         vs_description, vs_cmd = create_deploy_script(configuration)
 
         self.add_tags((
-            ('Message', vs_description),
-            ('Command', vs_cmd)
+            ("Message", vs_description),
+            ("Command", vs_cmd)
         ))
 
 
@@ -1482,8 +1644,8 @@ class VS2010ItemDefinitionGroup(VS2010XML):
         vs_configuration_name = configuration.vs_configuration_name
 
         VS2010XML.__init__(
-            self, 'ItemDefinitionGroup',
-            {'Condition': "'$(Configuration)|$(Platform)'=='{}'".format(
+            self, "ItemDefinitionGroup",
+            {"Condition": "'$(Configuration)|$(Platform)'=='{}'".format(
                 vs_configuration_name)})
 
         ## ClCompile exporter
@@ -1529,161 +1691,205 @@ class VS2010Files(VS2010XML):
         ## Parent project
         self.project = project
 
-        VS2010XML.__init__(self, 'ItemGroup')
+        VS2010XML.__init__(self, "ItemGroup")
 
-        for item in source_file_filter(project.codefiles, FileTypes.h):
-            self.add_element(
-                VS2010XML(
-                    'ClInclude', {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+        # Add in C++ headers, C files, etc
+        self.addfiles(FileTypes.h, "ClInclude")
+        self.addfiles((FileTypes.cpp, FileTypes.c), "ClCompile")
+        self.addfiles((FileTypes.x86, FileTypes.x64), "MASM")
 
-        for item in source_file_filter(project.codefiles, FileTypes.cpp):
-            self.add_element(
-                VS2010XML(
-                    'ClCompile', {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+        # Resource files
+        self.addfiles(FileTypes.rc, "ResourceCompile")
 
-        for item in source_file_filter(project.codefiles, FileTypes.c):
-            self.add_element(
-                VS2010XML(
-                    'ClCompile', {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+        # WiiU assembly
+        if project.platform_code == "wiu":
+            self.addfiles(FileTypes.s, "ASM")
 
-        for item in source_file_filter(project.codefiles, FileTypes.rc):
-            self.add_element(
-                VS2010XML(
-                    'ResourceCompile', {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+        # PS3 assembly
+        if project.platform_code in ("ps3", "ps4", "ps5", "vit", "swi"):
+            self.addfiles(FileTypes.s, "ClCompile")
 
         for item in source_file_filter(project.codefiles, FileTypes.hlsl):
             name = convert_to_windows_slashes(item.relative_pathname)
-            element = VS2010XML('HLSL', {'Include': name})
+            element = VS2010XML("HLSL", {"Include": name})
             self.add_element(element)
 
             # Cross platform way in splitting the path (MacOS doesn't like
             # windows slashes)
-            basename = name.lower().rsplit('\\', 1)[1]
+            basename = name.lower().rsplit("\\", 1)[1]
             splitname = os.path.splitext(basename)
-            if splitname[0].startswith('vs41'):
-                profile = 'vs_4_1'
-            elif splitname[0].startswith('vs4'):
-                profile = 'vs_4_0'
-            elif splitname[0].startswith('vs3'):
-                profile = 'vs_3_0'
-            elif splitname[0].startswith('vs2'):
-                profile = 'vs_2_0'
-            elif splitname[0].startswith('vs1'):
-                profile = 'vs_1_1'
-            elif splitname[0].startswith('vs'):
-                profile = 'vs_2_0'
-            elif splitname[0].startswith('ps41'):
-                profile = 'ps_4_1'
-            elif splitname[0].startswith('ps4'):
-                profile = 'ps_4_0'
-            elif splitname[0].startswith('ps3'):
-                profile = 'ps_3_0'
-            elif splitname[0].startswith('ps2'):
-                profile = 'ps_2_0'
-            elif splitname[0].startswith('ps'):
-                profile = 'ps_2_0'
-            elif splitname[0].startswith('tx'):
-                profile = 'tx_1_0'
-            elif splitname[0].startswith('gs41'):
-                profile = 'gs_4_1'
-            elif splitname[0].startswith('gs'):
-                profile = 'gs_4_0'
+            if splitname[0].startswith("vs41"):
+                profile = "vs_4_1"
+            elif splitname[0].startswith("vs4"):
+                profile = "vs_4_0"
+            elif splitname[0].startswith("vs3"):
+                profile = "vs_3_0"
+            elif splitname[0].startswith("vs2"):
+                profile = "vs_2_0"
+            elif splitname[0].startswith("vs1"):
+                profile = "vs_1_1"
+            elif splitname[0].startswith("vs"):
+                profile = "vs_2_0"
+            elif splitname[0].startswith("ps41"):
+                profile = "ps_4_1"
+            elif splitname[0].startswith("ps4"):
+                profile = "ps_4_0"
+            elif splitname[0].startswith("ps3"):
+                profile = "ps_3_0"
+            elif splitname[0].startswith("ps2"):
+                profile = "ps_2_0"
+            elif splitname[0].startswith("ps"):
+                profile = "ps_2_0"
+            elif splitname[0].startswith("tx"):
+                profile = "tx_1_0"
+            elif splitname[0].startswith("gs41"):
+                profile = "gs_4_1"
+            elif splitname[0].startswith("gs"):
+                profile = "gs_4_0"
             else:
-                profile = 'fx_2_0'
+                profile = "fx_2_0"
 
             element.add_tags((
-                ('VariableName', 'g_' + splitname[0]),
-                ('TargetProfile', profile),
-                ('HeaderFileName',
-                 '%(RootDir)%(Directory)Generated\\%(FileName).h')))
+                ("VariableName", "g_" + splitname[0]),
+                ("TargetProfile", profile),
+                ("HeaderFileName",
+                 "%(RootDir)%(Directory)Generated\\%(FileName).h")))
 
         for item in source_file_filter(project.codefiles, FileTypes.x360sl):
             name = convert_to_windows_slashes(item.relative_pathname)
-            element = VS2010XML('X360SL', {'Include': name})
+            element = VS2010XML("X360SL", {"Include": name})
             self.add_element(element)
 
             # Cross platform way in splitting the path (MacOS doesn't like
             # windows slashes)
-            basename = name.lower().rsplit('\\', 1)[1]
+            basename = name.lower().rsplit("\\", 1)[1]
             splitname = os.path.splitext(basename)
-            if splitname[0].startswith('vs3'):
-                profile = 'vs_3_0'
-            elif splitname[0].startswith('vs2'):
-                profile = 'vs_2_0'
-            elif splitname[0].startswith('vs1'):
-                profile = 'vs_1_1'
-            elif splitname[0].startswith('vs'):
-                profile = 'vs_2_0'
-            elif splitname[0].startswith('ps3'):
-                profile = 'ps_3_0'
-            elif splitname[0].startswith('ps2'):
-                profile = 'ps_2_0'
-            elif splitname[0].startswith('ps'):
-                profile = 'ps_2_0'
-            elif splitname[0].startswith('tx'):
-                profile = 'tx_1_0'
+            if splitname[0].startswith("vs3"):
+                profile = "vs_3_0"
+            elif splitname[0].startswith("vs2"):
+                profile = "vs_2_0"
+            elif splitname[0].startswith("vs1"):
+                profile = "vs_1_1"
+            elif splitname[0].startswith("vs"):
+                profile = "vs_2_0"
+            elif splitname[0].startswith("ps3"):
+                profile = "ps_3_0"
+            elif splitname[0].startswith("ps2"):
+                profile = "ps_2_0"
+            elif splitname[0].startswith("ps"):
+                profile = "ps_2_0"
+            elif splitname[0].startswith("tx"):
+                profile = "tx_1_0"
             else:
-                profile = 'fx_2_0'
+                profile = "fx_2_0"
 
             element.add_tags((
-                ('VariableName', 'g_' + splitname[0]),
-                ('TargetProfile', profile),
-                ('HeaderFileName',
-                 '%(RootDir)%(Directory)Generated\\%(FileName).h')))
+                ("VariableName", "g_" + splitname[0]),
+                ("TargetProfile", profile),
+                ("HeaderFileName",
+                 "%(RootDir)%(Directory)Generated\\%(FileName).h")))
 
         for item in source_file_filter(project.codefiles, FileTypes.vitacg):
             name = convert_to_windows_slashes(item.relative_pathname)
-            element = VS2010XML('VitaCGCompile', {'Include': name})
+            element = VS2010XML("VitaCGCompile", {"Include": name})
             self.add_element(element)
 
             # Cross platform way in splitting the path
             # (MacOS doesn't like windows slashes)
-            basename = item.relative_pathname.lower().rsplit('\\', 1)[1]
+            basename = item.relative_pathname.lower().rsplit("\\", 1)[1]
             splitname = os.path.splitext(basename)
-            if splitname[0].startswith('vs'):
-                profile = 'sce_vp_psp2'
+            if splitname[0].startswith("vs"):
+                profile = "sce_vp_psp2"
             else:
-                profile = 'sce_fp_psp2'
-            element.add_element(VS2010XML('TargetProfile', contents=profile))
+                profile = "sce_fp_psp2"
+            element.add_element(VS2010XML("TargetProfile", contents=profile))
             element.add_element(
                 VS2010XML(
-                    'HeaderFileName',
-                    contents='%(RootDir)%(Directory)Generated\\%(FileName).h'))
+                    "HeaderFileName",
+                    contents="%(RootDir)%(Directory)Generated\\%(FileName).h"))
 
         for item in source_file_filter(project.codefiles, FileTypes.glsl):
-            element = VS2010XML('GLSL', {'Include': convert_to_windows_slashes(
+            element = VS2010XML("GLSL", {"Include": convert_to_windows_slashes(
                 item.relative_pathname)})
             self.add_element(element)
             element.add_tags(
-                (('ObjectFileName',
-                  '%(RootDir)%(Directory)Generated\\%(FileName).h'),))
+                (("ObjectFileName",
+                  "%(RootDir)%(Directory)Generated\\%(FileName).h"),))
 
-        for item in source_file_filter(
-                project.codefiles, FileTypes.appxmanifest):
-            self.add_element(
-                VS2010XML(
-                    'AppxManifest', {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+        # Appx manifest
+        self.addfiles(FileTypes.appxmanifest, "AppxManifest")
 
+        # Ico files
         if self.project.ide >= IDETypes.vs2015:
-            chunkname = 'Image'
+            chunkname = "Image"
         else:
-            chunkname = 'None'
-        for item in source_file_filter(project.codefiles, FileTypes.ico):
-            self.add_element(
-                VS2010XML(
-                    chunkname, {
-                        'Include': convert_to_windows_slashes(
-                            item.relative_pathname)}))
+            chunkname = "None"
+        self.addfiles(FileTypes.ico, chunkname)
+        self.addfiles(FileTypes.image, chunkname)
+
+########################################
+
+    def addfiles(self, file_types, xml_name):
+        """
+        Scan codefiles for a specific file type
+
+        Args:
+            file_types: FileTypes of interest
+            xml_name: Visual Studio XML name
+        """
+
+        for item in source_file_filter(self.project.codefiles, file_types):
+
+            # Create the file object
+            new_xml = VS2010XML(
+                xml_name, {
+                    "Include": convert_to_windows_slashes(
+                        item.relative_pathname)})
+
+            # Add it to the chain
+            self.add_element(new_xml)
+
+            # Check if needs to be marked as "Not part of build"
+            if xml_name == "MASM":
+
+                # Required for Visual Studio 2015 and higher, but present in all
+                # versions
+                for configuration in self.project.configuration_list:
+                    if configuration.platform.is_xboxone():
+                        break
+                else:
+                    element = VS2010XML(
+                        "UseSafeExceptionHandlers", contents="true")
+                    new_xml.add_element(element)
+                    element.add_attribute("Condition", "'$(Platform)'=='Win32'")
+
+                # Determine which target is acceptable
+                acceptable = {
+                    FileTypes.x86: ("Win32",),
+                    FileTypes.x64: ("x64",
+                                    "Durango",
+                                    "Gaming.Xbox.XboxOne.x64",
+                                    "Gaming.Xbox.Scarlett.x64")
+                }.get(item.type, [])
+
+                # For early out
+                processed = set()
+
+                # Check if there are other platforms that this file
+                # cannot be built on
+                for configuration in self.project.configuration_list:
+                    vs_platform = configuration.platform.get_vs_platform()[0]
+                    if vs_platform in processed:
+                        continue
+
+                    processed.add(vs_platform)
+                    if vs_platform not in acceptable:
+                        new_xml.add_element(
+                            VS2010XML(
+                                "ExcludedFromBuild", {
+                                    "Condition":
+                                        "'$(Platform)'=='" + vs_platform + "'"},
+                                "true"))
 
 ########################################
 
@@ -1709,17 +1915,14 @@ class VS2010vcproj(VS2010XML):
         ## Parent project
         self.project = project
 
-        # Which project type?
+        # Which toolset version to use
         ide = project.ide
-        if ide < IDETypes.vs2015:
-            version = '4.0'
-        else:
-            version = '14.0'
+        version = get_toolset_version(ide)
 
         VS2010XML.__init__(
-            self, 'Project',
-            {'DefaultTargets': 'Build', 'ToolsVersion': version,
-             'xmlns': 'http://schemas.microsoft.com/developer/msbuild/2003'})
+            self, "Project",
+            {"DefaultTargets": "Build", "ToolsVersion": version,
+             "xmlns": "http://schemas.microsoft.com/developer/msbuild/2003"})
 
         # Add all the sub chunks
 
@@ -1740,16 +1943,16 @@ class VS2010vcproj(VS2010XML):
 
         self.add_element(
             VS2010XML(
-                'Import',
-                {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.Default.props'}))
+                "Import",
+                {"Project": "$(VCTargetsPath)\\Microsoft.Cpp.Default.props"}))
 
         for configuration in project.configuration_list:
             self.add_element(VS2010Configuration(configuration))
 
         self.add_element(
             VS2010XML(
-                'Import',
-                {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.props'}))
+                "Import",
+                {"Project": "$(VCTargetsPath)\\Microsoft.Cpp.props"}))
 
         ## VS2010ExtensionSettings
         self.extensionsettings = VS2010ExtensionSettings(project)
@@ -1775,8 +1978,8 @@ class VS2010vcproj(VS2010XML):
 
         self.add_element(
             VS2010XML(
-                'Import',
-                {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.targets'}))
+                "Import",
+                {"Project": "$(VCTargetsPath)\\Microsoft.Cpp.targets"}))
 
         ## VS2010ExtensionTargets
         self.extensiontargets = VS2010ExtensionTargets(project)
@@ -1838,9 +2041,22 @@ class VS2010vcprojfilter(VS2010XML):
 
         groups = []
         self.write_filter_group(FileTypes.h, groups, "ClInclude")
-        self.write_filter_group(FileTypes.cpp, groups, "ClCompile")
-        self.write_filter_group(FileTypes.c, groups, "ClCompile")
+        self.write_filter_group((FileTypes.cpp, FileTypes.c),
+                                groups, "ClCompile")
+        self.write_filter_group((FileTypes.x86, FileTypes.x64),
+                                groups, "MASM")
+
+        # Generic assembly is assumed to be PowerPC for PS3
+        if project.platform_code in ("ps3", "ps4", "ps5", "vit", "swi"):
+            self.write_filter_group(FileTypes.s, groups, "ClCompile")
+
         self.write_filter_group(FileTypes.rc, groups, "ResourceCompile")
+        self.write_filter_group(FileTypes.ppc, groups, "ASM")
+
+        # Generic assembly is assumed to be PowerPC for WiiU
+        if project.platform_code == "wiu":
+            self.write_filter_group(FileTypes.s, groups, "ASM")
+
         self.write_filter_group(FileTypes.hlsl, groups, "HLSL")
         self.write_filter_group(FileTypes.x360sl, groups, "X360SL")
         self.write_filter_group(FileTypes.vitacg, groups, "VitaCGCompile")
@@ -1850,8 +2066,10 @@ class VS2010vcprojfilter(VS2010XML):
         # Visual Studio 2015 and later have a "compiler" for ico files
         if ide >= IDETypes.vs2015:
             self.write_filter_group(FileTypes.ico, groups, "Image")
+            self.write_filter_group(FileTypes.image, groups, "Image")
         else:
             self.write_filter_group(FileTypes.ico, groups, "None")
+            self.write_filter_group(FileTypes.image, groups, "None")
 
         # Remove all duplicate in the groups
         groupset = set(groups)
@@ -1972,19 +2190,19 @@ def generate(solution):
     # Iterate over the project files and create the filenames
     for project in solution.project_list:
 
-        project.vs_output_filename = '{}{}{}.vcxproj'.format(
+        project.vs_output_filename = "{}{}{}.vcxproj".format(
             project.name, solution.ide_code, project.platform_code)
         project.vs_uuid = get_uuid(project.vs_output_filename)
 
         for configuration in project.configuration_list:
             vs_platform = configuration.platform.get_vs_platform()[0]
             if solution.ide >= IDETypes.vs2022:
-                vs_platform = {'x86-Android-NVIDIA': 'x86',
-                'x64-Android-NVIDIA': 'x64',
-               'ARM-Android-NVIDIA': 'ARM',
-               'AArch64-Android-NVIDIA': 'ARM64'}.get(vs_platform, vs_platform)
+                vs_platform = {"x86-Android-NVIDIA": "x86",
+                "x64-Android-NVIDIA": "x64",
+               "ARM-Android-NVIDIA": "ARM",
+               "AArch64-Android-NVIDIA": "ARM64"}.get(vs_platform, vs_platform)
             configuration.vs_platform = vs_platform
-            configuration.vs_configuration_name = '{}|{}'.format(
+            configuration.vs_configuration_name = "{}|{}".format(
                 configuration.name, vs_platform)
 
     # Write to memory for file comparison
@@ -1998,7 +2216,7 @@ def generate(solution):
     verbose = solution.verbose
 
     # Create the final filename for the Visual Studio Solution file
-    solution_filename = '{}{}{}.sln'.format(
+    solution_filename = "{}{}{}.sln".format(
         solution.name, solution.ide_code, solution.platform_code)
 
     save_text_file_if_newer(
@@ -2015,13 +2233,24 @@ def generate(solution):
         project.get_file_list([FileTypes.h,
                                FileTypes.cpp,
                                FileTypes.c,
+                               FileTypes.x86,
+                               FileTypes.x64,
+                               FileTypes.ppc,
+                               FileTypes.s,
                                FileTypes.rc,
                                FileTypes.ico,
                                FileTypes.hlsl,
                                FileTypes.glsl,
                                FileTypes.x360sl,
                                FileTypes.vitacg,
-                               FileTypes.appxmanifest])
+                               FileTypes.appxmanifest,
+                               FileTypes.image])
+
+        # Handle WiiU extensions based on found files
+        wiiu_props(project)
+
+        # Handle x86/x64 support
+        add_masm_support(project)
 
         # Create the project file template
         exporter = VS2010vcproj(project)
@@ -2048,7 +2277,7 @@ def generate(solution):
 
         file_name = os.path.join(
             solution.working_directory,
-            project.vs_output_filename + '.filters')
+            project.vs_output_filename + ".filters")
         if len(filter_lines) >= 4:
             save_text_file_if_newer(
                 file_name,

@@ -56,7 +56,8 @@ from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
 from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
-from .visual_studio_utils import get_path_property, convert_file_name_vs2010
+from .visual_studio_utils import get_path_property, convert_file_name_vs2010, \
+    add_masm_support
 
 ########################################
 
@@ -4001,7 +4002,9 @@ class VS2003ToolFile(VS2003XML):
 
         # Is the file local to the project? If so, declare as a ToolFile,
         # otherwise it's a rules file found in the IDE's folders
-        rule_path = os.path.join(project.working_directory, rules)
+
+        rule_path = os.path.join(
+            project.working_directory, rules.replace("\\", os.sep))
         if os.path.isfile(rule_path):
             toolfile = "ToolFile"
         else:
@@ -4402,7 +4405,8 @@ class VS2003FileConfiguration(VS2003XML):
                         element_dict[item] = value
 
         # Were there any overrides?
-        cmd, description, outputs = make_command(element_dict, self.source_file)
+        cmd, description, outputs = make_command(
+            element_dict, self.source_file)
         if cmd:
             element = VS2003Tool("VCCustomBuildTool")
             self.add_element(element)
@@ -4775,6 +4779,9 @@ def generate(solution):
                                FileTypes.glsl,
                                FileTypes.x86,
                                FileTypes.x64])
+
+        # Check if masm.rules needs to be added
+        add_masm_support(project)
 
         # Create the project file template
         exporter = VS2003vcproj(project)

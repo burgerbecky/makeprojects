@@ -89,6 +89,7 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
+
     def test_idetypes_is_visual_studio(self):
         """
         Test IDETypes.is_visual_studio().
@@ -107,6 +108,7 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
+
     def test_idetypes_is_xcode(self):
         """
         Test IDETypes.is_xcode().
@@ -124,6 +126,7 @@ class TestEnums(unittest.TestCase):
 
 ########################################
 
+
     def test_idetypes_is_codewarrior(self):
         """
         Test IDETypes.is_codewarrior().
@@ -138,6 +141,7 @@ class TestEnums(unittest.TestCase):
 
 
 ########################################
+
 
     def test_idetypes_lookup(self):
         """
@@ -213,9 +217,14 @@ class TestEnums(unittest.TestCase):
         """
 
         for item in PlatformTypes:
-            if item in (PlatformTypes.macos9, PlatformTypes.macos968k,
-                        PlatformTypes.macos9ppc, PlatformTypes.maccarbon,
-                        PlatformTypes.maccarbon68k, PlatformTypes.maccarbonppc):
+            if item in (
+                    PlatformTypes.mac, PlatformTypes.mac68k,
+                    PlatformTypes.macppc,
+                    PlatformTypes.macclassic, PlatformTypes.maccarbon,
+                    PlatformTypes.mac68knear, PlatformTypes.mac68knearfp,
+                    PlatformTypes.mac68kfar, PlatformTypes.mac68kfarfp,
+                    PlatformTypes.mac68kcarbon, PlatformTypes.macppcclassic,
+                    PlatformTypes.macppccarbon):
                 self.assertTrue(item.is_macos())
             else:
                 self.assertFalse(item.is_macos())
@@ -228,8 +237,8 @@ class TestEnums(unittest.TestCase):
         """
 
         for item in PlatformTypes:
-            if item in (PlatformTypes.maccarbon, PlatformTypes.maccarbon68k,
-                        PlatformTypes.maccarbonppc):
+            if item in (PlatformTypes.maccarbon, PlatformTypes.mac68kcarbon,
+                        PlatformTypes.macppccarbon):
                 self.assertTrue(item.is_macos_carbon())
             else:
                 self.assertFalse(item.is_macos_carbon())
@@ -242,14 +251,18 @@ class TestEnums(unittest.TestCase):
         """
 
         for item in PlatformTypes:
-            if item in (PlatformTypes.macos9, PlatformTypes.macos968k,
-                        PlatformTypes.macos9ppc):
+            if item in (PlatformTypes.mac, PlatformTypes.mac68k,
+                        PlatformTypes.macppc, PlatformTypes.macclassic,
+                        PlatformTypes.mac68knear, PlatformTypes.mac68knearfp,
+                        PlatformTypes.mac68kfar, PlatformTypes.mac68kfarfp,
+                        PlatformTypes.macppcclassic):
                 self.assertTrue(item.is_macos_classic())
             else:
                 self.assertFalse(item.is_macos_classic())
 
 
 ########################################
+
 
     def test_platformtypes_lookup(self):
         """
@@ -259,7 +272,8 @@ class TestEnums(unittest.TestCase):
             ("windows", PlatformTypes.windows),
             ("win32", PlatformTypes.win32),
             ("w64", PlatformTypes.win64),
-            ("macos", PlatformTypes.macos9),
+            ("macos", PlatformTypes.macosx),
+            ("macos9", PlatformTypes.macppc),
             ("macosx", PlatformTypes.macosx),
             ("carbon", PlatformTypes.maccarbon),
             ("ouya", PlatformTypes.ouya),

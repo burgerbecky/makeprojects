@@ -25,7 +25,7 @@ from .util import convert_file_name
 
 # Boolean list for GLSL, Name, Default, switches
 GLSL_BOOLEANS = (
-    ("CPP", (True, "/c", True)),
+    ("CPP", (True, "-c", True)),
 )
 
 # String entries for GLSL, Name, default, switch, generates output, quote
@@ -34,7 +34,7 @@ GLSL_STRINGS = (
     ("ObjectFileName", (
         "%(RootDir)%(Directory)%(FileName).h", "", True, True)),
     ("VariableName", (
-        "g_%(FileName)", "/l ", False, False))
+        "g_%(FileName)", "-l ", False, False))
 )
 
 
@@ -50,7 +50,7 @@ def make_glsl_command(command_dict, source_file):
     """
 
     # Create the initial command line
-    cmd = ["stripcomments.exe", "\"%(FullPath)\""]
+    cmd = ["stripcomments", "\"%(FullPath)\""]
 
     lookup_booleans(cmd, GLSL_BOOLEANS, command_dict)
     outputs = lookup_strings(cmd, GLSL_STRINGS, command_dict)

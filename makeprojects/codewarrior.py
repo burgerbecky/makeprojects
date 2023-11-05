@@ -62,7 +62,7 @@ from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     source_file_filter
 from .build_objects import BuildObject, BuildError
 
-_MCPFILE_MATCH = re_compile('(?is).*\\.mcp\\Z')
+_MCPFILE_MATCH = re_compile("(?is).*\\.mcp\\Z")
 
 if not PY2:
     unicode = str
@@ -74,29 +74,29 @@ SUPPORTED_IDES = (
 
 CODEWARRIOR_ERRORS = (
     None,
-    'error opening file',
-    'project not open',
-    'IDE is already building',
-    'invalid target name (for /t flag)',
-    'error changing current target',
-    'error removing objects',
-    'build was cancelled',
-    'build failed',
-    'process aborted',
-    'error importing project',
-    'error executing debug script',
-    'attempted use of /d together with /b and/or /r'
+    "error opening file",
+    "project not open",
+    "IDE is already building",
+    "invalid target name (for /t flag)",
+    "error changing current target",
+    "error removing objects",
+    "build was cancelled",
+    "build failed",
+    "process aborted",
+    "error importing project",
+    "error executing debug script",
+    "attempted use of /d together with /b and/or /r"
 )
 
 _CW_SUPPORTED_LINKERS = (
-    'MW ARM Linker Panel',      # ARM for Nintendo DSI
-    'x86 Linker',               # Windows
-    'PPC Linker',               # macOS PowerPC
-    '68K Linker',               # macOS 68k
-    'PPC EABI Linker'           # PowerPC for Nintendo Wii
+    "MW ARM Linker Panel",      # ARM for Nintendo DSI
+    "x86 Linker",               # Windows
+    "PPC Linker",               # macOS PowerPC
+    "68K Linker",               # macOS 68k
+    "PPC EABI Linker"           # PowerPC for Nintendo Wii
 )
 
-TAB = '\t'
+TAB = "\t"
 
 ########################################
 
@@ -125,16 +125,16 @@ def parse_mcp_file(full_pathname):
 
     try:
         # Load in the .mcp file, it's a binary file
-        with open(full_pathname, 'rb') as filep:
+        with open(full_pathname, "rb") as filep:
 
             # Get the signature and the endian
             cool = filep.read(4)
-            if cool == b'cool':
+            if cool == b"cool":
                 # Big endian
-                endian = '>'
-            elif cool == b'looc':
+                endian = ">"
+            elif cool == b"looc":
                 # Little endian
-                endian = '<'
+                endian = "<"
             else:
                 print(
                     'Codewarrior "cool" signature not found!',
@@ -143,17 +143,17 @@ def parse_mcp_file(full_pathname):
 
             # Get the offset to the strings
             filep.seek(16)
-            index_offset = struct_unpack(endian + 'I', filep.read(4))[0]
+            index_offset = struct_unpack(endian + "I", filep.read(4))[0]
             filep.seek(index_offset)
-            string_offset = struct_unpack(endian + 'I', filep.read(4))[0]
+            string_offset = struct_unpack(endian + "I", filep.read(4))[0]
 
             # Read in the version
             filep.seek(28)
             cw_version = bytearray(filep.read(4))
 
-            # Load the string 'CodeWarrior Project'
+            # Load the string "CodeWarrior Project"
             filep.seek(40)
-            if filep.read(19) != b'CodeWarrior Project':
+            if filep.read(19) != b"CodeWarrior Project":
                 print(
                     '"Codewarrior Project" signature not found!',
                     file=sys.stderr)
@@ -170,7 +170,7 @@ def parse_mcp_file(full_pathname):
                     break
 
                 # Only strings with a colon are parsed
-                parts = item.split(':')
+                parts = item.split(":")
                 if len(parts) == 2:
                     # Target:panel
                     target = parts[0]
@@ -322,12 +322,12 @@ class BuildCodeWarriorFile(BuildObject):
             cmd = [
                 cw_path,
                 self.file_name,
-                '/t',
+                "/t",
                 self.configuration,
-                '/s',
-                '/c',
-                '/q',
-                '/b']
+                "/s",
+                "/c",
+                "/q",
+                "/b"]
         else:
             # Create the folder for the error log
             error_file = os.path.join(
@@ -351,7 +351,7 @@ class BuildCodeWarriorFile(BuildObject):
             if error_code and error_code < len(CODEWARRIOR_ERRORS):
                 msg = CODEWARRIOR_ERRORS[error_code]
         except OSError as error:
-            error_code = getattr(error, 'winerror', error.errno)
+            error_code = getattr(error, "winerror", error.errno)
             msg = str(error)
             print(msg, file=sys.stderr)
 
@@ -426,7 +426,7 @@ def create_build_object(file_name, priority=50,
 
     # Was the file corrupted?
     if targetlist is None:
-        print(file_name + ' is corrupt')
+        print(file_name + " is corrupt")
         return []
 
     # Test for linkers that are not available on Windows
@@ -502,18 +502,18 @@ def create_clean_object(file_name, priority=50,
 
     # Was the file corrupted?
     if targetlist is None:
-        print(file_name + ' is corrupt')
+        print(file_name + " is corrupt")
         return []
 
     # Test for linkers that are not available on Windows
     if get_windows_host_type():
         if '68K Linker' in linkers:
             print(
-                ('"{}" requires a 68k linker '
-                'which Windows doesn\'t support.').format(file_name))
+                ("\"{}\" requires a 68k linker "
+                "which Windows doesn't support.").format(file_name))
             return []
 
-        if 'PPC Linker' in linkers:
+        if "PPC Linker" in linkers:
             print(
                 ('"{}" requires a PowerPC linker '
                 'which Windows doesn\'t support.').format(file_name))
@@ -560,7 +560,7 @@ def test(ide, platform_type):
     # pylint: disable=unused-argument
 
     return platform_type in (
-        PlatformTypes.win32,)
+        PlatformTypes.win32, )
 
 
 class SETTING(object):
@@ -730,10 +730,10 @@ class SearchPathAndFlags(object):
             recursive = True
 
         self.settings = [
-            SearchPath(platform, path, root, 'SearchPath'),
-            SETTING('Recursive', truefalse(recursive)),
-            SETTING('FrameworkPath', 'false'),
-            SETTING('HostFlags', 'All')
+            SearchPath(platform, path, root, "SearchPath"),
+            SETTING("Recursive", truefalse(recursive)),
+            SETTING("FrameworkPath", "false"),
+            SETTING("HostFlags", "All")
         ]
 
     def generate(self, line_list, level=4):
@@ -761,15 +761,15 @@ class MWProject_X86(object):
             filename: Name of the output file
         """
         if projecttype == ProjectTypes.library:
-            x86type = 'Library'
-            extension = '.lib'
+            x86type = "Library"
+            extension = ".lib"
         else:
-            x86type = 'Application'
-            extension = '.exe'
+            x86type = "Application"
+            extension = ".exe"
 
         self.settings = [
-            SETTING('MWProject_X86_type', x86type),
-            SETTING('MWProject_X86_outfile', filename + extension)
+            SETTING("MWProject_X86_type", x86type),
+            SETTING("MWProject_X86_outfile", filename + extension)
         ]
 
     def generate(self, line_list, level=4):
@@ -793,30 +793,30 @@ class MWFrontEnd_C(object):
         Initialize
         """
         self.settings = [
-            SETTING('MWFrontEnd_C_cplusplus', '0'),
-            SETTING('MWFrontEnd_C_templateparser', '0'),
-            SETTING('MWFrontEnd_C_instance_manager', '0'),
-            SETTING('MWFrontEnd_C_enableexceptions', '0'),
-            SETTING('MWFrontEnd_C_useRTTI', '0'),
-            SETTING('MWFrontEnd_C_booltruefalse', '1'),
-            SETTING('MWFrontEnd_C_wchar_type', '1'),
-            SETTING('MWFrontEnd_C_ecplusplus', '0'),
-            SETTING('MWFrontEnd_C_dontinline', '0'),
-            SETTING('MWFrontEnd_C_inlinelevel', '0'),
-            SETTING('MWFrontEnd_C_autoinline', '1'),
-            SETTING('MWFrontEnd_C_defer_codegen', '0'),
-            SETTING('MWFrontEnd_C_bottomupinline', '1'),
-            SETTING('MWFrontEnd_C_ansistrict', '0'),
-            SETTING('MWFrontEnd_C_onlystdkeywords', '0'),
-            SETTING('MWFrontEnd_C_trigraphs', '0'),
-            SETTING('MWFrontEnd_C_arm', '0'),
-            SETTING('MWFrontEnd_C_checkprotos', '1'),
-            SETTING('MWFrontEnd_C_c99', '1'),
-            SETTING('MWFrontEnd_C_gcc_extensions', '1'),
-            SETTING('MWFrontEnd_C_enumsalwaysint', '1'),
-            SETTING('MWFrontEnd_C_unsignedchars', '0'),
-            SETTING('MWFrontEnd_C_poolstrings', '1'),
-            SETTING('MWFrontEnd_C_dontreusestrings', '0')
+            SETTING("MWFrontEnd_C_cplusplus", "0"),
+            SETTING("MWFrontEnd_C_templateparser", "1"),
+            SETTING("MWFrontEnd_C_instance_manager", "1"),
+            SETTING("MWFrontEnd_C_enableexceptions", "0"),
+            SETTING("MWFrontEnd_C_useRTTI", "0"),
+            SETTING("MWFrontEnd_C_booltruefalse", "1"),
+            SETTING("MWFrontEnd_C_wchar_type", "1"),
+            SETTING("MWFrontEnd_C_ecplusplus", "0"),
+            SETTING("MWFrontEnd_C_dontinline", "0"),
+            SETTING("MWFrontEnd_C_inlinelevel", "0"),
+            SETTING("MWFrontEnd_C_autoinline", "1"),
+            SETTING("MWFrontEnd_C_defer_codegen", "0"),
+            SETTING("MWFrontEnd_C_bottomupinline", "1"),
+            SETTING("MWFrontEnd_C_ansistrict", "0"),
+            SETTING("MWFrontEnd_C_onlystdkeywords", "0"),
+            SETTING("MWFrontEnd_C_trigraphs", "0"),
+            SETTING("MWFrontEnd_C_arm", "0"),
+            SETTING("MWFrontEnd_C_checkprotos", "1"),
+            SETTING("MWFrontEnd_C_c99", "1"),
+            SETTING("MWFrontEnd_C_gcc_extensions", "1"),
+            SETTING("MWFrontEnd_C_enumsalwaysint", "1"),
+            SETTING("MWFrontEnd_C_unsignedchars", "0"),
+            SETTING("MWFrontEnd_C_poolstrings", "1"),
+            SETTING("MWFrontEnd_C_dontreusestrings", "0")
         ]
 
     def generate(self, line_list, level=4):
@@ -841,18 +841,18 @@ class C_CPP_Preprocessor(object):
         """
         definestring = []
         for item in defines:
-            definestring.append('#define ' + item)
+            definestring.append("#define " + item)
 
         self.settings = [
-            SETTING('C_CPP_Preprocessor_PrefixText', definestring),
-            SETTING('C_CPP_Preprocessor_MultiByteEncoding', 'encASCII_Unicode'),
-            SETTING('C_CPP_Preprocessor_PCHUsesPrefixText', 'false'),
-            SETTING('C_CPP_Preprocessor_EmitPragmas', 'true'),
-            SETTING('C_CPP_Preprocessor_KeepWhiteSpace', 'false'),
-            SETTING('C_CPP_Preprocessor_EmitFullPath', 'false'),
-            SETTING('C_CPP_Preprocessor_KeepComments', 'false'),
-            SETTING('C_CPP_Preprocessor_EmitFile', 'true'),
-            SETTING('C_CPP_Preprocessor_EmitLine', 'false')
+            SETTING("C_CPP_Preprocessor_PrefixText", definestring),
+            SETTING("C_CPP_Preprocessor_MultiByteEncoding", "encASCII_Unicode"),
+            SETTING("C_CPP_Preprocessor_PCHUsesPrefixText", "false"),
+            SETTING("C_CPP_Preprocessor_EmitPragmas", "true"),
+            SETTING("C_CPP_Preprocessor_KeepWhiteSpace", "false"),
+            SETTING("C_CPP_Preprocessor_EmitFullPath", "false"),
+            SETTING("C_CPP_Preprocessor_KeepComments", "false"),
+            SETTING("C_CPP_Preprocessor_EmitFile", "true"),
+            SETTING("C_CPP_Preprocessor_EmitLine", "false")
         ]
 
     def generate(self, line_list, level=4):
@@ -876,30 +876,30 @@ class MWWarning_C(object):
         Initialize
         """
         self.settings = [
-            SETTING('MWWarning_C_warn_illpragma', '1'),
-            SETTING('MWWarning_C_warn_possunwant', '1'),
-            SETTING('MWWarning_C_pedantic', '1'),
-            SETTING('MWWarning_C_warn_illtokenpasting', '0'),
-            SETTING('MWWarning_C_warn_hidevirtual', '1'),
-            SETTING('MWWarning_C_warn_implicitconv', '1'),
-            SETTING('MWWarning_C_warn_impl_f2i_conv', '1'),
-            SETTING('MWWarning_C_warn_impl_s2u_conv', '1'),
-            SETTING('MWWarning_C_warn_impl_i2f_conv', '1'),
-            SETTING('MWWarning_C_warn_ptrintconv', '1'),
-            SETTING('MWWarning_C_warn_unusedvar', '1'),
-            SETTING('MWWarning_C_warn_unusedarg', '1'),
-            SETTING('MWWarning_C_warn_resultnotused', '0'),
-            SETTING('MWWarning_C_warn_missingreturn', '1'),
-            SETTING('MWWarning_C_warn_no_side_effect', '1'),
-            SETTING('MWWarning_C_warn_extracomma', '1'),
-            SETTING('MWWarning_C_warn_structclass', '1'),
-            SETTING('MWWarning_C_warn_emptydecl', '1'),
-            SETTING('MWWarning_C_warn_filenamecaps', '0'),
-            SETTING('MWWarning_C_warn_filenamecapssystem', '0'),
-            SETTING('MWWarning_C_warn_padding', '0'),
-            SETTING('MWWarning_C_warn_undefmacro', '0'),
-            SETTING('MWWarning_C_warn_notinlined', '0'),
-            SETTING('MWWarning_C_warningerrors', '0')
+            SETTING("MWWarning_C_warn_illpragma", "1"),
+            SETTING("MWWarning_C_warn_possunwant", "1"),
+            SETTING("MWWarning_C_pedantic", "1"),
+            SETTING("MWWarning_C_warn_illtokenpasting", "0"),
+            SETTING("MWWarning_C_warn_hidevirtual", "1"),
+            SETTING("MWWarning_C_warn_implicitconv", "1"),
+            SETTING("MWWarning_C_warn_impl_f2i_conv", "1"),
+            SETTING("MWWarning_C_warn_impl_s2u_conv", "1"),
+            SETTING("MWWarning_C_warn_impl_i2f_conv", "1"),
+            SETTING("MWWarning_C_warn_ptrintconv", "1"),
+            SETTING("MWWarning_C_warn_unusedvar", "1"),
+            SETTING("MWWarning_C_warn_unusedarg", "1"),
+            SETTING("MWWarning_C_warn_resultnotused", "0"),
+            SETTING("MWWarning_C_warn_missingreturn", "1"),
+            SETTING("MWWarning_C_warn_no_side_effect", "1"),
+            SETTING("MWWarning_C_warn_extracomma", "1"),
+            SETTING("MWWarning_C_warn_structclass", "1"),
+            SETTING("MWWarning_C_warn_emptydecl", "1"),
+            SETTING("MWWarning_C_warn_filenamecaps", "0"),
+            SETTING("MWWarning_C_warn_filenamecapssystem", "0"),
+            SETTING("MWWarning_C_warn_padding", "0"),
+            SETTING("MWWarning_C_warn_undefmacro", "0"),
+            SETTING("MWWarning_C_warn_notinlined", "0"),
+            SETTING("MWWarning_C_warningerrors", "0")
         ]
 
     def generate(self, line_list, level=4):
@@ -922,32 +922,32 @@ class MWCodeGen_X86(object):
         """
         Initialize
         """
-        if configuration == 'Debug':
-            disableopt = '1'
-            optimizeasm = '0'
+        if configuration == "Debug":
+            disableopt = "1"
+            optimizeasm = "0"
         else:
-            disableopt = '0'
-            optimizeasm = '1'
+            disableopt = "0"
+            optimizeasm = "1"
 
         self.settings = [
-            SETTING('MWCodeGen_X86_processor', 'PentiumIV'),
-            SETTING('MWCodeGen_X86_use_extinst', '1'),
-            SETTING('MWCodeGen_X86_extinst_mmx', '0'),
-            SETTING('MWCodeGen_X86_extinst_3dnow', '0'),
-            SETTING('MWCodeGen_X86_extinst_cmov', '1'),
-            SETTING('MWCodeGen_X86_extinst_sse', '0'),
-            SETTING('MWCodeGen_X86_extinst_sse2', '0'),
-            SETTING('MWCodeGen_X86_use_mmx_3dnow_convention', '0'),
-            SETTING('MWCodeGen_X86_vectorize', '0'),
-            SETTING('MWCodeGen_X86_profile', '0'),
-            SETTING('MWCodeGen_X86_readonlystrings', '1'),
-            SETTING('MWCodeGen_X86_alignment', 'bytes8'),
-            SETTING('MWCodeGen_X86_intrinsics', '1'),
-            SETTING('MWCodeGen_X86_optimizeasm', optimizeasm),
-            SETTING('MWCodeGen_X86_disableopts', disableopt),
-            SETTING('MWCodeGen_X86_relaxieee', '1'),
-            SETTING('MWCodeGen_X86_exceptions', 'ZeroOverhead'),
-            SETTING('MWCodeGen_X86_name_mangling', 'MWWin32')
+            SETTING("MWCodeGen_X86_processor", "PentiumIV"),
+            SETTING("MWCodeGen_X86_use_extinst", "1"),
+            SETTING("MWCodeGen_X86_extinst_mmx", "0"),
+            SETTING("MWCodeGen_X86_extinst_3dnow", "0"),
+            SETTING("MWCodeGen_X86_extinst_cmov", "1"),
+            SETTING("MWCodeGen_X86_extinst_sse", "0"),
+            SETTING("MWCodeGen_X86_extinst_sse2", "0"),
+            SETTING("MWCodeGen_X86_use_mmx_3dnow_convention", "0"),
+            SETTING("MWCodeGen_X86_vectorize", "0"),
+            SETTING("MWCodeGen_X86_profile", "0"),
+            SETTING("MWCodeGen_X86_readonlystrings", "1"),
+            SETTING("MWCodeGen_X86_alignment", "bytes8"),
+            SETTING("MWCodeGen_X86_intrinsics", "1"),
+            SETTING("MWCodeGen_X86_optimizeasm", optimizeasm),
+            SETTING("MWCodeGen_X86_disableopts", disableopt),
+            SETTING("MWCodeGen_X86_relaxieee", "1"),
+            SETTING("MWCodeGen_X86_exceptions", "ZeroOverhead"),
+            SETTING("MWCodeGen_X86_name_mangling", "MWWin32")
         ]
 
     def generate(self, line_list, level=4):
@@ -970,14 +970,14 @@ class GlobalOptimizer_X86(object):
         """
         Initialize
         """
-        if configuration == 'Debug':
-            level = 'Level0'
+        if configuration == "Debug":
+            level = "Level0"
         else:
-            level = 'Level4'
+            level = "Level4"
 
         self.settings = [
-            SETTING('GlobalOptimizer_X86__optimizationlevel', level),
-            SETTING('GlobalOptimizer_X86__optfor', 'Size')
+            SETTING("GlobalOptimizer_X86__optimizationlevel", level),
+            SETTING("GlobalOptimizer_X86__optfor", "Size")
         ]
 
     def generate(self, line_list, level=4):
@@ -1001,24 +1001,24 @@ class PDisasmX86(object):
         Initialize
         """
         self.settings = [
-            SETTING('PDisasmX86_showHeaders', 'true'),
-            SETTING('PDisasmX86_showSectHeaders', 'true'),
-            SETTING('PDisasmX86_showSymTab', 'true'),
-            SETTING('PDisasmX86_showCode', 'true'),
-            SETTING('PDisasmX86_showData', 'true'),
-            SETTING('PDisasmX86_showDebug', 'false'),
-            SETTING('PDisasmX86_showExceptions', 'false'),
-            SETTING('PDisasmX86_showRelocation', 'true'),
-            SETTING('PDisasmX86_showRaw', 'false'),
-            SETTING('PDisasmX86_showAllRaw', 'false'),
-            SETTING('PDisasmX86_showSource', 'false'),
-            SETTING('PDisasmX86_showHex', 'true'),
-            SETTING('PDisasmX86_showComments', 'false'),
-            SETTING('PDisasmX86_resolveLocals', 'false'),
-            SETTING('PDisasmX86_resolveRelocs', 'true'),
-            SETTING('PDisasmX86_showSymDefs', 'true'),
-            SETTING('PDisasmX86_unmangle', 'false'),
-            SETTING('PDisasmX86_verbose', 'false')
+            SETTING("PDisasmX86_showHeaders", "true"),
+            SETTING("PDisasmX86_showSectHeaders", "true"),
+            SETTING("PDisasmX86_showSymTab", "true"),
+            SETTING("PDisasmX86_showCode", "true"),
+            SETTING("PDisasmX86_showData", "true"),
+            SETTING("PDisasmX86_showDebug", "false"),
+            SETTING("PDisasmX86_showExceptions", "false"),
+            SETTING("PDisasmX86_showRelocation", "true"),
+            SETTING("PDisasmX86_showRaw", "false"),
+            SETTING("PDisasmX86_showAllRaw", "false"),
+            SETTING("PDisasmX86_showSource", "false"),
+            SETTING("PDisasmX86_showHex", "true"),
+            SETTING("PDisasmX86_showComments", "false"),
+            SETTING("PDisasmX86_resolveLocals", "false"),
+            SETTING("PDisasmX86_resolveRelocs", "true"),
+            SETTING("PDisasmX86_showSymDefs", "true"),
+            SETTING("PDisasmX86_unmangle", "false"),
+            SETTING("PDisasmX86_verbose", "false")
         ]
 
     def generate(self, line_list, level=4):
@@ -1042,26 +1042,26 @@ class MWLinker_X86(object):
         Initialize
         """
         self.settings = [
-            SETTING('MWLinker_X86_runtime', 'Custom'),
-            SETTING('MWLinker_X86_linksym', '0'),
-            SETTING('MWLinker_X86_linkCV', '1'),
-            SETTING('MWLinker_X86_symfullpath', 'false'),
-            SETTING('MWLinker_X86_linkdebug', 'true'),
-            SETTING('MWLinker_X86_debuginline', 'true'),
-            SETTING('MWLinker_X86_subsystem', 'Unknown'),
-            SETTING('MWLinker_X86_entrypointusage', 'Default'),
-            SETTING('MWLinker_X86_entrypoint', ''),
-            SETTING('MWLinker_X86_codefolding', 'Any'),
-            SETTING('MWLinker_X86_usedefaultlibs', 'true'),
-            SETTING('MWLinker_X86_adddefaultlibs', 'false'),
-            SETTING('MWLinker_X86_mergedata', 'true'),
-            SETTING('MWLinker_X86_zero_init_bss', 'false'),
-            SETTING('MWLinker_X86_generatemap', '0'),
-            SETTING('MWLinker_X86_checksum', 'false'),
-            SETTING('MWLinker_X86_linkformem', 'false'),
-            SETTING('MWLinker_X86_nowarnings', 'false'),
-            SETTING('MWLinker_X86_verbose', 'false'),
-            SETTING('MWLinker_X86_commandfile', '')
+            SETTING("MWLinker_X86_runtime", "Custom"),
+            SETTING("MWLinker_X86_linksym", "0"),
+            SETTING("MWLinker_X86_linkCV", "1"),
+            SETTING("MWLinker_X86_symfullpath", "false"),
+            SETTING("MWLinker_X86_linkdebug", "true"),
+            SETTING("MWLinker_X86_debuginline", "true"),
+            SETTING("MWLinker_X86_subsystem", "Unknown"),
+            SETTING("MWLinker_X86_entrypointusage", "Default"),
+            SETTING("MWLinker_X86_entrypoint", ""),
+            SETTING("MWLinker_X86_codefolding", "Any"),
+            SETTING("MWLinker_X86_usedefaultlibs", "true"),
+            SETTING("MWLinker_X86_adddefaultlibs", "false"),
+            SETTING("MWLinker_X86_mergedata", "true"),
+            SETTING("MWLinker_X86_zero_init_bss", "false"),
+            SETTING("MWLinker_X86_generatemap", "0"),
+            SETTING("MWLinker_X86_checksum", "false"),
+            SETTING("MWLinker_X86_linkformem", "false"),
+            SETTING("MWLinker_X86_nowarnings", "false"),
+            SETTING("MWLinker_X86_verbose", "false"),
+            SETTING("MWLinker_X86_commandfile", "")
         ]
 
     def generate(self, line_list, level=4):
@@ -1089,19 +1089,19 @@ class FILE(object):
         """
         if platform.is_windows():
             self.filename = convert_to_windows_slashes(filename)
-            self.format = 'Windows'
+            self.format = "Windows"
         else:
             self.filename = convert_to_linux_slashes(filename)
-            self.format = 'Unix'
+            self.format = "Unix"
 
-        self.flags = ''
-        if self.filename.endswith('.lib') or self.filename.endswith('.a'):
-            self.kind = 'Library'
+        self.flags = ""
+        if self.filename.endswith(".lib") or self.filename.endswith(".a"):
+            self.kind = "Library"
         else:
-            self.kind = 'Text'
-            if configuration != 'Release' and \
-                    self.filename.endswith(('.c', '.cpp')):
-                self.flags = 'Debug'
+            self.kind = "Text"
+            if configuration != "Release" and \
+                    self.filename.endswith((".c", ".cpp")):
+                self.flags = "Debug"
 
     def generate(self, line_list, level=4):
         """
@@ -1109,14 +1109,14 @@ class FILE(object):
         """
         tabs = TAB * level
         tabs2 = tabs + TAB
-        line_list.append(tabs + '<FILE>')
-        line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
-        line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
-        line_list.append(tabs2 + '<PATHFORMAT>' + \
-                         self.format + '</PATHFORMAT>')
-        line_list.append(tabs2 + '<FILEKIND>' + self.kind + '</FILEKIND>')
-        line_list.append(tabs2 + '<FILEFLAGS>' + self.flags + '</FILEFLAGS>')
-        line_list.append(tabs + '</FILE>')
+        line_list.append(tabs + "<FILE>")
+        line_list.append(tabs2 + "<PATHTYPE>Name</PATHTYPE>")
+        line_list.append(tabs2 + "<PATH>" + self.filename + "</PATH>")
+        line_list.append(tabs2 + "<PATHFORMAT>" + \
+                         self.format + "</PATHFORMAT>")
+        line_list.append(tabs2 + "<FILEKIND>" + self.kind + "</FILEKIND>")
+        line_list.append(tabs2 + "<FILEFLAGS>" + self.flags + "</FILEFLAGS>")
+        line_list.append(tabs + "</FILE>")
 
 
 class FILEREF(object):
@@ -1136,10 +1136,10 @@ class FILEREF(object):
         self.configuration = configuration
         if platform.is_windows():
             self.filename = convert_to_windows_slashes(filename)
-            self.format = 'Windows'
+            self.format = "Windows"
         else:
             self.filename = convert_to_linux_slashes(filename)
-            self.format = 'Unix'
+            self.format = "Unix"
 
     def generate(self, line_list, level=4):
         """
@@ -1147,17 +1147,17 @@ class FILEREF(object):
         """
         tabs = TAB * level
         tabs2 = tabs + TAB
-        line_list.append(tabs + '<FILEREF>')
+        line_list.append(tabs + "<FILEREF>")
         if self.configuration is not None:
             line_list.append(tabs2 +
-                             '<TARGETNAME>' +
+                             "<TARGETNAME>" +
                              str(self.configuration) +
-                             '</TARGETNAME>')
-        line_list.append(tabs2 + '<PATHTYPE>Name</PATHTYPE>')
-        line_list.append(tabs2 + '<PATH>' + self.filename + '</PATH>')
-        line_list.append(tabs2 + '<PATHFORMAT>' + \
-                         self.format + '</PATHFORMAT>')
-        line_list.append(tabs + '</FILEREF>')
+                             "</TARGETNAME>")
+        line_list.append(tabs2 + "<PATHTYPE>Name</PATHTYPE>")
+        line_list.append(tabs2 + "<PATH>" + self.filename + "</PATH>")
+        line_list.append(tabs2 + "<PATHFORMAT>" + \
+                         self.format + "</PATHFORMAT>")
+        line_list.append(tabs + "</FILEREF>")
 
 
 class GROUP(object):
@@ -1203,16 +1203,16 @@ class GROUP(object):
         Generate output
         """
         if level == 1:
-            groupstring = 'GROUPLIST'
+            groupstring = "GROUPLIST"
         else:
-            groupstring = 'GROUP'
+            groupstring = "GROUP"
         tabs = TAB * level
-        entry = tabs + '<' + groupstring + '>'
+        entry = tabs + "<" + groupstring + ">"
         if self.name is not None:
-            entry = entry + '<NAME>' + self.name + '</NAME>'
+            entry = entry + "<NAME>" + self.name + "</NAME>"
         line_list.append(entry)
 
-        groups = sorted(self.groups, key=operator.attrgetter('name'))
+        groups = sorted(self.groups, key=operator.attrgetter("name"))
         for item in groups:
             item.generate(line_list, level + 1)
 
@@ -1221,7 +1221,7 @@ class GROUP(object):
             key=lambda s: s.filename.lower())
         for item in filerefs:
             item.generate(line_list, level + 1)
-        line_list.append(tabs + '</' + groupstring + '>')
+        line_list.append(tabs + "</" + groupstring + ">")
 
 
 class SUBTARGET(object):
@@ -1244,12 +1244,12 @@ class SUBTARGET(object):
         """
         tabs = TAB * level
         tabs2 = tabs + TAB
-        line_list.append(tabs + '<SUBTARGET>')
+        line_list.append(tabs + "<SUBTARGET>")
         line_list.append(tabs2 +
-                         '<TARGETNAME>' +
+                         "<TARGETNAME>" +
                          str(self.target.name) +
-                         '</TARGETNAME>')
-        line_list.append(tabs + '</SUBTARGET>')
+                         "</TARGETNAME>")
+        line_list.append(tabs + "</SUBTARGET>")
 
 
 class TARGET(object):
@@ -1280,8 +1280,8 @@ class TARGET(object):
         self.linker = linker
         self.settinglist = [
             SETTING(
-                'Linker', linker), SETTING(
-                'Targetname', name)]
+                "Linker", linker), SETTING(
+                "Targetname", name)]
         self.filelist = []
         self.linkorder = []
         self.subtargetlist = []
@@ -1307,30 +1307,30 @@ class TARGET(object):
         """
         tabs = TAB * level
         tabs2 = tabs + TAB
-        line_list.append(tabs + '<TARGET>')
-        line_list.append(tabs2 + '<NAME>' + str(self.name) + '</NAME>')
+        line_list.append(tabs + "<TARGET>")
+        line_list.append(tabs2 + "<NAME>" + str(self.name) + "</NAME>")
 
-        line_list.append(tabs2 + '<SETTINGLIST>')
+        line_list.append(tabs2 + "<SETTINGLIST>")
         for item in self.settinglist:
             item.generate(line_list, level + 2)
-        line_list.append(tabs2 + '</SETTINGLIST>')
+        line_list.append(tabs2 + "</SETTINGLIST>")
 
-        line_list.append(tabs2 + '<FILELIST>')
+        line_list.append(tabs2 + "<FILELIST>")
         for item in self.filelist:
             item.generate(line_list, level + 2)
-        line_list.append(tabs2 + '</FILELIST>')
+        line_list.append(tabs2 + "</FILELIST>")
 
-        line_list.append(tabs2 + '<LINKORDER>')
+        line_list.append(tabs2 + "<LINKORDER>")
         for item in self.linkorder:
             item.generate(line_list, level + 2)
-        line_list.append(tabs2 + '</LINKORDER>')
+        line_list.append(tabs2 + "</LINKORDER>")
 
-        line_list.append(tabs2 + '<SUBTARGETLIST>')
+        line_list.append(tabs2 + "<SUBTARGETLIST>")
         for item in self.subtargetlist:
             item.generate(line_list, level + 2)
-        line_list.append(tabs2 + '</SUBTARGETLIST>')
+        line_list.append(tabs2 + "</SUBTARGETLIST>")
 
-        line_list.append(tabs + '</TARGET>')
+        line_list.append(tabs + "</TARGET>")
 
 
 class ORDEREDTARGET(object):
@@ -1353,9 +1353,9 @@ class ORDEREDTARGET(object):
         """
         tabs = TAB * level
         line_list.append(tabs +
-                         '<ORDEREDTARGET><NAME>' +
+                         "<ORDEREDTARGET><NAME>" +
                          str(self.target.name) +
-                         '</NAME></ORDEREDTARGET>')
+                         "</NAME></ORDEREDTARGET>")
 
 
 class Project(object):
@@ -1464,32 +1464,32 @@ class Project(object):
                 target.settinglist.append(
                     SearchPath(
                         configuration.platform,
-                        'bin',
-                        'Project',
-                        'OutputDirectory'))
+                        "bin",
+                        "Project",
+                        "OutputDirectory"))
 
                 # User include folders
                 temp_list = configuration.get_unique_chained_list(
-                    '_source_include_list')
+                    "_source_include_list")
                 temp_list.extend(configuration.get_unique_chained_list(
-                    'include_folders_list'))
+                    "include_folders_list"))
 
                 if temp_list:
-                    usersearchpaths = target.addsetting('UserSearchPaths')
+                    usersearchpaths = target.addsetting("UserSearchPaths")
                     for item in temp_list:
                         entry = usersearchpaths.addsetting()
                         entry.subsettings.append(
                             SearchPathAndFlags(
                                 configuration.platform,
                                 item,
-                                'Project',
+                                "Project",
                                 False))
 
                 # System include folders
                 temp_list = configuration.get_unique_chained_list(
                     "_library_folders_list")
                 if temp_list:
-                    systemsearchpaths = target.addsetting('SystemSearchPaths')
+                    systemsearchpaths = target.addsetting("SystemSearchPaths")
                     for item in temp_list:
                         entry = systemsearchpaths.addsetting()
                         entry.subsettings.append(
@@ -1504,7 +1504,7 @@ class Project(object):
                 # C/C++ Language
                 target.settinglist.append(MWFrontEnd_C())
 
-                definelist = configuration.get_chained_list('define_list')
+                definelist = configuration.get_chained_list("define_list")
                 # C/C++ Preprocessor
                 target.settinglist.append(C_CPP_Preprocessor(definelist))
                 # C/C++ Warnings
@@ -1647,66 +1647,66 @@ class Project(object):
 
         # Write out the XML description template
         line_list.extend([
-            '',
-            '<!DOCTYPE PROJECT [',
-            ('<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, '
-                'GROUPLIST, DESIGNLIST?)>'),
-            '<!ELEMENT TARGETLIST (TARGET+)>',
-            ('<!ELEMENT TARGET (NAME, SETTINGLIST, FILELIST?, '
-                'LINKORDER?, SEGMENTLIST?, '
-                'OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, '
-                'FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>'),
-            '<!ELEMENT NAME (#PCDATA)>',
-            '<!ELEMENT USERSOURCETREETYPE (#PCDATA)>',
-            '<!ELEMENT PATH (#PCDATA)>',
-            '<!ELEMENT FILELIST (FILE*)>',
-            ('<!ELEMENT FILE (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, '
-                'PATHFORMAT?, ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>'),
-            '<!ELEMENT PATHTYPE (#PCDATA)>',
-            '<!ELEMENT PATHROOT (#PCDATA)>',
-            '<!ELEMENT ACCESSPATH (#PCDATA)>',
-            '<!ELEMENT PATHFORMAT (#PCDATA)>',
-            ('<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, '
-                'ACCESSPATH?, PATH, PATHFORMAT?)>'),
-            '<!ELEMENT FILEKIND (#PCDATA)>',
-            '<!ELEMENT FILEFLAGS (#PCDATA)>',
-            ('<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, '
-                'ACCESSPATH?, PATH, PATHFORMAT?)>'),
-            '<!ELEMENT TARGETNAME (#PCDATA)>',
-            '<!ELEMENT SETTINGLIST ((SETTING|PANELDATA)+)>',
-            '<!ELEMENT SETTING (NAME?, (VALUE|(SETTING+)))>',
-            '<!ELEMENT PANELDATA (NAME, VALUE)>',
-            '<!ELEMENT VALUE (#PCDATA)>',
-            '<!ELEMENT LINKORDER (FILEREF*)>',
-            '<!ELEMENT SEGMENTLIST (SEGMENT+)>',
-            '<!ELEMENT SEGMENT (NAME, ATTRIBUTES?, FILEREF*)>',
-            '<!ELEMENT ATTRIBUTES (#PCDATA)>',
-            '<!ELEMENT OVERLAYGROUPLIST (OVERLAYGROUP+)>',
-            '<!ELEMENT OVERLAYGROUP (NAME, BASEADDRESS, OVERLAY*)>',
-            '<!ELEMENT BASEADDRESS (#PCDATA)>',
-            '<!ELEMENT OVERLAY (NAME, FILEREF*)>',
-            '<!ELEMENT SUBTARGETLIST (SUBTARGET+)>',
-            '<!ELEMENT SUBTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>',
-            '<!ELEMENT SUBPROJECTLIST (SUBPROJECT+)>',
-            '<!ELEMENT SUBPROJECT (FILEREF, SUBPROJECTTARGETLIST)>',
-            '<!ELEMENT SUBPROJECTTARGETLIST (SUBPROJECTTARGET*)>',
-            '<!ELEMENT SUBPROJECTTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>',
-            '<!ELEMENT FRAMEWORKLIST (FRAMEWORK+)>',
-            '<!ELEMENT FRAMEWORK (FILEREF, DYNAMICLIBRARY?, VERSION?)>',
-            '<!ELEMENT PACKAGEACTIONSLIST (PACKAGEACTION+)>',
-            '<!ELEMENT PACKAGEACTION (#PCDATA)>',
-            '<!ELEMENT LIBRARYFILE (FILEREF)>',
-            '<!ELEMENT VERSION (#PCDATA)>',
-            '<!ELEMENT TARGETORDER (ORDEREDTARGET|ORDEREDDESIGN)*>',
-            '<!ELEMENT ORDEREDTARGET (NAME)>',
-            '<!ELEMENT ORDEREDDESIGN (NAME, ORDEREDTARGET+)>',
-            '<!ELEMENT GROUPLIST (GROUP|FILEREF)*>',
-            '<!ELEMENT GROUP (NAME, (GROUP|FILEREF)*)>',
-            '<!ELEMENT DESIGNLIST (DESIGN+)>',
-            '<!ELEMENT DESIGN (NAME, DESIGNDATA)>',
-            '<!ELEMENT DESIGNDATA (#PCDATA)>',
-            ']>',
-            ''
+            "",
+            "<!DOCTYPE PROJECT [",
+            ("<!ELEMENT PROJECT (TARGETLIST, TARGETORDER, "
+                "GROUPLIST, DESIGNLIST?)>"),
+            "<!ELEMENT TARGETLIST (TARGET+)>",
+            ("<!ELEMENT TARGET (NAME, SETTINGLIST, FILELIST?, "
+                "LINKORDER?, SEGMENTLIST?, "
+                "OVERLAYGROUPLIST?, SUBTARGETLIST?, SUBPROJECTLIST?, "
+                "FRAMEWORKLIST?, PACKAGEACTIONSLIST?)>"),
+            "<!ELEMENT NAME (#PCDATA)>",
+            "<!ELEMENT USERSOURCETREETYPE (#PCDATA)>",
+            "<!ELEMENT PATH (#PCDATA)>",
+            "<!ELEMENT FILELIST (FILE*)>",
+            ("<!ELEMENT FILE (PATHTYPE, PATHROOT?, ACCESSPATH?, PATH, "
+                "PATHFORMAT?, ROOTFILEREF?, FILEKIND?, FILEFLAGS?)>"),
+            "<!ELEMENT PATHTYPE (#PCDATA)>",
+            "<!ELEMENT PATHROOT (#PCDATA)>",
+            "<!ELEMENT ACCESSPATH (#PCDATA)>",
+            "<!ELEMENT PATHFORMAT (#PCDATA)>",
+            ("<!ELEMENT ROOTFILEREF (PATHTYPE, PATHROOT?, "
+                "ACCESSPATH?, PATH, PATHFORMAT?)>"),
+            "<!ELEMENT FILEKIND (#PCDATA)>",
+            "<!ELEMENT FILEFLAGS (#PCDATA)>",
+            ("<!ELEMENT FILEREF (TARGETNAME?, PATHTYPE, PATHROOT?, "
+                "ACCESSPATH?, PATH, PATHFORMAT?)>"),
+            "<!ELEMENT TARGETNAME (#PCDATA)>",
+            "<!ELEMENT SETTINGLIST ((SETTING|PANELDATA)+)>",
+            "<!ELEMENT SETTING (NAME?, (VALUE|(SETTING+)))>",
+            "<!ELEMENT PANELDATA (NAME, VALUE)>",
+            "<!ELEMENT VALUE (#PCDATA)>",
+            "<!ELEMENT LINKORDER (FILEREF*)>",
+            "<!ELEMENT SEGMENTLIST (SEGMENT+)>",
+            "<!ELEMENT SEGMENT (NAME, ATTRIBUTES?, FILEREF*)>",
+            "<!ELEMENT ATTRIBUTES (#PCDATA)>",
+            "<!ELEMENT OVERLAYGROUPLIST (OVERLAYGROUP+)>",
+            "<!ELEMENT OVERLAYGROUP (NAME, BASEADDRESS, OVERLAY*)>",
+            "<!ELEMENT BASEADDRESS (#PCDATA)>",
+            "<!ELEMENT OVERLAY (NAME, FILEREF*)>",
+            "<!ELEMENT SUBTARGETLIST (SUBTARGET+)>",
+            "<!ELEMENT SUBTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>",
+            "<!ELEMENT SUBPROJECTLIST (SUBPROJECT+)>",
+            "<!ELEMENT SUBPROJECT (FILEREF, SUBPROJECTTARGETLIST)>",
+            "<!ELEMENT SUBPROJECTTARGETLIST (SUBPROJECTTARGET*)>",
+            "<!ELEMENT SUBPROJECTTARGET (TARGETNAME, ATTRIBUTES?, FILEREF?)>",
+            "<!ELEMENT FRAMEWORKLIST (FRAMEWORK+)>",
+            "<!ELEMENT FRAMEWORK (FILEREF, DYNAMICLIBRARY?, VERSION?)>",
+            "<!ELEMENT PACKAGEACTIONSLIST (PACKAGEACTION+)>",
+            "<!ELEMENT PACKAGEACTION (#PCDATA)>",
+            "<!ELEMENT LIBRARYFILE (FILEREF)>",
+            "<!ELEMENT VERSION (#PCDATA)>",
+            "<!ELEMENT TARGETORDER (ORDEREDTARGET|ORDEREDDESIGN)*>",
+            "<!ELEMENT ORDEREDTARGET (NAME)>",
+            "<!ELEMENT ORDEREDDESIGN (NAME, ORDEREDTARGET+)>",
+            "<!ELEMENT GROUPLIST (GROUP|FILEREF)*>",
+            "<!ELEMENT GROUP (NAME, (GROUP|FILEREF)*)>",
+            "<!ELEMENT DESIGNLIST (DESIGN+)>",
+            "<!ELEMENT DESIGN (NAME, DESIGNDATA)>",
+            "<!ELEMENT DESIGNDATA (#PCDATA)>",
+            "]>",
+            ""
         ])
 
         # Start the project
