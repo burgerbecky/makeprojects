@@ -25,12 +25,6 @@ Regex for matching files with *.xcodeproj
 @var makeprojects.xcode._XCODE_SUFFIXES
 List of filename suffixes for xcode versions
 
-@var makeprojects.xcode._TEMP_EXE_NAME
-Build executable pathname
-
-@var makeprojects.xcode._PERFORCE_PATH
-Path of the perforce executable
-
 @var makeprojects.xcode.SUPPORTED_IDES
 Supported IDE codes for the XCode exporter
 
@@ -63,7 +57,8 @@ from .config import _XCODEPROJECT_FILE
 from .build_objects import BuildError, BuildObject
 from .xcode_utils import get_sdk_root, calcuuid, JSONDict, JSONEntry, \
     JSONArray, JSONObjects, PBXBuildRuleGLSL, PBXFileReference, \
-    PBXShellScriptBuildPhase, PBXBuildFile, PBXGroup
+    PBXShellScriptBuildPhase, PBXBuildFile, PBXGroup, PERFORCE_PATH, \
+    TEMP_EXE_NAME, copy_tool_to_bin
 
 # Notes for macOS:
 # Xcode 3 is the only one that builds PowerPC
@@ -83,12 +78,6 @@ _XCODE_SUFFIXES = (
     ("xc9", 9), ("x10", 10), ("x11", 11),
     ("x12", 12), ("x13", 13)
 )
-
-# Build executable pathname
-_TEMP_EXE_NAME = "${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}"
-
-# Path of the perforce executable
-_PERFORCE_PATH = "/opt/local/bin/p4"
 
 # Supported IDE codes for the XCode exporter
 SUPPORTED_IDES = (
@@ -120,8 +109,9 @@ OBJECT_VERSIONS = {
 SUPPORTED_FILES = (
     FileTypes.icns, FileTypes.h, FileTypes.cpp, FileTypes.c,
     FileTypes.m, FileTypes.mm, FileTypes.ppc, FileTypes.x64,
-    FileTypes.x86, FileTypes.frameworks, FileTypes.exe,
-    FileTypes.library, FileTypes.glsl
+    FileTypes.x86, FileTypes.arm, FileTypes.arm64,
+    FileTypes.frameworks, FileTypes.exe, FileTypes.library,
+    FileTypes.glsl
 )
 
 ########################################
@@ -1708,6 +1698,13 @@ class XCBuildConfiguration(JSONDict):
 
         # pylint: disable=protected-access
 
+        # Check for an override
+        xc_archs = self.configuration.get_chained_value("xc_archs")
+        if xc_archs:
+            for item in xc_archs:
+                archs.add_array_entry(item)
+            return None
+
         # Start by getting the IDE and platform
         ide = self.configuration.ide
         sdkroot = self.configuration.project.solution._xc_sdkroot
@@ -1737,18 +1734,22 @@ class XCBuildConfiguration(JSONDict):
             # Xcode 12 supports arm64
             if ide >= IDETypes.xcode12:
                 archs.add_array_entry("arm64")
+            return None
 
-        elif self.configuration.platform in (
+        if self.configuration.platform in (
                 PlatformTypes.iosemu32, PlatformTypes.iosemu64):
             archs.add_array_entry("i386")
             archs.add_array_entry("x86_64")
+            return None
 
-        elif self.configuration.platform in (
+        if self.configuration.platform in (
                 PlatformTypes.ios32, PlatformTypes.ios64):
             archs.add_array_entry("armv6")
             archs.add_array_entry("armv7")
             archs.add_array_entry("i386")
             archs.add_array_entry("x86_64")
+
+        return None
 
 ########################################
 
@@ -1962,7 +1963,7 @@ class XCProject(JSONDict):
                     if item.source_file.type in (FileTypes.m, FileTypes.mm,
                             FileTypes.cpp, FileTypes.c,
                             FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
-                            FileTypes.x86):
+                            FileTypes.x86, FileTypes.arm, FileTypes.arm64):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -1993,9 +1994,9 @@ class XCProject(JSONDict):
 
                     for item in file_references:
                         if item.source_file.type in (FileTypes.m, FileTypes.mm,
-                                                     FileTypes.cpp, FileTypes.c,
+                                FileTypes.cpp, FileTypes.c,
                                 FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
-                                FileTypes.x86):
+                                FileTypes.x86, FileTypes.arm, FileTypes.arm64):
 
                             build_file = PBXBuildFile(
                                 item, outputfilereference)
@@ -2172,29 +2173,21 @@ class XCProject(JSONDict):
             # Is this an application?
 
             if project.platform is PlatformTypes.macosx:
-                if project.project_type is ProjectTypes.tool:
+                if project.project_type in (
+                    ProjectTypes.tool, ProjectTypes.library,
+                        ProjectTypes.sharedlibrary):
 
-                    # Copy the tool to the bin folder
-                    input_data = [_TEMP_EXE_NAME]
-                    output = ("${SRCROOT}/bin/"
-                        "${EXECUTABLE_NAME}${SUFFIX}")
-
-                    command = (
-                        "if [ ! -d ${{SRCROOT}}/bin ];"
-                        " then mkdir ${{SRCROOT}}/bin; fi\\n"
-                        "${{CP}} {} {}").format(_TEMP_EXE_NAME, output)
-
-                    shellbuildphase = PBXShellScriptBuildPhase(
-                        input_data, output, command)
-                    objects.add_item(shellbuildphase)
-                    nativetarget1.add_build_phase(shellbuildphase)
+                    # Copy the output to the bin folder
+                    item = copy_tool_to_bin()
+                    objects.add_item(item)
+                    nativetarget1.add_build_phase(item)
 
                 elif project.project_type is ProjectTypes.app:
 
                     # Copy the exe into the .app folder
                     input_file = (
                         "{}.app/Contents/MacOS/"
-                        "${{EXECUTABLE_NAME}}").format(_TEMP_EXE_NAME)
+                        "${{EXECUTABLE_NAME}}").format(TEMP_EXE_NAME)
 
                     input_data = [input_file]
                     output = (
@@ -2205,7 +2198,7 @@ class XCProject(JSONDict):
 
                     command = "if [ ! -d ${SRCROOT}/bin ]; then mkdir " \
                         "${SRCROOT}/bin; fi\\n" \
-                        "${CP} -r " + _TEMP_EXE_NAME + ".app/ " \
+                        "${CP} -r " + TEMP_EXE_NAME + ".app/ " \
                         "${SRCROOT}/bin/${EXECUTABLE_NAME}" + ".app/\\n" \
                         "mv ${SRCROOT}/bin/${EXECUTABLE_NAME}" + ".app" \
                         "/Contents/MacOS/${EXECUTABLE_NAME} " \
@@ -2229,7 +2222,7 @@ class XCProject(JSONDict):
 
             if deploy_folder is not None:
                 if ioslibrary is False:
-                    input_data = [_TEMP_EXE_NAME]
+                    input_data = [TEMP_EXE_NAME]
                 else:
                     input_data = [
                         "${BUILD_ROOT}/" + solution.name +
@@ -2241,14 +2234,14 @@ class XCProject(JSONDict):
                 if ioslibrary is True:
 
                     output = deploy_folder + "lib${PRODUCT_NAME}${SUFFIX}.a"
-                    command = _PERFORCE_PATH + " edit " + output + "\\n" + \
+                    command = PERFORCE_PATH + " edit " + output + "\\n" + \
                         "lipo -output " + output + \
                         " -create ${BUILD_ROOT}/" + \
                         solution.name + "dev${SUFFIX}/lib" + \
                         solution.name + "dev.a ${BUILD_ROOT}/" + \
                         solution.name + "sim${SUFFIX}/lib" + \
                         solution.name + "sim.a\\n" + \
-                        _PERFORCE_PATH + " revert -a " + \
+                        PERFORCE_PATH + " revert -a " + \
                         output + "\\n"
                 elif project.project_type is ProjectTypes.library:
 
@@ -2258,7 +2251,7 @@ class XCProject(JSONDict):
                         "{0} edit {1}\\n"
                         "${{CP}} {2} {1}\\n"
                         "{0} revert -a {1}\\n"
-                    ).format(_PERFORCE_PATH, output, _TEMP_EXE_NAME)
+                    ).format(PERFORCE_PATH, output, TEMP_EXE_NAME)
 
                 elif project.project_type is ProjectTypes.sharedlibrary:
 
@@ -2269,14 +2262,14 @@ class XCProject(JSONDict):
                         "{0} edit {1}\\n"
                         "${{CP}} {2} {1}\\n"
                         "{0} revert -a {1}\\n"
-                        "fi\\n").format(_PERFORCE_PATH, output, _TEMP_EXE_NAME)
+                        "fi\\n").format(PERFORCE_PATH, output, TEMP_EXE_NAME)
                 else:
                     output = deploy_folder + "${TARGET_NAME}"
                     command = (
                         "if [ \"${{CONFIGURATION}}\" == \"Release\" ]; then \\n"
                         "{0} edit {1}\\n"
                         "${{CP}} {2} {1}\\n"
-                        "fi\\n").format(_PERFORCE_PATH, output, _TEMP_EXE_NAME)
+                        "fi\\n").format(PERFORCE_PATH, output, TEMP_EXE_NAME)
 
                 shellbuildphase = PBXShellScriptBuildPhase(
                     input_data, output, command)

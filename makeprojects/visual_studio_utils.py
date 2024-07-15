@@ -137,3 +137,13 @@ def add_masm_support(project):
             "$(VCTargetsPath)\\BuildCustomizations\\masm.props")
         project.vs_targets.append(
             "$(VCTargetsPath)\\BuildCustomizations\\masm.targets")
+
+    # Add props for ARM assembly (Only supported by VS 2017 or higher)
+    if project.ide >= IDETypes.vs2017:
+        if source_file_detect(
+                project.codefiles, (FileTypes.arm, FileTypes.arm64)):
+            # Add support for masm on VS 2010 and beyond
+            project.vs_props.append(
+                "$(VCTargetsPath)\\BuildCustomizations\\marmasm.props")
+            project.vs_targets.append(
+                "$(VCTargetsPath)\\BuildCustomizations\\marmasm.targets")

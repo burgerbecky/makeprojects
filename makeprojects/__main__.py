@@ -27,9 +27,9 @@ import argparse
 from .core import Solution, Project, Configuration
 from .config import BUILD_RULES_PY
 from .__init__ import __version__
-from .defaults import get_project_name, get_platform, get_ide,\
+from .defaults import get_project_name, get_platform, get_ide, \
     get_project_type, get_configuration_list
-from .util import get_build_rules
+from .util import get_build_rules, load_build_rules
 
 ########################################
 
@@ -242,9 +242,40 @@ def get_project_list(args, build_rules_list, working_directory):
                 platform_item, ide):
 
             # Set the platform
-            configuration = Configuration(name=config_item, platform=platform_item)
+            configuration = Configuration(
+                name=config_item, platform=platform_item)
             project.add_configuration(configuration)
             configuration.parse_attributes(build_rules_list)
+
+    # Add in any smart libraries
+    for configuration in project.configuration_list:
+        for library_rules in configuration.get_unique_chained_list(
+                "library_rules_list"):
+
+            # Is it a directory? Append build_rules.py
+            if os.path.isdir(library_rules):
+                library_rules = os.path.join(library_rules, BUILD_RULES_PY)
+
+            build_rules = load_build_rules(library_rules)
+            if not build_rules:
+                print(
+                    "Error: {} doesn't contain a build_rules file".format(
+                        library_rules))
+                continue
+
+            # Rules found
+
+            function_ref = getattr(build_rules, "library_settings", None)
+            if not callable(function_ref):
+                print(
+                    "Error: Function library_settings() not found in {}".format(
+                        library_rules))
+                continue
+
+            # Call the function
+            error = function_ref(configuration)
+            if error is not None:
+                break
 
     # Perform the generation
     solution.generate(ide)

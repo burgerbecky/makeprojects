@@ -258,6 +258,27 @@ def configuration_settings(configuration):
     return None
 
 
+########################################
+
+def library_settings(configuration):
+    """
+    Add settings when using this project at a library
+
+    When configuration.add_library[] is set to a list of directories,
+    if the directory has a build_rules.py file, it will run this
+    function on every configuration to add the library this rules
+    file describes.
+
+    Args:
+        configuration: Configuration class instance to update.
+
+    Returns:
+        None, to continue processing, zero is no error and stop processing,
+        any other number is an error code.
+    """
+    return None
+
+
 # If called as a command line, replace 0 with a call the function
 # for the default action. Return a numeric error code, or zero.
 if __name__ == "__main__":

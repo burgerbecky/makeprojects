@@ -16,6 +16,12 @@ Subroutines for Apple Computer XCode projects
 This module contains classes needed to generate
 project files intended for use by Apple's XCode IDE
 
+@var makeprojects.xcode_utils.TEMP_EXE_NAME
+Build executable pathname
+
+@var makeprojects.xcode_utils.PERFORCE_PATH
+Path of the perforce executable
+
 @var makeprojects.xcode_utils.TABS
 Default tab format for XCode
 
@@ -47,6 +53,12 @@ from burger import convert_to_windows_slashes, convert_to_linux_slashes
 
 from .core import SourceFile
 from .enums import IDETypes, FileTypes
+
+# Build executable pathname
+TEMP_EXE_NAME = "${CONFIGURATION_BUILD_DIR}/${EXECUTABLE_NAME}"
+
+# Path of the perforce executable
+PERFORCE_PATH = "/opt/local/bin/p4"
 
 # Default tab format for XCode
 TABS = "\t"
@@ -80,6 +92,8 @@ FILE_REF_DIR = {
     FileTypes.frameworks: "SDKROOT",
     FileTypes.x86: "SOURCE_ROOT",
     FileTypes.x64: "SOURCE_ROOT",
+    FileTypes.arm: "SOURCE_ROOT",
+    FileTypes.arm64: "SOURCE_ROOT",
     FileTypes.ppc: "SOURCE_ROOT",
     FileTypes.cpp: "SOURCE_ROOT",
     FileTypes.c: "SOURCE_ROOT",
@@ -95,9 +109,11 @@ FILE_REF_LAST_KNOWN = {
     FileTypes.glsl: "sourcecode.glsl",
     FileTypes.xml: "text.xml",
     FileTypes.xcconfig: "text.xcconfig",
-    FileTypes.ppc: "sourcecode.asm.asm",
     FileTypes.x86: "sourcecode.asm.asm",
     FileTypes.x64: "sourcecode.asm.asm",
+    FileTypes.arm: "sourcecode.asm.asm",
+    FileTypes.arm64: "sourcecode.asm.asm",
+    FileTypes.ppc: "sourcecode.asm.asm",
     FileTypes.cpp: "sourcecode.cpp.objcpp",
     FileTypes.c: "source.c.c",
     FileTypes.h: "sourcecode.c.h",
@@ -1060,3 +1076,32 @@ class PBXShellScriptBuildPhase(JSONDict):
         Return the build phase name for XCode.
         """
         return "ShellScript"
+
+
+########################################
+
+def copy_tool_to_bin():
+    """
+    Create a PBXShellScriptBuildPhase to copy to bin
+
+    Create a PBXShellScriptBuildPhase to take a binary tool file,
+    append a suffix, and then copy it to a "bin" folder.
+
+    Return:
+        PBXShellScriptBuildPhase set up for the operation
+    """
+
+    # Get the input file
+    input_data = [TEMP_EXE_NAME]
+
+    # Store to bin folder with suffix
+    output = ("${SRCROOT}/bin/${EXECUTABLE_PREFIX}${PRODUCT_NAME}"
+              "${SUFFIX}${EXECUTABLE_SUFFIX}")
+
+    # Create the bin folder, then perform the copy
+    command = (
+        "if [ ! -d ${{SRCROOT}}/bin ];"
+        " then mkdir ${{SRCROOT}}/bin; fi\\n"
+        "${{CP}} {0} {1}").format(TEMP_EXE_NAME, output)
+
+    return PBXShellScriptBuildPhase(input_data, output, command)

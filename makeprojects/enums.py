@@ -145,6 +145,8 @@ class FileTypes(IntEnum):
         a65: 6502/65812 assembly source
         ppc: PowerPC assembly source
         a68: 680x0 assembly source
+        arm: ARM 32 assembly source
+        arm64: ARM 64 assembly source
         image: Image files
         ico: Windows icon files
         icns: MacOSX icon files
@@ -175,11 +177,13 @@ class FileTypes(IntEnum):
     a65 = 21
     ppc = 22
     a68 = 23
-    s = 24
-    image = 25
-    ico = 26
-    icns = 27
-    appxmanifest = 28
+    arm = 24
+    arm64 = 25
+    s = 26
+    image = 27
+    ico = 28
+    icns = 29
+    appxmanifest = 30
 
     @staticmethod
     def lookup(test_name):
@@ -264,6 +268,8 @@ _FILETYPES_LOOKUP = {
     "a65": FileTypes.a65,               # 6502/65816 source code
     "ppc": FileTypes.ppc,               # PowerPC source code
     "a68": FileTypes.a68,               # 680x0 source code
+    "arm": FileTypes.arm,               # ARM 32 source code
+    "arm64": FileTypes.arm64,           # ARM 64 source code
     "s": FileTypes.s,                   # Generic assembly code
     "ico": FileTypes.ico,               # Windows icon file
     "icns": FileTypes.icns,             # Mac OSX Icon file
@@ -306,6 +312,8 @@ _FILETYPES_READABLE = {
     FileTypes.a65: "6502/65816 assembly file",
     FileTypes.ppc: "PowerPC assembly file",
     FileTypes.a68: "680x0 assembly file",
+    FileTypes.arm: "ARM 32 assembly file",
+    FileTypes.arm64: "ARM 64 assembly file",
     FileTypes.s: "Generic assembly file",
     FileTypes.image: "Image file",
     FileTypes.ico: "Windows Icon file",

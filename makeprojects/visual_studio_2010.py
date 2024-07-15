@@ -1168,7 +1168,8 @@ class VS2010ClCompile(VS2010XML):
         platform = configuration.platform
 
         # Xbox ONE XDK is Windows RT
-        if platform is PlatformTypes.xboxone:
+        if platform is PlatformTypes.xboxone and \
+                not configuration.project_type.is_library():
             self.add_tag("CompileAsWinRT", "true")
 
         # Get the optimization setting
@@ -1219,7 +1220,11 @@ class VS2010ClCompile(VS2010XML):
             self.add_tag("BufferSecurityCheck", "false")
 
         # Inline functions
-        if configuration.debug:
+        # This is a hack, it appears that VS2022 for Windows ARM64
+        # generates bad code on AnySuitable
+        if configuration.debug or (
+            configuration.ide >= IDETypes.vs2022 and \
+                platform is PlatformTypes.winarm64):
             item = "OnlyExplicitInline"
         else:
             item = "AnySuitable"
@@ -1697,6 +1702,7 @@ class VS2010Files(VS2010XML):
         self.addfiles(FileTypes.h, "ClInclude")
         self.addfiles((FileTypes.cpp, FileTypes.c), "ClCompile")
         self.addfiles((FileTypes.x86, FileTypes.x64), "MASM")
+        self.addfiles((FileTypes.arm, FileTypes.arm64), "MARMASM")
 
         # Resource files
         self.addfiles(FileTypes.rc, "ResourceCompile")
@@ -1850,7 +1856,7 @@ class VS2010Files(VS2010XML):
             self.add_element(new_xml)
 
             # Check if needs to be marked as "Not part of build"
-            if xml_name == "MASM":
+            if xml_name in ("MASM", "MARMASM"):
 
                 # Required for Visual Studio 2015 and higher, but present in all
                 # versions
@@ -1869,7 +1875,9 @@ class VS2010Files(VS2010XML):
                     FileTypes.x64: ("x64",
                                     "Durango",
                                     "Gaming.Xbox.XboxOne.x64",
-                                    "Gaming.Xbox.Scarlett.x64")
+                                    "Gaming.Xbox.Scarlett.x64"),
+                    FileTypes.arm: ("ARM",),
+                    FileTypes.arm64: ("ARM64",)
                 }.get(item.type, [])
 
                 # For early out
@@ -2045,6 +2053,8 @@ class VS2010vcprojfilter(VS2010XML):
                                 groups, "ClCompile")
         self.write_filter_group((FileTypes.x86, FileTypes.x64),
                                 groups, "MASM")
+        self.write_filter_group((FileTypes.arm, FileTypes.arm64),
+                                groups, "MARMASM")
 
         # Generic assembly is assumed to be PowerPC for PS3
         if project.platform_code in ("ps3", "ps4", "ps5", "vit", "swi"):
@@ -2236,6 +2246,8 @@ def generate(solution):
                                FileTypes.x86,
                                FileTypes.x64,
                                FileTypes.ppc,
+                               FileTypes.arm,
+                               FileTypes.arm64,
                                FileTypes.s,
                                FileTypes.rc,
                                FileTypes.ico,

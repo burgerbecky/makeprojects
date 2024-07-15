@@ -41,6 +41,7 @@ class Attributes(object):
         include_folders_list: List of folders to add to compiler include list
         library_folders_list: List of folders to add to linker include list
         libraries_list: List of libraries to link
+        library_rules_list: List of build_rules.py with libraries
         frameworks_list: Darwin frameworks list
         env_variable_list: List of required environment variables
         exclude_from_build_list: List of patterns to exclude from this config
@@ -82,6 +83,7 @@ class Attributes(object):
     include_folders_list = StringListProperty("_include_folders_list")
     library_folders_list = StringListProperty("_library_folders_list")
     libraries_list = StringListProperty("_libraries_list")
+    library_rules_list = StringListProperty("_library_rules_list")
     frameworks_list = StringListProperty("_frameworks_list")
     env_variable_list = StringListProperty("_env_variable_list")
     exclude_from_build_list = StringListProperty("_exclude_from_build_list")
@@ -98,6 +100,7 @@ class Attributes(object):
         self.include_folders_list = []
         self.library_folders_list = []
         self.libraries_list = []
+        self.library_rules_list = []
         self.frameworks_list = []
         self.env_variable_list = []
         self.exclude_from_build_list = []
@@ -605,6 +608,7 @@ class Configuration(Attributes):
     - ``include_folders_list`` List of directories for headers
     - ``library_folders_list`` List of directories for libraries
     - ``libraries_list`` List of libraries to include
+    - ``library_rules_list`` List of build_rules.py with libraries
     - ``frameworks_list`` List of frameworks to include (macOS/iOS)
     - ``env_variable_list`` List of required environment variables
     - ``define_list`` List of defines for compilation
@@ -716,7 +720,7 @@ class Configuration(Attributes):
             settings = getattr(build_rules, "configuration_settings", None)
             if callable(settings):
                 result = settings(configuration=self)
-                # Must test for zero, since None is a break.
+                # Must test for zero, since None is continue.
                 if result is not None:
                     break
 
@@ -1028,7 +1032,7 @@ class Project(Attributes):
             settings = getattr(build_rules, "project_settings", None)
             if callable(settings):
                 result = settings(project=self)
-                # Must test for zero, since None is a break.
+                # Must test for zero, since None is continue.
                 if result is not None:
                     break
         return result

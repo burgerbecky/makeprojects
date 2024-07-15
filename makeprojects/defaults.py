@@ -11,6 +11,7 @@ Default settings for each configuration type
 """
 
 # pylint: disable=consider-using-f-string
+# pylint: disable=unused-argument
 
 from __future__ import absolute_import, print_function, unicode_literals
 
