@@ -17,10 +17,10 @@ tools to automate building, cleaning and rebuilding projects.
 Chapter list
 ============
 
-- @subpage md_buildme_man Instructions for buildme
-- @subpage md_cleanme_man Instructions for cleanme
-- @subpage md_rebuildme_man Instructions for rebuildme
-- @subpage md_build_rules_man Layout of ``build_rules.py``
+- @subpage md_buildme__man Instructions for buildme
+- @subpage md_cleanme__man Instructions for cleanme
+- @subpage md_rebuildme__man Instructions for rebuildme
+- @subpage md_build__rules__man Layout of ``build_rules.py``
 
 @par To use in your own script:
 
@@ -78,7 +78,7 @@ from .defaults import settings_from_name
 ########################################
 
 # Current version of the library as a numeric tuple
-__numversion__ = (0, 15, 1)
+__numversion__ = (0, 15, 2)
 
 # Current version of the library
 __version__ = ".".join([str(num) for num in __numversion__])
@@ -102,7 +102,7 @@ __email__ = "becky@burgerbecky.com"
 __license__ = "MIT License"
 
 # Copyright owner
-__copyright__ = "Copyright 2013-2023 Rebecca Ann Heineman"
+__copyright__ = "Copyright 2013-2024 Rebecca Ann Heineman"
 
 # Items to import on "from makeprojects import *"
 __all__ = [

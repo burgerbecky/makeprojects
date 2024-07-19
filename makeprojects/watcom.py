@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 1995-2023 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2024 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -43,7 +43,8 @@ except ImportError:
 from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
-from .watcom_util import fixup_env, get_custom_list, get_output_list
+from .watcom_util import fixup_env, get_custom_list, get_output_list, \
+    add_post_build
 
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
@@ -960,6 +961,10 @@ class WatcomProject(object):
             else:
                 entries.append("-od")
 
+            # Enable C++ exceptions
+            if configuration.exceptions:
+                entries.append("-xs")
+
             # Add defines
             define_list = configuration.get_chained_list("define_list")
             for item in define_list:
@@ -1266,6 +1271,8 @@ class WatcomProject(object):
                     "\t@WLIB -q -b -c -n $^@ @WOW"
                 ])
 
+                add_post_build(line_list, configuration)
+
                 if configuration.deploy_folder:
                     deploy_folder = convert_to_windows_slashes(
                         configuration.deploy_folder,
@@ -1283,6 +1290,7 @@ class WatcomProject(object):
                     configuration.platform.get_short_code() + ") "
                     "NAME $^@ FILE @wow"
                 ])
+                add_post_build(line_list, configuration)
 
         return 0
 

@@ -881,7 +881,7 @@ def BoolExceptionHandling(configuration):
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             'ExceptionHandling', configuration,
-            False,
+            True if configuration.exceptions else False,
             options_key='compiler_options',
             options=(('/EHsc', True), ('/EHa', True)))
     return None
@@ -1839,6 +1839,12 @@ def create_deploy_script(configuration):
         create_copy_file_script
     """
 
+    # Is there an override?
+    post_build = configuration.get_chained_value("post_build")
+    if post_build:
+        # Return the tuple, message, then command
+        return post_build
+
     deploy_folder = configuration.deploy_folder
 
     # Don't deploy if no folder is requested.
@@ -2613,9 +2619,10 @@ class VCCLCompilerTool(VS2003Tool):
         self.add_default(BoolExceptionHandling(configuration))
 
         if ide > IDETypes.vs2003:
+            default = "Yes" if configuration.exceptions else "No"
             self.add_default(
                 VSEnumProperty(
-                    'ExceptionHandling', 'No',
+                    'ExceptionHandling', default,
                     ('No',
                      ('/EHsc', 'Yes'),
                      ('/EHa', 'Yes with SEH', 'Yes with SEH Exceptions'))))

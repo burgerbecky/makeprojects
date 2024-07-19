@@ -208,7 +208,7 @@ epub_exclude_files = ["search.html"]
 # ]
 
 # rst2pdf has a bug where indexes can't build, this is a workaround
-#pdf_use_index = False
+# pdf_use_index = False
 
 # -- Extension configuration -------------------------------------------------
 
@@ -260,10 +260,10 @@ def generate_doxygen_xml(app):
         if not os.path.isfile(doxygen):
             try:
                 subprocess.call(("curl -O "
-                    "http://logicware.com/downloads/linux/doxygen-1.9.5.tgz"),
+                    "http://logicware.com/downloads/linux/doxygen-1.11.0.tgz"),
                     cwd=CWD,
                     shell=True)
-                subprocess.call("tar -xvf doxygen-1.9.5.tgz", cwd=CWD,
+                subprocess.call("tar -xvf doxygen-1.11.0.tgz", cwd=CWD,
                     shell=True)
             except OSError as error:
                 sys.stderr.write("doxygen download error: %s" % error)
@@ -284,7 +284,9 @@ def generate_doxygen_xml(app):
     if _ON_RTD:
         try:
             retcode = subprocess.call(
-                "cp -r temp/html _build/html/doxygen", cwd=".", shell=True)
+                "cp -r temp/html ../_readthedocs/html/doxygen",
+                cwd=".",
+                shell=True)
             if retcode < 0:
                 sys.stderr.write("cp terminated by signal %s" % (-retcode))
         except OSError as error:

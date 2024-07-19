@@ -1289,10 +1289,20 @@ class VS2010ClCompile(VS2010XML):
         self.add_tag("ProgramDataBaseFileName", "$(OutDir)$(TargetName).pdb")
 
         # Exception handling
-        item = "false"
-        if (platform.is_android() and configuration.ide >= IDETypes.vs2022) \
-                or platform is PlatformTypes.stadia:
-            item = "Disabled"
+        item = configuration.get_chained_value("vs_ExceptionHandling")
+        if not item:
+            if configuration.exceptions:
+                item = "Sync"
+                if (platform.is_android() and \
+                        configuration.ide >= IDETypes.vs2022) \
+                        or platform is PlatformTypes.stadia:
+                    item = "Enabled"
+            else:
+                item = "false"
+                if (platform.is_android() and \
+                        configuration.ide >= IDETypes.vs2022) \
+                        or platform is PlatformTypes.stadia:
+                    item = "Disabled"
         self.add_tag("ExceptionHandling", item)
 
         # Floating point model

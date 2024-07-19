@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 1995-2023 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 1995-2024 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -1176,7 +1176,8 @@ class XCBuildConfiguration(JSONDict):
             # build_settings.add_dict_entry("GCC_ENABLE_BUILTIN_FUNCTIONS")
 
             # Disable CPP Exceptionsstaticlib
-            build_settings.add_dict_entry("GCC_ENABLE_CPP_EXCEPTIONS", "NO")
+            item = "YES" if configuration.exceptions else "NO"
+            build_settings.add_dict_entry("GCC_ENABLE_CPP_EXCEPTIONS", item)
 
             # Disable CPP RTTI
             build_settings.add_dict_entry("GCC_ENABLE_CPP_RTTI", "NO")

@@ -9,7 +9,7 @@ setup.py sdist bdist_wheel
 twine upload --verbose dist/*
 setup.py flake8
 
-Copyright 2013-2023 by Rebecca Ann Heineman becky@burgerbecky.com
+Copyright 2013-2024 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
 for license details. Yes, you can use it in a
@@ -67,7 +67,7 @@ with io.open(os.path.join(CWD, "README.rst"), encoding="utf-8") as filep:
 INSTALL_REQUIRES = [
     "setuptools >= 17.1",
     "enum34 >= 1.0.0",
-    "burger >= 1.2.9",
+    "burger >= 1.3.1",
     "argparse >= 1.0",
     "glob2 >= 0.6"
 ]
@@ -93,7 +93,8 @@ CLASSIFIERS = [
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11"
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12"
 ]
 
 # Entry points for the generated command line tools

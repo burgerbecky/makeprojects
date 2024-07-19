@@ -33,7 +33,7 @@ Tuple of supported codewarrior linkers
 Tab character for XML output
 """
 
-# Copyright 2019-2022 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2019-2024 by Rebecca Ann Heineman becky@burgerbecky.com
 
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
@@ -788,15 +788,17 @@ class MWFrontEnd_C(object):
         settings: List of setting objects for this generator
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
         Initialize
         """
+
+        exceptions = "1" if configuration.exceptions else "0"
         self.settings = [
             SETTING("MWFrontEnd_C_cplusplus", "0"),
             SETTING("MWFrontEnd_C_templateparser", "1"),
             SETTING("MWFrontEnd_C_instance_manager", "1"),
-            SETTING("MWFrontEnd_C_enableexceptions", "0"),
+            SETTING("MWFrontEnd_C_enableexceptions", exceptions),
             SETTING("MWFrontEnd_C_useRTTI", "0"),
             SETTING("MWFrontEnd_C_booltruefalse", "1"),
             SETTING("MWFrontEnd_C_wchar_type", "1"),
@@ -1502,7 +1504,7 @@ class Project(object):
                 # Generic settings for all platforms
 
                 # C/C++ Language
-                target.settinglist.append(MWFrontEnd_C())
+                target.settinglist.append(MWFrontEnd_C(configuration))
 
                 definelist = configuration.get_chained_list("define_list")
                 # C/C++ Preprocessor

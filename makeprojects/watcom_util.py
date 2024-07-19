@@ -61,6 +61,7 @@ def convert_file_name_watcom(item):
         item = item.replace("%(FileName)", "$[&")
         item = item.replace("%(FullPath)", "$[@")
         item = item.replace("%(Identity)", "$[@")
+        item = item.replace("$(TargetPath)", "$^@")
     return item
 
 ########################################
@@ -212,3 +213,35 @@ def get_output_list(custom_list):
     # Sort it
     output_list.sort()
     return output_list
+
+
+########################################
+
+def add_post_build(line_list, configuration):
+    """
+    If there are custom build rules, add them
+
+    Args:
+        line_list: Output stream
+        configuration: Project configuration
+    """
+
+    # Is there custom post build rule?
+    post_build = configuration.get_chained_value("post_build")
+    if not post_build:
+        return
+
+    # Get the command line
+    cmd = post_build[1]
+
+    # Convert Visual Studio environment variables
+    cmd = convert_file_name_watcom(cmd)
+
+    # Convert to Watcom format
+    cmd = fixup_env(cmd)
+
+    # Add the lines
+    line_list.extend([
+        "\t@echo " + post_build[0],
+        "\t@" + cmd
+    ])

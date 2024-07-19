@@ -6,7 +6,7 @@ Module that contains the code for the command line ``buildme``.
 
 Scan the current directory and all project files will be built.
 
-Full documentation is here, @subpage md_buildme_man
+Full documentation is here, @subpage md_buildme__man
 
 See Also:
     main, makeprojects.cleanme, makeprojects.rebuildme

@@ -53,6 +53,7 @@ class Attributes(object):
         debug: Boolean for debug information generation
         link_time_code_generation: Boolean for LTCG
         optimization: Boolean for optimization enable
+        exceptions: Boolean for enabling C++ exceptions
         analyze: Boolean for code analysis
         use_mfc: Boolean for Microsoft Foundation Classes usage
         use_atl: Boolean for Active Template Library usage
@@ -67,6 +68,7 @@ class Attributes(object):
         _debug: True @ref makeprojects.core.Attributes.debug
         _link_time_code_generation: True @ref makeprojects.core.Attributes.link_time_code_generation
         _optimization: True @ref makeprojects.core.Attributes.optimization
+        _exceptions: False @ref makeprojects.code.Attributes.exceptions
         _analyze: True @ref makeprojects.core.Attributes.analyze
         _use_mfc: True @ref makeprojects.core.Attributes.use_mfc
         _use_atl: True @ref makeprojects.core.Attributes.use_atl
@@ -115,6 +117,7 @@ class Attributes(object):
         self._debug = None
         self._link_time_code_generation = None
         self._optimization = None
+        self._exceptions = None
         self._analyze = None
         self._use_mfc = None
         self._use_atl = None
@@ -294,6 +297,27 @@ class Attributes(object):
         self._optimization = validate_boolean(value)
 
     optimization = property(_getoptimization, _setoptimization)
+
+    ########################################
+
+    def _getexceptions(self):
+        """
+        Get exceptions boolean
+        """
+
+        return self.get_chained_value("_exceptions")
+
+    def _setexceptions(self, value):
+        """
+        Set the boolean with validation
+        Args:
+            self: The "this" reference.
+            value: None, True or False
+        """
+
+        self._exceptions = validate_boolean(value)
+
+    exceptions = property(_getexceptions, _setexceptions)
 
     ########################################
 
@@ -614,6 +638,7 @@ class Configuration(Attributes):
     - ``define_list`` List of defines for compilation
     - ``debug`` True if debugging defaults are enabled
     - ``optimization`` 0-4 level of optimization
+    - ``exceptions`` True if C++ exceptions are enabled
     - ``link_time_code_generation`` Enable link time code genration
 
     If any of these attributes are read, they will always return None.
