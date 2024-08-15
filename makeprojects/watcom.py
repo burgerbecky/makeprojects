@@ -44,7 +44,7 @@ from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
 from .watcom_util import fixup_env, get_custom_list, get_output_list, \
-    add_post_build
+    add_post_build, watcom_linker_system
 
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
@@ -1029,31 +1029,33 @@ class WatcomProject(object):
         for configuration in self.configuration_list:
             entries = ["LFlags" + configuration.watcommake_name + "="]
 
-            if configuration.platform is PlatformTypes.msdos4gw:
-                entries.append("system dos4g")
+            # Add linker "system nt"
+            item = watcom_linker_system(configuration)
+            if item:
+                entries.append(item)
 
-            elif configuration.platform is PlatformTypes.msdosx32:
-                entries.append("system x32r")
+            # Add libraries for non static library
+            if configuration.project_type is not ProjectTypes.library:
 
-            else:
-                entries.append("system nt")
-
-            # Add libraries
-
-            if not configuration.project_type.is_library():
+                # Is there a list of folders to locate libraries?
                 lib_list = configuration.get_unique_chained_list(
                     "library_folders_list")
+
+                # Use the watcom libp command if needed
                 if lib_list:
                     entries.append("libp")
                     entries.append(";".join([fixup_env(x) for x in lib_list]))
 
+                # Is there a list of libraries to link in?
                 lib_list = configuration.get_unique_chained_list(
                     "libraries_list")
 
+                # Use the watcom LIBRARY command if needed
                 if lib_list:
                     entries.append("LIBRARY")
                     entries.append(",".join(lib_list))
 
+            # Set the wmake file line
             line_list.append(" ".join(entries))
 
         return 0

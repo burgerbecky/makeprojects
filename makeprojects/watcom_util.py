@@ -15,7 +15,7 @@ from __future__ import absolute_import, print_function, unicode_literals
 from burger import is_string, convert_to_linux_slashes
 
 from .validators import lookup_enum_value
-from .enums import FileTypes
+from .enums import FileTypes, PlatformTypes, ProjectTypes
 from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
 
@@ -245,3 +245,54 @@ def add_post_build(line_list, configuration):
         "\t@echo " + post_build[0],
         "\t@" + cmd
     ])
+
+########################################
+
+
+def watcom_linker_system(configuration):
+    """
+    Determine the watcom system for linkage
+
+    Scan the configuration and return the string "system ???"
+    where ??? is replaces with dos4g, nt, etc.
+
+    Can be overriden with the attribute ``wat_system``. If this
+    exists, use it to declare "system ???" or "" to disable.
+
+    Args:
+        configuration: Project configuration
+
+    Return:
+        String "system " + actual type
+    """
+
+    # Get the override
+    system = configuration.get_chained_value("wat_system")
+    if system == "":
+        # Disable adding "system"
+        return system
+
+    # Not overridden?
+    if system is None:
+
+        # Linking for Dos4GW
+        if configuration.platform is PlatformTypes.msdos4gw:
+            system = "dos4g"
+
+        # Linking for X32 dos extender
+        elif configuration.platform is PlatformTypes.msdosx32:
+            system = "x32r"
+
+        # Windows DLL?
+        elif configuration.project_type is ProjectTypes.sharedlibrary:
+            system = "nt_dll"
+
+        # Windows Application?
+        elif configuration.project_type is ProjectTypes.app:
+            system = "nt_win"
+
+        # Windows console is the default
+        else:
+            system = "nt"
+
+    return "system " + system
