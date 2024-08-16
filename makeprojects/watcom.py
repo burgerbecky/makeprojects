@@ -44,7 +44,7 @@ from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
 from .watcom_util import fixup_env, get_custom_list, get_output_list, \
-    add_post_build, watcom_linker_system
+    add_post_build, watcom_linker_system, get_obj_list, add_obj_list
 
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
@@ -329,7 +329,7 @@ class WatcomProject(object):
             # Process the filename types supported by Open Watcom
             project.get_file_list(
                 [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.x86,
-                 FileTypes.hlsl, FileTypes.glsl])
+                 FileTypes.hlsl, FileTypes.glsl, FileTypes.rc])
 
             # Keep a copy of the filenames for now
             codefiles = project.codefiles
@@ -814,13 +814,13 @@ class WatcomProject(object):
             "",
             "#",
             "# Set the set of known files supported",
-            "# Note: They are in the reverse order of building. .c is "
-            "built first, then .x86",
+            "# Note: They are in the reverse order of building. .x86 is "
+            "built first, then .c",
             "# until the .exe or .lib files are built",
             "#",
             "",
             ".extensions:",
-            ".extensions: .exe .exp .lib .obj .h .cpp .x86 .c .i86",
+            ".extensions: .exe .exp .lib .obj .h .cpp .c .x86 .i86 .res .rc",
         ])
         return 0
 
@@ -907,7 +907,8 @@ class WatcomProject(object):
             ".c: $(SOURCE_DIRS)",
             ".cpp: $(SOURCE_DIRS)",
             ".x86: $(SOURCE_DIRS)",
-            ".i86: $(SOURCE_DIRS)"
+            ".i86: $(SOURCE_DIRS)",
+            ".rc: $(SOURCE_DIRS)"
         ])
 
     ########################################
@@ -1062,6 +1063,45 @@ class WatcomProject(object):
 
     ########################################
 
+    def _setresourceflags(self, line_list):
+        """
+        Output the default rules for resource compiler
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend((
+            "",
+            "#",
+            "# Set the Resource flags for each of the build types",
+            "#",
+            ""))
+
+        for configuration in self.configuration_list:
+            entries = ["RFlags" + configuration.watcommake_name + "="]
+
+            # Use Windows format
+            if configuration.platform.is_windows():
+                entries.append("-bt=nt")
+
+                # Also add in the windows headers
+                entries.append("-i=\"$(%WATCOM)/h/nt\"")
+
+            # Add defines
+            define_list = configuration.get_chained_list("define_list")
+            for item in define_list:
+                entries.append("-D" + item)
+
+            # Set the wmake file line
+            line_list.append(" ".join(entries))
+
+        return 0
+
+    ########################################
+
     def write_rules(self, line_list):
         """
         Output the default rules for building object code
@@ -1076,6 +1116,7 @@ class WatcomProject(object):
         self._setcppflags(line_list)
         self._setasmflags(line_list)
         self._setlinkerflags(line_list)
+        self._setresourceflags(line_list)
 
         # Global compiler flags
         line_list.extend([
@@ -1089,6 +1130,7 @@ class WatcomProject(object):
             "ASM=WASM -5r -fp6 -w4 -zq -d__WATCOM__=1",
             "LINK=*WLINK option caseexact option quiet PATH $(%WATCOM)/binnt;"
             "$(%WATCOM)/binw;.",
+            "RC=WRC -ad -r -q -d__WATCOM__=1 -i=\"$(INCLUDE_DIRS)\"",
             "",
             "# Set the default build rules",
             "# Requires ASM, CP to be set",
@@ -1098,6 +1140,10 @@ class WatcomProject(object):
             "# $[* = C:\\dir\\dep (No extension)",
             "# $^@ = C:\\dir\\target.ext",
             "# $^: = C:\\dir\\",
+            "",
+            ".rc.res : .AUTODEPEND",
+            "\t@echo $[&.rc / $(%CONFIG) / $(%TARGET)",
+            "\t@$(RC) $(RFlags$(%CONFIG)$(%TARGET)) $[*.rc -fo=$^@",
             "",
             ".i86.obj : .AUTODEPEND",
             "\t@echo $[&.i86 / $(%CONFIG) / $(%TARGET)",
@@ -1130,49 +1176,68 @@ class WatcomProject(object):
         Args:
             line_list: List of lines of text generated.
         Returns:
-            Zero
+            True if compilable files were found
         """
 
         line_list.extend([
             "",
             "#",
-            "# Object files to work with for the library",
+            "# Object files to work with for the project",
             "#",
             ""
         ])
 
-        obj_list = []
         if self.solution.project_list:
-            codefiles = self.solution.project_list[0].codefiles
 
-            for item in codefiles:
-                if item.type in (FileTypes.c, FileTypes.cpp, FileTypes.x86):
+            # Get the list of acceptable object files
+            obj_list = get_obj_list(
+                self.solution.project_list[0].codefiles,
+                (FileTypes.c, FileTypes.cpp, FileTypes.x86))
 
-                    tempfile = convert_to_linux_slashes(
-                        item.relative_pathname)
-                    index = tempfile.rfind(".")
-                    if index == -1:
-                        entry = tempfile
-                    else:
-                        entry = tempfile[:index]
+            if obj_list:
+                # Create the OBJS= list
+                add_obj_list(
+                    line_list, obj_list, "OBJS= ", ".obj")
+                return True
 
-                    index = entry.rfind("/")
-                    if index != -1:
-                        entry = entry[index + 1:]
+        line_list.append("OBJS=")
+        return False
 
-                    obj_list.append(entry)
+    ########################################
 
-        if obj_list:
-            colon = "OBJS= "
-            for item in sorted(obj_list):
-                line_list.append(colon + "$(A)/" + item + ".obj &")
-                colon = "\t"
-            # Remove the " &" from the last line
-            line_list[-1] = line_list[-1][:-2]
+    def write_res_files(self, line_list):
+        """
+        Output the list of resource files to create.
 
-        else:
-            line_list.append("OBJS=")
-        return 0
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            True if .rc files were found
+        """
+
+        line_list.extend([
+            "",
+            "#",
+            "# Resource files to work with for the project",
+            "#",
+            ""
+        ])
+
+        if self.solution.project_list:
+
+            # Get the list of acceptable object files
+            obj_list = get_obj_list(
+                self.solution.project_list[0].codefiles,
+                (FileTypes.rc,))
+
+            if obj_list:
+                # Create the OBJS= list
+                add_obj_list(
+                    line_list, obj_list, "RC_OBJS= ", ".res")
+                return True
+
+        line_list.append("RC_OBJS=")
+        return False
 
 ########################################
 
@@ -1232,7 +1297,7 @@ class WatcomProject(object):
 
     ########################################
 
-    def write_builds(self, line_list):
+    def write_builds(self, line_list, has_rez):
         """
         Output the rule to build the exes/libs
 
@@ -1260,11 +1325,17 @@ class WatcomProject(object):
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code)
 
+            if has_rez and configuration.platform.is_windows():
+                rc_objs = "$+$(RC_OBJS)$- "
+            else:
+                rc_objs = ""
+
             line_list.append(
                 "bin\\" + self.solution.name + "wat" +
                 configuration.platform.get_short_code()[-3:] +
                 configuration.short_code + suffix +
-                ": $(EXTRA_OBJS) $+$(OBJS)$- " + self.solution.watcom_filename)
+                ": $(EXTRA_OBJS) $+$(OBJS)$- " + rc_objs +
+                self.solution.watcom_filename)
 
             if configuration.project_type is ProjectTypes.library:
 
@@ -1292,6 +1363,12 @@ class WatcomProject(object):
                     configuration.platform.get_short_code() + ") "
                     "NAME $^@ FILE @wow"
                 ])
+
+                # If there's a resource file, add it to the exe
+                if rc_objs:
+                    line_list.append(
+                        "\t@WRC -q -bt=nt $+$(RC_OBJS)$- $^@")
+
                 add_post_build(line_list, configuration)
 
         return 0
@@ -1320,6 +1397,7 @@ class WatcomProject(object):
         self.write_source_dir(line_list)
         self.write_rules(line_list)
         self.write_files(line_list)
+        has_rez = self.write_res_files(line_list)
         self.write_custom_files(line_list)
-        self.write_builds(line_list)
+        self.write_builds(line_list, has_rez)
         return 0

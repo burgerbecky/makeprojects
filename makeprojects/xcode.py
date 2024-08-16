@@ -2508,7 +2508,8 @@ def generate(solution):
     # so it can reference itself in make targets
     solution.xcode_folder_name = "{}{}{}.xcodeproj".format(
         solution.name, solution.ide_code, solution.platform_code)
-    create_folder_if_needed(solution.xcode_folder_name)
+    create_folder_if_needed(os.path.join(solution.working_directory,
+        solution.xcode_folder_name))
 
     # Xcode requires configurations, if none are present, add one
     if not solution.project_list:

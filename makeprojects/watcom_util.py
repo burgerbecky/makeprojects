@@ -214,8 +214,88 @@ def get_output_list(custom_list):
     output_list.sort()
     return output_list
 
+########################################
+
+
+def get_obj_list(codefiles, type_list):
+    """
+    Extract a list of file names without extensions
+
+    Given a codefiles list and a list of acceptable types,
+    return a list of filenames stripped of their extensions
+    and directories.
+
+    Args:
+        codefiles: Codefiles list from the project
+        type_list: List of FileType enum objects
+
+    Returns:
+        List of processed matching filenames, or empty list
+    """
+
+    # Create result list
+    obj_list = []
+
+    # Process
+    for item in codefiles:
+
+        # Acceptable?
+        if item.type not in type_list:
+            continue
+
+        # Ensure the pathname slashes are consistent
+        tempfile = convert_to_linux_slashes(
+            item.relative_pathname)
+
+        # Strip the extension
+        index = tempfile.rfind(".")
+        if index == -1:
+            entry = tempfile
+        else:
+            entry = tempfile[:index]
+
+        # Strip the directory prefix
+        index = entry.rfind("/")
+        if index != -1:
+            entry = entry[index + 1:]
+
+        # Add the base filename without extension to the list
+        obj_list.append(entry)
+
+    return obj_list
 
 ########################################
+
+
+def add_obj_list(line_list, obj_list, prefix, suffix):
+    """
+    Create a list of object files with prefix
+
+    Give a list of filenames without extensions, create
+    a Watcom compatible list with an $(A) prefix for runtime
+    pathname substitution. Add the supplied prefix to all
+    filenames.
+
+    The filename list is sorted before processing.
+
+    Args:
+        line_list: Output file
+        obj_list: List of filenames without extensions
+        prefix: Variable name for the list
+        suffix: Object file suffix
+    """
+
+    # Only the first pass will prefix be the variable declaration
+    # All other passes, it's a tab
+    for item in sorted(obj_list):
+        line_list.append(prefix + "$(A)/" + item + suffix + " &")
+        prefix = "\t"
+
+    # Remove the " &" from the last line
+    line_list[-1] = line_list[-1][:-2]
+
+########################################
+
 
 def add_post_build(line_list, configuration):
     """
