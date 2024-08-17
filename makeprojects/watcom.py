@@ -1045,7 +1045,10 @@ class WatcomProject(object):
                 # Use the watcom libp command if needed
                 if lib_list:
                     entries.append("libp")
-                    entries.append(";".join([fixup_env(x) for x in lib_list]))
+                    entries.append(
+                        ";".join(
+                            [convert_to_linux_slashes(fixup_env(x))
+                             for x in lib_list]))
 
                 # Is there a list of libraries to link in?
                 lib_list = configuration.get_unique_chained_list(
@@ -1341,6 +1344,7 @@ class WatcomProject(object):
 
                 line_list.extend([
                     "\t@SET WOW=$+$(OBJS)$-",
+                    "\t@echo Creating library...",
                     "\t@WLIB -q -b -c -n $^@ @WOW"
                 ])
 
@@ -1359,6 +1363,7 @@ class WatcomProject(object):
             else:
                 line_list.extend([
                     "\t@SET WOW={$+$(OBJS)$-}",
+                    "\t@echo Performing link...",
                     "\t@$(LINK) $(LFlags" + configuration.name + \
                     configuration.platform.get_short_code() + ") "
                     "NAME $^@ FILE @wow"
@@ -1366,6 +1371,8 @@ class WatcomProject(object):
 
                 # If there's a resource file, add it to the exe
                 if rc_objs:
+                    line_list.append(
+                        "\t@echo Performing resource linking...")
                     line_list.append(
                         "\t@WRC -q -bt=nt $+$(RC_OBJS)$- $^@")
 
