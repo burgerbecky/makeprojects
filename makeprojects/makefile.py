@@ -46,7 +46,7 @@ from .build_objects import BuildObject, BuildError
 from .config import _MAKEFILE_MATCH
 from .watcom_util import get_custom_list, get_output_list
 
-# List of IDES this module supports
+# IDEs supported by this generator
 SUPPORTED_IDES = (IDETypes.make,)
 
 # Command to delete the bin folder if it's empty
@@ -714,15 +714,15 @@ class MakeProject(object):
             line_list.extend((
                 "",
                 "#",
-                "# Required environment variables",
+                "# Test for required environment variables",
                 "#"
             ))
             for variable in variable_list:
                 line_list.extend((
                     "",
                     "ifndef " + variable,
-                    ("$(error the environment variable {} "
-                     "was not declared)").format(variable),
+                    ("$(error The environment variable {} "
+                     "was not declared with a value)").format(variable),
                     "endif"
                 ))
         return 0
@@ -1161,8 +1161,9 @@ class MakeProject(object):
                 "#",
                 ""
             ))
-            items = " ".join(source_list)
-            line_list.append(items + ": ;")
+            for item in source_list:
+                line_list.append(item + " \\")
+            line_list.append("\t: ;")
 
             line_list.extend((
                 "",
@@ -1306,8 +1307,10 @@ class MakeProject(object):
 
             # Invoke the proper linker for a library or exe
             if configuration.project_type is ProjectTypes.library:
+                line_list.append("\t@echo Creating library...")
                 line_list.append("\t@ar -rcs $@ $(OBJS)")
             else:
+                line_list.append("\t@echo Performing link...")
                 line_list.append(
                     "\t@$(LINK) -o $@ $(OBJS) "
                     "$(LFlags$(CONFIG)$(TARGET))")
@@ -1336,6 +1339,10 @@ class MakeProject(object):
                     line_list.append(item.format(deploy_folder, binary_name))
 
         line_list.extend((
+            "",
+            "#",
+            "# Speed up make by telling it to ignore these extensions",
+            "#",
             "",
             "%.d: ;",
             "",
@@ -1375,6 +1382,7 @@ class MakeProject(object):
             line_list = []
 
         self.write_header(line_list)
+        self.write_test_variables(line_list)
         self.write_output_list(line_list)
         self.write_default_goal(line_list)
         self.write_phony_targets(line_list)
@@ -1389,7 +1397,6 @@ class MakeProject(object):
 
         # Write out the records that are only value if
         # TARGET and CONFIG are set
-        self.write_test_variables(line_list)
         self.write_configurations(line_list)
         self.write_source_dir(line_list)
         self.write_rules(line_list)
