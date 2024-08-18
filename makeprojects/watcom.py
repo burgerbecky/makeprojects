@@ -46,9 +46,14 @@ from .build_objects import BuildObject, BuildError
 from .watcom_util import fixup_env, get_custom_list, get_output_list, \
     add_post_build, watcom_linker_system, get_obj_list, add_obj_list
 
+# IDEs supported by this generator
+SUPPORTED_IDES = (IDETypes.watcom,)
+
+# Regex for matching *.wmk files
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
-SUPPORTED_IDES = (IDETypes.watcom,)
+# WMake command to never build a file 
+_WMAKE_DO_NOTHING = "\t@%null"
 
 ########################################
 
@@ -105,6 +110,9 @@ class BuildWatcomFile(BuildObject):
 
         saved_path = os.environ["PATH"]
         if get_windows_host_type() or exe_name.endswith(".exe"):
+
+            # Building for DOS/Windows needs the binnt and binw folders
+            # in the path
             new_path = os.pathsep.join(
                 (os.path.join(
                     watcom_path, "binnt"), os.path.join(
@@ -112,9 +120,11 @@ class BuildWatcomFile(BuildObject):
             file_name = convert_to_windows_path(self.file_name)
 
         else:
+            # Linux uses the binl folder
             new_path = os.path.join(watcom_path, "binl")
             file_name = self.file_name
 
+        # Make sure they are in the path
         os.environ["PATH"] = new_path + os.pathsep + saved_path
 
         # Set the configuration target
@@ -380,19 +390,104 @@ class WatcomProject(object):
             "# Build " + self.solution.name + " with WMAKE",
             "# Generated with makeprojects.watcom",
             "#",
-            "# Require the environment variable WATCOM set to the OpenWatcom "
-            "folder",
+            "# This file requires the environment variable WATCOM set to the "
+            "OpenWatcom",
+            "# folder",
             "# Example: WATCOM=C:\\WATCOM",
+            "#"]
+        )
+        return 0
+
+    ########################################
+
+    def write_test_variables(self, line_list):
+        """
+        Create tests for environment variables
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        # Scan all entries and make sure all duplicates are purged
+        variable_list = set()
+
+        for project in self.solution.project_list:
+
+            # Create sets of configuration names and projects
+            for configuration in project.configuration_list:
+                variable_list.update(
+                    configuration.get_unique_chained_list("env_variable_list"))
+
+        # Anything found?
+        if variable_list:
+            line_list.extend((
+                "",
+                "#",
+                "# Test for required environment variables",
+                "#"
+            ))
+            for variable in sorted(variable_list):
+                line_list.extend((
+                    "",
+                    "!ifndef %" + variable,
+                    ("!error The environment variable {} "
+                     "was not declared").format(variable),
+                    "!endif"
+                ))
+        return 0
+
+    ########################################
+
+    def write_extensions(self, line_list):
+        """
+        Write the list of acceptable file extensions
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend([
+            "",
+            "#",
+            "# Set the set of known files supported",
+            "# Note: They are in the reverse order of building. .x86 is "
+            "built first, then .c",
+            "# until the .exe or .lib files are built",
             "#",
             "",
-            "# This speeds up the building process for Watcom because it",
-            "# keeps the apps in memory and doesn't have "
-            "to reload for every source file",
+            ".extensions:",
+            ".extensions: .exe .exp .lib .obj .cpp .c .x86 .i86 .h .res .rc",
+        ])
+        return 0
+
+    ########################################
+
+    def write_include_dlls(self, line_list):
+        """
+        Write the commands to include the DLLs for wmake
+
+        Args:
+            line_list: List of lines of text generated.
+        Returns:
+            Zero
+        """
+
+        line_list.extend([
+            "",
+            "#",
+            "# This speeds up the building process for Watcom because it keeps "
+            "the apps in",
+            "# memory and doesn't have to reload for every source file",
             "# Note: There is a bug that if the wlib app is loaded, "
             "it will not",
             "# get the proper WOW file if a full build is performed",
-            "",
+            "#",
             "# The bug is gone from Watcom 1.2",
+            "#",
             "",
             "!ifdef %WATCOM",
             "!ifdef __LOADDLL__",
@@ -471,10 +566,10 @@ class WatcomProject(object):
             "#",
             "",
             line_all,
-            "\t@%null",
+            _WMAKE_DO_NOTHING,
             "",
             line_clean,
-            "\t@%null"
+            _WMAKE_DO_NOTHING
         ))
 
     ########################################
@@ -511,10 +606,10 @@ class WatcomProject(object):
 
                 line_list.extend(("",
                                   line_configuration,
-                                  "\t@%null",
+                                  _WMAKE_DO_NOTHING,
                                   "",
                                   line_clean,
-                                  "\t@%null"
+                                  _WMAKE_DO_NOTHING
                                   ))
 
     ########################################
@@ -554,10 +649,10 @@ class WatcomProject(object):
 
                 line_list.extend(("",
                                   line_platform,
-                                  "\t@%null",
+                                  _WMAKE_DO_NOTHING,
                                   "",
                                   line_clean,
-                                  "\t@%null"))
+                                  _WMAKE_DO_NOTHING))
 
     ########################################
 
@@ -681,47 +776,7 @@ class WatcomProject(object):
             "#",
             "",
             self.solution.watcom_filename + ":",
-            "\t@%null"))
-        return 0
-
-    ########################################
-
-    def write_test_variables(self, line_list):
-        """
-        Create tests for environment variables
-
-        Args:
-            line_list: List of lines of text generated.
-        Returns:
-            Zero
-        """
-
-        # Scan all entries and make sure all duplicates are purged
-        variable_list = set()
-
-        for project in self.solution.project_list:
-
-            # Create sets of configuration names and projects
-            for configuration in project.configuration_list:
-                variable_list.update(
-                    configuration.get_unique_chained_list("env_variable_list"))
-
-        # Anything found?
-        if variable_list:
-            line_list.extend((
-                "",
-                "#",
-                "# Required environment variables",
-                "#"
-            ))
-            for variable in sorted(variable_list):
-                line_list.extend((
-                    "",
-                    "!ifndef %" + variable,
-                    ("!error the environment variable {} "
-                     "was not declared").format(variable),
-                    "!endif"
-                ))
+            _WMAKE_DO_NOTHING))
         return 0
 
     ########################################
@@ -810,18 +865,6 @@ class WatcomProject(object):
             "TEMP_DIR = temp\\{0}$(BASE_SUFFIX)".format(self.solution.name)
         ])
 
-        line_list.extend([
-            "",
-            "#",
-            "# Set the set of known files supported",
-            "# Note: They are in the reverse order of building. .x86 is "
-            "built first, then .c",
-            "# until the .exe or .lib files are built",
-            "#",
-            "",
-            ".extensions:",
-            ".extensions: .exe .exp .lib .obj .h .cpp .c .x86 .i86 .res .rc",
-        ])
         return 0
 
     ########################################
@@ -1396,10 +1439,12 @@ class WatcomProject(object):
             line_list = []
 
         self.write_header(line_list)
+        self.write_test_variables(line_list)
+        self.write_extensions(line_list)
+        self.write_include_dlls(line_list)
         self.write_output_list(line_list)
         self.write_all_targets(line_list)
         self.write_directory_targets(line_list)
-        self.write_test_variables(line_list)
         self.write_configurations(line_list)
         self.write_source_dir(line_list)
         self.write_rules(line_list)
