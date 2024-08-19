@@ -24,7 +24,7 @@ import re
 import fnmatch
 from burger import string_to_bool, is_string, import_py_script, norm_paths, \
     convert_to_linux_slashes
-from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE
+from .config import DEFAULT_BUILD_RULES, _XCODEPROJECT_FILE, save_default
 
 # pylint: disable=consider-using-f-string
 
@@ -556,3 +556,36 @@ def convert_file_name(item, source_file):
         item = item.replace("%(FullPath)", full_path)
         item = item.replace("%(Identity)", full_path)
     return item
+
+########################################
+
+
+def do_generate_build_rules(parsed, working_directory):
+    """
+    Test if the parsed parameters have --generate-rules
+
+    If --generate-rules was not invoked, return None. Otherwise return a
+    numeric error code.
+
+    Args:
+        parsed: An ArgumentParser object with attribute generate_build_rules
+        working_directory: Directory to store the build_rules.py
+    Returns:
+        None or an integer error code
+    """
+
+    # If --generate-rules was not invoked, exit
+    if not parsed.generate_build_rules:
+        return None
+
+    # Check verbosity
+    if parsed.verbose:
+        print(
+            "Saving {}".format(
+                os.path.join(
+                    working_directory,
+                    parsed.rules_file)))
+
+    # Save the build_rules.py file
+    return save_default(working_directory,
+                        destinationfile=parsed.rules_file)

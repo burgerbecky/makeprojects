@@ -25,11 +25,12 @@ import sys
 import argparse
 from operator import attrgetter
 from burger import convert_to_array, import_py_script, norm_paths
-from .config import BUILD_RULES_PY, save_default, _XCODEPROJECT_FILE, \
+from .config import BUILD_RULES_PY, _XCODEPROJECT_FILE, \
     _XCODEPROJ_MATCH
 from .__init__ import __version__
 from .util import get_build_rules, getattr_build_rules_list, was_processed, \
-    fixup_args, clear_build_rules_cache, getattr_build_rules
+    fixup_args, clear_build_rules_cache, getattr_build_rules, \
+    do_generate_build_rules
 from .build_objects import BuildError
 from .modules import MODULES
 from .python import create_clean_rules_objects, BuildPythonFile
@@ -321,7 +322,9 @@ def process_directories(results, processed, directories, args):
             build_rules_list, ("CLEANME_NO_RECURSE", "NO_RECURSE"), False)
 
         allow_files = getattr_build_rules_list(
-            build_rules_list, ("CLEANME_PROCESS_PROJECT_FILES", "PROCESS_PROJECT_FILES"), True)
+            build_rules_list,
+            ("CLEANME_PROCESS_PROJECT_FILES", "PROCESS_PROJECT_FILES"),
+            True)
 
         # Pass one, create a list of all projects to build
         projects = []
@@ -451,24 +454,19 @@ def main(working_directory=None, args=None):
     parser = create_parser()
 
     # Parse everything
-    args = parser.parse_args(args=args)
+    parsed = parser.parse_args(args=args)
 
-    # Output default configuration
-    if args.generate_build_rules:
-        if args.verbose:
-            print(
-                "Saving {}".format(
-                    os.path.join(
-                        working_directory,
-                        args.rules_file)))
-        return save_default(working_directory, destinationfile=args.rules_file)
+    # If --generate-rules was created, output the file, and exit
+    error = do_generate_build_rules(parsed, working_directory)
+    if error is not None:
+        return error
 
     # Handle extra arguments
-    fixup_args(args)
+    fixup_args(parsed)
 
     # Get lists of files/directories to build
-    files = args.files
-    directories = args.directories
+    files = parsed.files
+    directories = parsed.directories
 
     # If there are no entries, use the working directory
     if not directories and not files:
@@ -479,10 +477,10 @@ def main(working_directory=None, args=None):
     processed = set()
 
     # Try building all individual files first
-    if not process_files(results, processed, files, args):
+    if not process_files(results, processed, files, parsed):
 
         # If successful, process all directories
-        process_directories(results, processed, directories, args)
+        process_directories(results, processed, directories, parsed)
 
     # Was there a build error?
     error = 0
@@ -492,13 +490,13 @@ def main(working_directory=None, args=None):
             error = item.error
             break
     else:
-        if args.verbose:
+        if parsed.verbose:
             print("Clean is successful!")
 
     # Dump the error log if requested or an error
-    if args.verbose or error:
+    if parsed.verbose or error:
         for item in results:
-            if args.verbose or item.error:
+            if parsed.verbose or item.error:
                 print(item)
 
     # In case clean is being called from a function,

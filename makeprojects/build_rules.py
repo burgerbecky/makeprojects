@@ -93,6 +93,18 @@ NO_RECURSE = False
 # Can be overridden above
 PROCESS_PROJECT_FILES = True
 
+# List of projects to generate if makeprojects is invoked
+# without any parameters, default create recommended
+# project for the host machine
+MAKEPROJECTS = (
+# This example builds Visual Studio 2019 and 2022 for Windows
+#    {"platform": "windows",
+#     "type": "library",
+#     "name": "project",
+#     "configuration": "Release",
+#     "ide": ("vs2019", "vs2022")},
+)
+
 ########################################
 
 

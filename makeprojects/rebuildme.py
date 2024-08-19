@@ -23,7 +23,8 @@ import os
 import argparse
 from makeprojects import buildme, cleanme
 from .__init__ import __version__
-from .config import BUILD_RULES_PY, save_default
+from .config import BUILD_RULES_PY
+from .util import do_generate_build_rules
 
 ########################################
 
@@ -89,47 +90,42 @@ def main(working_directory=None, args=None):
                         default=False, help='Compile Doxyfile files.')
 
     # Parse everything
-    args, project_files = parser.parse_known_args(args=args)
+    parsed, project_files = parser.parse_known_args(args=args)
 
-    # Output default configuration
-    if args.generate_build_rules:
-        if args.verbose:
-            print(
-                "Saving {}".format(
-                    os.path.join(
-                        working_directory,
-                        args.rules_file)))
-        return save_default(working_directory, destinationfile=args.rules_file)
+    # If --generate-rules was created, output the file, and exit
+    error = do_generate_build_rules(parsed, working_directory)
+    if error is not None:
+        return error
 
     # Generate command lines for the tools
     cleanargs = []
     buildargs = []
 
     # Recursive
-    if args.recursive:
-        cleanargs.append('-r')
-        buildargs.append('-r')
+    if parsed.recursive:
+        cleanargs.append("-r")
+        buildargs.append("-r")
 
     # Verbose output
-    if args.verbose:
-        cleanargs.append('-v')
-        buildargs.append('-v')
+    if parsed.verbose:
+        cleanargs.append("-v")
+        buildargs.append("-v")
 
     # Config file
-    if args.rules_file:
-        cleanargs.extend(['--rules-file', args.rules_file])
-        buildargs.extend(['--rules-file', args.rules_file])
+    if parsed.rules_file:
+        cleanargs.extend(['--rules-file', parsed.rules_file])
+        buildargs.extend(['--rules-file', parsed.rules_file])
 
     # Fatal
-    if args.fatal:
+    if parsed.fatal:
         buildargs.append('-f')
 
     # Doxygen
-    if args.documentation:
+    if parsed.documentation:
         buildargs.append('-docs')
 
     # Directories to build
-    for item in args.directories:
+    for item in parsed.directories:
         cleanargs.extend(['-d', item])
         buildargs.extend(['-d', item])
 
@@ -138,11 +134,11 @@ def main(working_directory=None, args=None):
         buildargs.append(item)
 
     # Clean and then build, couldn't be simpler!
-    if args.verbose:
+    if parsed.verbose:
         print('cleanme ' + ' '.join(cleanargs))
     error = cleanme.main(working_directory, args=cleanargs)
     if not error:
-        if args.verbose:
+        if parsed.verbose:
             print('buildme ' + ' '.join(buildargs))
         error = buildme.main(working_directory, args=buildargs)
     return error
