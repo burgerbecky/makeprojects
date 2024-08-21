@@ -21,21 +21,23 @@ from .enums import IDETypes, FileTypes, PlatformTypes, source_file_detect
 ########################################
 
 
-def get_path_property(pathname):
+def get_path_property(ide, pathname):
     """
     If a path is relative, return the proper object
 
     Check if a pathname starts with a ".", which means it's relative to the
-    project. If so, return a RelativePath string, otherwise retirn a FileName
-    string.
+    project. If so, return a RelativePath string, otherwise return a FileName
+    string. Special case for Visual Studio 2003, it only accepts
+    ``RelativePath`` as a parameter
 
     Args:
+        ide: ide test
         pathname: Pathname to test
 
     Returns VSStringProperty of type RelativePath or FileName
     """
 
-    if pathname.startswith("."):
+    if pathname.startswith(".") or ide is IDETypes.vs2003:
         return VSStringProperty("RelativePath", pathname)
     return VSStringProperty("FileName", pathname)
 

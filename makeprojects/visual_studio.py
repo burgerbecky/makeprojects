@@ -4018,7 +4018,7 @@ class VS2003ToolFile(VS2003XML):
             toolfile = "DefaultToolFile"
 
         VS2003XML.__init__(
-            self, toolfile, [get_path_property(rules)])
+            self, toolfile, [get_path_property(project.ide, rules)])
 
 ########################################
 
@@ -4517,7 +4517,7 @@ class VS2003File(VS2003XML):
         self.project = project
         vs_name = source_file.vs_name
         VS2003XML.__init__(
-            self, "File", [get_path_property(vs_name)], force_pair=True)
+            self, "File", [get_path_property(project.ide, vs_name)], force_pair=True)
 
         # Add in the file customizations
 

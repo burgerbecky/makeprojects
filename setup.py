@@ -74,7 +74,7 @@ INSTALL_REQUIRES = [
 
 # Project classifiers
 CLASSIFIERS = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "Topic :: Software Development",

@@ -52,7 +52,7 @@ SUPPORTED_IDES = (IDETypes.watcom,)
 # Regex for matching *.wmk files
 _WATCOMFILE_MATCH = re_compile("(?is).*\\.wmk\\Z")
 
-# WMake command to never build a file 
+# WMake command to never build a file
 _WMAKE_DO_NOTHING = "\t@%null"
 
 ########################################
@@ -991,7 +991,10 @@ class WatcomProject(object):
                 entries.append("-dTYPE_BOOL=1")
                 entries.append("-dTARGET_CPU_X86=1")
                 entries.append("-dTARGET_OS_WIN32=1")
-                entries.append("-i=\"$(%WATCOM)/h;$(%WATCOM)/h/nt\"")
+                entries.append(
+                    "-i=\"$(%WATCOM)/h;"
+                    "$(%WATCOM)/h/nt;"
+                    "$(%WATCOM)/h/nt/directx\"")
 
             # Enable debug information
             if configuration.debug:
