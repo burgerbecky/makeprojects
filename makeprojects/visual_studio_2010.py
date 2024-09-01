@@ -1722,7 +1722,8 @@ class VS2010Files(VS2010XML):
             self.addfiles(FileTypes.s, "ASM")
 
         # PS3 assembly
-        if project.platform_code in ("ps3", "ps4", "ps5", "vit", "swi"):
+        if project.platform_code in (
+                "ps3", "ps4", "ps5", "vit", "swi", "swia32", "swia64"):
             self.addfiles(FileTypes.s, "ClCompile")
 
         for item in source_file_filter(project.codefiles, FileTypes.hlsl):
@@ -2067,7 +2068,8 @@ class VS2010vcprojfilter(VS2010XML):
                                 groups, "MARMASM")
 
         # Generic assembly is assumed to be PowerPC for PS3
-        if project.platform_code in ("ps3", "ps4", "ps5", "vit", "swi"):
+        if project.platform_code in (
+                "ps3", "ps4", "ps5", "vit", "swi", "swia32", "swia64"):
             self.write_filter_group(FileTypes.s, groups, "ClCompile")
 
         self.write_filter_group(FileTypes.rc, groups, "ResourceCompile")

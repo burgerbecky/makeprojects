@@ -4516,8 +4516,11 @@ class VS2003File(VS2003XML):
         self.source_file = source_file
         self.project = project
         vs_name = source_file.vs_name
+
+        # Pass IDETypes.vs2003 to force RelativePath
         VS2003XML.__init__(
-            self, "File", [get_path_property(project.ide, vs_name)], force_pair=True)
+            self, "File", [
+                get_path_property(IDETypes.vs2003, vs_name)], force_pair=True)
 
         # Add in the file customizations
 
