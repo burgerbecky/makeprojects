@@ -843,6 +843,13 @@ class C_CPP_Preprocessor(object):
         """
         definestring = []
         for item in defines:
+
+            # Change = to space
+            index = item.find("=")
+            if index != -1:
+                # Only replace the first one
+                item = item[:index] + " " + item[index+1:]
+
             definestring.append("#define " + item)
 
         self.settings = [

@@ -205,6 +205,8 @@ def get_project_list(parsed, build_rules_list, working_directory):
     From the command line or the build rules, determine the project target list.
     """
 
+    # pylint: disable=too-many-locals
+
     # Start with determining the project name
     project_name = get_project_name(
         build_rules_list, working_directory, parsed.verbose, parsed.name)
@@ -509,7 +511,8 @@ def process_makeprojects(parsed, working_directory):
 
     Check if there is a build_rules.py in the current directory
     and if so, if there's a MAKEPROJECTS value, use it to process
-    all the project files.
+    all the project files. If not, traverse the directory until the
+    first file with MAKEPROJECTS and GENERIC = True, and then process.
 
     Args:
         parsed: An ArgumentParser object with attribute generate_build_rules
@@ -518,27 +521,60 @@ def process_makeprojects(parsed, working_directory):
         None or an integer error code
     """
 
-    # Get the path to the requested rules
-    library_rules = os.path.join(working_directory, BUILD_RULES_PY)
+    # Load the configuration file at the current directory
+    temp_dir = os.path.abspath(working_directory)
 
-    # Load in build_rules.py
-    build_rules = load_build_rules(library_rules)
+    # Is this the first pass?
+    is_root = True
 
-    # Not found? Abort
-    if not build_rules:
-        return None
+    # pylint: disable=too-many-nested-blocks
+    while True:
 
-    # Does the file have the attribute?
-    make_proj = getattr(build_rules, "MAKEPROJECTS", None)
-    if not make_proj:
-        return None
+        # Get the path to the requested rules
+        library_rules = os.path.join(temp_dir, BUILD_RULES_PY)
 
-    # Iterate over every MAKEPROJECTS entry
-    for entry in make_proj:
-        error = process_proj_names(parsed, working_directory, entry)
-        if error:
+        # Load in build_rules.py
+        build_rules = load_build_rules(library_rules)
+
+        # Found? Try this one
+        if build_rules:
+
+            # Root entry, or a GENERIC entry?
+            if is_root or getattr(build_rules, "GENERIC", False):
+
+                # Does the file have the attribute?
+                make_proj = getattr(build_rules, "MAKEPROJECTS", False)
+                if make_proj:
+
+                    # No error at all
+                    error = 0
+
+                    # Iterate over every MAKEPROJECTS entry
+                    for entry in make_proj:
+                        error = process_proj_names(
+                            parsed, working_directory, entry)
+                        if error:
+                            return error
+                    return error
+
+                # Test if this is considered the last one in the chain.
+                if not getattr(build_rules, "CONTINUE", False):
+                    break
+
+        # Directory traversal is active, require GENERIC
+        is_root = False
+
+        # Pop a folder to check for higher level build_rules.py
+        temp_dir2 = os.path.dirname(temp_dir)
+
+        # Already at the top of the directory?
+        if temp_dir2 is None or temp_dir2 == temp_dir:
             break
-    return error
+        # Use the new folder
+        temp_dir = temp_dir2
+
+    # Never found anything
+    return None
 
 ########################################
 
