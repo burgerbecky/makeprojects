@@ -267,3 +267,46 @@ defaults.default_configuration_list
 defaults.get_configuration_list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::defaults::get_configuration_list
+
+Watcom
+------
+
+watcom_util.fixup_env
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::fixup_env
+
+watcom_util.convert_file_name_watcom
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::convert_file_name_watcom
+
+watcom_util.get_element_dict
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::get_element_dict
+
+watcom_util.get_custom_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::get_custom_list
+
+watcom_util.get_output_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::get_output_list
+
+watcom_util.get_obj_list
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::get_obj_list
+
+watcom_util.add_obj_list
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::add_obj_list
+
+watcom_util.add_post_build
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::add_post_build
+
+watcom_util.watcom_linker_system
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::watcom_linker_system
+
+watcom_util.warn_if_invalid
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom_util::warn_if_invalid

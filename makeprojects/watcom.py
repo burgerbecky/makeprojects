@@ -44,7 +44,8 @@ from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
     get_output_template
 from .build_objects import BuildObject, BuildError
 from .watcom_util import fixup_env, get_custom_list, get_output_list, \
-    add_post_build, watcom_linker_system, get_obj_list, add_obj_list
+    add_post_build, watcom_linker_system, get_obj_list, add_obj_list, \
+    warn_if_invalid
 
 # IDEs supported by this generator
 SUPPORTED_IDES = (IDETypes.watcom,)
@@ -274,6 +275,10 @@ def generate(solution):
     # Failsafe
     if solution.ide not in SUPPORTED_IDES:
         return 10
+
+    error = warn_if_invalid(solution)
+    if error:
+        return error
 
     # Create the output filename and pass it to the generator
     # so it can reference itself in make targets
