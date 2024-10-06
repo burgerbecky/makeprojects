@@ -155,7 +155,7 @@ class BuildWatcomFile(BuildObject):
     def clean(self):
         """
         Delete temporary files.
-
+        @details
         This function is called by ``cleanme`` to remove temporary files.
 
         On exit, return 0 for no error, or a non zero error code if there was an
@@ -172,7 +172,9 @@ class BuildWatcomFile(BuildObject):
 
 def match(filename):
     """
-    Check if the filename is a type that this module supports
+    Check if the filename is a project type that this module supports
+
+    Check if the project file ends with ".wmk", return True if so.
 
     Args:
         filename: Filename to match
@@ -199,6 +201,7 @@ def create_build_object(file_name, priority=50,
         list of BuildWatcomFile classes
     """
 
+    # Build all configurations for default
     if not configurations:
         return [BuildWatcomFile(file_name, priority, "all", verbose)]
 
@@ -218,7 +221,7 @@ def create_build_object(file_name, priority=50,
 def create_clean_object(file_name, priority=50,
                  configurations=None, verbose=False):
     """
-    Create BuildWatcomFile build records for every desired configuration
+    Create BuildWatcomFile clean records for every desired configuration
 
     Args:
         file_name: Pathname to the *.wmk to build
@@ -249,11 +252,14 @@ def create_clean_object(file_name, priority=50,
 
 
 def test(ide, platform_type):
-    """ Filter for supported platforms
+    """
+    Filter for supported platforms
+
+    Watcom supports MSDOS 4GW, MSDOS X32 and Windows 32 only.
 
     Args:
         ide: IDETypes
-        platform_type: PlatformTypes
+        platform_type: enums.PlatformTypes
     Returns:
         True if supported, False if not
     """
@@ -747,7 +753,7 @@ class WatcomProject(object):
     def write_all_targets(self, line_list):
         """
         Output all of the .SYMBOLIC targets.
-
+        @details
         Create all of the targets, starting with all, and then all the
         configurations, followed by the clean targets.
 
@@ -1330,9 +1336,10 @@ class WatcomProject(object):
         Output the list of object files to create.
 
         Args:
-            line_list: List of lines of text generated.
+            line_list: XList of lines of text generated.
+
         Returns:
-            Zero
+            Zero.
         """
 
         # Get a list of custom files

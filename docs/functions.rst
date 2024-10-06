@@ -72,10 +72,6 @@ buildme.build_doxygen
 ^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::build_doxygen
 
-buildme.build_watcom_makefile
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_watcom_makefile
-
 buildme.build_makefile
 ^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::build_makefile
@@ -270,6 +266,30 @@ defaults.get_configuration_list
 
 Watcom
 ------
+
+watcom.SUPPORTED_IDES
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::watcom::SUPPORTED_IDES
+
+watcom.match
+^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom::match
+
+watcom.create_build_object
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom::create_build_object
+
+watcom.create_clean_object
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom::create_clean_object
+
+watcom.test
+^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom::test
+
+watcom.generate
+^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::watcom::generate
 
 watcom_util.fixup_env
 ^^^^^^^^^^^^^^^^^^^^^
