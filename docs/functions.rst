@@ -221,6 +221,34 @@ util.iterate_configurations
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::iterate_configurations
 
+validators.lookup_enum_value
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_enum_value
+
+validators.lookup_enum_append_key
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_enum_append_key
+
+validators.lookup_enum_append_keys
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_enum_append_keys
+
+validators.lookup_strings
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_strings
+
+validators.lookup_string_list
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_string_list
+
+validators.lookup_string_lists
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_string_lists
+
+validators.lookup_booleans
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::validators::lookup_booleans
+
 Defaults
 --------
 

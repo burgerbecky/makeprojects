@@ -14,7 +14,8 @@ Validation objects for project data generators.
 @package makeprojects.validators
 """
 
-# pylint: disable=no-name-in-module,useless-object-inheritance
+# pylint: disable=no-name-in-module
+# pylint: disable=useless-object-inheritance
 # pylint: disable=consider-using-f-string
 # pylint: disable=raise-missing-from
 
@@ -28,7 +29,7 @@ from burger import is_string, packed_paths, truefalse, convert_to_array, \
 ########################################
 
 
-def lookup_enum_value(enum_lookup, key, default):
+def lookup_enum_value(enum_lookup, key, fallback):
     """
     Find a value in a list of enums.
 
@@ -38,11 +39,11 @@ def lookup_enum_value(enum_lookup, key, default):
     Args:
         enum_lookup: iterable of enumeration entries (key, integer)
         key: Key value to match in enumeration keys
-        default: Value to return if there is no match
+        fallback: Value to return if there is no match
 
     Returns:
         Second value in the enumeration entry where the key matches, or
-        ``default``
+        ``fallback``
     """
 
     # Scan the table until a match is found
@@ -52,7 +53,7 @@ def lookup_enum_value(enum_lookup, key, default):
         if item[0] == key:
             return item[1]
 
-    return default
+    return fallback
 
 
 ########################################
@@ -70,8 +71,12 @@ def lookup_enum_append_key(cmd, enum_lookup, value):
         cmd: list of command line options to append the new entry
         enum_lookup: iterable of enumeration entries (key, integer)
         value: integer enumeration value to match in enum_lookup
+
     Returns:
         cmd, which may have been modified.
+
+    Raises:
+       ValueError
     """
 
     # None exits immediately
@@ -119,9 +124,9 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
 
     Note:
         Enumeration entries are a list of tuples where the first entry is the
-        command line switch and the second entry is an integer as the enumeration
-        value. If multiple entries have the same integer, the first entry is the
-        default.
+        command line switch and the second entry is an integer as the
+        enumeration value. If multiple entries have the same integer, the first
+        entry is the default.
 
     Args:
         cmd: list of command line options to append the new entry
@@ -129,7 +134,10 @@ def lookup_enum_append_keys(cmd, enum_dicts, command_dict):
         command_dict: dict of command entries
 
     Returns:
-        cmd is returned
+        Argument ``cmd`` is returned.
+
+    Raises:
+       ValueError
     """
 
     # Read from the master list
@@ -175,10 +183,10 @@ def lookup_strings(cmd, string_entries, command_dict):
     for the dependency tree.
 
     The four entry tuple is as follows:
-        1. String/None, Output filename if any, or None for no output
+        1. String/None, Output filename if any, or None for no output.
         2. String, command line switch, may have a space at the end.
-        3. Boolean, if True, encapsulate the output filename with quotes
-        4. Boolean, if True, add the string to the return list
+        3. Boolean, if True, encapsulate the output filename with quotes.
+        4. Boolean, if True, add the string to the return list.
 
     Args:
         cmd: list of command line options to append the new entry
@@ -224,7 +232,7 @@ def lookup_strings(cmd, string_entries, command_dict):
 ########################################
 
 
-def lookup_string_list(cmd, switch, entry_list, quotes=True):
+def lookup_string_list(cmd, switches, entry_list, quotes=True):
     """
     Create a command line with an entry list
 
@@ -234,10 +242,11 @@ def lookup_string_list(cmd, switch, entry_list, quotes=True):
     separate lines.
 
     Args:
-        cmd: list of command line options to append the new entry
-        switch: String, Command line switch string
-        entry_list: List of parameter strings
-        quotes: Boolean, True caused the entries to be quoted
+        cmd: list of command line options to append the new entry.
+        switches: String, Command line switch string.
+        entry_list: List of parameter strings.
+        quotes: Boolean, True caused the entries to be quoted.
+
     Returns:
         None
     """
@@ -245,9 +254,9 @@ def lookup_string_list(cmd, switch, entry_list, quotes=True):
     # Check if the command switch requires a space, if so, remove the
     # space and pass as separate lines
 
-    spacing = switch.endswith(" ")
+    spacing = switches.endswith(" ")
     if spacing:
-        switch = switch[:-1]
+        switches = switches[:-1]
 
     for item in entry_list:
 
@@ -257,11 +266,11 @@ def lookup_string_list(cmd, switch, entry_list, quotes=True):
 
         # Seperate lines
         if spacing:
-            cmd.append(switch)
+            cmd.append(switches)
             cmd.append(item)
         else:
             # One line
-            cmd.append("{}{}".format(switch, item))
+            cmd.append("{}{}".format(switches, item))
 
 ########################################
 
@@ -271,7 +280,7 @@ def lookup_string_lists(cmd, string_list, command_dict):
     Lookup string items and add them to the command line.
 
     The command_dict has the overrides where the value is either a single
-    string or an array of strings or None.
+    string or an array of strings or ``None``.
 
     The string_list is an iterable of tuples where the first entry is a
     string of the Visual Studio XML name and the second entry is a 2 entry
@@ -283,9 +292,10 @@ def lookup_string_lists(cmd, string_list, command_dict):
         to append the parameter string as a separate line in the cmd list.
 
     Args:
-        cmd: list of command line options to append the new entry
-        string_list: dict of string list entries
-        command_dict: dict of command entries
+        cmd: list of command line options to append the new entry.
+        string_list: dict of string list entries.
+        command_dict: dict of command entries.
+
     Returns:
         None
     """
@@ -314,9 +324,10 @@ def lookup_booleans(cmd, boolean_list, command_dict):
     string for the command line switch and then the boolean to match.
 
     Args:
-        cmd: list of command line options to append the new entry
-        boolean_list: list of boolean entries
-        command_dict: dict of command entries
+        cmd: list of command line options to append the new entry.
+        boolean_list: list of boolean entries.
+        command_dict: dict of command entries.
+
     Returns:
         None
     """
@@ -359,18 +370,18 @@ class VSBooleanProperty(object):
 
     value = BooleanProperty("_value")
 
-    def __init__(self, name, default=None):
+    def __init__(self, name, fallback=None):
         """
         Initialize the default value
 
         Args:
             name: Name of the validator
-            default: Default value, ``None`` is acceptable
+            fallback: Default value, ``None`` is acceptable
         """
 
         # Init the defaults
         self.name = name
-        self.value = default
+        self.value = fallback
 
     ########################################
 
@@ -386,23 +397,23 @@ class VSBooleanProperty(object):
     ########################################
 
     @staticmethod
-    def validate(key, configuration, default=None,
+    def validate(key, configuration, fallback=None,
                  options_key=None, options=None):
         """
         Check if there is a command line switch override.
         Given a configuration, scan for the ``options_key`` and if found,
         check if that list has one of the option tuples. If there's a
-        match, use the options tuple entry, otherwise use the default value.
+        match, use the options tuple entry, otherwise use the fallback value.
 
         Args:
             key: Name of the XML attribute key
             configuration: configuration to scan for an override
-            default: Value to use in case there is no override.
+            fallback: Value to use in case there is no override.
             options_key: Attribute to scan for commmand line options
             options: Iterable with options / Value pairs
 
         Returns:
-            None or VSBooleanProperty() instance
+            None or VSBooleanProperty instance
         """
 
         if options_key is not None:
@@ -415,19 +426,19 @@ class VSBooleanProperty(object):
                 for item in options:
                     if item[0] in options_key:
                         # Match, use this
-                        default = item[1]
+                        fallback = item[1]
                         break
 
-        if default is None:
+        if fallback is None:
             return None
 
         # Set the value (May assert if not a boolean)
-        return VSBooleanProperty(key, default)
+        return VSBooleanProperty(key, fallback)
 
     ########################################
 
     @staticmethod
-    def vs_validate(key, configuration, default=None,
+    def vs_validate(key, configuration, fallback=None,
                     options_key=None, options=None):
         """
         Check if there is an override with a vs_ prefix.
@@ -437,17 +448,17 @@ class VSBooleanProperty(object):
         Args:
             key: Name of the XML attribute key
             configuration: configuration to scan for an override
-            default: Value to use in case there is no override.
+            fallback: Value to use in case there is no override.
             options_key: Attribute to scan for commmand line options
             options: Iterable with options / Value pairs
         Returns:
-            None or VSBooleanProperty() instance
+            None or VSBooleanProperty instance
         """
 
         value = configuration.get_chained_value("vs_" + key)
         if value is None:
             return VSBooleanProperty.validate(
-                key, configuration, default, options_key, options)
+                key, configuration, fallback, options_key, options)
         return VSBooleanProperty(key, value)
 
     ########################################
@@ -488,21 +499,21 @@ class VSIntegerProperty(object):
 
     value = IntegerProperty("_value")
 
-    def __init__(self, name, default=None, switch=None):
+    def __init__(self, name, fallback=None, switch=None):
         """
         Initialize the default values.
         Set the name (Required), value and compiler switch.
 
         Args:
             name: Name of the validator
-            default: Default value, ``None`` is acceptable
+            fallback: Default value, ``None`` is acceptable
             switch: Switch for integer found
         """
 
         # Init the defaults
         self.name = name
         self.switch = switch
-        self.value = default
+        self.value = fallback
 
     ########################################
 
@@ -556,18 +567,18 @@ class VSStringProperty(object):
 
     value = StringProperty("_value")
 
-    def __init__(self, name, default=None):
+    def __init__(self, name, fallback=None):
         """
         Initialize the default value
 
         Args:
             name: Name of the validator
-            default: Default value, ``None`` is acceptable
+            fallback: Default value, ``None`` is acceptable
         """
 
         # Set defaults
         self.name = name
-        self.value = default
+        self.value = fallback
 
     ########################################
 
@@ -619,25 +630,25 @@ class VSStringListProperty(object):
     value = StringListProperty("_value")
 
     # pylint: disable=too-many-arguments
-    def __init__(self, name, default, slashes=None, separator=None,
+    def __init__(self, name, fallback, slashes=None, separator=None,
                  force_ending_slash=False):
         """
         Initialize the default value
 
         Args:
             name: Name of the validator
-            default: Default value, ``None`` is acceptable
+            fallback: Default value, ``None`` is acceptable
             slashes: "/" or '\\' or None for no conversion
             separator: Character to use to seperate entries, ";" for None
             force_ending_slash: Enforce a trailing slash if True
         """
 
         # Ensure the value is always a list
-        if default is None:
-            default = []
+        if fallback is None:
+            fallback = []
 
         self.name = name
-        self.default = default
+        self.default = fallback
         self.slashes = slashes
         self.separator = separator
         self.force_ending_slash = force_ending_slash
@@ -646,7 +657,7 @@ class VSStringListProperty(object):
         self.value = []
 
         # Check if the default value is valid
-        self.set_value(default)
+        self.set_value(fallback)
 
     ########################################
 
@@ -715,23 +726,23 @@ class VSEnumProperty(object):
         enumerations: Enumeration alias list
     """
 
-    def __init__(self, name, default, enumerations):
+    def __init__(self, name, fallback, enumerations):
         """
         Initialize the default value
 
         Args:
             name: Name of the validator
-            default: Default value, ``None`` is acceptable
+            fallback: Default value, ``None`` is acceptable
             enumerations: List of enumeration alias tuples.
         """
 
         self.name = name
-        self.default = default
+        self.default = fallback
         self.value = None
         self.enumerations = enumerations
 
         # Check if the default value is valid
-        self.set_value(default)
+        self.set_value(fallback)
 
     ########################################
 
@@ -780,7 +791,8 @@ class VSEnumProperty(object):
             # Perform a sanity check on the integer value
             if int_value < 0 or int_value >= len(self.enumerations):
                 raise ValueError(
-                    "\"{}\": Index {} must be between 0 and {} inclusive.".format(
+                    ("\"{}\": Index {} must be "
+                     "between 0 and {} inclusive.").format(
                         self.name, value, len(
                             self.enumerations) - 1))
 

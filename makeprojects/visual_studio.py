@@ -732,7 +732,7 @@ def BoolGlobalOptimizations(configuration):
         return VSBooleanProperty.vs_validate(
             "GlobalOptimizations",
             configuration,
-            default=configuration.optimization,
+            fallback=configuration.optimization,
             options_key='compiler_options',
             options=(('/Og', True),))
     return None
@@ -857,7 +857,7 @@ def BoolEnableIntrinsicFunctions(configuration):
     """
     return VSBooleanProperty.vs_validate(
         'EnableIntrinsicFunctions', configuration,
-        default=configuration.optimization, options_key='compiler_options',
+        fallback=configuration.optimization, options_key='compiler_options',
         options=(('/Oi', True),))
 
 
@@ -1812,7 +1812,7 @@ def BoolExcludedFromBuild(default=None):
     Returns:
         None or VSBooleanProperty object.
     """
-    return VSBooleanProperty("ExcludedFromBuild", default=default)
+    return VSBooleanProperty("ExcludedFromBuild", fallback=default)
 
 ########################################
 
@@ -1850,7 +1850,7 @@ def IntStackCommitSize():
 
 def StringName(default):
     """ Name record """
-    return VSStringProperty('Name', default=default)
+    return VSStringProperty('Name', fallback=default)
 
 
 def StringAdditionalOptions():
@@ -1880,7 +1880,7 @@ def StringObjectFile():
 
 def StringProgramDataBaseFileName(default):
     """ Output location of shared .pdb file """
-    return VSStringProperty('ProgramDataBaseFileName', default=default)
+    return VSStringProperty('ProgramDataBaseFileName', fallback=default)
 
 
 def StringXMLDocumentationFileName():

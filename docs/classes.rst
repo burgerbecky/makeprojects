@@ -65,6 +65,34 @@ build_objects.BuildObject
 .. doxygenclass:: makeprojects::build_objects::BuildObject
     :members:
 
+Validators
+----------
+
+validators.VSBooleanProperty
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::validators::VSBooleanProperty
+    :members:
+
+validators.VSIntegerProperty
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::validators::VSIntegerProperty
+    :members:
+
+validators.VSStringProperty
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::validators::VSStringProperty
+    :members:
+
+validators.VSStringListProperty
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::validators::VSStringListProperty
+    :members:
+
+validators.VSEnumProperty
+^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::validators::VSEnumProperty
+    :members:
+
 Visual Studio
 -------------
 

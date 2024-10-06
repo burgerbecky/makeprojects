@@ -284,14 +284,14 @@ class TestValidators(unittest.TestCase):
         c = Configuration("Release", None)
 
         t = VSBooleanProperty.validate(
-            "GlobalOptimizations", c, default=False,
+            "GlobalOptimizations", c, fallback=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
         self.assertIs(t.value, False)
 
         c.compiler_options = ["/Og"]
         t = VSBooleanProperty.validate(
-            "GlobalOptimizations", c, default=False,
+            "GlobalOptimizations", c, fallback=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
         self.assertIs(t.value, True)
@@ -299,14 +299,14 @@ class TestValidators(unittest.TestCase):
         # Test for a Visual Studio override
         c.vs_GlobalOptimizations = True
         t = VSBooleanProperty.vs_validate(
-            "GlobalOptimizations", c, default=False,
+            "GlobalOptimizations", c, fallback=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
         self.assertIs(t.value, True)
 
         c.vs_GlobalOptimizations = False
         t = VSBooleanProperty.vs_validate(
-            "GlobalOptimizations", c, default=False,
+            "GlobalOptimizations", c, fallback=False,
             options_key="compiler_options", options=(("/Og", True),))
         self.assertEqual(t.name, "GlobalOptimizations")
         self.assertIs(t.value, False)
