@@ -230,12 +230,12 @@ def _do_getattr_build_rules(build_rules, attribute):
 ########################################
 
 
-def getattr_build_rules(build_rules, attributes, default=None):
+def getattr_build_rules(build_rules, attributes, fallback=None):
     """
     Find an attribute in a build rules module.
 
     Scan the build rules until an attribute value is found. It will return
-    the first one found. If none are found, this function returns ``default``.
+    the first one found. If none are found, this function returns ``fallback``.
 
     This function returns two values, the first is the attribute value, the
     second is a boolean of ``True`` meaning the attribute was found, or
@@ -244,10 +244,10 @@ def getattr_build_rules(build_rules, attributes, default=None):
     Args:
         build_rules: ``build_rules.py`` module instance.
         attributes: String or list of strings, attribute name(s).
-        default: Value to return if the attribute was not found.
+        fallback: Value to return if the attribute was not found.
 
     Returns:
-        Tuple of attribute value found in ``build_rules``, or ``default``
+        Tuple of attribute value found in ``build_rules``, or ``fallback``
         and the second value is ``True`` if found, ``False`` if default was
         used.
     """
@@ -263,27 +263,27 @@ def getattr_build_rules(build_rules, attributes, default=None):
         if result[1]:
             return result
 
-    # Return the default value, no hit
-    return default, False
+    # Return the fallback value, no hit
+    return fallback, False
 
 ########################################
 
 
-def getattr_build_rules_list(build_rules_list, attributes, default):
+def getattr_build_rules_list(build_rules_list, attributes, fallback):
     """
     Find an attribute in a list of build rules.
 
     Iterate over the build rules list until an entry has an attribute value.
     It will return the first one found. If none are found, or there were no
-    entries in ``build_rules_list``, this function returns ``default``.
+    entries in ``build_rules_list``, this function returns ``fallback``.
 
     Args:
         build_rules_list: List of ``build_rules.py`` instances.
         attributes: String or list of strings, attribute name(s).
-        default: Value to return if the attribute was not found.
+        fallback: Value to return if the attribute was not found.
 
     Returns:
-        Attribute value found in ``build_rules_list`` entry, or ``default``.
+        Attribute value found in ``build_rules_list`` entry, or ``fallback``.
     """
 
     # Scan the list of rules
@@ -293,8 +293,8 @@ def getattr_build_rules_list(build_rules_list, attributes, default):
         if hit:
             return result
 
-    # Return the default value
-    return default
+    # Return the fallback value
+    return fallback
 
 ########################################
 
