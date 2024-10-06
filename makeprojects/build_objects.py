@@ -72,15 +72,18 @@ class BuildError(object):
             A full error string.
         """
 
-        if self.error:
+        error = self.error
+        if error:
             result = "Error #{} in file {}".format(self.error, self.filename)
         else:
             result = "No error in file {}".format(self.filename)
 
-        if self.configuration:
+        configuration = self.configuration
+        if configuration:
             result += " Configuration \"{}\"".format(self.configuration)
-        if self.msg:
-            result += " \"{}\"".format(self.msg)
+        msg = self.msg
+        if msg:
+            result += " \"{}\"".format(msg)
 
         return result
 
@@ -130,13 +133,13 @@ class BuildObject(object):
         if priority is None:
             priority = 50
 
-        # Ensure the pathname is an absolute path
-        file_name = os.path.abspath(file_name)
+        # Filename of this build object
+        self.file_name = os.path.abspath(file_name)
 
-        self.file_name = file_name
-
-        # Ensure it's a number
+        # Set the priority number
         self.priority = int(priority)
+
+        # Configuration linked to this object
         self.configuration = configuration
 
     ########################################
@@ -212,8 +215,9 @@ class BuildObject(object):
                 self.file_name,
                 self.priority)
 
-        if self.configuration:
-            result += " configuration \"{}\"".format(self.configuration)
+        configuration = self.configuration
+        if configuration:
+            result += " configuration \"{}\"".format(configuration)
 
         return result
 

@@ -15,11 +15,14 @@ WMAKE 1.9 or higher
 
 @package makeprojects.watcom
 
+@var makeprojects.watcom.SUPPORTED_IDES
+List of IDETypes the watcom module supports.
+
 @var makeprojects.watcom._WATCOMFILE_MATCH
 Regex for matching files with *.wmk
 
-@var makeprojects.watcom.SUPPORTED_IDES
-List of IDETypes the watcom module supports.
+@var makeprojects.watcom._WMAKE_DO_NOTHING
+String to do nothing in WMAKE
 """
 
 # pylint: disable=consider-using-f-string
@@ -68,7 +71,7 @@ class BuildWatcomFile(BuildObject):
     """
 
     def __init__(self, file_name, priority, configuration, verbose=False):
-        """
+        r"""
         Class to handle watcom make files
 
         Args:
@@ -312,7 +315,8 @@ def generate(solution):
 
 class WatcomProject(object):
     """
-    Root object for a Watcom IDE project file
+    Root object for a Watcom IDE project file.
+
     Created with the name of the project, the IDE code
     the platform code (4gw, x32, win)
 
@@ -328,6 +332,9 @@ class WatcomProject(object):
     def __init__(self, solution):
         """
         Initialize the exporter.
+
+        Args:
+            solution: Parent solution.
         """
 
         self.solution = solution
@@ -1357,6 +1364,7 @@ class WatcomProject(object):
 
         Args:
             line_list: List of lines of text generated.
+            has_rez: Is there a Windows Resource file to link in
         Returns:
             Zero
         """
