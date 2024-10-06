@@ -224,7 +224,9 @@ def parse_sln_file(full_pathname):
 
 class BuildVisualStudioFile(BuildObject):
     """
-    Class to build Visual Studio files
+    Class to build Visual Studio files.
+
+    This builds files from Visual Studio 2003-2022.
 
     Attributes:
         verbose: The verbose flag
@@ -254,8 +256,8 @@ class BuildVisualStudioFile(BuildObject):
     def build_clean(self, build=True):
         """
         Build or clean a visual studio .sln file.
-
-        Supports Visual Studio 2005 - 2022. Supports platforms Win32, x64,
+        @details
+        Supports Visual Studio 2003 - 2022. Supports platforms Win32, x64,
         Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
         Xbox ONE, Switch, Wii
 
@@ -289,13 +291,14 @@ class BuildVisualStudioFile(BuildObject):
             vstudiopath = where_is_visual_studio(self.vs_version, "devenv.com")
 
         # Is Visual studio installed? Abort if not.
+        file_name = self.file_name
         if vstudiopath is None:
             msg = (
                 '{} requires Visual Studio version {}'
                 ' to be installed to build!').format(
-                self.file_name, self.vs_version)
+                file_name, self.vs_version)
             print(msg, file=sys.stderr)
-            return BuildError(0, self.file_name, msg=msg)
+            return BuildError(0, file_name, msg=msg)
 
         # Certain targets require an installed SDK
         # verify that the SDK is installed before trying to build
@@ -311,7 +314,7 @@ class BuildVisualStudioFile(BuildObject):
                     print(msg, file=sys.stderr)
                     return BuildError(
                         0,
-                        self.file_name,
+                        file_name,
                         configuration=self.configuration,
                         msg=msg)
 
@@ -330,22 +333,24 @@ class BuildVisualStudioFile(BuildObject):
             else:
                 target = self.configuration
 
-            build = "/Build" if build else "/Clean"
+            option = "/Build" if build else "/Clean"
             cmd = [vstudiopath, convert_to_windows_path(
-                self.file_name), build, target]
+                file_name), option, target]
         else:
-            build = "-t:Build" if build else "-t:Clean"
+            option = "-t:Build" if build else "-t:Clean"
 
             # Use MSBuild
-            cmd = [vstudiopath, build, "-v:m", "-noLogo", "-m",
+            cmd = [vstudiopath, option, "-v:m", "-noLogo", "-m",
                 "-p:Configuration={0};Platform={1}".format(
                     targettypes[0], targettypes[1]), convert_to_windows_path(
-                    self.file_name)]
+                    file_name)]
 
+        # Show the command immediately
         if self.verbose:
             print(" ".join(cmd))
         sys.stdout.flush()
 
+        # Invoke Visual Studio
         return self.run_command(cmd, self.verbose)
 
     ########################################
@@ -353,8 +358,8 @@ class BuildVisualStudioFile(BuildObject):
     def build(self):
         """
         Build a visual studio .sln file.
-
-        Supports Visual Studio 2005 - 2022. Supports platforms Win32, x64,
+        @details
+        Supports Visual Studio 2003 - 2022. Supports platforms Win32, x64,
         Android, nVidia Tegra, PS3, ORBIS, PSP, PSVita, Xbox, Xbox 360,
         Xbox ONE, Switch, Wii
 
@@ -371,7 +376,7 @@ class BuildVisualStudioFile(BuildObject):
     def clean(self):
         """
         Delete temporary files.
-
+        @details
         This function is called by ``cleanme`` to remove temporary files.
 
         On exit, return 0 for no error, or a non zero error code if there was an
@@ -884,7 +889,7 @@ def BoolExceptionHandling(configuration):
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             'ExceptionHandling', configuration,
-            True if configuration.exceptions else False,
+            bool(configuration.exceptions),
             options_key='compiler_options',
             options=(('/EHsc', True), ('/EHa', True)))
     return None
@@ -4386,6 +4391,7 @@ class VS2003FileConfiguration(VS2003XML):
         """
 
         # pylint: disable=too-many-nested-blocks
+        # pylint: disable=too-many-locals
 
         if tool_name == "HLSL":
             make_command = make_hlsl_command

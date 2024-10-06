@@ -65,6 +65,14 @@ build_objects.BuildObject
 .. doxygenclass:: makeprojects::build_objects::BuildObject
     :members:
 
+Visual Studio
+-------------
+
+visual_studio.BuildVisualStudioFile
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::visual_studio::BuildVisualStudioFile
+    :members:
+
 Watcom
 ------
 
