@@ -9,6 +9,9 @@ setup.py sdist bdist_wheel
 twine upload --verbose dist/*
 setup.py flake8
 
+cd docs
+sphinx-build -M html . temp\build
+
 Copyright 2013-2024 by Rebecca Ann Heineman becky@burgerbecky.com
 
 It is released under an MIT Open Source license. Please see LICENSE
