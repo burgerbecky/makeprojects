@@ -120,7 +120,7 @@ def clean(working_directory):
         None if not implemented, otherwise an integer error code.
     """
 
-    clean_directories(working_directory, ("temp", "_build"))
+    clean_directories(working_directory, ("temp", "_build", "build"))
     clean_files(working_directory, ".DS_Store")
     return 0
 

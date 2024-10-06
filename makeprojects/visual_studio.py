@@ -57,7 +57,7 @@ from .glsl_support import make_glsl_command
 from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
 from .visual_studio_utils import get_path_property, convert_file_name_vs2010, \
-    add_masm_support
+    add_masm_support, get_cpu_folder
 
 ########################################
 
@@ -294,8 +294,8 @@ class BuildVisualStudioFile(BuildObject):
         file_name = self.file_name
         if vstudiopath is None:
             msg = (
-                '{} requires Visual Studio version {}'
-                ' to be installed to build!').format(
+                "{} requires Visual Studio version {}"
+                " to be installed to build!").format(
                 file_name, self.vs_version)
             print(msg, file=sys.stderr)
             return BuildError(0, file_name, msg=msg)
@@ -396,6 +396,8 @@ def match(filename):
     """
     Check if the filename is a type that this module supports
 
+    Match if the filename ends with .sln.
+
     Args:
         filename: Filename to match
     Returns:
@@ -419,7 +421,7 @@ def create_build_object(file_name, priority=50,
         configurations: Configuration list to build
         verbose: True if verbose output
     Returns:
-        list of BuildMakeFile classes
+        list of BuildVisualStudioFile classes
     """
 
     # Get the list of build targets
@@ -427,13 +429,13 @@ def create_build_object(file_name, priority=50,
 
     # Was the file corrupted?
     if not vs_version:
-        print(file_name + ' is corrupt!')
+        print(file_name + " is corrupt!")
         return []
 
     results = []
     for target in targetlist:
         if configurations:
-            targettypes = target.rsplit('|')
+            targettypes = target.rsplit("|")
             if targettypes[0] not in configurations and \
                     targettypes[1] not in configurations:
                 continue
@@ -470,13 +472,13 @@ def create_clean_object(file_name, priority=50,
 
     # Was the file corrupted?
     if not vs_version:
-        print(file_name + ' is corrupt!')
+        print(file_name + " is corrupt!")
         return []
 
     results = []
     for target in targetlist:
         if configurations:
-            targettypes = target.rsplit('|')
+            targettypes = target.rsplit("|")
             if targettypes[0] not in configurations and \
                     targettypes[1] not in configurations:
                 continue
@@ -494,11 +496,16 @@ def create_clean_object(file_name, priority=50,
 
 
 def test(ide, platform_type):
-    """ Filter for supported platforms
+    """
+    Filter for supported platforms
+
+    Test for Windows, Classic xbox that can be built with
+    Visual Studio 2003-2008.
 
     Args:
-        ide: IDETypes
-        platform_type: PlatformTypes
+        ide: enums.IDETypes
+        platform_type: enums.PlatformTypes
+
     Returns:
         True if supported, False if not
     """
@@ -514,6 +521,169 @@ def test(ide, platform_type):
     # Only vs 2005 and 2008 support Windows 64
     return platform_type is PlatformTypes.win64
 
+
+########################################
+
+
+def get_uuid(input_str):
+    """
+    Convert a string to a UUID.
+
+    Given a project name string, create a 128 bit unique hash for
+    Visual Studio.
+
+    Args:
+        input_str: Unicode string of the filename to convert into a hash
+    Returns:
+        A string in the format of CF994A05-58B3-3EF5-8539-E7753D89E84F
+    """
+
+    # Generate using md5 with NAMESPACE_DNS as salt
+    temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode("utf-8")).digest()
+    return str(UUID(bytes=temp_md5[:16], version=3)).upper()
+
+########################################
+
+
+def create_copy_file_script(source_file, dest_file, perforce):
+    """
+    Create a batch file to copy a single file.
+
+    Create a list of command lines to copy a file from source_file to
+    dest_file with perforce support.
+
+    This is an example of the Windows batch file. The lines for the
+    tool ``p4`` are added if perforce=True.
+
+    ```bash
+    p4 edit dest_file
+    copy /Y source_file dest_file
+    p4 revert -a dest_file
+    ```
+
+    Args:
+        source_file: Pathname to the source file
+        dest_file: Pathname to where to copy source file
+        perforce: True if perforce commands should be generated.
+
+    Returns:
+        List of command strings for Windows Command shell.
+
+    See Also:
+        create_deploy_script
+    """
+
+    command_list = []
+
+    # Check out the file
+    if perforce:
+        # Note, use ``cmd /c``` so if the call fails, the batch file will
+        # continue
+        command_list.append("cmd /c p4 edit \"{}\"".format(dest_file))
+
+    # Perform the copy
+    command_list.append(
+        "copy /Y \"{}\" \"{}\"".format(source_file, dest_file))
+
+    # Revert the file if it hasn't changed
+    if perforce:
+        command_list.append(
+            "cmd /c p4 revert -a \"{}\"".format(dest_file))
+
+    return command_list
+
+########################################
+
+
+def create_deploy_script(configuration):
+    """
+    Create a deployment batch file if needed.
+
+    If an attribute of ``deploy_folder`` exists, a batch file
+    will be returned that has the commands to copy the output file
+    to the folder named in ``deploy_folder``.
+
+    Two values are returned, the first is the command description
+    suitable for Visual Studio Post Build and the second is the batch
+    file string to perform the file copy. Both values are set to None
+    if ``deploy_folder`` is empty.
+
+    Note:
+        If the output is ``project_type`` of Tool, the folder will have
+        cpu name appended to it and any suffix stripped.
+
+    ```bash
+    mkdir final_folder
+    p4 edit dest_file
+    copy /Y source_file dest_file
+    p4 revert -a dest_file
+    ```
+
+    Args:
+        configuration: Configuration record.
+    Returns:
+        None, None or description and batch file string.
+
+    See Also:
+        create_copy_file_script
+    """
+
+    # Is there an override?
+    post_build = configuration.get_chained_value("post_build")
+    if post_build:
+        # Return the tuple, message, then command
+        return post_build
+
+    deploy_folder = configuration.deploy_folder
+
+    # Don't deploy if no folder is requested.
+    if not deploy_folder:
+        return None, None
+
+    # Ensure it's the correct slashes and end with a slash
+    deploy_folder = convert_to_windows_slashes(deploy_folder, True)
+
+    # Get the project and platform
+    project_type = configuration.project_type
+    platform = configuration.platform
+    perforce = configuration.get_chained_value("perforce")
+
+    # Determine where to copy and if pdb files are involved
+    if project_type.is_library():
+        deploy_name = "$(TargetName)"
+    else:
+        # For executables, use ProjectName to strip the suffix
+        deploy_name = "$(ProjectName)"
+
+        # Windows doesn't support fat files, so deploy to different
+        # folders for tools
+        if project_type is ProjectTypes.tool:
+            item = get_cpu_folder(platform)
+            if item:
+                deploy_folder = deploy_folder + item + "\\"
+
+    # Create the batch file
+    # Make sure the destination directory is present
+    command_list = ["mkdir \"{}\" 2>nul".format(deploy_folder)]
+
+    # Copy the executable
+    command_list.extend(
+        create_copy_file_script(
+            "$(TargetPath)",
+            "{}{}$(TargetExt)".format(deploy_folder, deploy_name),
+            perforce))
+
+    # Copy the symbols on Microsoft platforms
+    # if platform.is_windows() or platform.is_xbox():
+    #    if project_type.is_library() or configuration.debug:
+    #       command_list.extend(
+    #           create_copy_file_script(
+    #              "$(TargetDir)$(TargetName).pdb",
+    #               "{}{}.pdb".format(deploy_folder, deploy_name),
+    #               perforce))
+
+    return "Copying $(TargetFileName) to {}".format(
+        deploy_folder), "\n".join(command_list)
 
 ########################################
 
@@ -538,14 +708,14 @@ def BoolUseUnicodeResponseFiles(configuration):
 
     if configuration.ide > IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
-            'UseUnicodeResponseFiles', configuration)
+            "UseUnicodeResponseFiles", configuration)
     return None
 
 
 def BoolGlobalOptimizations(configuration):
     """ GlobalOptimizations
 
-    Enables global optimizations incompatible with all 'Runtime Checks'
+    Enables global optimizations incompatible with all ``Runtime Checks``
     options and edit and continue. Also known as WholeProgramOptimizations
     on other versions of Visual Studio.
 
@@ -560,7 +730,7 @@ def BoolGlobalOptimizations(configuration):
     """
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
-            'GlobalOptimizations',
+            "GlobalOptimizations",
             configuration,
             default=configuration.optimization,
             options_key='compiler_options',
@@ -1739,180 +1909,6 @@ def StringOutputFile(default=None):
 
 ########################################
 
-
-def get_uuid(input_str):
-    """
-    Convert a string to a UUID.
-
-    Given a project name string, create a 128 bit unique hash for
-    Visual Studio.
-
-    Args:
-        input_str: Unicode string of the filename to convert into a hash
-    Returns:
-        A string in the format of CF994A05-58B3-3EF5-8539-E7753D89E84F
-    """
-
-    # Generate using md5 with NAMESPACE_DNS as salt
-    temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode('utf-8')).digest()
-    return str(UUID(bytes=temp_md5[:16], version=3)).upper()
-
-########################################
-
-
-def create_copy_file_script(source_file, dest_file, perforce):
-    """
-    Create a batch file to copy a single file.
-
-    Create a list of command lines to copy a file from source_file to
-    dest_file with perforce support.
-
-    This is an example of the Windows batch file. The lines for the
-    tool 'p4' are added if perforce=True.
-
-    @code
-    p4 edit dest_file
-    copy /Y source_file dest_file
-    p4 revert -a dest_file
-    @endcode
-
-    Args:
-        source_file: Pathname to the source file
-        dest_file: Pathname to where to copy source file
-        perforce: True if perforce commands should be generated.
-
-    Returns:
-        List of command strings for Windows Command shell.
-
-    See Also:
-        create_deploy_script
-    """
-
-    command_list = []
-
-    # Check out the file
-    if perforce:
-        # Note, use ``cmd /c``` so if the call fails, the batch file will
-        # continue
-        command_list.append('cmd /c p4 edit "{}"'.format(dest_file))
-
-    # Perform the copy
-    command_list.append(
-        ('copy /Y "{}" "{}"').format(source_file, dest_file))
-
-    # Revert the file if it hasn't changed
-    if perforce:
-        command_list.append('cmd /c p4 revert -a "{}"'.format(dest_file))
-
-    return command_list
-
-########################################
-
-
-def create_deploy_script(configuration):
-    """
-    Create a deployment batch file if needed.
-
-    If an attribute of ``deploy_folder`` exists, a batch file
-    will be returned that has the commands to copy the output file
-    to the folder named in ``deploy_folder``.
-
-    Two values are returned, the first is the command description
-    suitable for Visual Studio Post Build and the second is the batch
-    file string to perform the file copy. Both values are set to None
-    if ``deploy_folder`` is empty.
-
-    If a .pdb file exists, it's copied as well.
-
-    Note:
-        If the output is ``project_type`` of Tool, the folder will have
-        x86 or x64 appended to it and any suffix stripped.
-
-    @code
-    mkdir final_folder
-    p4 edit dest_file
-    copy /Y source_file dest_file
-    p4 revert -a dest_file
-    p4 edit dest_file.pdb
-    copy /Y source_file.pdb dest_file.pdb
-    p4 revert -a dest_file.pdb
-    @endcode
-
-    Args:
-        configuration: Configuration record.
-    Returns:
-        None, None or description and batch file string.
-
-    See Also:
-        create_copy_file_script
-    """
-
-    # Is there an override?
-    post_build = configuration.get_chained_value("post_build")
-    if post_build:
-        # Return the tuple, message, then command
-        return post_build
-
-    deploy_folder = configuration.deploy_folder
-
-    # Don't deploy if no folder is requested.
-    if not deploy_folder:
-        return None, None
-
-    # Ensure it's the correct slashes and end with a slash
-    deploy_folder = convert_to_windows_slashes(deploy_folder, True)
-
-    # Get the project and platform
-    project_type = configuration.project_type
-    platform = configuration.platform
-    perforce = configuration.get_chained_value('perforce')
-
-    # Determine where to copy and if pdb files are involved
-    if project_type.is_library():
-        deploy_name = '$(TargetName)'
-    else:
-        # For executables, use ProjectName to strip the suffix
-        deploy_name = '$(ProjectName)'
-
-        # Windows doesn't support fat files, so deploy to different
-        # folders for tools
-        if project_type is ProjectTypes.tool:
-            if platform is PlatformTypes.win32:
-                deploy_folder = deploy_folder + 'x86\\'
-            elif platform is PlatformTypes.win64:
-                deploy_folder = deploy_folder + 'x64\\'
-            elif platform is PlatformTypes.winarm32:
-                deploy_folder = deploy_folder + 'arm\\'
-            elif platform is PlatformTypes.winarm64:
-                deploy_folder = deploy_folder + 'arm64\\'
-            elif platform is PlatformTypes.winitanium:
-                deploy_folder = deploy_folder + 'ia64\\'
-
-    # Create the batch file
-    # Make sure the destination directory is present
-    command_list = ['mkdir "{}" 2>nul'.format(deploy_folder)]
-
-    # Copy the executable
-    command_list.extend(
-        create_copy_file_script(
-            '$(TargetPath)',
-            '{}{}$(TargetExt)'.format(deploy_folder, deploy_name),
-            perforce))
-
-    # Copy the symbols on Microsoft platforms
-    # if platform.is_windows() or platform.is_xbox():
-    #    if project_type.is_library() or configuration.debug:
-    #       command_list.extend(
-    #           create_copy_file_script(
-    #              '$(TargetDir)$(TargetName).pdb',
-    #               '{}{}.pdb'.format(deploy_folder, deploy_name),
-    #               perforce))
-
-    return 'Copying $(TargetFileName) to {}'.format(
-        deploy_folder), '\n'.join(command_list)
-
-
-########################################
 
 def do_tree(xml_entry, filter_name, tree, groups):
     """

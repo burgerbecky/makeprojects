@@ -9,6 +9,10 @@ by Microsoft's Visual Studio 2003, 2005 and 2008.
 
 @package makeprojects.visual_studio_utils
 
+@var makeprojects.visual_studio_utils._PLATFORM_CPUS
+Dict of platforms to maps to names
+
+@sa makeprojects.visual_studio_utils.get_cpu_folder
 """
 
 from __future__ import absolute_import, print_function, unicode_literals
@@ -17,6 +21,14 @@ from burger import is_string
 
 from .validators import VSStringProperty
 from .enums import IDETypes, FileTypes, PlatformTypes, source_file_detect
+
+_PLATFORM_CPUS = {
+    PlatformTypes.win32: "x86",
+    PlatformTypes.win64: "x64",
+    PlatformTypes.winarm32: "arm",
+    PlatformTypes.winarm64: "arm64",
+    PlatformTypes.winitanium: "ia64"
+}
 
 ########################################
 
@@ -178,3 +190,20 @@ def add_masm_support(project):
                 "$(VCTargetsPath)\\BuildCustomizations\\marmasm.props")
             project.vs_targets.append(
                 "$(VCTargetsPath)\\BuildCustomizations\\marmasm.targets")
+
+########################################
+
+
+def get_cpu_folder(platform):
+    """
+    If the platform is a Windows type, return the CPU name
+
+    Returns None, "x86", "x64", "arm", "arm64", or "ia64"
+
+    Args:
+        platform: enums.PlatformTypes to check
+    Returns:
+        None or platform CPU name.
+    """
+
+    return _PLATFORM_CPUS.get(platform, None)

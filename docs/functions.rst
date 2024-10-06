@@ -271,6 +271,34 @@ visual_studio.parse_sln_file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::parse_sln_file
 
+visual_studio.match
+^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::match
+
+visual_studio.create_build_object
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::create_build_object
+
+visual_studio.create_clean_object
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::create_clean_object
+
+visual_studio.test
+^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::test
+
+visual_studio.get_uuid
+^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::get_uuid
+
+visual_studio.create_copy_file_script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::create_copy_file_script
+
+visual_studio.create_deploy_script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::create_deploy_script
+
 visual_studio_utils.get_path_property
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio_utils::get_path_property
@@ -290,6 +318,10 @@ visual_studio_utils.wiiu_props
 visual_studio_utils.add_masm_support
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio_utils::add_masm_support
+
+visual_studio_utils.get_cpu_folder
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::get_cpu_folder
 
 Watcom
 ------
