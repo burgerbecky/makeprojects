@@ -14,12 +14,13 @@
 # graphviz is not version dependent, so the version supplied by apt-get will
 # suffice.
 #
-# Doxygen is needed to be at least version 1.9.4. conf.py will download and
-# install it manually since it appears that apt-get only can obtain version
-# 1.8.7 which has issues that are fixed in 1.9.4
 
 # Required
 version: 2
+
+# Point to the conf.py file
+sphinx:
+  configuration: docs/conf.py
 
 # Build all sphinx docs
 formats: all
@@ -43,9 +44,16 @@ build:
     # Python requires these modules updated
     # doxypypy needs to be updated manually
     post_install:
-      - /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/latest/bin/python -m pip install -U setuptools distlib commonmark recommonmark
-      - /home/docs/checkouts/readthedocs.org/user_builds/${READTHEDOCS_PROJECT}/envs/latest/bin/python -m pip install ./doxypypy
+      # Debug the environment variables
+      - export
+      # Make sure doxygen is the latest version
+      - curl --no-progress-meter -O http://logicware.com/downloads/linux/doxygen-1.12.0.tgz
+      - tar -xvf doxygen-1.12.0.tgz
+      # Copy into the path and show version
+      - cp doxygen $READTHEDOCS_VIRTUALENV_PATH/bin
+      - doxygen -V
+      # Make sure makeprojects is loaded
+      - buildme -h
+      # Install Doxypypy
+      - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python -m pip install ./doxypypy
 
-# Point to the conf.py file
-sphinx:
-  configuration: docs/conf.py
