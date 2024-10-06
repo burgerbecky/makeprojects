@@ -61,11 +61,14 @@ from .visual_studio_utils import get_path_property, convert_file_name_vs2010, \
 
 ########################################
 
-
+# This is for the old version of Visual Studio, look at visual_studio_2010
+# for modern format
 SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
 
+# Match .sln files
 _SLNFILE_MATCH = re_compile("(?is).*\\.sln\\Z")
 
+# All version years
 _VS_VERSION_YEARS = {
     "2012": 2012,
     "2013": 2013,
@@ -75,6 +78,7 @@ _VS_VERSION_YEARS = {
     "17": 2022
 }
 
+# Previous version years
 _VS_OLD_VERSION_YEARS = {
     "8.00": 2003,
     "9.00": 2005,
@@ -126,29 +130,27 @@ def parse_sln_file(full_pathname):
     """
     Find build targets in .sln file.
 
-    Given a .sln file for Visual Studio 2003, 2005, 2008, 2010,
-    2012, 2013, 2015, 2017 or 2019, locate and extract all of the build
-    targets available and return the list.
+    Given a .sln file for Visual Studio 2003 through 2022, locate and extract
+    all of the build targets available and return the list.
 
-    It will also determine which version of Visual
-    Studio this solution file requires.
+    It will also determine which version of Visual Studio this solution
+    file requires.
 
     Args:
         full_pathname: Pathname to the .sln file
+
     Returns:
         tuple(list of configuration strings, integer Visual Studio version year)
-    See Also:
-        build_visual_studio
     """
 
-    # Load in the .sln file, it's a text file
+    # Load in the .sln file, it's a text file (Can be UTF-8)
     file_lines = load_text_file(full_pathname)
 
     # Version not known yet
     vs_version = 0
 
-    # Start with an empty list
-    target_list = []
+    # Start with an empty set
+    target_set = set()
 
     if file_lines:
         # Not looking for "Visual Studio"
@@ -173,8 +175,7 @@ def parse_sln_file(full_pathname):
                     # Split it in half at the equals sign and then
                     # remove the whitespace and add to the list
                     target = line.split("=")[-1].strip()
-                    if target not in target_list:
-                        target_list.append(target)
+                    target_set.add(target)
                 continue
 
             # Scanning for the secondary version number in Visual Studio 2012 or
@@ -214,7 +215,9 @@ def parse_sln_file(full_pathname):
             ("The visual studio solution file {} "
              "is corrupt or an unknown version!").format(full_pathname),
             file=sys.stderr)
-    return (target_list, vs_version)
+
+    # Return the set as a list
+    return (list(target_set), vs_version)
 
 ########################################
 
@@ -2191,7 +2194,7 @@ class VS2003XML():
 
     <-- force_pair disables support for "/>" closure -->
     <File
-        RelativePath=".\source\Win32Console.cpp">
+        RelativePath=".\\source\\Win32Console.cpp">
     </File>
     @endcode
 

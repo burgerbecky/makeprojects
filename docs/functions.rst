@@ -80,10 +80,6 @@ buildme.parse_sln_file
 ^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::parse_sln_file
 
-buildme.build_visual_studio
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_visual_studio
-
 buildme.parse_mcp_file
 ^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::parse_mcp_file
@@ -263,6 +259,37 @@ defaults.default_configuration_list
 defaults.get_configuration_list
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::defaults::get_configuration_list
+
+Visual Studio
+-------------
+
+visual_studio.SUPPORTED_IDES
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::visual_studio::SUPPORTED_IDES
+
+visual_studio.parse_sln_file
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::parse_sln_file
+
+visual_studio_utils.get_path_property
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::get_path_property
+
+visual_studio_utils.get_toolset_version
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::get_toolset_version
+
+visual_studio_utils.convert_file_name_vs2010
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::convert_file_name_vs2010
+
+visual_studio_utils.wiiu_props
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::wiiu_props
+
+visual_studio_utils.add_masm_support
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::add_masm_support
 
 Watcom
 ------

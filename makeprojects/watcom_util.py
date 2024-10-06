@@ -12,6 +12,8 @@ by Open Watcom 1.9
 
 from __future__ import absolute_import, print_function, unicode_literals
 
+import sys
+
 from burger import is_string, convert_to_linux_slashes
 
 from .util import iterate_configurations
@@ -447,12 +449,14 @@ def warn_if_invalid(solution):
             if configuration.use_mfc:
                 print(
                     "Watcom doesn't support Microsoft Foundation "
-                    "Classes, use_mfc must be False")
+                    "Classes, use_mfc must be False",
+                    file=sys.stderr)
 
             # Test for MFC
             if configuration.use_atl:
                 print(
                     "Watcom doesn't support Active Template Library, "
-                    "use_atl must be False")
+                    "use_atl must be False",
+                    file=sys.stderr)
 
     return 0

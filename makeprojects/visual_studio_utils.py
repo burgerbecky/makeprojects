@@ -31,10 +31,11 @@ def get_path_property(ide, pathname):
     ``RelativePath`` as a parameter
 
     Args:
-        ide: ide test
-        pathname: Pathname to test
+        ide: enums.IDETypes of the IDE being generated for.
+        pathname: Pathname to test.
 
-    Returns VSStringProperty of type RelativePath or FileName
+    Returns:
+        validators.VSStringProperty of type RelativePath or FileName
     """
 
     if pathname.startswith(".") or ide is IDETypes.vs2003:
@@ -51,19 +52,28 @@ def get_toolset_version(ide):
     Each version of Visual Studio uses a toolset version specific
     to that version. Return the version number for the vcxproj file.
 
+    Strings returned are "4.0", "12.0", "14.0" and "15.0".
+
     Args:
-        ide = IDETypes of the IDE being generated
+        ide: enums.IDETypes of the IDE being generated
 
     Returns:
         String of the toolset version for the ide
     """
 
+    # VS 2003 to 2012
     if ide < IDETypes.vs2013:
         version = "4.0"
+
+    # VS 2013
     elif ide < IDETypes.vs2015:
         version = "12.0"
+
+    # VS 2015
     elif ide < IDETypes.vs2017:
         version = "14.0"
+
+    # VS 2017-2022
     else:
         version = "15.0"
     return version
@@ -72,11 +82,22 @@ def get_toolset_version(ide):
 
 
 def convert_file_name_vs2010(item):
-    """
+    r"""
     Convert macros from to Visual Studio 2003-2008
+
+    This table shows the conversions
+
+    | Visual Studio 2010+ | 2003-2008 |
+    | ------------------- | --------- |
+    | %(RootDir)%(Directory) | \$(InputDir) |
+    | %(FileName) | \$(InputName) |
+    | %(Extension) | \$(InputExt) |
+    | %(FullPath) | \$(InputPath) |
+    | %(Identity) | \$(InputPath) |
 
     Args:
         item: Filename string
+
     Returns:
         String with converted macros
     """
@@ -97,7 +118,11 @@ def wiiu_props(project):
     If the project is for WiiU, check if there are assembly files.
 
     If there are assembly files, add the Nintendo supplied props file for
-    assembly language support
+    assembly language support.
+
+    Note:
+        This assumes that the official WiiU SDK from Nintendo is installed
+        on the machine that will build this project file.
 
     Args:
         project: Project to check
@@ -120,10 +145,14 @@ def wiiu_props(project):
 
 def add_masm_support(project):
     """
-    If the project is has x86 or x64 files, add the props files
+    If the project is has assembly files, add the props files
+
+    This function works for Visual Studio 2003-2022.
 
     Note:
-        Visual Studio 2003-2008 does not have rules for x64 files.
+        * Visual Studio 2003 only supports x86 files
+        * Visual Studio 2005-2015 only support x86 and x64 files
+        * Visual Studio 2017+ support arm, arm64, x86, and x64 files
 
     Args:
         project: Project to check
