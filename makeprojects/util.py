@@ -589,3 +589,27 @@ def do_generate_build_rules(parsed, working_directory):
     # Save the build_rules.py file
     return save_default(working_directory,
                         destinationfile=parsed.rules_file)
+
+########################################
+
+
+def iterate_configurations(solution):
+    """
+    Iterate all configurations in a solution.
+
+    Given a solution, iterate over all of the configurations within
+    the solution and return each object.
+
+    Args:
+        solution: Solution object.
+
+    Returns:
+        Iterator that returns configuration objects.
+    """
+
+    # Test all the projects and configurations
+    for project in solution.project_list:
+
+        # Create sets of configuration names and projects
+        for configuration in project.configuration_list:
+            yield configuration

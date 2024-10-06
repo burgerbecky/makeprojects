@@ -267,6 +267,7 @@ class TestCore(unittest.TestCase):
         Test Configuration class.
         """
 
+        # pylint: disable=no-value-for-parameter
         # Must have a name
         with self.assertRaises(TypeError):
             c = Configuration()

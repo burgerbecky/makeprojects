@@ -217,6 +217,17 @@ util.fixup_args
 ^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::util::fixup_args
 
+util.convert_file_name
+^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::convert_file_name
+
+util.do_generate_build_rules
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::do_generate_build_rules
+
+util.iterate_configurations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::util::iterate_configurations
 
 Defaults
 --------
