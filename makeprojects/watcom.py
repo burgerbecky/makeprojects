@@ -75,14 +75,18 @@ class BuildWatcomFile(BuildObject):
         Class to handle watcom make files
 
         Args:
-            file_name: Pathname to the *.wmk to build
+            file_name: Pathname to the \*.wmk to build
             priority: Priority to build this object
             configuration: Build configuration
             verbose: True if verbose output
         """
 
-        super(BuildWatcomFile, self).__init__(
-            file_name, priority, configuration=configuration)
+        super(
+            BuildWatcomFile,
+            self).__init__(
+            file_name,
+            priority,
+            configuration=configuration)
         self.verbose = verbose
 
     def build(self):
@@ -104,10 +108,10 @@ class BuildWatcomFile(BuildObject):
         # Is Watcom installed?
         watcom_path = where_is_watcom(verbose=self.verbose)
         if watcom_path is None:
-            return BuildError(
-                0, self.file_name,
+            file_name = self.file_name
+            return BuildError(0, file_name,
                 msg="{} requires Watcom to be installed to build!".format(
-                    self.file_name))
+                    file_name))
 
         # Watcom requires the path set up so it can access link files
         exe_name = where_is_watcom("wmake", verbose=self.verbose)
@@ -160,6 +164,7 @@ class BuildWatcomFile(BuildObject):
         Returns:
             None if not implemented, otherwise an integer error code.
         """
+
         return self.build()
 
 ########################################
@@ -279,6 +284,7 @@ def generate(solution):
     if solution.ide not in SUPPORTED_IDES:
         return 10
 
+    # Perform sanity checks
     error = warn_if_invalid(solution)
     if error:
         return error
@@ -337,13 +343,16 @@ class WatcomProject(object):
             solution: Parent solution.
         """
 
-        self.solution = solution
-        self.platforms = []
-        self.configuration_list = []
-        self.configuration_names = []
+        # Init the platform list
+        platforms = []
 
         # Init the list of custom rules
         custom_list = []
+
+        self.solution = solution
+        self.platforms = platforms
+        self.configuration_list = []
+        self.configuration_names = []
 
         # Process all the projects and configurations
         for project in solution.project_list:
@@ -373,8 +382,8 @@ class WatcomProject(object):
                     self.configuration_names.append(configuration)
 
                 # Add platform if not already found
-                if configuration.platform not in self.platforms:
-                    self.platforms.append(configuration.platform)
+                if configuration.platform not in platforms:
+                    platforms.append(configuration.platform)
 
                 # Get the rule list
                 rule_list = (configuration.custom_rules,
@@ -564,7 +573,8 @@ class WatcomProject(object):
         """
 
         target_list = []
-        for item in self.configuration_names:
+        configuration_names = self.configuration_names
+        for item in configuration_names:
             target_list.append(item.name)
 
         line_all = "all: " + " ".join(target_list) + " .SYMBOLIC"
@@ -603,9 +613,10 @@ class WatcomProject(object):
                 "#"
             ))
 
+            platforms = self.platforms
             for configuration in self.configuration_names:
                 target_list = []
-                for platform in self.platforms:
+                for platform in platforms:
                     target_list.append(
                         configuration.name +
                         platform.get_short_code())
@@ -635,7 +646,8 @@ class WatcomProject(object):
         """
 
         # Only generate if there are platforms
-        if self.platforms:
+        platforms = self.platforms
+        if platforms:
             line_list.extend((
                 "",
                 "#",
@@ -643,12 +655,13 @@ class WatcomProject(object):
                 "#"
             ))
 
-            for platform in self.platforms:
+            configuration_list = self.configuration_list
+            for platform in platforms:
 
                 short_code = platform.get_short_code()
 
                 target_list = []
-                for configuration in self.configuration_list:
+                for configuration in configuration_list:
                     target_list.append(
                         configuration.name +
                         short_code)
@@ -676,7 +689,8 @@ class WatcomProject(object):
             line_list: List of lines of text generated.
         """
 
-        if self.configuration_list:
+        configuration_list = self.configuration_list
+        if configuration_list:
 
             line_list.extend((
                 "",
@@ -685,7 +699,7 @@ class WatcomProject(object):
                 "#"
             ))
 
-            for configuration in self.configuration_list:
+            for configuration in configuration_list:
                 template = get_output_template(
                     configuration.project_type, configuration.platform)
 
@@ -733,13 +747,15 @@ class WatcomProject(object):
     def write_all_targets(self, line_list):
         """
         Output all of the .SYMBOLIC targets.
+
         Create all of the targets, starting with all, and then all the
-        configurations, followed by the clean targets
+        configurations, followed by the clean targets.
 
         Args:
             line_list: List of lines of text generated.
+
         Returns:
-            Zero
+            Zero.
         """
 
         # Save the "All" targets
@@ -806,7 +822,8 @@ class WatcomProject(object):
         # Default configuration, assume Release or use
         # the one found first.
         config = None
-        for item in self.configuration_list:
+        configuration_list = self.configuration_list
+        for item in configuration_list:
             if item.name == "Release":
                 config = "Release"
                 break
@@ -830,8 +847,9 @@ class WatcomProject(object):
 
         # Default platform is Dos4GW unless it's not in the list
         target = PlatformTypes.msdos4gw.get_short_code()
-        if self.platforms and PlatformTypes.msdos4gw not in self.platforms:
-            target = self.platforms[0].get_short_code()
+        platforms = self.platforms
+        if platforms and PlatformTypes.msdos4gw not in platforms:
+            target = platforms[0].get_short_code()
 
         line_list.extend([
             "",
@@ -853,7 +871,7 @@ class WatcomProject(object):
 
         # List all platforms
         line_list.append("")
-        for platform in self.platforms:
+        for platform in platforms:
             line_list.append(
                 "TARGET_SUFFIX_{0} = {1}".format(
                     platform.get_short_code(),
@@ -904,7 +922,8 @@ class WatcomProject(object):
         # Sort them for consistent diffs for source control
         include_folders = []
         source_folders = []
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             for item in configuration.get_unique_chained_list(
                     "_source_include_list"):
                 if item not in source_folders:
@@ -986,7 +1005,8 @@ class WatcomProject(object):
             "#",
             ""))
 
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             entries = ["CFlags" + configuration.watcommake_name + "="]
 
             if configuration.platform is PlatformTypes.msdos4gw:
@@ -1052,7 +1072,8 @@ class WatcomProject(object):
             "#",
             ""))
 
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             entries = ["AFlags" + configuration.watcommake_name + "="]
 
             if configuration.platform.is_windows():
@@ -1085,7 +1106,8 @@ class WatcomProject(object):
             "#",
             ""))
 
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             entries = ["LFlags" + configuration.watcommake_name + "="]
 
             # Add linker "system nt"
@@ -1141,7 +1163,8 @@ class WatcomProject(object):
             "#",
             ""))
 
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             entries = ["RFlags" + configuration.watcommake_name + "="]
 
             # Use Windows format
@@ -1376,7 +1399,8 @@ class WatcomProject(object):
             "#"
         ])
 
-        for configuration in self.configuration_list:
+        configuration_list = self.configuration_list
+        for configuration in configuration_list:
             if configuration.project_type is ProjectTypes.library:
                 suffix = ".lib"
             else:

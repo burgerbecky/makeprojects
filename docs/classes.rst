@@ -64,3 +64,16 @@ build_objects.BuildObject
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenclass:: makeprojects::build_objects::BuildObject
     :members:
+
+Watcom
+------
+
+watcom.BuildWatcomFile
+^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::watcom::BuildWatcomFile
+    :members:
+
+watcom.WatcomProject
+^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::watcom::WatcomProject
+    :members:

@@ -848,7 +848,7 @@ class C_CPP_Preprocessor(object):
             index = item.find("=")
             if index != -1:
                 # Only replace the first one
-                item = item[:index] + " " + item[index+1:]
+                item = item[:index] + " " + item[index + 1:]
 
             definestring.append("#define " + item)
 
@@ -1046,7 +1046,7 @@ class MWLinker_X86(object):
         settings: List of setting objects for this generator
     """
 
-    def __init__(self):
+    def __init__(self, configuration):
         """
         Initialize
         """
@@ -1056,8 +1056,19 @@ class MWLinker_X86(object):
             SETTING("MWLinker_X86_linkCV", "1"),
             SETTING("MWLinker_X86_symfullpath", "false"),
             SETTING("MWLinker_X86_linkdebug", "true"),
-            SETTING("MWLinker_X86_debuginline", "true"),
-            SETTING("MWLinker_X86_subsystem", "Unknown"),
+            SETTING("MWLinker_X86_debuginline", "true")
+        ]
+
+        # Get the target subsystem
+        item = "Unknown"
+        if configuration.platform.is_windows():
+            if configuration.project_type is ProjectTypes.tool:
+                item = "WinCUI"
+            else:
+                item = "WinGUI"
+        self.settings.append(SETTING("MWLinker_X86_subsystem", item))
+
+        self.settings.extend([
             SETTING("MWLinker_X86_entrypointusage", "Default"),
             SETTING("MWLinker_X86_entrypoint", ""),
             SETTING("MWLinker_X86_codefolding", "Any"),
@@ -1071,7 +1082,7 @@ class MWLinker_X86(object):
             SETTING("MWLinker_X86_nowarnings", "false"),
             SETTING("MWLinker_X86_verbose", "false"),
             SETTING("MWLinker_X86_commandfile", "")
-        ]
+        ])
 
     def generate(self, line_list, level=4):
         """
@@ -1544,7 +1555,7 @@ class Project(object):
                     target.settinglist.append(PDisasmX86())
 
                     # x86 Linker
-                    target.settinglist.append(MWLinker_X86())
+                    target.settinglist.append(MWLinker_X86(configuration))
 
                 # Create the list of libraries to add to the project if
                 # it's an application
@@ -1553,6 +1564,16 @@ class Project(object):
                 if not configuration.project_type.is_library():
                     liblist = configuration.get_unique_chained_list(
                         "libraries_list")
+                    if configuration.platform.is_windows():
+                        if configuration.use_mfc:
+                            for item in liblist:
+                                temp = item.lower()
+                                if temp in ("mfccw.lib", "mfccw_d.lib"):
+                                    break
+                            else:
+                                # Insert the library
+                                item = "MFCcw_D.lib" if configuration.debug else "MFCcw.lib"
+                                liblist.insert(0, item)
 
                 # Generate the file and group lists
                 if alllists or liblist:

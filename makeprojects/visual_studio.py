@@ -2980,7 +2980,19 @@ class VCLinkerTool(VS2003Tool):
 
         # Additional libraries
         default = configuration.get_unique_chained_list(
-            'libraries_list')
+            "libraries_list")
+
+        # Check if the MFC library is already present
+        if configuration.use_mfc:
+            for item in default:
+                temp = item.lower()
+                if temp in ("nafxcw.lib", "nafxcwd.lib"):
+                    break
+            else:
+                # Insert the library
+                item = "nafxcwd.lib" if configuration.debug else "nafxcw.lib"
+                default.insert(0, item)
+
         self.add_default(
             VSStringListProperty(
                 'AdditionalDependencies',
@@ -4136,17 +4148,18 @@ class VS2003Configuration(VS2003XML):
             VSStringProperty("UseOfATL", None),
             BoolATLMinimizesCRunTimeLibraryUsage(configuration),
             VSStringProperty("CharacterSet", None),
-            VSStringProperty('DeleteExtensionsOnClean', None),
-            VSStringProperty('ManagedExtensions', None),
-            VSStringProperty('WholeProgramOptimization',
+            VSStringProperty("DeleteExtensionsOnClean", None),
+            VSStringProperty("ManagedExtensions", None),
+            VSStringProperty("WholeProgramOptimization",
                            vs_link_time_code_generation),
-            VSStringProperty('ReferencesPath', None)
+            VSStringProperty("ReferencesPath", None)
         ])
 
         if platform.is_windows():
             if configuration.use_mfc is not None:
                 self.set_attribute(
                     "UseOfMFC", "1" if configuration.use_mfc else "0")
+
             if configuration.use_atl is not None:
                 self.set_attribute(
                     "UseOfATL", "1" if configuration.use_atl else "0")
