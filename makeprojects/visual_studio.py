@@ -808,9 +808,11 @@ def GlobalOptimizations(configuration, fallback=None):
 
     Note:
         Only available on Visual Studio 2003
+
     Args:
         configuration: Project configuration to scan for overrides.
         fallback: Default value to use
+
     Returns:
         None or validators.VSBooleanProperty object.
     """
@@ -838,8 +840,8 @@ def InlineFunctionExpansion(configuration, fallback=None):
     Acceptable inputs are:
 
     * "Disable"
-    * "/Ob1", "Only __inline"
-    * "/Ob2", "Any Suitable"
+    * "/Ob1" / "Only __inline"
+    * "/Ob2" / "Any Suitable"
     * 0 through 2
 
     Args:
@@ -857,10 +859,112 @@ def InlineFunctionExpansion(configuration, fallback=None):
 
     # The settings are the same on 2003, 2005, and 2008
     return VSEnumProperty(
-        "InlineFunctionExpansion", fallback,
+        "InlineFunctionExpansion",
+        fallback,
         ("Disable",
          ("/Ob1", "Only __inline"),
          ("/Ob2", "Any Suitable")))
+
+########################################
+
+
+def EnableIntrinsicFunctions(configuration, fallback=None):
+    """
+    Create ``EnableIntrinsicFunctions`` property.
+
+    Enables intrinsic functions. Using intrinsic functions generates faster,
+    but possibly larger, code.
+
+    Compiler switch /Oi
+
+    Can be overridden with configuration attribute
+    ``vs_EnableIntrinsicFunctions`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "EnableIntrinsicFunctions", configuration,
+        fallback=fallback)
+
+########################################
+
+
+def ImproveFloatingPointConsistency(configuration, fallback=None):
+    """
+    Create ``ImproveFloatingPointConsistency`` property.
+
+    Enables intrinsic functions. Using intrinsic functions generates faster,
+    but possibly larger, code.
+
+    Compiler switch /Op
+
+    Can be overridden with configuration attribute
+    ``vs_ImproveFloatingPointConsistency`` for the C compiler.
+
+    Note:
+        Only available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+    if configuration.ide is IDETypes.vs2003:
+        return VSBooleanProperty.vs_validate(
+            "ImproveFloatingPointConsistency",
+            configuration,
+            fallback=fallback)
+    return None
+
+########################################
+
+
+def FavorSizeOrSpeed(configuration, fallback=None):
+    """
+    Create ``FavorSizeOrSpeed`` property.
+
+    Determine if optimizations should focus on saving space vs unrolling loops.
+
+    Compiler switches /Ot, /Os
+
+    Can be overridden with configuration attribute
+    ``vs_FavorSizeOrSpeed`` for the C compiler.
+
+    Acceptable inputs are:
+
+    * "Neither"
+    * "/Ot" / "Favor Fast Code"
+    * "/Os" / "Favor Small Code"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_FavorSizeOrSpeed")
+    if value is not None:
+        fallback = value
+
+    # The settings are the same on 2003, 2005, and 2008
+    return VSEnumProperty(
+        "FavorSizeOrSpeed",
+        fallback,
+        ("Neither",
+         ("/Ot", "Favor Fast Code"),
+         ("/Os", "Favor Small Code")))
 
 
 # Boolean properties
@@ -967,48 +1071,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     if configuration.ide < IDETypes.vs2008:
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
-    return None
-
-
-def BoolEnableIntrinsicFunctions(configuration):
-    """ EnableIntrinsicFunctions
-
-    Enables intrinsic functions. Using intrinsic functions generates faster,
-    but possibly larger, code.
-
-    Compiler switch /Oi
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "EnableIntrinsicFunctions", configuration,
-        fallback=configuration.optimization, options_key="compiler_options",
-        options=(("/Oi", True),))
-
-
-def BoolImproveFloatingPointConsistency(configuration):
-    """ ImproveFloatingPointConsistency
-
-    Enables intrinsic functions. Using intrinsic functions generates faster,
-    but possibly larger, code.
-
-    Compiler switch /Op
-
-    Note:
-        Only available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide is IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "ImproveFloatingPointConsistency", configuration,
-            options_key="compiler_options",
-            options=(("/Op", True),))
     return None
 
 
@@ -2451,17 +2513,16 @@ class VCCLCompilerTool(VS2003Tool):
         self.add_default(InlineFunctionExpansion(configuration, item))
 
         # Enable intrinsics
-        self.add_default(BoolEnableIntrinsicFunctions(configuration))
+        self.add_default(
+            EnableIntrinsicFunctions(
+                configuration,
+                configuration.optimization))
 
-        # True if floating point consistency is important
-        self.add_default(BoolImproveFloatingPointConsistency(configuration))
+        # True if floating point consistency is important (2003 only)
+        self.add_default(ImproveFloatingPointConsistency(configuration))
 
         # Size or speed?
-        self.add_default(
-            VSEnumProperty(
-                "FavorSizeOrSpeed", "/Ot",
-                ("Neither", ("/Ot", "Favor Fast Code"),
-                 ("/Os", "Favor Small Code"))))
+        self.add_default(FavorSizeOrSpeed(configuration, "Favor Fast Code"))
 
         # Get rid of stack frame pointers for speed
         self.add_default(BoolOmitFramePointers(configuration))
