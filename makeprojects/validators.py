@@ -439,10 +439,10 @@ class VSBooleanProperty(object):
 
     @staticmethod
     def vs_validate(key, configuration, fallback=None,
-                    options_key=None, options=None):
+                    options_key=None, options=None, prefix=None):
         """
         Check if there is an override with a vs_ prefix.
-        Check if the configuration has a key of \"vs_\" + key in the
+        Check if the configuration has a key of \"vs_\" + prefix + key in the
         configuration and if not found or None, use the key as is.
 
         Args:
@@ -451,11 +451,18 @@ class VSBooleanProperty(object):
             fallback: Value to use in case there is no override.
             options_key: Attribute to scan for commmand line options
             options: Iterable with options / Value pairs
+            prefix: String to insert after "vs_"
         Returns:
             None or VSBooleanProperty instance
         """
 
-        value = configuration.get_chained_value("vs_" + key)
+        # Insert the optional prefix
+        new_key = "vs_"
+        if prefix:
+            new_key = new_key + prefix
+        new_key = new_key + key
+
+        value = configuration.get_chained_value(new_key)
         if value is None:
             return VSBooleanProperty.validate(
                 key, configuration, fallback, options_key, options)
@@ -587,6 +594,37 @@ class VSStringProperty(object):
         Return the string representation of the string, or None
         """
         return self.value
+
+    ########################################
+
+    @staticmethod
+    def vs_validate(key, configuration, fallback=None, prefix=None):
+        """
+        Check if there is an override with a vs_ prefix.
+        @details
+        Check if the configuration has a key of \"vs_\" + prefix + key in the
+        configuration and if not found or None, use the fallback as is.
+
+        Args:
+            key: Name of the XML attribute key
+            configuration: configuration to scan for an override
+            fallback: Value to use in case there is no override.
+            prefix: String to insert after "vs_"
+
+        Returns:
+            VSStringProperty instance
+        """
+
+        # Insert the optional prefix
+        new_key = "vs_"
+        if prefix:
+            new_key = new_key + prefix
+        new_key = new_key + key
+
+        value = configuration.get_chained_value(new_key)
+        if value is None:
+            return VSStringProperty(key, fallback)
+        return VSStringProperty(key, value)
 
     ########################################
 

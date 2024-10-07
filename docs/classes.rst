@@ -101,6 +101,26 @@ visual_studio.BuildVisualStudioFile
 .. doxygenclass:: makeprojects::visual_studio::BuildVisualStudioFile
     :members:
 
+visual_studio.VS2003XML
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::visual_studio::VS2003XML
+    :members:
+
+visual_studio.VS2003Tool
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::visual_studio::VS2003Tool
+    :members:
+
+visual_studio.VCCLCompilerTool
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::visual_studio::VCCLCompilerTool
+    :members:
+
+visual_studio.VCCLCompilerToolFile
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenclass:: makeprojects::visual_studio::VCCLCompilerToolFile
+    :members:
+
 Watcom
 ------
 

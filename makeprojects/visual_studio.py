@@ -687,55 +687,183 @@ def create_deploy_script(configuration):
 
 ########################################
 
-# Boolean properties
+# Entries usually found in VCCLCompilerTool
 
 
-def BoolUseUnicodeResponseFiles(configuration):
+def UseUnicodeResponseFiles(configuration, prefix=None):
     """
-    Entry for UseUnicodeResponseFiles
+    Create ``UseUnicodeResponseFiles`` property.
 
     Instructs the project system to generate UNICODE response files when
     spawning the librarian.  Set this property to True when files in the project
     have UNICODE paths.
 
+    Can be overridden with configuration attributes:
+
+    * ``vs_UseUnicodeResponseFiles`` for the C compiler.
+    * ``vs_LinkerUseUnicodeResponseFiles`` for the exe linker.
+    * ``vs_LibrarianUseUnicodeResponseFiles`` for the library linker.
+
     Note:
-        Not available on Visual Studio 2003 and earlier.
+        Not available on Visual Studio 2003 and earlier. Overrides do nothing.
+
     Args:
         configuration: Project configuration to scan for overrides.
+        prefix: Prefix string for override
     Returns:
-        None or VSBooleanProperty object.
+       validators.VSBooleanProperty object.
     """
 
     if configuration.ide > IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
-            "UseUnicodeResponseFiles", configuration)
+            "UseUnicodeResponseFiles", configuration, prefix=prefix)
     return None
 
+########################################
 
-def BoolGlobalOptimizations(configuration):
-    """ GlobalOptimizations
+
+def AdditionalOptions(configuration, prefix=None):
+    """
+    Create ``AdditionalOptions`` property.
+
+    List of custom compiler options as a single string. The default is an empty
+    string. Will not generate this attribute if the string is empty.
+
+    Can be overridden with configuration attributes:
+
+    * ``vs_AdditionalOptions`` for the C compiler.
+    * ``vs_LinkerAdditionalOptions`` for the exe linker.
+    * ``vs_LibrarianAdditionalOptions`` for the library linker.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        prefix: Prefix string for override
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "AdditionalOptions", configuration, prefix=prefix)
+
+########################################
+
+
+def Optimization(configuration, fallback=None):
+    """
+    Create ``Optimization`` property.
+
+    Set the level of code optimization for the C compiler.
+
+    Compiler switches /Od, /O1, /O2, /Ox
+
+    Can be overridden with configuration attribute
+    ``vs_Optimization`` for the C compiler.
+
+    Acceptable inputs are:
+
+    * "/Od" / "-Od" / "Disabled"
+    * "/O1" / "-O1" / "Minimize Size"
+    * "/O2" / "-O2" / "Maximize Speed"
+    * "/Ox" / "-Ox" / "Full Optimization" / "x"
+    * "Custom" (This disables emitting a command switch)
+    * 0 through 4
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+    Returns:
+       validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_Optimization")
+    if value is not None:
+        fallback = value
+
+    # The settings are the same on 2003, 2005, and 2008
+    return VSEnumProperty(
+        "Optimization",
+        fallback,
+        (("/Od", "-Od", "Disabled"),
+         ("/O1", "-O1", "Minimize Size"),
+         ("/O2", "-O2", "Maximize Speed"),
+         ("/Ox", "-Ox", "Full Optimization", "x"),
+         "Custom"))
+
+########################################
+
+
+def GlobalOptimizations(configuration, fallback=None):
+    """
+    Create ``GlobalOptimizations`` property.
 
     Enables global optimizations incompatible with all ``Runtime Checks``
-    options and edit and continue. Also known as WholeProgramOptimizations
+    options and edit and continue. Also known as ``WholeProgramOptimizations``
     on other versions of Visual Studio.
 
     Compiler switch /Og
+
+    Can be overridden with configuration attribute
+    ``vs_GlobalOptimizations`` for the C compiler.
 
     Note:
         Only available on Visual Studio 2003
     Args:
         configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
     Returns:
-        None or VSBooleanProperty object.
+        None or validators.VSBooleanProperty object.
     """
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "GlobalOptimizations",
             configuration,
-            fallback=configuration.optimization,
-            options_key="compiler_options",
-            options=(("/Og", True),))
+            fallback=fallback)
     return None
+
+########################################
+
+
+def InlineFunctionExpansion(configuration, fallback=None):
+    """
+    Create ``InlineFunctionExpansion`` property.
+
+    Determine how aggressive to inline code during C compilation.
+
+    Compiler switches /Ob1, /Ob2
+
+    Can be overridden with configuration attribute
+    ``vs_InlineFunctionExpansion`` for the C compiler.
+
+    Acceptable inputs are:
+
+    * "Disable"
+    * "/Ob1", "Only __inline"
+    * "/Ob2", "Any Suitable"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_InlineFunctionExpansion")
+    if value is not None:
+        fallback = value
+
+    # The settings are the same on 2003, 2005, and 2008
+    return VSEnumProperty(
+        "InlineFunctionExpansion", fallback,
+        ("Disable",
+         ("/Ob1", "Only __inline"),
+         ("/Ob2", "Any Suitable")))
+
+
+# Boolean properties
 
 
 def BoolRegisterOutput(configuration):
@@ -1854,11 +1982,6 @@ def StringName(default):
     return VSStringProperty("Name", fallback=default)
 
 
-def StringAdditionalOptions():
-    """ List of custom compiler options as a single string """
-    return VSStringProperty("AdditionalOptions")
-
-
 def StringPrecompiledHeaderThrough():
     """ Text header file for precompilation """
     return VSStringProperty("PrecompiledHeaderThrough")
@@ -1965,11 +2088,11 @@ class VS2003XML():
 
     Theses are examples of XML fragments this class exports.
 
-    @code{.unparsed}
-        <Platforms>
-            <Platform
-                Name="Win32"/>
-        </Platforms>
+    ```xml
+    <Platforms>
+        <Platform
+            Name="Win32"/>
+    </Platforms>
 
     <Tool
         Name="VCMIDLTool"/>
@@ -1978,7 +2101,7 @@ class VS2003XML():
     <File
         RelativePath=".\\source\\Win32Console.cpp">
     </File>
-    @endcode
+    ```
 
     Attributes:
         name: Name of this XML chunk.
@@ -2130,7 +2253,7 @@ class VS2003XML():
     def generate(self, line_list=None, indent=0, ide=None):
         """
         Generate the text lines for this XML element.
-
+        @details
         There is a slight difference between Visual Studio 2003
         and 2005/2008 on how tags are closed. The argument ``ide``
         is used to flag with close format to use.
@@ -2143,9 +2266,7 @@ class VS2003XML():
             line_list with all lines appended to it.
         """
 
-        # Too many branches
-        # Too many statements
-        # pylint: disable=R0912,R0915
+        # pylint: disable=too-many-branches
 
         # Create the default
         if line_list is None:
@@ -2155,7 +2276,7 @@ class VS2003XML():
             ide = IDETypes.vs2008
 
         # Determine the indentation
-        # vs2003 uses tabs
+        # VS2003 uses tabs
         tabs = "\t" * indent
 
         # Special case, if no attributes, don't allow <foo/> XML
@@ -2168,6 +2289,7 @@ class VS2003XML():
             if value is not None:
                 attributes.append((item.name, value))
 
+        elements = self.elements
         if attributes:
 
             # Output tag with attributes and support "/>" closing
@@ -2176,18 +2298,18 @@ class VS2003XML():
 
                 # VS2003 has upper case booleans
                 if ide is IDETypes.vs2003:
-                    if value == "true":
-                        value = "TRUE"
-                    elif value == "false":
-                        value = "FALSE"
+                    if value in ("true", "false"):
+                        value = value.upper()
 
-                # VS 2003 doesn't encode CR
+                # If the string has CR, VS2003 doesn't xml encode it,
+                # so it's in the string literally
+                # VS2005 and VS2008 use &#x0D;&#x0A;
+
+                # Encode special characters
                 value = escape_xml_attribute(value)
-                if ide is IDETypes.vs2003:
-                    cr_fixup = "\n"
-                else:
-                    # VS 2005 and 2008 require cr/lf
-                    cr_fixup = "&#x0D;&#x0A;"
+
+                # If there's a CR, it's &#10;, so convert it
+                cr_fixup = "\n" if ide is IDETypes.vs2003 else "&#x0D;&#x0A;"
                 value = value.replace("&#10;", cr_fixup)
 
                 # Create the line (Might have line feeds)
@@ -2196,36 +2318,43 @@ class VS2003XML():
                     escape_xml_cdata(attribute[0]),
                     value)
 
-                # Convert to line(s)
+                # Convert to line(s) and append
+                # This only happens on VS2003, the others always have one line
                 line_list.extend(item.split("\n"))
 
             # Check if /> closing is disabled
-            if not self.elements and not self.force_pair:
+            force_pair = self.force_pair
+            if not elements and not force_pair:
+                # 2003 closes on the current line, which makes the xml
+                # compact, where 2005 and 2008 are on the next line
                 if ide is IDETypes.vs2003:
                     line_list[-1] = line_list[-1] + "/>"
                 else:
-                    line_list.append("{}/>".format(tabs))
+                    line_list.append(tabs + "/>")
                 return line_list
 
-            # Close the open tag
+            # Close the open tag on the same line with 2003,
+            # next line on 2005/2008
             if ide is IDETypes.vs2003:
                 line_list[-1] = line_list[-1] + ">"
             else:
-                line_list.append("{}\t>".format(tabs))
+                line_list.append(tabs + "\t>")
         else:
+
+            # No elements? Close on the same line
             line_list[-1] = line_list[-1] + ">"
 
         # Output the embedded elements
-        for element in self.elements:
+        for element in elements:
             element.generate(line_list, indent=indent + 1, ide=ide)
 
         # Close the current element
-        line_list.append("{0}</{1}>".format(tabs, escape_xml_cdata(self.name)))
+        line_list.append(tabs + "</" + escape_xml_cdata(self.name) + ">")
         return line_list
 
     def __repr__(self):
         """
-        Convert the solultion record into a human readable description
+        Convert the solution record into a human readable description
 
         Returns:
             Human readable string or None if the solution is invalid
@@ -2287,10 +2416,6 @@ class VCCLCompilerTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
-        # Too many branches
-        # Too many statements
-        # pylint: disable=R0912,R0915
-
         self.configuration = configuration
 
         # Set the tag
@@ -2305,34 +2430,25 @@ class VCCLCompilerTool(VS2003Tool):
         # Attributes are added in the same order they are written
         # in Visual Studio
 
-        # List of custom compiler options as a single string
-        self.add_default(StringAdditionalOptions())
+        # Unicode response files (Only on 2005/2008)
+        self.add_default(UseUnicodeResponseFiles(configuration))
 
-        # Unicode response files
-        self.add_default(BoolUseUnicodeResponseFiles(configuration))
+        # List of custom compiler options as a single string
+        self.add_default(AdditionalOptions(configuration))
 
         # Optimizations
-        default = "/Ox" if optimization else "/Od"
-        self.add_default(
-            VSEnumProperty(
-                "Optimization", default,
-                (("/Od", "Disabled"),
-                 ("/O1", "Minimize Size"),
-                 ("/O2", "Maximize Speed"),
-                 ("/Ox", "Full Optimization"),
-                 "Custom")))
+        item = "Full Optimization" if optimization else "Disabled"
+        self.add_default(Optimization(configuration, item))
 
         # Global optimizations (2003 only)
-        self.add_default(BoolGlobalOptimizations(configuration))
+        self.add_default(
+            GlobalOptimizations(
+                configuration,
+                configuration.link_time_code_generation))
 
         # Inline functions
-        default = "/Ob2" if optimization else None
-        self.add_default(
-            VSEnumProperty(
-                "InlineFunctionExpansion", default,
-                ("Disable",
-                 ("/Ob1", "Only __inline"),
-                 ("/Ob2", "Any Suitable"))))
+        item = "Any Suitable" if optimization else None
+        self.add_default(InlineFunctionExpansion(configuration, item))
 
         # Enable intrinsics
         self.add_default(BoolEnableIntrinsicFunctions(configuration))
@@ -2769,11 +2885,11 @@ class VCLinkerTool(VS2003Tool):
         # Use the librarian for input
         self.add_default(BoolUseLibraryDependencyInputs(configuration))
 
-        # Allow unicode filenames in response files
-        self.add_default(BoolUseUnicodeResponseFiles(configuration))
+        # Unicode response files (Only on 2005/2008)
+        self.add_default(UseUnicodeResponseFiles(configuration, "Linker"))
 
         # Additional commands
-        self.add_default(StringAdditionalOptions())
+        self.add_default(AdditionalOptions(configuration, "Linker"))
 
         # Additional libraries
         default = configuration.get_unique_chained_list(
@@ -3204,14 +3320,14 @@ class VCLibrarianTool(VS2003Tool):
 
         VS2003Tool.__init__(self, "VCLibrarianTool")
 
-        # Use unicode for responses
-        self.add_default(BoolUseUnicodeResponseFiles(configuration))
+        # Unicode response files (Only on 2005/2008)
+        self.add_default(UseUnicodeResponseFiles(configuration, "Librarian"))
 
         # Link in library dependencies
         self.add_default(BoolLinkLibraryDependencies(configuration))
 
         # Additional command lines
-        self.add_default(StringAdditionalOptions())
+        self.add_default(AdditionalOptions(configuration, "Librarian"))
 
         # Libaries to link in
         default = []
@@ -4084,6 +4200,7 @@ class VS2003FileConfiguration(VS2003XML):
 
     Attributes:
         configuration: Parent configuration
+        source_file: Source code file
     """
 
     def __init__(self, configuration, base_name, source_file):
@@ -4223,8 +4340,9 @@ class VS2003FileConfiguration(VS2003XML):
                         element_dict[item] = value
 
         # Were there any overrides?
+        source_file = self.source_file
         cmd, description, outputs = make_command(
-            element_dict, self.source_file)
+            element_dict, source_file)
         if cmd:
             element = VS2003Tool("VCCustomBuildTool")
             self.add_element(element)
