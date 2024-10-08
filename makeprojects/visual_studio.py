@@ -1633,6 +1633,100 @@ def StructMemberAlignment(configuration, fallback=None):
          ("/Zp8", "8", "8 Bytes"),
          ("/Zp16", "16", "16 Bytes")))
 
+########################################
+
+
+def BufferSecurityCheck(configuration, fallback=None):
+    """
+    Create ``BufferSecurityCheck`` property.
+
+    Check for buffer overruns; useful for closing hackable loopholes
+    on internet servers; ignored for projects using managed extensions.
+
+    Compiler switch /GS
+
+    Can be overridden with configuration attribute
+    ``vs_BufferSecurityCheck`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "BufferSecurityCheck",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def EnableFunctionLevelLinking(configuration, fallback=None):
+    """
+    Create ``EnableFunctionLevelLinking`` property.
+
+    Enables function-level linking; required for Edit and Continue to work.
+
+    Compiler switch /Gy
+
+    Can be overridden with configuration attribute
+    ``vs_EnableFunctionLevelLinking`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "EnableFunctionLevelLinking",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def EnableEnhancedInstructionSet(configuration, fallback=None):
+    """
+    Create ``EnableEnhancedInstructionSet`` property.
+
+    Set the instruction set extensions allowed.
+
+    Compiler switches /arch:SSE, /arch:SSE2
+
+    Can be overridden with configuration attribute
+    ``vs_EnableEnhancedInstructionSet`` for the C compiler.
+
+    * "Default"
+    * "/arch:SSE", "SSE"
+    * "/arch:SSE2", "SSE2"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_EnableEnhancedInstructionSet")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "EnableEnhancedInstructionSet",
+        fallback,
+        ("Default",
+        ("/arch:SSE", "SSE"),
+        ("/arch:SSE2", "SSE2")))
+
 # Boolean properties
 
 
@@ -1738,45 +1832,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
     return None
-
-
-def BoolBufferSecurityCheck(configuration):
-    """ BufferSecurityCheck
-
-    Check for buffer overruns; useful for closing hackable loopholes
-    on internet servers; ignored for projects using managed extensions.
-
-    Compiler switch /GS
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "BufferSecurityCheck", configuration,
-        bool(configuration.debug),
-        options_key="compiler_options",
-        options=(("/GS", True),))
-
-
-def BoolEnableFunctionLevelLinking(configuration):
-    """ EnableFunctionLevelLinking
-
-    Enables function-level linking; required for Edit and Continue to work.
-
-    Compiler switch /Gy
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "EnableFunctionLevelLinking", configuration,
-        True,
-        options_key="compiler_options",
-        options=(("/Gy", True),))
 
 
 def BoolFloatingPointExceptions(configuration):
@@ -3061,22 +3116,16 @@ class VCCLCompilerTool(VS2003Tool):
         # Structure alignment
         self.add_default(StructMemberAlignment(configuration, "8 Bytes"))
 
-        # WIP below
         # Check for buffer overrun
-        self.add_default(BoolBufferSecurityCheck(configuration))
+        self.add_default(BufferSecurityCheck(configuration, bool(debug)))
 
         # Function level linking
-        self.add_default(BoolEnableFunctionLevelLinking(configuration))
+        self.add_default(EnableFunctionLevelLinking(configuration, True))
 
         # Enhanced instruction set
-        default = None
-        self.add_default(
-            VSEnumProperty(
-                "EnableEnhancedInstructionSet", default,
-                ("Default",
-                 ("/arch:SSE", "SSE"),
-                 ("/arch:SSE2", "SSE2"))))
+        self.add_default(EnableEnhancedInstructionSet(configuration))
 
+        # WIP below
         # Floating point precision
         if ide > IDETypes.vs2003:
             default = "/fp:fast"
