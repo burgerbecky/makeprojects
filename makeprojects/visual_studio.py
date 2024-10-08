@@ -1104,6 +1104,128 @@ def OptimizeForWindowsApplication(configuration, fallback=None):
             fallback=fallback)
     return None
 
+########################################
+
+
+def WholeProgramOptimization(configuration, fallback=None):
+    """
+    Create ``WholeProgramOptimization`` property.
+
+    Enables cross-module optimizations by delaying code generation to link
+    time; requires that linker option ``Link Time Code Generation`` be turned
+    on.
+
+    Compiler switch /GL
+
+    Can be overridden with configuration attribute
+    ``vs_WholeProgramOptimization`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or VSBooleanProperty object.
+    """
+
+    if configuration.ide is not IDETypes.vs2003:
+        return VSBooleanProperty.vs_validate(
+            "WholeProgramOptimization",
+            configuration,
+            fallback=fallback)
+    return None
+
+########################################
+
+
+def AdditionalIncludeDirectories(configuration, fallback=None):
+    """
+    Create ``AdditionalIncludeDirectories`` property.
+
+    List of include folders for the C compiler
+
+    Can be overridden with configuration attribute
+    ``vs_AdditionalIncludeDirectories`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_unique_chained_list(
+        "vs_AdditionalIncludeDirectories")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "AdditionalIncludeDirectories",
+        fallback=fallback,
+        slashes="\\")
+
+########################################
+
+
+def AdditionalUsingDirectories(configuration, fallback=None):
+    """
+    Create ``AdditionalUsingDirectories`` property.
+
+    List of include folders for the #using operation.
+
+    Can be overridden with configuration attribute
+    ``vs_AdditionalUsingDirectories`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_unique_chained_list(
+        "vs_AdditionalUsingDirectories")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "AdditionalUsingDirectories",
+        fallback=fallback,
+        slashes="\\")
+
+########################################
+
+
+def PreprocessorDefinitions(configuration, fallback=None):
+    """
+    Create ``PreprocessorDefinitions`` property.
+
+    List of defines to pass to the C compiler
+
+    Can be overridden with configuration attribute
+    ``vs_PreprocessorDefinitions`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list(
+        "vs_PreprocessorDefinitions")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "PreprocessorDefinitions",
+        fallback=fallback)
 
 # Boolean properties
 
@@ -1210,27 +1332,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
     return None
-
-
-def BoolWholeProgramOptimization(configuration):
-    """ WholeProgramOptimization
-
-    Enables cross-module optimizations by delaying code generation to link
-    time; requires that linker option ``Link Time Code Generation`` be turned
-    on.
-
-    Compiler switch /GL
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "WholeProgramOptimization", configuration,
-        configuration.link_time_code_generation,
-        options_key="compiler_options",
-        options=(("/GT", True),))
 
 
 def BoolIgnoreStandardIncludePath(configuration):
@@ -2624,36 +2725,35 @@ class VCCLCompilerTool(VS2003Tool):
                 configuration,
                 True))
 
-        # WIP below
         # Enable cross function optimizations
-        if configuration.ide is not IDETypes.vs2003:
-            self.add_default(
-                BoolWholeProgramOptimization(configuration))
+        self.add_default(
+            WholeProgramOptimization(
+                configuration,
+                configuration.link_time_code_generation))
 
         # Get the header includes
-        default = configuration.get_unique_chained_list(
+        item = configuration.get_unique_chained_list(
             "_source_include_list")
-        default.extend(configuration.get_unique_chained_list(
+        item.extend(configuration.get_unique_chained_list(
             "include_folders_list"))
-        self.add_default(VSStringListProperty(
-            "AdditionalIncludeDirectories",
-            default,
-            slashes="\\"))
+        self.add_default(
+            AdditionalIncludeDirectories(
+                configuration,
+                item))
 
         # Directory for #using includes
         self.add_default(
-            VSStringListProperty(
-                "AdditionalUsingDirectories",
-                [],
-                slashes="\\"))
+            AdditionalUsingDirectories(
+                configuration))
 
         # Get the defines
-        define_list = configuration.get_chained_list("define_list")
+        item = configuration.get_chained_list("define_list")
         self.add_default(
-            VSStringListProperty(
-                "PreprocessorDefinitions",
-                define_list))
+            PreprocessorDefinitions(
+                configuration,
+                item))
 
+        # WIP below
         # Ignore standard include path if true
         self.add_default(BoolIgnoreStandardIncludePath(configuration))
 
