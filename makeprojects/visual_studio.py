@@ -714,7 +714,7 @@ def UseUnicodeResponseFiles(configuration, prefix=None):
        validators.VSBooleanProperty object.
     """
 
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "UseUnicodeResponseFiles", configuration, prefix=prefix)
     return None
@@ -816,6 +816,7 @@ def GlobalOptimizations(configuration, fallback=None):
     Returns:
         None or validators.VSBooleanProperty object.
     """
+
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "GlobalOptimizations",
@@ -917,6 +918,7 @@ def ImproveFloatingPointConsistency(configuration, fallback=None):
     Returns:
         None or validators.VSBooleanProperty object.
     """
+
     if configuration.ide is IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "ImproveFloatingPointConsistency",
@@ -965,6 +967,142 @@ def FavorSizeOrSpeed(configuration, fallback=None):
         ("Neither",
          ("/Ot", "Favor Fast Code"),
          ("/Os", "Favor Small Code")))
+
+########################################
+
+
+def OmitFramePointers(configuration, fallback=None):
+    """
+    Create ``OmitFramePointers`` property.
+
+    Suppress frame pointers.
+
+    Compiler switch /Oy
+
+    Can be overridden with configuration attribute
+    ``vs_OmitFramePointers`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "OmitFramePointers",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def EnableFiberSafeOptimizations(configuration, fallback=None):
+    """
+    Create ``EnableFiberSafeOptimizations`` property.
+
+    Enables memory space optimization when using fibers and thread local
+    torage access.
+
+    Compiler switch /GT
+
+    Can be overridden with configuration attribute
+    ``vs_EnableFiberSafeOptimizations`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "EnableFiberSafeOptimizations",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def OptimizeForProcessor(configuration, fallback=None):
+    """
+    Create ``OptimizeForProcessor`` property.
+
+    Determine if optimizations should focus on specific Pentium processors.
+
+    Compiler switches /G5, /G6, /G7
+
+    Can be overridden with configuration attribute
+    ``vs_OptimizeForProcessor`` for the C compiler.
+
+    Acceptable inputs are:
+
+    * "Blended"
+    * "/G5" / "Pentium"
+    * "/G6" / "Pentium Pro" / "Pentium II" / "Pentium III"
+    * "/G7" / "Pentium IV" / "Pentium 4"
+    * 0 through 3
+
+    Note:
+        Only available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       None or validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_OptimizeForProcessor")
+    if value is not None:
+        fallback = value
+
+    # Only available on VS 2003
+    if configuration.ide is IDETypes.vs2003:
+        return VSEnumProperty(
+            "OptimizeForProcessor",
+            fallback,
+            ("Blended",
+             ("/G5", "Pentium"),
+             ("/G6", "Pentium Pro", "Pentium II", "Pentium III"),
+             ("/G7", "Pentium IV", "Pentium 4")))
+    return None
+
+########################################
+
+
+def OptimizeForWindowsApplication(configuration, fallback=None):
+    """
+    Create ``OptimizeForWindowsApplication`` property.
+
+    Specify whether to optimize code in favor of Windows.EXE execution.
+
+    Compiler switch /GA
+
+    Can be overridden with configuration attribute
+    ``vs_OptimizeForWindowsApplication`` for the C compiler.
+
+    Note:
+        Only available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    if configuration.ide is IDETypes.vs2003:
+        return VSBooleanProperty.vs_validate(
+            "OptimizeForWindowsApplication",
+            configuration,
+            fallback=fallback)
+    return None
 
 
 # Boolean properties
@@ -1029,7 +1167,7 @@ def BoolLinkLibraryDependencies(configuration):
     Returns:
         None or VSBooleanProperty object.
     """
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "LinkLibraryDependencies", configuration)
     return None
@@ -1049,7 +1187,7 @@ def BoolUseLibraryDependencyInputs(configuration):
     Returns:
         None or VSBooleanProperty object.
     """
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "UseLibraryDependencyInputs", configuration)
     return None
@@ -1074,45 +1212,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     return None
 
 
-def BoolOmitFramePointers(configuration):
-    """ OmitFramePointers
-
-    Suppress frame pointers.
-
-    Compiler switch /Oy
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "OmitFramePointers", configuration,
-        configuration.optimization,
-        options_key="compiler_options",
-        options=(("/Oy", True),))
-
-
-def BoolEnableFiberSafeOptimizations(configuration):
-    """ EnableFiberSafeOptimizations
-
-    Enables memory space optimization when using fibers and thread local
-    torage access.
-
-    Compiler switch /GT
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "EnableFiberSafeOptimizations", configuration,
-        configuration.optimization,
-        options_key="compiler_options",
-        options=(("/GT", True),))
-
-
 def BoolWholeProgramOptimization(configuration):
     """ WholeProgramOptimization
 
@@ -1132,30 +1231,6 @@ def BoolWholeProgramOptimization(configuration):
         configuration.link_time_code_generation,
         options_key="compiler_options",
         options=(("/GT", True),))
-
-
-def BoolOptimizeForWindowsApplication(configuration):
-    """ OptimizeForWindowsApplication
-
-    Specify whether to optimize code in favor of Windows.EXE execution.
-
-    Compiler switch /GA
-
-    Note:
-        Only available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide is IDETypes.vs2003:
-        # Default to True because it's 2022.
-        return VSBooleanProperty.vs_validate(
-            "OptimizeForWindowsApplication", configuration,
-            True,
-            options_key="compiler_options",
-            options=(("/GA", True),))
-    return None
 
 
 def BoolIgnoreStandardIncludePath(configuration):
@@ -1329,7 +1404,7 @@ def BoolFloatingPointExceptions(configuration):
     Returns:
         None or VSBooleanProperty object.
     """
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "FloatingPointExceptions", configuration,
             options_key="compiler_options",
@@ -1443,7 +1518,7 @@ def BoolOpenMP(configuration):
         None or VSBooleanProperty object.
     """
 
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "OpenMP", configuration,
             options_key="compiler_options",
@@ -1483,7 +1558,7 @@ def BoolGenerateXMLDocumentationFiles(configuration):
     Returns:
         None or VSBooleanProperty object.
     """
-    if configuration.ide > IDETypes.vs2003:
+    if configuration.ide is not IDETypes.vs2003:
         return VSBooleanProperty.vs_validate(
             "GenerateXMLDocumentationFiles", configuration,
             options_key="compiler_options",
@@ -2506,7 +2581,7 @@ class VCCLCompilerTool(VS2003Tool):
         self.add_default(
             GlobalOptimizations(
                 configuration,
-                configuration.link_time_code_generation))
+                configuration.optimization))
 
         # Inline functions
         item = "Any Suitable" if optimization else None
@@ -2525,27 +2600,35 @@ class VCCLCompilerTool(VS2003Tool):
         self.add_default(FavorSizeOrSpeed(configuration, "Favor Fast Code"))
 
         # Get rid of stack frame pointers for speed
-        self.add_default(BoolOmitFramePointers(configuration))
+        self.add_default(
+            OmitFramePointers(
+                configuration,
+                configuration.optimization))
 
         # Enable memory optimizations for fibers
-        self.add_default(BoolEnableFiberSafeOptimizations(configuration))
-
-        # Enable cross function optimizations
         self.add_default(
-            BoolWholeProgramOptimization(configuration))
+            EnableFiberSafeOptimizations(
+                configuration,
+                configuration.optimization))
 
         # Build for Pentium, Pro, P4
-        if ide is IDETypes.vs2003:
-            self.add_default(
-                VSEnumProperty(
-                    "OptimizeForProcessor", "/G7",
-                    ("Blended",
-                     ("/G5", "Pentium"),
-                     ("/G6", "Pentium Pro", "Pentium II", "Pentium III"),
-                     ("/G7", "Pentium IV", "Pentium 4"))))
+        self.add_default(
+            OptimizeForProcessor(
+                configuration,
+                "Pentium 4"))
 
         # Optimize for Windows Applications
-        self.add_default(BoolOptimizeForWindowsApplication(configuration))
+        # Default to True because it's the 21st century.
+        self.add_default(
+            OptimizeForWindowsApplication(
+                configuration,
+                True))
+
+        # WIP below
+        # Enable cross function optimizations
+        if configuration.ide is not IDETypes.vs2003:
+            self.add_default(
+                BoolWholeProgramOptimization(configuration))
 
         # Get the header includes
         default = configuration.get_unique_chained_list(
