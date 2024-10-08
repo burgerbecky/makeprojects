@@ -1451,6 +1451,187 @@ def ExceptionHandling(configuration, fallback=None):
         ("/EHsc", "Yes"),
         ("/EHa", "Yes with SEH", "Yes with SEH Exceptions", "SEH")))
 
+########################################
+
+
+def BasicRuntimeChecks(configuration, fallback=None):
+    """
+    Create ``BasicRuntimeChecks`` property.
+
+    Generate runtime code to verify the stack and uninitialized variables.
+
+    Compiler switches /RTCs, /RTCu, /RTC1
+
+    Can be overridden with configuration attribute
+    ``vs_BasicRuntimeChecks`` for the C compiler.
+
+    * "Default"
+    * "/RTCs" / "Stack" / "Stack Frames"
+    * "/RTCu" / "Uninitialzed" / "Uninitialized Variables"
+    * "/RTCsu" / "/RTC1" / "Both"
+    * 0 through 3
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_BasicRuntimeChecks")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "BasicRuntimeChecks",
+        fallback,
+        ("Default",
+         ("/RTCs", "Stack", "Stack Frames"),
+         ("/RTCu", "Uninitialzed", "Uninitialized Variables"),
+         ("/RTCsu", "/RTC1", "Both")))
+
+########################################
+
+
+def SmallerTypeCheck(configuration, fallback=None):
+    """
+    Create ``SmallerTypeCheck`` property.
+
+    Enable checking for conversion to smaller types, incompatible with
+    any optimization type other than debug.
+
+    Compiler switch /RTCc
+
+    Can be overridden with configuration attribute
+    ``vs_SmallerTypeCheck`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "SmallerTypeCheck",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def RuntimeLibrary(configuration, fallback=None):
+    """
+    Create ``RuntimeLibrary`` property.
+
+    Select runtime standard library to link with this code module.
+
+    Compiler switches /MT, /MTd, /MD, /MDd, /ML, /MLd
+
+    Can be overridden with configuration attribute
+    ``vs_RuntimeLibrary`` for the C compiler.
+
+    * "/MT" / "Multi-Threaded"
+    * "/MTd" / "Multi-Threaded Debug"
+    * "/MD" / "Multi-Threaded DLL"
+    * "/MDd" / "Multi-Threaded DLL Debug"
+    * "/ML" / "Single-Threaded"
+    * "/MLd" / "Single-Threaded Debug"
+    * 0 through 5
+
+    Note: The Single Threaded libraries are only available on Visual
+        Studio 2003. If 2005 or 2008 is generated, the Multi-Threaded
+        version is substituted.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_RuntimeLibrary")
+    if value is not None:
+        fallback = value
+
+    enum_list = [
+        ("/MT", "Multi-Threaded"),
+        ("/MTd", "Multi-Threaded Debug"),
+        ("/MD", "Multi-Threaded DLL"),
+        ("/MDd", "Multi-Threaded DLL Debug")]
+
+    # Visual Studio 2003 support single threaded libraries
+    if configuration.ide is IDETypes.vs2003:
+        enum_list.extend([
+            ("/ML", "Single-Threaded"),
+            ("/MLd", "Single-Threaded Debug")])
+    else:
+        # Perform substitution from single threaded
+        # to multi-threaded
+        sub_dict = {
+            "/ML": "/MT",
+            "Single-Threaded": "/MT",
+            4: 2,
+            "/MLd": "/MTd",
+            "Single-Threaded Debug": "/MTd",
+            5: 3
+        }
+        fallback = sub_dict.get(fallback, fallback)
+
+    return VSEnumProperty(
+        "RuntimeLibrary",
+        fallback,
+        enum_list)
+
+########################################
+
+
+def StructMemberAlignment(configuration, fallback=None):
+    """
+    Create ``StructMemberAlignment`` property.
+
+    Set the default structure byte alignment.
+
+    Compiler switches /Zp1, /Zp2, /Zp4, /Zp8, /Zp16
+
+    Can be overridden with configuration attribute
+    ``vs_StructMemberAlignment`` for the C compiler.
+
+    * "Default"
+    * "/Zp1" / "1" / "1 Byte"
+    * "/Zp2" / "2" / "2 Bytes"
+    * "/Zp4" / "4" / "4 Bytes"
+    * "/Zp8" / "8" / "8 Bytes"
+    * "/Zp16" / "16" / "16 Bytes"
+    * 0 through 5
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_StructMemberAlignment")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "StructMemberAlignment",
+        fallback,
+        ("Default",
+         ("/Zp1", "1", "1 Byte"),
+         ("/Zp2", "2", "2 Bytes"),
+         ("/Zp4", "4", "4 Bytes"),
+         ("/Zp8", "8", "8 Bytes"),
+         ("/Zp16", "16", "16 Bytes")))
 
 # Boolean properties
 
@@ -1557,26 +1738,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
     return None
-
-
-def BoolSmallerTypeCheck(configuration):
-    """ SmallerTypeCheck
-
-    Enable checking for conversion to smaller types, incompatible with
-    any optimization type other than debug.
-
-    Compiler switch /RTCc
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "SmallerTypeCheck", configuration,
-        None,
-        options_key="compiler_options",
-        options=(("/RTCc", True),))
 
 
 def BoolBufferSecurityCheck(configuration):
@@ -2781,6 +2942,8 @@ class VCCLCompilerTool(VS2003Tool):
             configuration: Configuration record to extract defaults.
         """
 
+        # pylint: disable=too-many-statements
+
         self.configuration = configuration
 
         # Set the tag
@@ -2807,9 +2970,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Global optimizations (2003 only)
         self.add_default(
-            GlobalOptimizations(
-                configuration,
-                configuration.optimization))
+            GlobalOptimizations(configuration, optimization))
 
         # Inline functions
         item = "Any Suitable" if optimization else None
@@ -2817,9 +2978,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Enable intrinsics
         self.add_default(
-            EnableIntrinsicFunctions(
-                configuration,
-                configuration.optimization))
+            EnableIntrinsicFunctions(configuration, optimization))
 
         # True if floating point consistency is important (2003 only)
         self.add_default(ImproveFloatingPointConsistency(configuration))
@@ -2829,28 +2988,20 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Get rid of stack frame pointers for speed
         self.add_default(
-            OmitFramePointers(
-                configuration,
-                configuration.optimization))
+            OmitFramePointers(configuration, optimization))
 
         # Enable memory optimizations for fibers
         self.add_default(
-            EnableFiberSafeOptimizations(
-                configuration,
-                configuration.optimization))
+            EnableFiberSafeOptimizations(configuration, optimization))
 
         # Build for Pentium, Pro, P4
         self.add_default(
-            OptimizeForProcessor(
-                configuration,
-                "Pentium 4"))
+            OptimizeForProcessor(configuration, "Pentium 4"))
 
         # Optimize for Windows Applications
         # Default to True because it's the 21st century.
         self.add_default(
-            OptimizeForWindowsApplication(
-                configuration,
-                True))
+            OptimizeForWindowsApplication(configuration, True))
 
         # Enable cross function optimizations
         self.add_default(
@@ -2864,21 +3015,16 @@ class VCCLCompilerTool(VS2003Tool):
         item.extend(configuration.get_unique_chained_list(
             "include_folders_list"))
         self.add_default(
-            AdditionalIncludeDirectories(
-                configuration,
-                item))
+            AdditionalIncludeDirectories(configuration, item))
 
         # Directory for #using includes
         self.add_default(
-            AdditionalUsingDirectories(
-                configuration))
+            AdditionalUsingDirectories(configuration))
 
         # Get the defines
         item = configuration.get_chained_list("define_list")
         self.add_default(
-            PreprocessorDefinitions(
-                configuration,
-                item))
+            PreprocessorDefinitions(configuration, item))
 
         # Ignore standard include path if true
         self.add_default(IgnoreStandardIncludePath(configuration))
@@ -2901,44 +3047,21 @@ class VCCLCompilerTool(VS2003Tool):
                 configuration,
                 configuration.exceptions))
 
-        # WIP below
         # Runtime checks (Only valid if no optimizations)
-        default = None if optimization else "Both"
-        self.add_default(
-            VSEnumProperty(
-                "BasicRuntimeChecks", default,
-                ("Default", ("/RTCs", "Stack", "Stack Frames"),
-                 ("/RTCu", "Uninitialzed", "Uninitialized Variables"),
-                 ("/RTCsu", "/RTC1", "Both"))))
+        item = None if optimization else "Both"
+        self.add_default(BasicRuntimeChecks(configuration, item))
 
         # Test for data size shrinkage (Only valid if no optimizations)
-        self.add_default(BoolSmallerTypeCheck(configuration))
+        self.add_default(SmallerTypeCheck(configuration))
 
         # Which run time library to use?
-        default = "/MTd" if debug else "/MT"
-        enum_list = [("/MT", "Multi-Threaded"),
-                   ("/MTd", "Multi-Threaded Debug"),
-            ("/MD", "Multi-Threaded DLL"),
-            ("/MDd", "Multi-Threaded DLL Debug")]
-
-        # Visual Studio 2003 support single threaded libraries
-        if ide is IDETypes.vs2003:
-            enum_list.extend([("/ML", "Single-Threaded"),
-                              ("/MLd", "Single-Threaded Debug")])
-        self.add_default(
-            VSEnumProperty("RuntimeLibrary", default, enum_list))
+        item = "Multi-Threaded Debug" if debug else "Multi-Threaded"
+        self.add_default(RuntimeLibrary(configuration, item))
 
         # Structure alignment
-        self.add_default(
-            VSEnumProperty(
-                "StructMemberAlignment", "/Zp8",
-                ("Default",
-                 ("/Zp1", "1", "1 Byte"),
-                 ("/Zp2", "2", "2 Bytes"),
-                 ("/Zp4", "4", "4 Bytes"),
-                 ("/Zp8", "8", "8 Bytes"),
-                 ("/Zp16", "16", "16 Bytes"))))
+        self.add_default(StructMemberAlignment(configuration, "8 Bytes"))
 
+        # WIP below
         # Check for buffer overrun
         self.add_default(BoolBufferSecurityCheck(configuration))
 
