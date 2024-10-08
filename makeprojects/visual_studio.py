@@ -42,7 +42,7 @@ from re import compile as re_compile
 from hashlib import md5
 from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     escape_xml_cdata, escape_xml_attribute, where_is_visual_studio, \
-    load_text_file
+    load_text_file, string_to_bool
 
 try:
     from wslwinreg import convert_to_windows_path
@@ -1056,13 +1056,14 @@ def OptimizeForProcessor(configuration, fallback=None):
        None or validators.VSEnumProperty object.
     """
 
-    # Was there an override?
-    value = configuration.get_chained_value("vs_OptimizeForProcessor")
-    if value is not None:
-        fallback = value
-
     # Only available on VS 2003
     if configuration.ide is IDETypes.vs2003:
+
+        # Was there an override?
+        value = configuration.get_chained_value("vs_OptimizeForProcessor")
+        if value is not None:
+            fallback = value
+
         return VSEnumProperty(
             "OptimizeForProcessor",
             fallback,
@@ -1125,7 +1126,7 @@ def WholeProgramOptimization(configuration, fallback=None):
         fallback: Default value to use
 
     Returns:
-        None or VSBooleanProperty object.
+        None or validators.VSBooleanProperty object.
     """
 
     if configuration.ide is not IDETypes.vs2003:
@@ -1173,7 +1174,7 @@ def AdditionalUsingDirectories(configuration, fallback=None):
     """
     Create ``AdditionalUsingDirectories`` property.
 
-    List of include folders for the #using operation.
+    List of include folders for the # using operation.
 
     Can be overridden with configuration attribute
     ``vs_AdditionalUsingDirectories`` for the C compiler.
@@ -1226,6 +1227,230 @@ def PreprocessorDefinitions(configuration, fallback=None):
     return VSStringListProperty(
         "PreprocessorDefinitions",
         fallback=fallback)
+
+########################################
+
+
+def IgnoreStandardIncludePath(configuration, fallback=None):
+    """
+    Create ``IgnoreStandardIncludePath`` property.
+
+    Ignore standard include paths.
+
+    Compiler switch /X
+
+    Can be overridden with configuration attribute
+    ``vs_IgnoreStandardIncludePath`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "IgnoreStandardIncludePath",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def GeneratePreprocessedFile(configuration, fallback=None):
+    """
+    Create ``GeneratePreprocessedFile`` property.
+
+    Determine if a preprocessed file is to be generated.
+
+    Compiler switches /P, /EP
+
+    Can be overridden with configuration attribute
+    ``vs_GeneratePreprocessedFile`` for the C compiler.
+
+    Acceptable inputs are:
+
+    * "No"
+    * "/P" / "With Line Numbers"
+    * "/EP" / "Without Line Numbers"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_GeneratePreprocessedFile")
+    if value is not None:
+        fallback = value
+
+    # The settings are the same on 2003, 2005, and 2008
+    return VSEnumProperty(
+        "GeneratePreprocessedFile",
+        fallback,
+        ("No",
+         ("/P", "With Line Numbers"),
+         ("/EP", "/EP /P", "Without Line Numbers")))
+
+########################################
+
+
+def KeepComments(configuration, fallback=None):
+    """
+    Create ``KeepComments`` property.
+
+    Suppresses comment strip from source code; requires that one of the
+    ``Preprocessing`` options be set.
+
+    Compiler switch /C
+
+    Can be overridden with configuration attribute
+    ``vs_KeepComments`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "KeepComments",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def StringPooling(configuration, fallback=None):
+    """
+    Create ``StringPooling`` property.
+
+    Enable read-only string pooling for generating smaller compiled code.
+
+    Compiler switch /GF
+
+    Can be overridden with configuration attribute
+    ``vs_StringPooling`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "StringPooling",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def MinimalRebuild(configuration, fallback=None):
+    """
+    Create ``MinimalRebuild`` property.
+
+    Detect changes to C++ class definitions and recompile only affected
+    source files.
+
+    Compiler switch /Gm
+
+    Can be overridden with configuration attribute
+    ``vs_MinimalRebuild`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "MinimalRebuild",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def ExceptionHandling(configuration, fallback=None):
+    """
+    Create ``ExceptionHandling`` property.
+
+    Calls destructors for automatic objects during a strack unwind caused
+    by an exceptions being thrown.
+
+    Compiler switches /EHsc, /EHa
+
+    Can be overridden with configuration attribute
+    ``vs_ExceptionHandling`` for the C compiler.
+
+    * "No"
+    * "/EHsc" / "Yes"
+    * "/EHa" / "Yes with SEH" / "Yes with SEH Exceptions" / "SEH"
+    * 0 through 2
+
+    Note:
+        A boolean on Visual Studio 2003, an enum on 2005/2008
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty or validators.VSBooleanProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_ExceptionHandling")
+    if value is not None:
+        fallback = value
+
+    # Visual Studio 2003 only has "Yes" or "No"
+    # So, convert the value into a boolean
+    if configuration.ide is IDETypes.vs2003:
+
+        # Is there a value?
+        # Try the easy way first, is it a number, "Yes", "True"?
+        try:
+            fallback = string_to_bool(fallback)
+
+        # Assume exceptions are requested
+        except ValueError:
+            fallback = True
+
+        # Enable/Disable exceptions
+        return VSBooleanProperty(
+            "ExceptionHandling",
+            fallback)
+
+    # Visual Studio 2005, 2008 version uses enums
+
+    # If a bool, use /EHsc if True
+    if isinstance(fallback, bool):
+        fallback = "Yes" if fallback else "No"
+
+    # If none, turn off Exceptions
+    if fallback is None:
+        fallback = "No"
+
+    return VSEnumProperty(
+        "ExceptionHandling",
+        fallback,
+        ("No",
+        ("/EHsc", "Yes"),
+        ("/EHa", "Yes with SEH", "Yes with SEH Exceptions", "SEH")))
+
 
 # Boolean properties
 
@@ -1331,104 +1556,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     if configuration.ide < IDETypes.vs2008:
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
-    return None
-
-
-def BoolIgnoreStandardIncludePath(configuration):
-    """ IgnoreStandardIncludePath
-
-    Ignore standard include paths.
-
-    Compiler switch /X
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "IgnoreStandardIncludePath", configuration,
-        options_key="compiler_options",
-        options=(("/X", True),))
-
-
-def BoolKeepComments(configuration):
-    """ KeepComments
-
-    Suppresses comment strip from source code; requires that one of the
-    ``Preprocessing`` options be set.
-
-    Compiler switch /C
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "KeepComments", configuration,
-        options_key="compiler_options",
-        options=(("/C", True),))
-
-
-def BoolStringPooling(configuration):
-    """ StringPooling
-
-    Enable read-only string pooling for generating smaller compiled code.
-
-    Compiler switch /GF
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "StringPooling", configuration, True,
-        options_key="compiler_options",
-        options=(("/GF", True),))
-
-
-def BoolMinimalRebuild(configuration):
-    """ MinimalRebuild
-
-    Detect changes to C++ class definitions and recompile only affected
-    source files.
-
-    Compiler switch /Gm
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "MinimalRebuild", configuration,
-        options_key="compiler_options",
-        options=(("/Gm", True),))
-
-
-def BoolExceptionHandling(configuration):
-    """ ExceptionHandling
-
-    Calls destructors for automatic objects during a strack unwind caused
-    by an exceptions being thrown.
-
-    Compiler switches /EHsc, /EHa
-
-    Note:
-        A boolean on Visual Studio 2003, an enum on 2005/2008
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide is IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "ExceptionHandling", configuration,
-            bool(configuration.exceptions),
-            options_key="compiler_options",
-            options=(("/EHsc", True), ("/EHa", True)))
     return None
 
 
@@ -2753,37 +2880,28 @@ class VCCLCompilerTool(VS2003Tool):
                 configuration,
                 item))
 
-        # WIP below
         # Ignore standard include path if true
-        self.add_default(BoolIgnoreStandardIncludePath(configuration))
+        self.add_default(IgnoreStandardIncludePath(configuration))
 
         # Create a preprocessed file
-        self.add_default(
-            VSEnumProperty("GeneratePreprocessedFile", None,
-                         ("No",
-                          ("/P", "With Line Numbers"),
-                          ("/EP", "/EP /P", "Without Line Numbers"))))
+        self.add_default(GeneratePreprocessedFile(configuration))
 
         # Keep comments in a preprocessed file
-        self.add_default(BoolKeepComments(configuration))
+        self.add_default(KeepComments(configuration))
 
         # Pool all constant strings
-        self.add_default(BoolStringPooling(configuration))
+        self.add_default(StringPooling(configuration, True))
 
         # Enable code analysis for minimal rebuild
-        self.add_default(BoolMinimalRebuild(configuration))
+        self.add_default(MinimalRebuild(configuration))
 
-        self.add_default(BoolExceptionHandling(configuration))
+        # Set up exceptions
+        self.add_default(
+            ExceptionHandling(
+                configuration,
+                configuration.exceptions))
 
-        if ide > IDETypes.vs2003:
-            default = "Yes" if configuration.exceptions else "No"
-            self.add_default(
-                VSEnumProperty(
-                    "ExceptionHandling", default,
-                    ("No",
-                     ("/EHsc", "Yes"),
-                     ("/EHa", "Yes with SEH", "Yes with SEH Exceptions"))))
-
+        # WIP below
         # Runtime checks (Only valid if no optimizations)
         default = None if optimization else "Both"
         self.add_default(
@@ -2799,9 +2917,9 @@ class VCCLCompilerTool(VS2003Tool):
         # Which run time library to use?
         default = "/MTd" if debug else "/MT"
         enum_list = [("/MT", "Multi-Threaded"),
-                     ("/MTd", "Multi-Threaded Debug"),
-                     ("/MD", "Multi-Threaded DLL"),
-                     ("/MDd", "Multi-Threaded DLL Debug")]
+                   ("/MTd", "Multi-Threaded Debug"),
+            ("/MD", "Multi-Threaded DLL"),
+            ("/MDd", "Multi-Threaded DLL Debug")]
 
         # Visual Studio 2003 support single threaded libraries
         if ide is IDETypes.vs2003:
@@ -2870,8 +2988,8 @@ class VCCLCompilerTool(VS2003Tool):
         # Enable precompiled headers
         default = None
         enum_list = [("No", "Not using"),
-                     ("/Yc", "Create"),
-                     ("/Yu", "Use")]
+                   ("/Yc", "Create"),
+            ("/Yu", "Use")]
 
         # Visual Studio 2003 supports automatic generation
         if ide is IDETypes.vs2003:
@@ -2951,11 +3069,11 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Debug information type
         enum_list = [("Off", "No", "None", "Disabled"),
-                     ("/C7", "C7 Compatible"),
-                     # Hidden in 2005/2008 (maps to C7)
-                     ("/Zd", "Line Numbers", "Line Numbers Only"),
-                     ("/Zi", "Program Database"),
-                     ("/ZI", "Edit and Continue")]
+                   ("/C7", "C7 Compatible"),
+            # Hidden in 2005/2008 (maps to C7)
+            ("/Zd", "Line Numbers", "Line Numbers Only"),
+            ("/Zi", "Program Database"),
+            ("/ZI", "Edit and Continue")]
 
         default = None
         if debug or project_type.is_library():
@@ -3297,8 +3415,8 @@ class VCLinkerTool(VS2003Tool):
         # Subsystem to link to
         default = "Console" if project_type is ProjectTypes.tool else "Windows"
         enum_list = [("No", "None"),
-                     ("/SUBSYSTEM:CONSOLE", "Console"),
-                     ("/SUBSYSTEM:WINDOWS", "Windows")]
+                   ("/SUBSYSTEM:CONSOLE", "Console"),
+            ("/SUBSYSTEM:WINDOWS", "Windows")]
 
         if ide > IDETypes.vs2003:
             enum_list.extend([
@@ -3457,7 +3575,7 @@ class VCLinkerTool(VS2003Tool):
         # Target machine to build data for.
         default = None
         enum_list = [("Default", "Not Set"),
-                     ("/MACHINE:X86", "X86")]
+                   ("/MACHINE:X86", "X86")]
 
         # Visual Studio 2005 and 2008 support other CPUs
         if ide > IDETypes.vs2003:
@@ -4347,19 +4465,23 @@ class VS2003Configuration(VS2003XML):
 
         if platform.is_windows():
             self.vcmidltool = VCMIDLTool(configuration)
-            self.vcmanagedresourcecompilertool = VCManagedResourceCompilerTool(
-                configuration)
+            self.vcmanagedresourcecompilertool = \
+                VCManagedResourceCompilerTool(
+                    configuration)
             self.vcresourcecompilertool = VCResourceCompilerTool(configuration)
             self.vcxmldatageneratortool = VCXMLDataGeneratorTool(configuration)
             self.vcwebserviceproxygeneratortool = \
-                VCWebServiceProxyGeneratorTool(configuration)
+                VCWebServiceProxyGeneratorTool(
+                    configuration)
             if ide < IDETypes.vs2008:
                 self.vcwebdeploymenttool = VCWebDeploymentTool(configuration)
             if ide is IDETypes.vs2003:
                 self.vcmanagedwrappergeneratortool = \
-                    VCManagedWrapperGeneratorTool(configuration)
+                    VCManagedWrapperGeneratorTool(
+                        configuration)
                 self.vcauxiliarymanagedwrappedgeneratortool = \
-                    VCAuxiliaryManagedWrapperGeneratorTool(configuration)
+                    VCAuxiliaryManagedWrapperGeneratorTool(
+                        configuration)
 
         self.xboxdeploymenttool = None
         self.xboximagetool = None
