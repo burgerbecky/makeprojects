@@ -711,13 +711,16 @@ def UseUnicodeResponseFiles(configuration, prefix=None):
         configuration: Project configuration to scan for overrides.
         prefix: Prefix string for override
     Returns:
-       validators.VSBooleanProperty object.
+        validators.VSBooleanProperty object.
     """
 
-    if configuration.ide is not IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "UseUnicodeResponseFiles", configuration, prefix=prefix)
-    return None
+    # Only 2005 / 2008
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "UseUnicodeResponseFiles", configuration, prefix=prefix)
+
 
 ########################################
 
@@ -817,12 +820,15 @@ def GlobalOptimizations(configuration, fallback=None):
         None or validators.VSBooleanProperty object.
     """
 
-    if configuration.ide is IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "GlobalOptimizations",
-            configuration,
-            fallback=fallback)
-    return None
+    # Only 2003
+    if configuration.ide is not IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "GlobalOptimizations",
+        configuration,
+        fallback=fallback)
+
 
 ########################################
 
@@ -919,12 +925,15 @@ def ImproveFloatingPointConsistency(configuration, fallback=None):
         None or validators.VSBooleanProperty object.
     """
 
-    if configuration.ide is IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "ImproveFloatingPointConsistency",
-            configuration,
-            fallback=fallback)
-    return None
+    # Only 2003
+    if configuration.ide is not IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "ImproveFloatingPointConsistency",
+        configuration,
+        fallback=fallback)
+
 
 ########################################
 
@@ -1053,25 +1062,26 @@ def OptimizeForProcessor(configuration, fallback=None):
         fallback: Default value to use
 
     Returns:
-       None or validators.VSEnumProperty object.
+        None or validators.VSEnumProperty object.
     """
 
-    # Only available on VS 2003
-    if configuration.ide is IDETypes.vs2003:
+    # Only 2003
+    if configuration.ide is not IDETypes.vs2003:
+        return None
 
-        # Was there an override?
-        value = configuration.get_chained_value("vs_OptimizeForProcessor")
-        if value is not None:
-            fallback = value
+    # Was there an override?
+    value = configuration.get_chained_value("vs_OptimizeForProcessor")
+    if value is not None:
+        fallback = value
 
-        return VSEnumProperty(
-            "OptimizeForProcessor",
-            fallback,
-            ("Blended",
-             ("/G5", "Pentium"),
-             ("/G6", "Pentium Pro", "Pentium II", "Pentium III"),
-             ("/G7", "Pentium IV", "Pentium 4")))
-    return None
+    return VSEnumProperty(
+        "OptimizeForProcessor",
+        fallback,
+        ("Blended",
+        ("/G5", "Pentium"),
+        ("/G6", "Pentium Pro", "Pentium II", "Pentium III"),
+        ("/G7", "Pentium IV", "Pentium 4")))
+
 
 ########################################
 
@@ -1098,12 +1108,15 @@ def OptimizeForWindowsApplication(configuration, fallback=None):
         None or validators.VSBooleanProperty object.
     """
 
-    if configuration.ide is IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "OptimizeForWindowsApplication",
-            configuration,
-            fallback=fallback)
-    return None
+    # Only 2003
+    if configuration.ide is not IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "OptimizeForWindowsApplication",
+        configuration,
+        fallback=fallback)
+
 
 ########################################
 
@@ -1129,12 +1142,15 @@ def WholeProgramOptimization(configuration, fallback=None):
         None or validators.VSBooleanProperty object.
     """
 
-    if configuration.ide is not IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "WholeProgramOptimization",
-            configuration,
-            fallback=fallback)
-    return None
+    # Only 2005 / 2008
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "WholeProgramOptimization",
+        configuration,
+        fallback=fallback)
+
 
 ########################################
 
@@ -1727,6 +1743,254 @@ def EnableEnhancedInstructionSet(configuration, fallback=None):
         ("/arch:SSE", "SSE"),
         ("/arch:SSE2", "SSE2")))
 
+########################################
+
+
+def FloatingPointModel(configuration, fallback=None):
+    """
+    Create ``FloatingPointModel`` property.
+
+    Set the allowable precision for floating point math for speed.
+
+    Compiler switches /fp:precise, /fp:strict, /fp:fast
+
+    Can be overridden with configuration attribute
+    ``vs_FloatingPointModel`` for the C compiler.
+
+    * "/fp:precise" / "Precise"
+    * "/fp:strict" / "Strict"
+    * "/fp:fast" / "Fast"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSEnumProperty object.
+    """
+
+    # Only 2003
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_FloatingPointModel")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "FloatingPointModel",
+        fallback,
+        (("/fp:precise", "Precise"),
+         ("/fp:strict", "Strict"),
+         ("/fp:fast", "Fast")))
+
+########################################
+
+
+def FloatingPointExceptions(configuration, fallback=None):
+    """
+    Create ``FloatingPointExceptions`` property.
+
+    Enable floating point exceptions when generating code.
+
+    Compiler switch /fp:except
+
+    Can be overridden with configuration attribute
+    ``vs_FloatingPointExceptions`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # Only 2005/2008
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "FloatingPointExceptions",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def DisableLanguageExtensions(configuration, fallback=None):
+    """
+    Create ``DisableLanguageExtensions`` property.
+
+    Supresses or enables language extensions.
+
+    Compiler switch /Za
+
+    Can be overridden with configuration attribute
+    ``vs_DisableLanguageExtensions`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "DisableLanguageExtensions",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def DefaultCharIsUnsigned(configuration, fallback=None):
+    """
+    Create ``DefaultCharIsUnsigned`` property.
+
+    Sets the default char type to unsigned.
+
+    Compiler switch /J
+
+    Can be overridden with configuration attribute
+    ``vs_DefaultCharIsUnsigned`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "DefaultCharIsUnsigned",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def TreatWChar_tAsBuiltInType(configuration, fallback=None):
+    """
+    Create ``TreatWChar_tAsBuiltInType`` property.
+
+    Treats wchar_t as a built-in type.
+
+    Compiler switch /Zc:wchar_t
+
+    Can be overridden with configuration attribute
+    ``vs_TreatWChar_tAsBuiltInType`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "TreatWChar_tAsBuiltInType",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def ForceConformanceInForLoopScope(configuration, fallback=None):
+    """
+    Create ``ForceConformanceInForLoopScope`` property.
+
+    Forces the compiler to conform to the local scope in a for loop.
+
+    Compiler switch /Zc:forScope
+
+    Can be overridden with configuration attribute
+    ``vs_ForceConformanceInForLoopScope`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "ForceConformanceInForLoopScope",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def RuntimeTypeInfo(configuration, fallback=None):
+    """
+    Create ``RuntimeTypeInfo`` property.
+
+    Adds code for checking C++ object types at run time (runtime type
+    information)
+
+    Compiler switches /GR and /GR-
+
+    Can be overridden with configuration attribute
+    ``vs_RuntimeTypeInfo`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "RuntimeTypeInfo",
+        configuration,
+        fallback=fallback)
+
+########################################
+
+
+def OpenMP(configuration, fallback=None):
+    """
+    Create ``OpenMP`` property.
+
+    Enable OpenMP language extensions.
+
+    Compiler switch /openmp
+
+    Can be overridden with configuration attribute
+    ``vs_OpenMP`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # Only 2005/2008
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "OpenMP",
+        configuration,
+        fallback=fallback)
+
+
 # Boolean properties
 
 
@@ -1831,142 +2095,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     if configuration.ide < IDETypes.vs2008:
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
-    return None
-
-
-def BoolFloatingPointExceptions(configuration):
-    """ FloatingPointExceptions
-
-    Enable floating point exceptions when generating code.
-
-    Compiler switch /fp:except
-
-    Note:
-        Not available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide is not IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "FloatingPointExceptions", configuration,
-            options_key="compiler_options",
-            options=(("/fp:except", True),))
-    return None
-
-
-def BoolDisableLanguageExtensions(configuration):
-    """ DisableLanguageExtensions
-
-    Supresses or enables language extensions.
-
-    Compiler switch /Za
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "DisableLanguageExtensions", configuration,
-        options_key="compiler_options",
-        options=(("/Za", True),))
-
-
-def BoolDefaultCharIsUnsigned(configuration):
-    """ DefaultCharIsUnsigned
-
-    Sets the default char type to unsigned.
-
-    Compiler switch /J
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "DefaultCharIsUnsigned", configuration,
-        options_key="compiler_options",
-        options=(("/J", True),))
-
-
-def BoolTreatWChar_tAsBuiltInType(configuration):
-    """ TreatWChar_tAsBuiltInType
-
-    Treats wchar_t as a built-in type.
-
-    Compiler switch /Zc:wchar_t
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "TreatWChar_tAsBuiltInType", configuration, True,
-        options_key="compiler_options",
-        options=(("/Zc:wchar_t", True),))
-
-
-def BoolForceConformanceInForLoopScope(configuration):
-    """ ForceConformanceInForLoopScope
-
-    Forces the compiler to conform to the local scope in a for loop.
-
-    Compiler switch /Zc:forScope
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "ForceConformanceInForLoopScope", configuration,
-        options_key="compiler_options",
-        options=(("/Zc:forScope", True),))
-
-
-def BoolRuntimeTypeInfo(configuration):
-    """ RuntimeTypeInfo
-
-    Adds code for checking C++ object types at run time (runtime type
-    information)
-
-    Compiler switches /GR and /GR-
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "RuntimeTypeInfo", configuration, False,
-        options_key="compiler_options",
-        options=(("/GR", True), ("/GR-", False)))
-
-
-def BoolOpenMP(configuration):
-    """ OpenMP
-
-    Enable OpenMP language extensions.
-
-    Compiler switch /openmp
-
-    Note:
-        Not available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-
-    if configuration.ide is not IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "OpenMP", configuration,
-            options_key="compiler_options",
-            options=(("/openmp", True),))
     return None
 
 
@@ -3125,38 +3253,31 @@ class VCCLCompilerTool(VS2003Tool):
         # Enhanced instruction set
         self.add_default(EnableEnhancedInstructionSet(configuration))
 
-        # WIP below
-        # Floating point precision
-        if ide > IDETypes.vs2003:
-            default = "/fp:fast"
-            self.add_default(
-                VSEnumProperty(
-                    "FloatingPointModel", default,
-                    (("/fp:precise", "Precise"),
-                     ("/fp:strict", "Strict"),
-                     ("/fp:fast", "Fast"))))
+        # Floating point precision (2005/2008 only)
+        self.add_default(FloatingPointModel(configuration, "Fast"))
 
-        # Floating point exception support
-        self.add_default(BoolFloatingPointExceptions(configuration))
+        # Floating point exception support (2005/2008 only)
+        self.add_default(FloatingPointExceptions(configuration))
 
         # Enable Microsoft specific extensions
-        self.add_default(BoolDisableLanguageExtensions(configuration))
+        self.add_default(DisableLanguageExtensions(configuration))
 
         # "char" is unsigned
-        self.add_default(BoolDefaultCharIsUnsigned(configuration))
+        self.add_default(DefaultCharIsUnsigned(configuration))
 
         # Enable wchar_t
-        self.add_default(BoolTreatWChar_tAsBuiltInType(configuration))
+        self.add_default(TreatWChar_tAsBuiltInType(configuration, True))
 
         # for (int i) "i" stays in the loop
-        self.add_default(BoolForceConformanceInForLoopScope(configuration))
+        self.add_default(ForceConformanceInForLoopScope(configuration))
 
         # Enable run time type info
-        self.add_default(BoolRuntimeTypeInfo(configuration))
+        self.add_default(RuntimeTypeInfo(configuration, False))
 
-        # OpenMP support
-        self.add_default(BoolOpenMP(configuration))
+        # OpenMP support (2005/2008 only)
+        self.add_default(OpenMP(configuration))
 
+        # WIP below
         # Enable precompiled headers
         default = None
         enum_list = [("No", "Not using"),
