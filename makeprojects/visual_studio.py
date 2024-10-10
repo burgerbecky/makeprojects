@@ -701,8 +701,7 @@ def UseUnicodeResponseFiles(configuration, prefix=None):
     Can be overridden with configuration attributes:
 
     * ``vs_UseUnicodeResponseFiles`` for the C compiler.
-    * ``vs_LinkerUseUnicodeResponseFiles`` for the exe linker.
-    * ``vs_LibrarianUseUnicodeResponseFiles`` for the library linker.
+    * ``vs_LinkerUseUnicodeResponseFiles`` for the exe/lib linker.
 
     Note:
         Not available on Visual Studio 2003 and earlier. Overrides do nothing.
@@ -719,13 +718,15 @@ def UseUnicodeResponseFiles(configuration, prefix=None):
         return None
 
     return VSBooleanProperty.vs_validate(
-        "UseUnicodeResponseFiles", configuration, prefix=prefix)
+        "UseUnicodeResponseFiles",
+        configuration,
+        prefix=prefix)
 
 
 ########################################
 
 
-def AdditionalOptions(configuration, prefix=None):
+def AdditionalOptions(configuration, fallback=None, prefix=None):
     """
     Create ``AdditionalOptions`` property.
 
@@ -735,18 +736,22 @@ def AdditionalOptions(configuration, prefix=None):
     Can be overridden with configuration attributes:
 
     * ``vs_AdditionalOptions`` for the C compiler.
-    * ``vs_LinkerAdditionalOptions`` for the exe linker.
-    * ``vs_LibrarianAdditionalOptions`` for the library linker.
+    * ``vs_LinkerAdditionalOptions`` for the exe/lib linker.
 
     Args:
         configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
         prefix: Prefix string for override
+
     Returns:
        validators.VSStringProperty object.
     """
 
     return VSStringProperty.vs_validate(
-        "AdditionalOptions", configuration, prefix=prefix)
+        "AdditionalOptions",
+        configuration,
+        fallback,
+        prefix=prefix)
 
 ########################################
 
@@ -827,7 +832,7 @@ def GlobalOptimizations(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "GlobalOptimizations",
         configuration,
-        fallback=fallback)
+        fallback)
 
 
 ########################################
@@ -896,8 +901,9 @@ def EnableIntrinsicFunctions(configuration, fallback=None):
     """
 
     return VSBooleanProperty.vs_validate(
-        "EnableIntrinsicFunctions", configuration,
-        fallback=fallback)
+        "EnableIntrinsicFunctions",
+        configuration,
+        fallback)
 
 ########################################
 
@@ -932,7 +938,7 @@ def ImproveFloatingPointConsistency(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "ImproveFloatingPointConsistency",
         configuration,
-        fallback=fallback)
+        fallback)
 
 
 ########################################
@@ -1002,7 +1008,7 @@ def OmitFramePointers(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "OmitFramePointers",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1030,7 +1036,7 @@ def EnableFiberSafeOptimizations(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "EnableFiberSafeOptimizations",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1115,7 +1121,7 @@ def OptimizeForWindowsApplication(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "OptimizeForWindowsApplication",
         configuration,
-        fallback=fallback)
+        fallback)
 
 
 ########################################
@@ -1149,7 +1155,7 @@ def WholeProgramOptimization(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "WholeProgramOptimization",
         configuration,
-        fallback=fallback)
+        fallback)
 
 
 ########################################
@@ -1269,7 +1275,7 @@ def IgnoreStandardIncludePath(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "IgnoreStandardIncludePath",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1339,7 +1345,7 @@ def KeepComments(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "KeepComments",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1366,7 +1372,7 @@ def StringPooling(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "StringPooling",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1394,7 +1400,7 @@ def MinimalRebuild(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "MinimalRebuild",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1534,7 +1540,7 @@ def SmallerTypeCheck(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "SmallerTypeCheck",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1675,7 +1681,7 @@ def BufferSecurityCheck(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "BufferSecurityCheck",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1702,7 +1708,7 @@ def EnableFunctionLevelLinking(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "EnableFunctionLevelLinking",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1818,7 +1824,7 @@ def FloatingPointExceptions(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "FloatingPointExceptions",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1845,7 +1851,7 @@ def DisableLanguageExtensions(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "DisableLanguageExtensions",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1872,7 +1878,7 @@ def DefaultCharIsUnsigned(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "DefaultCharIsUnsigned",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1899,7 +1905,7 @@ def TreatWChar_tAsBuiltInType(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "TreatWChar_tAsBuiltInType",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1926,7 +1932,7 @@ def ForceConformanceInForLoopScope(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "ForceConformanceInForLoopScope",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1954,7 +1960,7 @@ def RuntimeTypeInfo(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "RuntimeTypeInfo",
         configuration,
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1988,7 +1994,562 @@ def OpenMP(configuration, fallback=None):
     return VSBooleanProperty.vs_validate(
         "OpenMP",
         configuration,
-        fallback=fallback)
+        fallback)
+
+########################################
+
+
+def UsePrecompiledHeader(configuration, fallback=None):
+    """
+    Create ``UsePrecompiledHeader`` property.
+
+    Enable use of a precompiled header.
+
+    Compiler switches /Yc, /Yu, /YX
+
+    Can be overridden with configuration attribute
+    ``vs_UsePrecompiledHeader`` for the C compiler.
+
+    * "No" / "Not using"
+    * "/Yc" / "Create"
+    * "/YX" / "Automatic" (Only 2003)
+    * "/Yu" / "Use" (2 on 2005/2008, 3 on 2003)
+    * 0 through 3
+
+    Note:
+        /YX is only available on Visual Studio 2003, on 2005/2008
+        it is swapped with /Yu / "Use"
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_UsePrecompiledHeader")
+    if value is not None:
+        fallback = value
+
+    # Create the list for 2005/2008
+    enum_list = [
+        ("No", "Not using"),
+        ("/Yc", "Create"),
+        ("/Yu", "Use")]
+
+    # Visual Studio 2003 supports automatic generation
+    if configuration.ide is IDETypes.vs2003:
+        # Insert before "/Yu"
+        enum_list.insert(-1, ("/YX", "Automatic"))
+    else:
+        # Remap /YX to /Yu
+        if fallback in ("/YX", "Automatic", 3):
+            fallback = 2
+
+    return VSEnumProperty(
+        "UsePrecompiledHeader",
+        fallback,
+        enum_list)
+
+########################################
+
+
+def PrecompiledHeaderThrough(configuration, fallback=None):
+    """
+    Create ``AdditionalOptions`` property.
+
+    Text header file for precompilation
+
+    Can be overridden with configuration attribute
+    ``vs_PrecompiledHeaderThrough`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "PrecompiledHeaderThrough",
+        configuration,
+        fallback)
+
+########################################
+
+
+def PrecompiledHeaderFile(configuration, fallback=None):
+    """
+    Create ``AdditionalOptions`` property.
+
+    Binary header file for precompilation
+
+    Can be overridden with configuration attribute
+    ``vs_PrecompiledHeaderFile`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "PrecompiledHeaderFile",
+        configuration,
+        fallback)
+
+########################################
+
+
+def ExpandAttributedSource(configuration, fallback=None):
+    """
+    Create ``ExpandAttributedSource`` property.
+
+    Create listing file with expanded attributes injected into source file.
+
+    Compiler switch /Fx
+
+    Can be overridden with configuration attribute
+    ``vs_ExpandAttributedSource`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "ExpandAttributedSource",
+        configuration,
+        fallback)
+
+########################################
+
+
+def AssemblerOutput(configuration, fallback=None):
+    """
+    Create ``AssemblerOutput`` property.
+
+    Set the format of the assembly output
+
+    Compiler switches /FA, /FAcs, /FAc, /FAs
+
+    Can be overridden with configuration attribute
+    ``vs_AssemblerOutput`` for the C compiler.
+
+    * "No" / "No Listing"
+    * "/FA" / "Assembly" / "Asm" / "Assembly-Only"
+    * "/FAcs" / "Assembly, Machine Code and Source"
+    * "/FAc" / "Assembly With Machine Code"
+    * "/FAs" / "Assembly With Source"
+    * 0 through 4
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_AssemblerOutput")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "AssemblerOutput",
+        fallback,
+        (("No", "No Listing"),
+         ("/FA", "Assembly", "Asm", "Assembly-Only"),
+         ("/FAcs", "Assembly, Machine Code and Source"),
+         ("/FAc", "Assembly With Machine Code"),
+         ("/FAs", "Assembly With Source")))
+
+########################################
+
+
+def AssemblerListingLocation(configuration, fallback=None):
+    """
+    Create ``AssemblerListingLocation`` property.
+
+    Output location for .asm file
+
+    Can be overridden with configuration attribute
+    ``vs_AssemblerListingLocation`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "AssemblerListingLocation",
+        configuration,
+        fallback)
+
+########################################
+
+
+def ObjectFile(configuration, fallback=None):
+    """
+    Create ``ObjectFile`` property.
+
+    Output location for .obj file
+
+    Can be overridden with configuration attribute
+    ``vs_ObjectFile`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "ObjectFile",
+        configuration,
+        fallback)
+
+########################################
+
+
+def ProgramDataBaseFileName(configuration, fallback=None):
+    """
+    Create ``ProgramDataBaseFileName`` property.
+
+    Output location of shared .pdb file
+
+    Can be overridden with configuration attribute
+    ``vs_ProgramDataBaseFileName`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "ProgramDataBaseFileName",
+        configuration,
+        fallback)
+
+########################################
+
+
+def GenerateXMLDocumentationFiles(configuration, fallback=None):
+    """
+    Create ``GenerateXMLDocumentationFiles`` property.
+
+    Specifies that the compiler should generate XML documentation comment
+    files.
+
+    Compiler switch /doc
+
+    Can be overridden with configuration attribute
+    ``vs_GenerateXMLDocumentationFiles`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # 2005/2008 only
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "GenerateXMLDocumentationFiles",
+        configuration,
+        fallback)
+
+########################################
+
+
+def XMLDocumentationFileName(configuration, fallback=None):
+    """
+    Create ``XMLDocumentationFileName`` property.
+
+    Name of the XML formatted documentation file.
+
+    Can be overridden with configuration attribute
+    ``vs_XMLDocumentationFileName`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       None or validators.VSStringProperty object.
+    """
+
+    # 2005/2008 only
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSStringProperty.vs_validate(
+        "XMLDocumentationFileName",
+        configuration,
+        fallback)
+
+########################################
+
+
+def BrowseInformation(configuration, fallback=None):
+    """
+    Create ``BrowseInformation`` property.
+
+    What browser information to generate?
+
+    Compiler switches /FR, /Fr
+
+    Can be overridden with configuration attribute
+    ``vs_BrowseInformation`` for the C compiler.
+
+    * "None" / "No"
+    * "/FR" / "All"
+    * "/Fr" / "No Local Symbols" / "No Locals"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_BrowseInformation")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "BrowseInformation",
+        fallback,
+        (("None", "No"),
+        ("/FR", "All"),
+        ("/Fr", "No Local Symbols", "No Locals")))
+
+########################################
+
+
+def BrowseInformationFile(configuration, fallback=None):
+    """
+    Create ``BrowseInformationFile`` property.
+
+    Name of the browsing file.
+
+    Can be overridden with configuration attribute
+    ``vs_BrowseInformationFile`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "BrowseInformationFile",
+        configuration,
+        fallback)
+
+########################################
+
+
+def WarningLevel(configuration, fallback=None):
+    """
+    Create ``WarningLevel`` property.
+
+    Set the warning level.
+
+    Compiler switches /W0, /W1, /W2, /W3, /W4
+
+    Can be overridden with configuration attribute
+    ``vs_WarningLevel`` for the C compiler.
+
+    * "/W0" / "Off" / "No" / "None"
+    * "/W1" / "Level 1"
+    * "/W2" / "Level 2"
+    * "/W3" / "Level 3"
+    * "/W4" / "Level 4"
+    * 0 through 4
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_WarningLevel")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "WarningLevel",
+        fallback,
+        (("/W0", "Off", "No", "None"),
+        ("/W1", "Level 1"),
+        ("/W2", "Level 2"),
+        ("/W3", "Level 3"),
+        ("/W4", "Level 4", "All")))
+
+########################################
+
+
+def WarnAsError(configuration, fallback=None):
+    """
+    Create ``WarnAsError`` property.
+
+    Enables the compiler to treat all warnings as errors.
+
+    Compiler switch /WX
+
+    Can be overridden with configuration attribute
+    ``vs_WarnAsError`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "WarnAsError",
+        configuration,
+        fallback)
+
+########################################
+
+
+def SuppressStartupBanner(configuration, fallback=None, prefix=None):
+    """
+    Create ``SuppressStartupBanner`` property.
+
+    Suppress the display of the startup banner and information messages.
+
+    Compiler switch /nologo
+
+    Can be overridden with configuration attributes:
+
+    * ``vs_SuppressStartupBanner`` for the C compiler.
+    * ``vs_LinkerSuppressStartupBanner`` for the exe/lib linker.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+        prefix: Prefix string for override
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "SuppressStartupBanner",
+        configuration,
+        fallback,
+        prefix=prefix)
+
+########################################
+
+
+def Detect64BitPortabilityProblems(configuration, fallback=None):
+    """
+    Create ``Detect64BitPortabilityProblems`` property.
+
+    Tells the compiler to check for 64-bit portability issues.
+
+    Compiler switch /Wp64
+
+    Can be overridden with configuration attribute
+    ``vs_Detect64BitPortabilityProblems`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "Detect64BitPortabilityProblems",
+        configuration,
+        fallback)
+
+########################################
+
+
+def DebugInformationFormat(configuration, fallback=None):
+    """
+    Create ``DebugInformationFormat`` property.
+
+    Sets the type of debugging information to embed in the obj file.
+
+    Compiler switches /C7, /Zd, /Zi, /ZI
+
+    Can be overridden with configuration attribute
+    ``vs_DebugInformationFormat`` for the C compiler.
+
+    * "Off" / "No" / "None" / "Disabled"
+    * "/C7" / "C7 Compatible"
+    * "/Zd" / "Line Numbers" / "Line Numbers Only"
+    * "/Zi" / "Program Database"
+    * "/ZI" / "Edit and Continue"
+    * 0 through 4
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_DebugInformationFormat")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "DebugInformationFormat",
+        fallback,
+        (("Off", "No", "None", "Disabled"),
+        ("/C7", "C7 Compatible"),
+        # Hidden in 2005/2008 (maps to C7)
+        ("/Zd", "Line Numbers", "Line Numbers Only"),
+        ("/Zi", "Program Database"),
+        ("/ZI", "Edit and Continue")))
 
 
 # Boolean properties
@@ -2096,101 +2657,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
     return None
-
-
-def BoolExpandAttributedSource(configuration):
-    """ ExpandAttributedSource
-
-    Create listing file with expanded attributes injected into source file.
-
-    Compiler switch /Fx
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "ExpandAttributedSource", configuration,
-        options_key="compiler_options",
-        options=(("/Fx", True),))
-
-
-def BoolGenerateXMLDocumentationFiles(configuration):
-    """ GenerateXMLDocumentationFiles
-
-    Specifies that the compiler should generate XML documentation comment files.
-
-    Compiler switch /doc
-
-    Note:
-        Not available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide is not IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "GenerateXMLDocumentationFiles", configuration,
-            options_key="compiler_options",
-            options=(("/doc", True),))
-    return None
-
-
-def BoolWarnAsError(configuration):
-    """ WarnAsError
-
-    Enables the compiler to treat all warnings as errors.
-
-    Compiler switch /WX
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "WarnAsError", configuration,
-        options_key="compiler_options",
-        options=(("/WX", True),))
-
-
-def BoolSuppressStartupBanner(configuration, options_key):
-    """ SuppressStartupBanner
-
-    Suppress the display of the startup banner and information messages.
-
-    Compiler switch /nologo
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-        options_key: Options
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "SuppressStartupBanner", configuration,
-        options_key=options_key,
-        options=(("/nologo", True),))
-
-
-def BoolDetect64BitPortabilityProblems(configuration):
-    """ Detect64BitPortabilityProblems
-
-    Tells the compiler to check for 64-bit portability issues.
-
-    Compiler switch /Wp64
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "Detect64BitPortabilityProblems", configuration,
-        options_key="compiler_options",
-        options=(("/Wp64", True),))
 
 
 def BoolShowIncludes(configuration):
@@ -2689,41 +3155,6 @@ def IntStackCommitSize():
 def StringName(default):
     """ Name record """
     return VSStringProperty("Name", fallback=default)
-
-
-def StringPrecompiledHeaderThrough():
-    """ Text header file for precompilation """
-    return VSStringProperty("PrecompiledHeaderThrough")
-
-
-def StringPrecompiledHeaderFile():
-    """ Binary header file for precompilation """
-    return VSStringProperty("PrecompiledHeaderFile")
-
-
-def StringAssemblerListingLocation():
-    """ Output location for .asm file """
-    return VSStringProperty("AssemblerListingLocation")
-
-
-def StringObjectFile():
-    """ Output location for .obj file """
-    return VSStringProperty("ObjectFile")
-
-
-def StringProgramDataBaseFileName(default):
-    """ Output location of shared .pdb file """
-    return VSStringProperty("ProgramDataBaseFileName", fallback=default)
-
-
-def StringXMLDocumentationFileName():
-    """ Name of the XML formatted documentation file """
-    return VSStringProperty("XMLDocumentationFileName")
-
-
-def StringBrowseInformationFile():
-    """ Name of the browsing file """
-    return VSStringProperty("BrowseInformationFile")
 
 
 def StringDescription(default=None):
@@ -3277,103 +3708,60 @@ class VCCLCompilerTool(VS2003Tool):
         # OpenMP support (2005/2008 only)
         self.add_default(OpenMP(configuration))
 
-        # WIP below
         # Enable precompiled headers
-        default = None
-        enum_list = [("No", "Not using"),
-                   ("/Yc", "Create"),
-            ("/Yu", "Use")]
-
-        # Visual Studio 2003 supports automatic generation
-        if ide is IDETypes.vs2003:
-            enum_list.insert(-1, ("/YX", "Automatic"))
-        self.add_default(
-            VSEnumProperty("UsePrecompiledHeader", default, enum_list))
+        self.add_default(UsePrecompiledHeader(configuration))
 
         # Text header file for precompilation
-        self.add_default(StringPrecompiledHeaderThrough())
+        self.add_default(PrecompiledHeaderThrough(configuration))
 
         # Binary header file for precompilation
-        self.add_default(StringPrecompiledHeaderFile())
+        self.add_default(PrecompiledHeaderFile(configuration))
 
         # Add extended attributes to .asm output
-        self.add_default(BoolExpandAttributedSource(configuration))
+        self.add_default(ExpandAttributedSource(configuration))
 
         # Format of the assembly output
-        default = None
-        self.add_default(
-            VSEnumProperty(
-                "AssemblerOutput", default,
-                (("No", "No Listing"),
-                 ("/FA", "Assembly", "Asm", "Assembly-Only"),
-                 ("/FAcs", "Assembly, Machine Code and Source"),
-                 ("/FAc", "Assembly With Machine Code"),
-                 ("/FAs", "Assembly With Source"))))
+        self.add_default(AssemblerOutput(configuration))
 
         # Output location for .asm file
-        self.add_default(StringAssemblerListingLocation())
+        self.add_default(AssemblerListingLocation(configuration))
 
         # Output location for .obj file
-        self.add_default(StringObjectFile())
+        self.add_default(ObjectFile(configuration))
 
         # Output location of shared .pdb file
-        self.add_default(StringProgramDataBaseFileName(
+        self.add_default(ProgramDataBaseFileName(configuration,
             "\"$(OutDir)$(TargetName).pdb\""))
 
-        if ide > IDETypes.vs2003:
-            # Generate XML formatted documentation
-            self.add_default(BoolGenerateXMLDocumentationFiles(configuration))
+        # Generate XML formatted documentation (2005/2008 only)
+        self.add_default(GenerateXMLDocumentationFiles(configuration))
 
-            # Name of the XML formatted documentation file
-            self.add_default(StringXMLDocumentationFileName())
+        # Name of the XML formatted documentation file (2005/2008 only)
+        self.add_default(XMLDocumentationFileName(configuration))
 
         # Type of source browsing information
-        default = None
-        self.add_default(
-            VSEnumProperty("BrowseInformation", default,
-                         (("None", "No"),
-                          ("/FR", "All"),
-                          ("/Fr", "No Local Symbols", "No Locals"))))
+        self.add_default(BrowseInformation(configuration))
 
         # Name of the browsing file
-        self.add_default(StringBrowseInformationFile())
+        self.add_default(BrowseInformationFile(configuration))
 
         # Warning level
-        default = "All"
-        self.add_default(
-            VSEnumProperty("WarningLevel", default,
-                         (("/W0", "Off", "No", "None"),
-                          ("/W1", "Level 1"),
-                          ("/W2", "Level 2"),
-                          ("/W3", "Level 3"),
-                          ("/W4", "Level 4", "All"))))
+        self.add_default(WarningLevel(configuration, "All"))
 
         # Warnings are errors
-        self.add_default(BoolWarnAsError(configuration))
+        self.add_default(WarnAsError(configuration))
 
         # Don't show startup banner
-        self.add_default(
-            BoolSuppressStartupBanner(
-                configuration,
-                "compiler_options"))
+        self.add_default(SuppressStartupBanner(configuration))
 
         # Warnings for 64 bit code issues
-        self.add_default(BoolDetect64BitPortabilityProblems(configuration))
+        self.add_default(Detect64BitPortabilityProblems(configuration))
 
         # Debug information type
-        enum_list = [("Off", "No", "None", "Disabled"),
-                   ("/C7", "C7 Compatible"),
-            # Hidden in 2005/2008 (maps to C7)
-            ("/Zd", "Line Numbers", "Line Numbers Only"),
-            ("/Zi", "Program Database"),
-            ("/ZI", "Edit and Continue")]
+        item = "/C7" if debug or project_type.is_library() else None
+        self.add_default(DebugInformationFormat(configuration, item))
 
-        default = None
-        if debug or project_type.is_library():
-            default = "/C7"
-        self.add_default(
-            VSEnumProperty("DebugInformationFormat", default, enum_list))
-
+        # WIP below
         # Code calling convention
         default = None
         if configuration.fastcall:
@@ -3544,7 +3932,7 @@ class VCLinkerTool(VS2003Tool):
         self.add_default(UseUnicodeResponseFiles(configuration, "Linker"))
 
         # Additional commands
-        self.add_default(AdditionalOptions(configuration, "Linker"))
+        self.add_default(AdditionalOptions(configuration, prefix="Linker"))
 
         # Additional libraries
         default = configuration.get_unique_chained_list(
@@ -3595,9 +3983,7 @@ class VCLinkerTool(VS2003Tool):
 
         # Turn off startup banner
         self.add_default(
-            BoolSuppressStartupBanner(
-                configuration,
-                "linker_options"))
+            SuppressStartupBanner(configuration, prefix="Linker"))
 
         # Library folders
         default = configuration.get_unique_chained_list("library_folders_list")
@@ -3976,13 +4362,13 @@ class VCLibrarianTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCLibrarianTool")
 
         # Unicode response files (Only on 2005/2008)
-        self.add_default(UseUnicodeResponseFiles(configuration, "Librarian"))
+        self.add_default(UseUnicodeResponseFiles(configuration, "Linker"))
 
         # Link in library dependencies
         self.add_default(BoolLinkLibraryDependencies(configuration))
 
         # Additional command lines
-        self.add_default(AdditionalOptions(configuration, "Librarian"))
+        self.add_default(AdditionalOptions(configuration, prefix="Linker"))
 
         # Libaries to link in
         default = []
@@ -4009,9 +4395,7 @@ class VCLibrarianTool(VS2003Tool):
 
         # Suppress the startup banner
         self.add_default(
-            BoolSuppressStartupBanner(
-                configuration,
-                "linker_options"))
+            SuppressStartupBanner(configuration, prefix="Linker"))
 
         # Name of the module file name
         self.add_default(VSStringProperty("ModuleDefinitionFile", None))
