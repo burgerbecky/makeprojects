@@ -58,6 +58,7 @@ from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
 from .visual_studio_utils import get_path_property, convert_file_name_vs2010, \
     add_masm_support, get_cpu_folder, generate_solution_file
+from .core import Configuration
 
 ########################################
 
@@ -709,6 +710,7 @@ def UseUnicodeResponseFiles(configuration, prefix=None):
     Args:
         configuration: Project configuration to scan for overrides.
         prefix: Prefix string for override
+
     Returns:
         validators.VSBooleanProperty object.
     """
@@ -2920,6 +2922,147 @@ def ErrorReporting(configuration, fallback=None):
         ("/errorReport:prompt", "Immediate"),
         ("/errorReport:queue", "Queue")))
 
+########################################
+
+# Entries usually found in VCCustomBuildTool
+
+########################################
+
+
+def Description(configuration, fallback=None, prefix=None):
+    """
+    Create ``Description`` property.
+
+    Message to print in the console
+
+    Can be overridden with configuration attributes:
+
+    * ``vs_Description`` for CustomBuild
+    * ``vs_PreBuildDescription`` for PreBuild
+    * ``vs_PostBuildDescription`` for PostBuild
+    * ``vs_PreLinkDescription`` for PreLink
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+        prefix: Prefix string for override
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "Description",
+        configuration,
+        fallback,
+        prefix=prefix)
+
+########################################
+
+
+def CommandLine(configuration, fallback=None, prefix=None):
+    """
+    Create ``CommandLine`` property.
+
+    Batch file contents
+
+    Can be overridden with configuration attributes:
+
+    * ``vs_CommandLine`` for CustomBuild
+    * ``vs_PreBuildCommandLine`` for PreBuild
+    * ``vs_PostBuildCommandLine`` for PostBuild
+    * ``vs_PreLinkCommandLine`` for PreLink
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+        prefix: Prefix string for override
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    return VSStringProperty.vs_validate(
+        "CommandLine",
+        configuration,
+        fallback,
+        prefix=prefix)
+
+########################################
+
+
+def AdditionalDependencies(configuration, fallback=None, prefix=None):
+    """
+    Create ``AdditionalDependencies`` property.
+
+    List of files this build object depends on. If custom build, it's a list
+    of input files for the build script. If it's a linker, it's a list of
+    library files to link into the final output.
+
+    Can be overridden with configuration attributes:
+
+    * ``vs_AdditionalDependencies`` for Linkers
+    * ``vs_CustomAdditionalDependencies`` for CustomBuild
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+        prefix: Prefix string for override
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Insert the optional prefix
+    new_key = "vs_"
+
+    # Assume space for libraries
+    separator = " "
+    if prefix:
+        new_key = new_key + prefix
+        # Custom build separates with ';'
+        separator = ";"
+    new_key = new_key + "AdditionalDependencies"
+
+    # Was there an override?
+    value = configuration.get_chained_list(new_key)
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "AdditionalDependencies",
+        fallback,
+        separator=separator)
+
+########################################
+
+
+def Outputs(configuration, fallback=None):
+    """
+    Create ``Outputs`` property.
+
+    List of files this custom build command generates
+
+    Can be overridden with configuration attribute
+    ``vs_Outputs`` for the custom builder.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list("vs_Outputs")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "Outputs",
+        fallback)
+
 # Boolean properties
 
 
@@ -3441,16 +3584,6 @@ def IntStackCommitSize():
 def StringName(default):
     """ Name record """
     return VSStringProperty("Name", fallback=default)
-
-
-def StringDescription(default=None):
-    """ Message to print in the console """
-    return VSStringProperty("Description", default)
-
-
-def StringCommandLine(default=None):
-    """ Batch file contents """
-    return VSStringProperty("CommandLine", default)
 
 
 def StringOutputFile(default=None):
@@ -4128,16 +4261,17 @@ class VCCustomBuildTool(VS2003Tool):
         VS2003Tool.__init__(self, name="VCCustomBuildTool")
 
         # Describe the build step
-        self.add_default(StringDescription())
+        self.add_default(Description(configuration))
 
         # Command line to perform the build
-        self.add_default(StringCommandLine())
+        self.add_default(CommandLine(configuration))
 
         # List of files this step depends on
-        self.add_default(VSStringListProperty("AdditionalDependencies", []))
+        self.add_default(
+            AdditionalDependencies(configuration, prefix="Custom"))
 
         # List of files created by this build step
-        self.add_default(VSStringListProperty("Outputs", []))
+        self.add_default(Outputs(configuration))
 
 
 ########################################
@@ -4208,11 +4342,7 @@ class VCLinkerTool(VS2003Tool):
                 item = "nafxcwd.lib" if configuration.debug else "nafxcw.lib"
                 default.insert(0, item)
 
-        self.add_default(
-            VSStringListProperty(
-                "AdditionalDependencies",
-                default,
-                separator=" "))
+        self.add_default(AdditionalDependencies(configuration, default))
 
         # Show progress in linking
         default = None
@@ -4630,12 +4760,7 @@ class VCLibrarianTool(VS2003Tool):
         self.add_default(AdditionalOptions(configuration, prefix="Linker"))
 
         # Libaries to link in
-        default = []
-        self.add_default(
-            VSStringListProperty(
-                "AdditionalDependencies",
-                default,
-                separator=" "))
+        self.add_default(AdditionalDependencies(configuration))
 
         # Name of the output file
         # Don't use $(TargetExt)
@@ -4888,10 +5013,18 @@ class VCPostBuildEventTool(VS2003Tool):
         vs_description, vs_cmd = create_deploy_script(configuration)
 
         # Message to print in the console
-        self.add_default(StringDescription(vs_description))
+        self.add_default(
+            Description(
+                configuration,
+                vs_description,
+                prefix="PostBuild"))
 
         # Batch file contents
-        self.add_default(StringCommandLine(vs_cmd))
+        self.add_default(
+            CommandLine(
+                configuration,
+                vs_cmd,
+                prefix="PostBuild"))
 
         # Ignore from build
         self.add_default(BoolExcludedFromBuild())
@@ -4920,10 +5053,10 @@ class VCPreBuildEventTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCPreBuildEventTool")
 
         # Message to print in the console
-        self.add_default(StringDescription())
+        self.add_default(Description(configuration, prefix="PreBuild"))
 
         # Batch file contents
-        self.add_default(StringCommandLine())
+        self.add_default(CommandLine(configuration, prefix="PreBuild"))
 
         # Ignore from build
         self.add_default(BoolExcludedFromBuild())
@@ -4953,10 +5086,10 @@ class VCPreLinkEventTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCPreLinkEventTool")
 
         # Message to print in the console
-        self.add_default(StringDescription())
+        self.add_default(Description(configuration, prefix="PreLink"))
 
         # Batch file contents
-        self.add_default(StringCommandLine())
+        self.add_default(CommandLine(configuration, prefix="PreLink"))
 
         # Ignore from build
         self.add_default(BoolExcludedFromBuild())
@@ -5311,8 +5444,8 @@ class VS2003Configuration(VS2003XML):
         vclinkertool: Linker settings
     """
 
-    # Too many instance attributes
     # pylint: disable=too-many-instance-attributes
+
     def __init__(self, configuration):
         """
         Init defaults.
@@ -5646,21 +5779,16 @@ class VS2003FileConfiguration(VS2003XML):
         cmd, description, outputs = make_command(
             element_dict, source_file)
         if cmd:
-            element = VS2003Tool("VCCustomBuildTool")
-            self.add_element(element)
 
-            # Describe the build step
-            element.add_default(
-                StringDescription(description))
+            # Create a temp configuration
+            configuration = self.configuration
+            c = Configuration(configuration.name, configuration.platform)
 
-            # Command line to perform the build
-            element.add_default(
-                StringCommandLine(cmd + "\n"))
-
-            # List of files created by this build step
-            element.add_default(
-                VSStringListProperty(
-                    "Outputs", outputs))
+            # Generate a VCCustomBuildTool record and attach it to this file.
+            c.vs_Description = description
+            c.vs_CommandLine = cmd + "\n"
+            c.vs_Outputs = outputs
+            self.add_element(VCCustomBuildTool(c))
 
     def handle_vs2005_rules(self, rule_list, base_name, tool_name, tool_enums):
         """
