@@ -1186,7 +1186,7 @@ def AdditionalIncludeDirectories(configuration, fallback=None):
 
     return VSStringListProperty(
         "AdditionalIncludeDirectories",
-        fallback=fallback,
+        fallback,
         slashes="\\")
 
 ########################################
@@ -1217,7 +1217,7 @@ def AdditionalUsingDirectories(configuration, fallback=None):
 
     return VSStringListProperty(
         "AdditionalUsingDirectories",
-        fallback=fallback,
+        fallback,
         slashes="\\")
 
 ########################################
@@ -1248,7 +1248,7 @@ def PreprocessorDefinitions(configuration, fallback=None):
 
     return VSStringListProperty(
         "PreprocessorDefinitions",
-        fallback=fallback)
+        fallback)
 
 ########################################
 
@@ -1725,8 +1725,8 @@ def EnableEnhancedInstructionSet(configuration, fallback=None):
     ``vs_EnableEnhancedInstructionSet`` for the C compiler.
 
     * "Default"
-    * "/arch:SSE", "SSE"
-    * "/arch:SSE2", "SSE2"
+    * "/arch:SSE" / "SSE"
+    * "/arch:SSE2" / "SSE2"
     * 0 through 2
 
     Args:
@@ -2552,6 +2552,374 @@ def DebugInformationFormat(configuration, fallback=None):
         ("/ZI", "Edit and Continue")))
 
 
+########################################
+
+
+def CallingConvention(configuration, fallback=None):
+    """
+    Create ``CallingConvention`` property.
+
+    Sets the type of default calling convention to use. Usually only
+    meaningful for X86.
+
+    Compiler switches /Gd, /Gr, /Gz
+
+    Can be overridden with configuration attribute
+    ``vs_CallingConvention`` for the C compiler.
+
+    * "/Gd" / "__cdecl"
+    * "/Gr" / "__fastcall"
+    * "/Gz" / "__stdcall"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_CallingConvention")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "CallingConvention",
+        fallback,
+        (("/Gd", "__cdecl"),
+        ("/Gr", "__fastcall"),
+        ("/Gz", "__stdcall")))
+
+########################################
+
+
+def CompileAs(configuration, fallback=None):
+    """
+    Create ``CompileAs`` property.
+
+    Forces C or C++ compilation. Normally the file extension determines the
+    choice of compiler.
+
+    Compiler switches /TC, /TP
+
+    Can be overridden with configuration attribute
+    ``vs_CompileAs`` for the C compiler.
+
+    * "No" / "Default"
+    * "/TC" / "C"
+    * "/TP" / "C++" / "CPP"
+    * 0 through 2
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_CompileAs")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "CompileAs",
+        fallback,
+        (("No", "Default"),
+        ("/TC", "C"),
+        ("/TP", "C++", "CPP")))
+
+########################################
+
+
+def DisableSpecificWarnings(configuration, fallback=None):
+    """
+    Create ``DisableSpecificWarnings`` property.
+
+    List of warnings to disable during C compilation
+
+    Can be overridden with configuration attribute
+    ``vs_DisableSpecificWarnings`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list(
+        "vs_DisableSpecificWarnings")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "DisableSpecificWarnings",
+        fallback)
+
+########################################
+
+
+def ForcedIncludeFiles(configuration, fallback=None):
+    """
+    Create ``ForcedIncludeFiles`` property.
+
+    List of header files to force including before compilation.
+
+    Can be overridden with configuration attribute
+    ``vs_ForcedIncludeFiles`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list(
+        "vs_ForcedIncludeFiles")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "ForcedIncludeFiles",
+        fallback)
+
+########################################
+
+
+def ForcedUsingFiles(configuration, fallback=None):
+    """
+    Create ``ForcedUsingFiles`` property.
+
+    List of header files to force using before compilation.
+
+    Can be overridden with configuration attribute
+    ``vs_ForcedUsingFiles`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list(
+        "vs_ForcedUsingFiles")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "ForcedUsingFiles",
+        fallback)
+
+
+########################################
+
+def ShowIncludes(configuration, fallback=None):
+    """
+    Create ``ShowIncludes`` property.
+
+    Generates a list of include files with compiler output.
+
+    Compiler switch /showIncludes
+
+    Can be overridden with configuration attribute
+    ``vs_ShowIncludes`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "ShowIncludes",
+        configuration,
+        fallback)
+
+########################################
+
+
+def UndefinePreprocessorDefinitions(configuration, fallback=None):
+    """
+    Create ``UndefinePreprocessorDefinitions`` property.
+
+    List of defines to remove from compilation
+
+    Can be overridden with configuration attribute
+    ``vs_UndefinePreprocessorDefinitions`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_list(
+        "vs_UndefinePreprocessorDefinitions")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "UndefinePreprocessorDefinitions",
+        fallback)
+
+########################################
+
+
+def UndefineAllPreprocessorDefinitions(configuration, fallback=None):
+    """
+    Create ``UndefineAllPreprocessorDefinitions`` property.
+
+    Undefine all previously defined preprocessor values.
+
+    Compiler switch /u
+
+    Can be overridden with configuration attribute
+    ``vs_UndefineAllPreprocessorDefinitions`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSBooleanProperty object.
+    """
+
+    return VSBooleanProperty.vs_validate(
+        "UndefineAllPreprocessorDefinitions",
+        configuration,
+        fallback)
+
+########################################
+
+
+def UseFullPaths(configuration, fallback=None):
+    """
+    Create ``UseFullPaths`` property.
+
+    Use full paths in diagnostic messages.
+
+    Compiler switch /FC
+
+    Can be overridden with configuration attribute
+    ``vs_UseFullPaths`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # 2005/2008 only
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "UseFullPaths",
+        configuration,
+        fallback)
+
+########################################
+
+
+def OmitDefaultLibName(configuration, fallback=None):
+    """
+    Create ``OmitDefaultLibName`` property.
+
+    Do not include default library names in .obj files.
+
+    Compiler switch /Zl
+
+    Can be overridden with configuration attribute
+    ``vs_OmitDefaultLibName`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # 2005/2008 only
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "OmitDefaultLibName",
+        configuration,
+        fallback)
+
+########################################
+
+
+def ErrorReporting(configuration, fallback=None):
+    """
+    Create ``ErrorReporting`` property.
+
+    Is error reporting queued or immediate?
+
+    Compiler switches /errorReport:prompt, /errorReport:queue
+
+    Can be overridden with configuration attribute
+    ``vs_ErrorReporting`` for the C compiler.
+
+    * "Default"
+    * "/errorReport:prompt" / "Immediate"
+    * "/errorReport:queue" / "Queue"
+    * 0 through 2
+
+    Note:
+        Not available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSEnumProperty object.
+    """
+
+    # 2005/2008 only
+    if configuration.ide is IDETypes.vs2003:
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_ErrorReporting")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "ErrorReporting",
+        fallback,
+        ("Default",
+        ("/errorReport:prompt", "Immediate"),
+        ("/errorReport:queue", "Queue")))
+
 # Boolean properties
 
 
@@ -2656,88 +3024,6 @@ def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
     if configuration.ide < IDETypes.vs2008:
         return VSBooleanProperty.vs_validate(
             "ATLMinimizesCRunTimeLibraryUsage", configuration)
-    return None
-
-
-def BoolShowIncludes(configuration):
-    """ ShowIncludes
-
-    Generates a list of include files with compiler output.
-
-    Compiler switch /showIncludes
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "ShowIncludes", configuration,
-        options_key="compiler_options",
-        options=(("/showIncludes", True),))
-
-
-def BoolUndefineAllPreprocessorDefinitions(configuration):
-    """ UndefineAllPreprocessorDefinitions
-
-    Undefine all previously defined preprocessor values.
-
-    Compiler switch /u
-
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    return VSBooleanProperty.vs_validate(
-        "UndefineAllPreprocessorDefinitions",
-        configuration,
-        options_key="compiler_options",
-        options=(("/u", True),))
-
-
-def BoolUseFullPaths(configuration):
-    """ UseFullPaths
-
-    Use full paths in diagnostic messages.
-
-    Compiler switch /FC
-
-    Note:
-        Not available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide > IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "UseFullPaths",
-            configuration,
-            options_key="compiler_options",
-            options=(("/FC", True),))
-    return None
-
-
-def BoolOmitDefaultLibName(configuration):
-    """ OmitDefaultLibName
-
-    Do not include default library names in .obj files.
-
-    Compiler switch /Zl
-
-    Note:
-        Not available on Visual Studio 2003
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide > IDETypes.vs2003:
-        return VSBooleanProperty.vs_validate(
-            "OmitDefaultLibName", configuration,
-            options_key="compiler_options",
-            options=(("/Zl", True),))
     return None
 
 
@@ -3564,7 +3850,6 @@ class VCCLCompilerTool(VS2003Tool):
         VS2003Tool.__init__(self, name="VCCLCompilerTool")
 
         # Values needed for defaults
-        ide = configuration.ide
         optimization = configuration.optimization
         debug = configuration.debug
         project_type = configuration.project_type
@@ -3761,65 +4046,39 @@ class VCCLCompilerTool(VS2003Tool):
         item = "/C7" if debug or project_type.is_library() else None
         self.add_default(DebugInformationFormat(configuration, item))
 
-        # WIP below
         # Code calling convention
-        default = None
-        if configuration.fastcall:
-            default = "__fastcall"
-        self.add_default(
-            VSEnumProperty("CallingConvention", default,
-                         (("/Gd", "__cdecl"),
-                          ("/Gr", "__fastcall"),
-                          ("/Gz", "__stdcall"))))
+        item = "__fastcall" if configuration.fastcall else None
+        self.add_default(CallingConvention(configuration, item))
 
         # C or C++
-        default = None
-        self.add_default(
-            VSEnumProperty("CompileAs", default,
-                         (("No", "Default"),
-                          ("/TC", "C"),
-                          ("/TP", "C++"))))
+        self.add_default(CompileAs(configuration))
 
-        # Get the defines
-        default = ["4201"]
-        self.add_default(VSStringListProperty(
-            "DisableSpecificWarnings", default))
+        # Disable these warnings
+        self.add_default(DisableSpecificWarnings(configuration, ["4201"]))
 
         # List of include files to force inclusion
-        default = []
-        self.add_default(VSStringListProperty("ForcedIncludeFile", default))
+        self.add_default(ForcedIncludeFiles(configuration))
 
         # List of using files to force inclusion
-        default = []
-        self.add_default(VSStringListProperty("ForcedUsingFiles", default))
+        self.add_default(ForcedUsingFiles(configuration))
 
         # Show include file list
-        self.add_default(BoolShowIncludes(configuration))
+        self.add_default(ShowIncludes(configuration))
 
         # List of defines to remove
-        default = []
-        self.add_default(
-            VSStringListProperty(
-                "UndefinePreprocessorDefinitions",
-                default))
+        self.add_default(UndefinePreprocessorDefinitions(configuration))
 
         # Remove all compiler definitions
-        self.add_default(BoolUndefineAllPreprocessorDefinitions(configuration))
+        self.add_default(UndefineAllPreprocessorDefinitions(configuration))
 
-        # Use full pathnames in error messages
-        self.add_default(BoolUseFullPaths(configuration))
+        # Use full pathnames in error messages (2005/2008 only)
+        self.add_default(UseFullPaths(configuration))
 
-        # Remove default library names
-        self.add_default(BoolOmitDefaultLibName(configuration))
+        # Remove default library names (2005/2008 only)
+        self.add_default(OmitDefaultLibName(configuration))
 
-        if ide > IDETypes.vs2003:
-            # Error reporting style
-            default = None
-            self.add_default(
-                VSEnumProperty("ErrorReporting", default,
-                             (("Default"),
-                              ("/errorReport:prompt", "Immediate"),
-                              ("/errorReport:queue", "Queue"))))
+        # Error reporting style (2005/2008 only)
+        self.add_default(ErrorReporting(configuration))
 
 ########################################
 
