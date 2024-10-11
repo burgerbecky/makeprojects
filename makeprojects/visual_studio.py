@@ -3593,7 +3593,7 @@ def StringOutputFile(default=None):
 ########################################
 
 
-def do_tree(xml_entry, filter_name, tree, groups):
+def do_filter_tree(xml_entry, filter_name, tree, groups):
     """
     Recursively create a Filter/File tree.
 
@@ -3631,7 +3631,7 @@ def do_tree(xml_entry, filter_name, tree, groups):
         tree_key = tree[item]
         # Recurse down the tree if there are sub entries
         if isinstance(tree_key, dict):
-            do_tree(new_filter, merged, tree_key, groups)
+            do_filter_tree(new_filter, merged, tree_key, groups)
 
 ########################################
 
@@ -5296,11 +5296,11 @@ class VS2003Platform(VS2003XML):
         """
 
         self.platform = platform
+        VS2003XML.__init__(self, "Platform")
 
-        VS2003XML.__init__(
-            self, "Platform", [
-                VSStringProperty(
-                    "Name", platform.get_vs_platform()[0])])
+        # Only one entry, the target platform
+        self.add_default(VSStringProperty(
+            "Name", platform.get_vs_platform()[0]))
 
 ########################################
 
@@ -5329,26 +5329,13 @@ class VS2003Platforms(VS2003XML):
         for configuration in project.configuration_list:
             platforms.add(configuration.platform)
 
-        # Add the records
-        for platform in sorted(platforms):
+        # Sort function
+        def key_test(x):
+            return x.get_vs_platform()[0]
+
+        # Add the sorted records
+        for platform in sorted(platforms, key=key_test):
             self.add_element(VS2003Platform(platform))
-
-
-########################################
-
-
-class VS2003References(VS2003XML):
-    """
-    Visual Studio 2003-2008 References record
-    """
-
-    def __init__(self):
-        """
-        Set the defaults.
-        """
-
-        VS2003XML.__init__(self, "References")
-
 
 ########################################
 
@@ -5365,16 +5352,13 @@ class VS2003ToolFile(VS2003XML):
 
         # Is the file local to the project? If so, declare as a ToolFile,
         # otherwise it's a rules file found in the IDE's folders
-
         rule_path = os.path.join(
             project.working_directory, rules.replace("\\", os.sep))
-        if os.path.isfile(rule_path):
-            toolfile = "ToolFile"
-        else:
-            toolfile = "DefaultToolFile"
+        item = "ToolFile" if os.path.isfile(rule_path) else "DefaultToolFile"
+        VS2003XML.__init__(self, item)
 
-        VS2003XML.__init__(
-            self, toolfile, [get_path_property(project.ide, rules)])
+        # Is this a RelativePath or FileName object?
+        self.add_default(get_path_property(project.ide, rules))
 
 ########################################
 
@@ -5401,6 +5385,23 @@ class VS2003ToolFiles(VS2003XML):
         for rules in project.vs_rules:
             rules = convert_to_windows_slashes(rules)
             self.add_element(VS2003ToolFile(rules, project))
+
+
+########################################
+
+
+class VS2003References(VS2003XML):
+    """
+    Visual Studio 2003-2008 References record
+    """
+
+    def __init__(self):
+        """
+        Set the defaults.
+        """
+
+        VS2003XML.__init__(self, "References")
+
 
 ########################################
 
@@ -5942,16 +5943,25 @@ class VS2003Files(VS2003XML):
 
         # Create group names and attach all files that belong to that group
         groups = {}
+        root_group = []
         for item in project.codefiles:
+
+            # Visual Studio requires Windows slashes
+            item.vs_name = convert_to_windows_slashes(item.relative_pathname)
+
+            # Get the group name (Can be "")
             groupname = item.get_group_name()
 
-            # Put each filename in its proper group
-            item.vs_name = convert_to_windows_slashes(item.relative_pathname)
-            group = groups.get(groupname, None)
-            if group is None:
-                groups[groupname] = [item]
+            # Special case for groups without filter
+            if not groupname:
+                root_group.append(item)
             else:
-                group.append(item)
+                # Put each filename in its proper group
+                group = groups.get(groupname, None)
+                if group is None:
+                    groups[groupname] = [item]
+                else:
+                    group.append(item)
 
         # Convert from a flat tree into a hierarchical tree
         tree = {}
@@ -5969,8 +5979,16 @@ class VS2003Files(VS2003XML):
                 # Step into the tree
                 nexttree = nexttree[parts[item]]
 
-        # Generate the file tree
-        do_tree(self, "", tree, groups)
+        # Generate the entries
+        # Create the filter tree first
+        do_filter_tree(self, "", tree, groups)
+
+        # Then append all the file objects for the root folder last
+        for item in sorted(
+                root_group,
+                key=operator.attrgetter("vs_name")):
+            self.add_element(VS2003File(item, project))
+
 
 ########################################
 
@@ -5984,12 +6002,6 @@ class VS2003vcproj(VS2003XML):
 
     Attributes:
         project: Parent project
-        platforms: VS2003Platforms
-        toolfiles: VS2003ToolFiles
-        configuration_list: VS2003Configurations
-        references: VS2003References
-        files: VS2003Files
-        globals: VS2003Globals
     """
 
     def __init__(self, project):
@@ -6002,7 +6014,14 @@ class VS2003vcproj(VS2003XML):
 
         self.project = project
 
-        # Which project type?
+        # Root XML object
+        VS2003XML.__init__(
+            self, "VisualStudioProject")
+
+        # Always C++ for makeprojects
+        self.add_default(VSStringProperty("ProjectType", "Visual C++"))
+
+        # Which project version?
         ide = project.ide
         if ide is IDETypes.vs2003:
             version = "7.10"
@@ -6010,50 +6029,42 @@ class VS2003vcproj(VS2003XML):
             version = "8.00"
         else:
             version = "9.00"
+        self.add_default(VSStringProperty("Version", version))
 
-        name = project.name
+        # Name of the project
+        self.add_default(VSStringProperty("Name", project.name))
 
-        VS2003XML.__init__(
-            self, "VisualStudioProject",
-            [VSStringProperty("ProjectType", "Visual C++"),
-             VSStringProperty("Version", version),
-             VSStringProperty("Name", name),
-             VSStringProperty("ProjectGUID",
-                            "{" + project.vs_uuid + "}")])
-
+        # Set the GUID
         self.add_default(
-            VSStringProperty("RootNamespace", name))
+            VSStringProperty("ProjectGUID",
+                            "{" + project.vs_uuid + "}"))
 
+        # Set the root namespace to the same name as the project
+        self.add_default(
+            VSStringProperty("RootNamespace", project.name))
+
+        # Hard coded for VC projects, not C#
         self.add_default(VSStringProperty("Keyword", "Win32Proj"))
+
+        # VS 2008 sets the framework version
         if ide is IDETypes.vs2008:
             self.add_default(
                 VSStringProperty("TargetFrameworkVersion", "196613"))
 
         # Add all the sub chunks
-        self.platforms = VS2003Platforms(project)
-        self.add_element(self.platforms)
-
-        self.toolfiles = VS2003ToolFiles(project)
+        self.add_element(VS2003Platforms(project))
         if ide is not IDETypes.vs2003:
-            self.add_element(self.toolfiles)
-
-        self.configuration_list = VS2003Configurations(project)
-        self.add_element(self.configuration_list)
-
-        self.references = VS2003References()
-        self.add_element(self.references)
-
-        self.files = VS2003Files(project)
-        self.add_element(self.files)
-
-        self.globals = VS2003Globals()
-        self.add_element(self.globals)
+            self.add_element(VS2003ToolFiles(project))
+        self.add_element(VS2003Configurations(project))
+        self.add_element(VS2003References())
+        self.add_element(VS2003Files(project))
+        self.add_element(VS2003Globals())
 
     ########################################
 
     def generate(self, line_list=None, indent=0, ide=None):
         """
-        Write out the VisualStudioProject record.
+        Write out the VS2003vcproj record.
 
         Args:
             line_list: string list to save the XML text
@@ -6070,7 +6081,7 @@ class VS2003vcproj(VS2003XML):
         # XML is utf-8 only
         line_list.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")
         return VS2003XML.generate(
-            self, line_list=line_list, indent=indent, ide=ide)
+            self, line_list, indent=indent, ide=ide)
 
 
 ########################################
@@ -6090,10 +6101,6 @@ def generate(solution):
         Zero if no error, non-zero on error.
     """
 
-    # Too many branches
-    # Too many locals
-    # pylint: disable=R0912,R0914
-
     # Failsafe
     if solution.ide not in SUPPORTED_IDES:
         return 10
@@ -6103,15 +6110,26 @@ def generate(solution):
     # seperately
 
     # Iterate over the project files and create the filenames
-
     for project in solution.get_project_list():
-        project.vs_output_filename = "{}{}{}.vcproj".format(
-            project.name, project.solution.ide_code, project.platform_code)
-        project.vs_uuid = get_uuid(project.vs_output_filename)
+
+        # Set the project filename
+        item = getattr(project, "vs_output_filename", None)
+        if not item:
+            project.vs_output_filename = "{}{}{}.vcproj".format(
+                project.name, solution.ide_code, project.platform_code)
+
+        # Set the project UUID
+        item = getattr(project, "vs_uuid", None)
+        if not item:
+            project.vs_uuid = get_uuid(project.vs_output_filename)
 
         for configuration in project.configuration_list:
+
+            # Get the Visual Studio platform code
             vs_platform = configuration.platform.get_vs_platform()[0]
             configuration.vs_platform = vs_platform
+
+            # Create the merged configuration/platform code
             configuration.vs_configuration_name = "{}|{}".format(
                 configuration.name, vs_platform)
 
@@ -6140,15 +6158,11 @@ def generate(solution):
     # files using the format appropriate for the selected IDE
 
     for project in solution.project_list:
-        project.get_file_list([FileTypes.h,
-                               FileTypes.cpp,
-                               FileTypes.c,
-                               FileTypes.rc,
-                               FileTypes.ico,
-                               FileTypes.hlsl,
-                               FileTypes.glsl,
-                               FileTypes.x86,
-                               FileTypes.x64])
+        project.get_file_list(
+            [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.rc,
+            FileTypes.x86, FileTypes.x64,
+            FileTypes.hlsl, FileTypes.glsl, FileTypes.ico, FileTypes.image
+             ])
 
         # Check if masm.rules needs to be added
         add_masm_support(project)

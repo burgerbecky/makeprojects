@@ -327,9 +327,9 @@ visual_studio.create_deploy_script
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::create_deploy_script
 
-visual_studio.do_tree
-^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::visual_studio::do_tree
+visual_studio.do_filter_tree
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio::do_filter_tree
 
 visual_studio.generate
 ^^^^^^^^^^^^^^^^^^^^^^

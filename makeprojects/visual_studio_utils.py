@@ -120,8 +120,23 @@ def get_path_property(ide, pathname):
         validators.VSStringProperty of type RelativePath or FileName
     """
 
-    if pathname.startswith(".") or ide is IDETypes.vs2003:
+    # Easy test, use relative indexing
+    if pathname.startswith("."):
         return VSStringProperty("RelativePath", pathname)
+
+    # VS 2003 doesn't support FileName, so force relative
+    # Also 2005/2008 only supports RelativePath if it's a source
+    # code filename
+    if ide is IDETypes.vs2003:
+
+        # Check if it's a full path
+        if len(pathname) < 2 or pathname[1] != ":":
+
+            # Prepend dot slash
+            pathname = ".\\" + pathname
+        return VSStringProperty("RelativePath", pathname)
+
+    # VS 2005/2008
     return VSStringProperty("FileName", pathname)
 
 ########################################

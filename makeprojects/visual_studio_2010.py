@@ -463,6 +463,7 @@ class VS2010Globals(VS2010XML):
         """
 
         # pylint: disable=too-many-branches
+        # pylint: disable=too-many-nested-blocks
 
         ## Parent project
         self.project = project
@@ -572,6 +573,8 @@ class VS2010Configuration(VS2010XML):
         ## Parent configuration
 
         # pylint: disable=too-many-branches
+        # pylint: disable=too-many-statements
+
         self.configuration = configuration
 
         vs_configuration_name = configuration.vs_configuration_name
@@ -1788,7 +1791,8 @@ class VS2010vcproj(VS2010XML):
             line_list = []
         # XML is utf-8 only
         line_list.append('<?xml version="1.0" encoding="utf-8"?>')
-        return VS2010XML.generate(self, line_list=line_list, indent=indent)
+        return VS2010XML.generate(
+            self, line_list, indent)
 
 ########################################
 
@@ -1945,8 +1949,9 @@ class VS2010vcprojfilter(VS2010XML):
             line_list = []
 
         # XML is utf-8 only
-        line_list.append('<?xml version="1.0" encoding="utf-8"?>')
-        return VS2010XML.generate(self, line_list, indent=indent)
+        line_list.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
+        return VS2010XML.generate(
+            self, line_list, indent=indent)
 
 
 ########################################
@@ -1966,9 +1971,7 @@ def generate(solution):
         Zero if no error, non-zero on error.
     """
 
-    # Too many branches
-    # Too many locals
-    # pylint: disable=R0912,R0914
+    # pylint: disable=too-many-statements
 
     # Failsafe
     if solution.ide not in SUPPORTED_IDES:
@@ -1981,11 +1984,22 @@ def generate(solution):
     # Iterate over the project files and create the filenames
     for project in solution.project_list:
 
-        project.vs_output_filename = "{}{}{}.vcxproj".format(
-            project.name, solution.ide_code, project.platform_code)
-        project.vs_uuid = get_uuid(project.vs_output_filename)
+        # Set the project filename
+        item = getattr(project, "vs_output_filename", None)
+        if not item:
+            project.vs_output_filename = "{}{}{}.vcxproj".format(
+                project.name, solution.ide_code, project.platform_code)
+
+        # Set the project UUID
+        item = getattr(project, "vs_uuid", None)
+        if not item:
+            project.vs_uuid = get_uuid(project.vs_output_filename)
 
         for configuration in project.configuration_list:
+
+            # Get the Visual Studio platform code
+            # A hack is applied to map NVidia Android types to
+            # Microsoft Android types
             vs_platform = configuration.platform.get_vs_platform()[0]
             if solution.ide >= IDETypes.vs2022:
                 vs_platform = {"x86-Android-NVIDIA": "x86",
@@ -1993,6 +2007,8 @@ def generate(solution):
                "ARM-Android-NVIDIA": "ARM",
                "AArch64-Android-NVIDIA": "ARM64"}.get(vs_platform, vs_platform)
             configuration.vs_platform = vs_platform
+
+            # Create the merged configuration/platform code
             configuration.vs_configuration_name = "{}|{}".format(
                 configuration.name, vs_platform)
 
@@ -2021,23 +2037,12 @@ def generate(solution):
     # files using the format appropriate for the selected IDE
 
     for project in solution.project_list:
-        project.get_file_list([FileTypes.h,
-                               FileTypes.cpp,
-                               FileTypes.c,
-                               FileTypes.x86,
-                               FileTypes.x64,
-                               FileTypes.ppc,
-                               FileTypes.arm,
-                               FileTypes.arm64,
-                               FileTypes.s,
-                               FileTypes.rc,
-                               FileTypes.ico,
-                               FileTypes.hlsl,
-                               FileTypes.glsl,
-                               FileTypes.x360sl,
-                               FileTypes.vitacg,
-                               FileTypes.appxmanifest,
-                               FileTypes.image])
+        project.get_file_list(
+            [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.rc,
+             FileTypes.x86, FileTypes.x64, FileTypes.ppc, FileTypes.arm,
+             FileTypes.arm64, FileTypes.s,
+             FileTypes.hlsl, FileTypes.glsl, FileTypes.x360sl, FileTypes.vitacg,
+             FileTypes.ico, FileTypes.appxmanifest, FileTypes.image])
 
         # Handle WiiU extensions based on found files
         wiiu_props(project)
@@ -2064,6 +2069,7 @@ def generate(solution):
             perforce=perforce,
             verbose=verbose)
 
+        # Visual Studio 2010 and higher has a 3rd file, filters
         exporter = VS2010vcprojfilter(project)
         filter_lines = []
         exporter.generate(filter_lines)
@@ -2071,7 +2077,11 @@ def generate(solution):
         file_name = os.path.join(
             solution.working_directory,
             project.vs_output_filename + ".filters")
+
+        # Is there any data besides the header?
         if len(filter_lines) >= 4:
+
+            # Save it
             save_text_file_if_newer(
                 file_name,
                 filter_lines,
@@ -2079,5 +2089,7 @@ def generate(solution):
                 perforce=perforce,
                 verbose=verbose)
         else:
+
+            # File is not needed, remove it.
             delete_file(file_name)
     return 0
