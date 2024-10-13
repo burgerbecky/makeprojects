@@ -147,6 +147,7 @@ class FileTypes(IntEnum):
         a68: 680x0 assembly source
         arm: ARM 32 assembly source
         arm64: ARM 64 assembly source
+        s: Generic assembly source
         image: Image files
         ico: Windows icon files
         icns: MacOSX icon files
@@ -196,7 +197,7 @@ class FileTypes(IntEnum):
         Args:
             test_name: Filename to test
         Returns:
-            A @ref makeprojects.enums.FileTypes member or None on failure
+            A @ref FileTypes member or None on failure
         See Also:
             makeprojects.enums._FILETYPES_LOOKUP
         """
@@ -435,7 +436,7 @@ class ProjectTypes(IntEnum):
         Args:
             project_type_name: Project type string to test.
         Returns:
-            A @ref makeprojects.enums.ProjectTypes member or None on failure.
+            A @ref ProjectTypes member or None on failure.
         """
 
         # Already a ProjectTypes?
@@ -686,7 +687,7 @@ class IDETypes(IntEnum):
         Args:
             ide_name: Platform string to test.
         Returns:
-            A @ref makeprojects.enums.IDETypes member or None on failure.
+            A @ref IDETypes member or None on failure.
         """
 
         # pylint: disable=too-many-return-statements
@@ -926,35 +927,13 @@ class PlatformTypes(IntEnum):
     All supported tool chains for specific platforms are enumerated here.
 
     Attributes:
-        windows: Windows 32 and 64 bit Intel and arm64
-        windowsintel: Windows 32 and 64 bit Intel
-        windowsarm: Windows 32 and 64 bit arm
-        win32: Windows 32 bit intel only
-        win64: Window 64 bit intel only
-        winarm32: Windows 32 bit arm only
-        winarm64: Windows 64 bit arm only
-        winitanium: Windows 64 bit itanium only
+        msdos: MSDOS
+        msdos4gw: MSDOS Dos4GW
+        msdosx32: MSDOS DosX32
 
-        macosx: Mac OSX, all CPUs
-        macosxppc32: Mac OSX PowerPC 32 bit only
-        macosxppc64: Mac OSX PowerPC 64 bit only
-        macosxintel32: Mac OSX Intel 32 bit only
-        macosxintel64: Mac OSX Intel 64 bit only
-        macosxarm64: Mac OSX ARM 64 bit only
+        beos: BeOS
 
-        macos: Mac OS 7-9, all CPUs
-        macos68k: Mac OS 7-9 680x0 only
-        macosppc: Mac OS 7-9 PowerPC 32 bit only
-        maccarbon: Mac OS Carbon, all CPUs
-        maccarbon68k: Mac OS Carbon 680x0 only (CFM)
-        maccarbonppc: Mac OS Carbon PowerPC 32 bit only
-
-        ios: iOS, all CPUs
-        ios32: iOS 32 bit ARM only
-        ios64: iOS 64 bit ARM only
-        iosemu: iOS emulator, all CPUs
-        iosemu32: iOS emulator 32 bit Intel only
-        iosemu64: iOS emulator 64 bit Intel only
+        iigs: Apple IIgs
 
         xbox: Microsoft Xbox classic
         xbox360: Microsoft Xbox 360
@@ -979,6 +958,44 @@ class PlatformTypes(IntEnum):
         dsi: Nintendo 3DS
         ds: Nintendo DS
 
+        windows: Windows 32 and 64 bit Intel and arm64
+        windowsintel: Windows 32 and 64 bit Intel
+        windowsarm: Windows 32 and 64 bit arm
+        win32: Windows 32 bit intel only
+        win64: Window 64 bit intel only
+        winarm32: Windows 32 bit arm only
+        winarm64: Windows 64 bit arm only
+        winitanium: Windows 64 bit itanium only
+
+        macosx: Mac OSX, all CPUs
+        macosxppc32: Mac OSX PowerPC 32 bit only
+        macosxppc64: Mac OSX PowerPC 64 bit only
+        macosxintel32: Mac OSX Intel 32 bit only
+        macosxintel64: Mac OSX Intel 64 bit only
+        macosxarm64: Mac OSX ARM 64 bit only
+
+        ios: iOS, all CPUs
+        iosemu: iOS emulator, all CPUs
+        ios32: iOS 32 bit ARM only
+        ios64: iOS 64 bit ARM only
+        iosemu32: iOS emulator 32 bit Intel only
+        iosemu64: iOS emulator 64 bit Intel only
+
+        mac: Mac OS 7-9, all CPUs
+        mac68k: Mac OS 7-9 680x0 only
+        macppc: Mac OS 7-9 PowerPC 32 bit only
+        macclassic: Mac OS 7-9, 68k and PPC
+        maccarbon: Mac OS Carbon, all CPUs
+
+        mac68knear: Mac OS Classic 680x0 only (near)
+        mac68knearfp: Mac OS Classic 680x0 only (near with fpu)
+        mac68kfar: Mac OS Classic 680x0 only (far)
+        mac68kfarfp: Mac OS Classic 680x0 only (far with fpu)
+        mac68kcarbon: Mac OS Carbon 680x0 only (CFM)
+
+        macppcclassic: Mac OS Classic PowerPC 32 bit only
+        macppccarbon: Mac OS Carbon PowerPC 32 bit only
+
         stadia: Google Stadia
         android: Generic Android
         shield: nVidia SHIELD
@@ -991,13 +1008,6 @@ class PlatformTypes(IntEnum):
         androidintel64: Android Intel / AMD 64
 
         linux: Generic Linux
-
-        msdos: MSDOS
-        msdos4gw: MSDOS Dos4GW
-        msdosx32: MSDOS DosX32
-
-        beos: BeOS
-        iigs: Apple IIgs
     """
 
     # pylint: disable=too-many-public-methods
@@ -1449,7 +1459,7 @@ class PlatformTypes(IntEnum):
         Args:
             platform_name: Platform string to test.
         Returns:
-            A @ref makeprojects.enums.PlatformTypes member or None on failure.
+            A @ref PlatformTypes member or None on failure.
         See Also:
             makeprojects.enums._PLATFORMTYPES_READABLE
         """

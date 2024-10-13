@@ -224,6 +224,27 @@ def configuration_presets(configuration):
             define_list.append("DISABLE_IMPORTGL")
             libraries_list.extend(["android", "EGL", "GLESv1_CM"])
 
+        # Xbox classic
+        if platform is PlatformTypes.xbox:
+            define_list.extend(["_XBOX", "_USE_XGMATH"])
+            libraries_list.append("xboxkrnl.lib")
+            if configuration.get_chained_value("profile"):
+                libraries_list.extend(
+                    ["xperf.lib", "xbdm.lib", "xapilib.lib", "d3d8i.lib",
+                     "d3dx8.lib", "xgraphics.lib", "dsound.lib"])
+            elif configuration.debug:
+                libraries_list.extend(
+                    ["xperf.lib", "xbdm.lib", "xapilibd.lib", "d3d8d.lib",
+                     "d3dx8d.lib", "xgraphicsd.lib", "dsoundd.lib"])
+            elif configuration.link_time_code_generation:
+                libraries_list.extend(
+                    ["xapilib.lib", "d3d8ltcg.lib", "d3dx8.lib",
+                     "xgraphicsltcg.lib", "dsound.lib"])
+            else:
+                libraries_list.extend(
+                    ["xapilib.lib", "d3d8.lib", "d3dx8.lib", "xgraphics.lib",
+                     "dsound.lib"])
+
         # Xbox 360
         if platform is PlatformTypes.xbox360:
             define_list.extend(["_XBOX", "XBOX"])
@@ -602,7 +623,7 @@ def default_configuration_list(platform, ide):
     # Xbox and Windows support link time code generation
     # as a platform
     if ide.is_visual_studio() and platform.is_windows(
-    ) or platform in (PlatformTypes.xbox360,):
+    ) or platform in (PlatformTypes.xbox, PlatformTypes.xbox360):
         results.append("Release_LTCG")
 
     # Configurations specific to the Xbox 360

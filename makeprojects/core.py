@@ -55,8 +55,8 @@ class Attributes(object):
         optimization: Boolean for optimization enable
         exceptions: Boolean for enabling C++ exceptions
         analyze: Boolean for code analysis
-        use_mfc: Boolean for Microsoft Foundation Classes usage
-        use_atl: Boolean for Active Template Library usage
+        use_mfc: String for Microsoft Foundation Classes usage
+        use_atl: String for Active Template Library usage
         clr_support: C# CLR support usage
         name: Name of the project or configuration
         working_directory: Base directory for relative paths
@@ -70,9 +70,9 @@ class Attributes(object):
         _optimization: True @ref makeprojects.core.Attributes.optimization
         _exceptions: False @ref makeprojects.code.Attributes.exceptions
         _analyze: True @ref makeprojects.core.Attributes.analyze
-        _use_mfc: True @ref makeprojects.core.Attributes.use_mfc
-        _use_atl: True @ref makeprojects.core.Attributes.use_atl
-        _clr_support: True @ref makeprojects.core.Attributes.clr_support
+        _use_mfc: @ref makeprojects.core.Attributes.use_mfc
+        _use_atl: @ref makeprojects.core.Attributes.use_atl
+        _clr_support: @ref makeprojects.core.Attributes.clr_support
         _name: True @ref makeprojects.core.Attributes.name
         _working_directory: True @ref makeprojects.core.Attributes.working_directory
         _deploy_folder: True @ref makeprojects.core.Attributes.deploy_folder
@@ -344,20 +344,20 @@ class Attributes(object):
 
     def _getuse_mfc(self):
         """
-        Get use of Microsoft Foundation class boolean
+        Get use of Microsoft Foundation class string
         """
 
         return self.get_chained_value("_use_mfc")
 
     def _setuse_mfc(self, value):
         """
-        Set the boolean with validation
+        Set the string with validation
         Args:
             self: The "this" reference.
-            value: None, True or False
+            value: None, "DLL", "Static"
         """
 
-        self._use_mfc = validate_boolean(value)
+        self._use_mfc = validate_string(value)
 
     use_mfc = property(_getuse_mfc, _setuse_mfc)
 
@@ -365,20 +365,20 @@ class Attributes(object):
 
     def _getuse_atl(self):
         """
-        Get Microsoft Active Template Library boolean
+        Get Microsoft Active Template Library string
         """
 
         return self.get_chained_value("_use_atl")
 
     def _setuse_atl(self, value):
         """
-        Set the boolean with validation
+        Set the string with validation
         Args:
             self: The "this" reference.
-            value: None, True or False
+            value: None, "DLL", "Static"
         """
 
-        self._use_atl = validate_boolean(value)
+        self._use_atl = validate_string(value)
 
     use_atl = property(_getuse_atl, _setuse_atl)
 
@@ -393,13 +393,13 @@ class Attributes(object):
 
     def _setclr_support(self, value):
         """
-        Set the boolean with validation
+        Set the string with validation
         Args:
             self: The "this" reference.
             value: None, True or False
         """
 
-        self._clr_support = validate_boolean(value)
+        self._clr_support = validate_string(value)
 
     clr_support = property(_getclr_support, _setclr_support)
 
@@ -1466,6 +1466,7 @@ class Solution(Attributes):
         """
 
         # pylint: disable=import-outside-toplevel
+        # pylint: disable=too-many-branches
 
         # Work from a copy to ensure the original is not touched.
         solution = deepcopy(self)

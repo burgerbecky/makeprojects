@@ -688,6 +688,529 @@ def create_deploy_script(configuration):
 
 ########################################
 
+# Entries set internally
+
+########################################
+
+
+def Name(fallback):
+    """
+    Create ``Name`` property.
+
+    Simple string with the ``Name`` keyword
+
+    No external overrides
+
+    Args:
+        fallback: String for the value
+    Returns:
+        validators.VSStringProperty object.
+    """
+
+    return VSStringProperty("Name", fallback)
+
+########################################
+
+# Entries usually found in VS2003Configuration
+
+########################################
+
+
+def OutputDirectory(configuration, fallback=None):
+    """
+    Create ``OutputDirectory`` property.
+
+    Directory to store the final exe/lib file output. Will remap to OutDir
+
+    Can be overridden with configuration attribute
+    ``vs_OutputDirectory`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    # Convert to string object
+    result = VSStringProperty.vs_validate(
+        "OutputDirectory",
+        configuration,
+        fallback)
+
+    # Post sanity check. Make sure it's terminated with a slash and in Windows
+    # format
+    fallback = result.get_value()
+    if fallback:
+        result.value = convert_to_windows_slashes(
+            fallback,
+            force_ending_slash=True)
+
+    return result
+
+########################################
+
+
+def IntermediateDirectory(configuration, fallback=None):
+    """
+    Create ``IntermediateDirectory`` property.
+
+    Directory to store the intermediate outputs such as .obj and .res files
+
+    Can be overridden with configuration attribute
+    ``vs_IntermediateDirectory`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringProperty object.
+    """
+
+    # Convert to string object
+    result = VSStringProperty.vs_validate(
+        "IntermediateDirectory",
+        configuration,
+        fallback)
+
+    # Post sanity check. Make sure it's terminated with a slash and in Windows
+    # format
+    fallback = result.get_value()
+    if fallback:
+        result.value = convert_to_windows_slashes(
+            fallback,
+            force_ending_slash=True)
+
+    return result
+
+########################################
+
+
+def ConfigurationType(configuration, fallback=None):
+    """
+    Create ``ConfigurationType`` property.
+
+    Type of project generated, dll, static lib, executable.
+
+    No external overrides
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSIntegerProperty object.
+    """
+
+    # If not overridden, map it out.
+    if fallback is None:
+
+        # The numbers don't map to an enum, since Utility is 10
+        # So manually map to the supported project types
+        project_type = configuration.project_type
+        if project_type is ProjectTypes.library:
+            fallback = 4
+        elif project_type is ProjectTypes.sharedlibrary:
+            fallback = 2
+        else:
+            fallback = 1
+
+    # Xbox doesn't support shared libraries, convert to library
+    if fallback == 2 and configuration.platform is PlatformTypes.xbox:
+        fallback = 4
+
+    return VSIntegerProperty("ConfigurationType", fallback)
+
+
+########################################
+
+def UseOfMFC(configuration, fallback=None):
+    """
+    Create ``UseOfMFC`` property.
+
+    Enable the use of MFC, static or dynamic library.
+
+    Can be overridden with configuration attribute
+    ``vs_UseOfMFC`` for the C compiler.
+
+    * "Default" / "None" / "No"
+    * "Static"
+    * "Dynamic" / "DLL"
+    * 0 through 2
+
+    Note:
+        Only available on Windows platforms
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSEnumProperty object.
+    """
+
+    # Only available on Windows
+    if not configuration.platform.is_windows():
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_UseOfMFC")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "UseOfMFC",
+        fallback,
+        (("Default", "None", "No"),
+         ("Static", "Yes"),
+         ("Dynamic", "DLL")))
+
+########################################
+
+
+def UseOfATL(configuration, fallback=None):
+    """
+    Create ``UseOfATL`` property.
+
+    Enable the use of Advanced Template Library, static or dynamic.
+
+    Can be overridden with configuration attribute
+    ``vs_UseOfATL`` for the C compiler.
+
+    * "Default" / "None" / "No"
+    * "Static"
+    * "Dynamic" / "DLL"
+    * 0 through 2
+
+    Note:
+        Only available on Windows platforms
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSEnumProperty object.
+    """
+
+    # Only available on Windows
+    if not configuration.platform.is_windows():
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_UseOfATL")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "UseOfATL",
+        fallback,
+        (("Default", "None", "No"),
+         ("Static", "Yes"),
+         ("Dynamic", "DLL")))
+
+########################################
+
+
+def ATLMinimizesCRunTimeLibraryUsage(configuration, fallback=None):
+    """
+    Create ``ATLMinimizesCRunTimeLibraryUsage`` property.
+
+    Tells ATL to link to the C runtime libraries statically to minimize
+    dependencies; requires that ``Use of ATL`` to be set.
+
+    Can be overridden with configuration attribute
+    ``vs_ATLMinimizesCRunTimeLibraryUsage`` for the C compiler.
+
+    Note:
+        Not available on Visual Studio 2008 or later and only available on
+        Windows platforms
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSBooleanProperty object.
+    """
+
+    # Only available on Windows
+    if not configuration.platform.is_windows():
+        return None
+
+    # VS2003/2005 only
+    if configuration.ide is IDETypes.vs2008:
+        return None
+
+    return VSBooleanProperty.vs_validate(
+        "ATLMinimizesCRunTimeLibraryUsage",
+        configuration,
+        fallback)
+
+########################################
+
+
+def CharacterSet(configuration, fallback=None):
+    """
+    Create ``CharacterSet`` property.
+
+    Choose if Unicode or ASCII defaults are used during Windows compilation.
+
+    Can be overridden with configuration attribute
+    ``vs_CharacterSet`` for the C compiler.
+
+    * "Default"
+    * "Unicode"
+    * "MultiByte" / "ASCII"
+    * 0 through 2
+
+    Note:
+        Only available on Windows platforms
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        None or validators.VSEnumProperty object.
+    """
+
+    # Only available on Windows
+    if not configuration.platform.is_windows():
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_CharacterSet")
+    if value is not None:
+        fallback = value
+
+    return VSEnumProperty(
+        "CharacterSet",
+        fallback,
+        ("Default",
+         "Unicode",
+         ("MultiByte", "ASCII")))
+
+########################################
+
+
+def ManagedExtensions(configuration, fallback=None):
+    """
+    Create ``ManagedExtensions`` property.
+
+    Enable the level of Common Language Runtime support
+
+    Compiler switches /clr, /clr:pure, /clr:safe, /clr:oldSyntax
+
+    Can be overridden with configuration attribute
+    ``vs_ManagedExtensions`` for the C compiler.
+
+    * "No", "Default"
+    * "/clr" / "CLR" / "Yes"
+    * "/clr:pure" / "Pure MISL" / "MISL" / "Pure"
+    * "/clr:safe" / "Safe MISL" / "Safe"
+    * "/clr:oldSyntax" / "Old MISL" / "Old"
+    * 0 through 4
+
+    Note:
+        A boolean on Visual Studio 2003, an enum on 2005/2008
+
+    Note:
+        Only available on Windows platforms
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty or validators.VSBooleanProperty object.
+    """
+
+    # Only available on Windows
+    if not configuration.platform.is_windows():
+        return None
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_ManagedExtensions")
+    if value is not None:
+        fallback = value
+
+    # Visual Studio 2003 only has "Yes" or "No"
+    # So, convert the value into a boolean
+    if configuration.ide is IDETypes.vs2003:
+
+        if fallback is not None:
+            # Is there a value?
+            # Try the easy way first, is it a number, "Yes", "True"?
+            try:
+                fallback = string_to_bool(fallback)
+
+            # Assume exceptions are requested
+            except ValueError:
+                fallback = True
+
+        # Enable/Disable Common Language Runtime
+        return VSBooleanProperty(
+            "ManagedExtensions",
+            fallback)
+
+    # Visual Studio 2005, 2008 version uses enums
+
+    # If a bool, use /clr if True
+    if isinstance(fallback, bool):
+        fallback = "Yes" if fallback else "No"
+
+    return VSEnumProperty(
+        "ManagedExtensions",
+        fallback,
+        (("No", "Default"),
+        ("/clr", "CLR", "Yes"),
+        ("/clr:pure", "Pure MISL", "MISL", "Pure"),
+        ("/clr:safe", "Safe MISL", "Safe"),
+        ("/clr:oldSyntax", "Old MISL", "Old")))
+
+########################################
+
+
+def DeleteExtensionsOnClean(configuration, fallback=None):
+    """
+    Create ``DeleteExtensionsOnClean`` property.
+
+    List of file extensions to remove on clean.
+
+    Can be overridden with configuration attribute
+    ``vs_DeleteExtensionsOnClean`` for the C compiler.
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       validators.VSStringListProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_unique_chained_list(
+        "vs_DeleteExtensionsOnClean")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "DeleteExtensionsOnClean",
+        fallback,
+        slashes="\\")
+
+########################################
+
+
+def WholeProgramOptimization(configuration, fallback=None):
+    """
+    Create ``WholeProgramOptimization`` property.
+
+    Enable the type of link time code generation
+
+    Can be overridden with configuration attribute
+    ``vs_WholeProgramOptimization`` for the C compiler.
+
+    * "No", "Default"
+    * "Yes", "On"
+    * "Instrument"
+    * "Optimize"
+    * "Update"
+    * 0 through 4
+
+    Note:
+        A boolean on Visual Studio 2003, an enum on 2005/2008
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+        validators.VSEnumProperty or validators.VSBooleanProperty object.
+    """
+
+    # Was there an override?
+    value = configuration.get_chained_value("vs_WholeProgramOptimization")
+    if value is not None:
+        fallback = value
+
+    # Visual Studio 2003 only has "Yes" or "No"
+    # So, convert the value into a boolean
+    if configuration.ide is IDETypes.vs2003:
+
+        if fallback is not None:
+            # Is there a value?
+            # Try the easy way first, is it a number, "Yes", "True"?
+            try:
+                fallback = string_to_bool(fallback)
+
+            # Assume exceptions are requested
+            except ValueError:
+                fallback = True
+
+        # Enable/Disable link time code generation
+        return VSBooleanProperty(
+            "WholeProgramOptimization",
+            fallback)
+
+    # Visual Studio 2005, 2008 version uses enums
+
+    # If a bool, use LTCG if True
+    if isinstance(fallback, bool):
+        fallback = "Yes" if fallback else "No"
+
+    return VSEnumProperty(
+        "WholeProgramOptimization",
+        fallback,
+        (("No", "Default"),
+        ("Yes", "On"),
+         "Instrument",
+        "Optimize",
+        "Update"))
+
+########################################
+
+
+def ReferencesPath(configuration, fallback=None):
+    """
+    Create ``ReferencesPath`` property.
+
+    List of folders for file references.
+
+    Can be overridden with configuration attribute
+    ``vs_ReferencesPath`` for the C compiler.
+
+    Note:
+        Only available on Visual Studio 2003
+
+    Args:
+        configuration: Project configuration to scan for overrides.
+        fallback: Default value to use
+
+    Returns:
+       None or validators.VSStringListProperty object.
+    """
+
+    # Visual Studio 2003 only
+    if configuration.ide is not IDETypes.vs2003:
+        return None
+
+    # Was there an override?
+    value = configuration.get_unique_chained_list(
+        "vs_ReferencesPath")
+    if value:
+        fallback = value
+
+    return VSStringListProperty(
+        "ReferencesPath",
+        fallback,
+        slashes="\\")
+
+########################################
+
 # Entries usually found in VCCLCompilerTool
 
 
@@ -1129,18 +1652,15 @@ def OptimizeForWindowsApplication(configuration, fallback=None):
 ########################################
 
 
-def WholeProgramOptimization(configuration, fallback=None):
+def WholeProgramOptimization2003(configuration, fallback=None):
     """
-    Create ``WholeProgramOptimization`` property.
+    Create ``WholeProgramOptimization`` property for VS 2003.
 
     Enables cross-module optimizations by delaying code generation to link
     time; requires that linker option ``Link Time Code Generation`` be turned
     on.
 
     Compiler switch /GL
-
-    Can be overridden with configuration attribute
-    ``vs_WholeProgramOptimization`` for the C compiler.
 
     Args:
         configuration: Project configuration to scan for overrides.
@@ -1154,11 +1674,9 @@ def WholeProgramOptimization(configuration, fallback=None):
     if configuration.ide is IDETypes.vs2003:
         return None
 
-    return VSBooleanProperty.vs_validate(
+    return VSBooleanProperty(
         "WholeProgramOptimization",
-        configuration,
         fallback)
-
 
 ########################################
 
@@ -3151,25 +3669,6 @@ def BoolUseLibraryDependencyInputs(configuration):
     return None
 
 
-def BoolATLMinimizesCRunTimeLibraryUsage(configuration):
-    """ ATLMinimizesCRunTimeLibraryUsage
-
-    Tells ATL to link to the C runtime libraries statically to minimize
-    dependencies; requires that ``Use of ATL`` to be set.
-
-    Note:
-        Not available on Visual Studio 2008 or later
-    Args:
-        configuration: Project configuration to scan for overrides.
-    Returns:
-        None or VSBooleanProperty object.
-    """
-    if configuration.ide < IDETypes.vs2008:
-        return VSBooleanProperty.vs_validate(
-            "ATLMinimizesCRunTimeLibraryUsage", configuration)
-    return None
-
-
 def BoolGenerateManifest(configuration):
     """ GenerateManifest
 
@@ -3579,11 +4078,6 @@ def IntStackCommitSize():
 ########################################
 
 # String properties
-
-
-def StringName(default):
-    """ Name record """
-    return VSStringProperty("Name", fallback=default)
 
 
 def StringOutputFile(default=None):
@@ -4037,7 +4531,7 @@ class VCCLCompilerTool(VS2003Tool):
 
         # Enable cross function optimizations
         self.add_default(
-            WholeProgramOptimization(
+            WholeProgramOptimization2003(
                 configuration,
                 configuration.link_time_code_generation))
 
@@ -5455,67 +5949,59 @@ class VS2003Configuration(VS2003XML):
             configuration: Configuration record to extract defaults.
         """
 
-        # Too many branches
-        # Too many statements
-        # pylint: disable=R0912,R0915
+        # pylint: disable=too-many-statements
+        # pylint: disable=too-many-branches
 
         self.configuration = configuration
+        VS2003XML.__init__(self, "Configuration")
 
         ide = configuration.ide
         platform = configuration.platform
         project_type = configuration.project_type
 
-        vs_intdirectory = "temp\\{}{}\\".format(
-            configuration.project.name,
-            configuration.get_suffix())
+        # Add attributes
 
-        if project_type is ProjectTypes.library:
-            vs_configuration_type = "4"
-        elif project_type is ProjectTypes.sharedlibrary:
-            vs_configuration_type = "2"
-        else:
-            vs_configuration_type = "1"
+        # Name of the configuration
+        self.add_default(Name(configuration.vs_configuration_name))
 
-        if configuration.link_time_code_generation:
-            if ide > IDETypes.vs2003:
-                vs_link_time_code_generation = "1"
-            else:
-                vs_link_time_code_generation = "true"
-        else:
-            vs_link_time_code_generation = None
+        # Set the output directory for final binaries
+        self.add_default(OutputDirectory(configuration, "$(ProjectDir)bin"))
 
-        VS2003XML.__init__(self, "Configuration", [
-            StringName(configuration.vs_configuration_name),
-            VSStringProperty("OutputDirectory", "bin\\"),
-            VSStringProperty("IntermediateDirectory", vs_intdirectory),
-            VSStringProperty("ConfigurationType", vs_configuration_type),
-            VSStringProperty("UseOfMFC", None),
-            VSStringProperty("UseOfATL", None),
-            BoolATLMinimizesCRunTimeLibraryUsage(configuration),
-            VSStringProperty("CharacterSet", None),
-            VSStringProperty("DeleteExtensionsOnClean", None),
-            VSStringProperty("ManagedExtensions", None),
-            VSStringProperty("WholeProgramOptimization",
-                           vs_link_time_code_generation),
-            VSStringProperty("ReferencesPath", None)
-        ])
+        # Set the directory for temp files
+        item = "$(ProjectDir)temp\\" + configuration.project.name + \
+            configuration.get_suffix()
+        self.add_default(IntermediateDirectory(configuration, item))
 
-        if platform.is_windows():
-            if configuration.use_mfc is not None:
-                self.set_attribute(
-                    "UseOfMFC", "1" if configuration.use_mfc else "0")
+        # Set the configuration type
+        self.add_default(ConfigurationType(configuration))
 
-            if configuration.use_atl is not None:
-                self.set_attribute(
-                    "UseOfATL", "1" if configuration.use_atl else "0")
-            if ide > IDETypes.vs2003 and configuration.clr_support is not None:
-                self.set_attribute("ManagedExtensions",
-                                   "1" if configuration.clr_support else "0")
+        # Enable/disable MFC
+        self.add_default(UseOfMFC(configuration, configuration.use_mfc))
 
-            item = configuration.get_chained_value("vs_CharacterSet")
-            self.set_attribute(
-                "CharacterSet",
-                {"Unicode": "1", "MultiByte": "2"}.get(item, None))
+        # Enable/disable ATL
+        self.add_default(UseOfATL(configuration, configuration.use_atl))
+
+        # Enable/disable ATL linkage at runtime (2003/2005 only)
+        self.add_default(ATLMinimizesCRunTimeLibraryUsage(configuration))
+
+        # Set whether it's ASCII or Unicode compilation
+        self.add_default(CharacterSet(configuration))
+
+        # Is CLR support enabled?
+        self.add_default(
+            ManagedExtensions(configuration, configuration.clr_support))
+
+        # List of file extensions to delete on clean
+        self.add_default(DeleteExtensionsOnClean(configuration))
+
+        # Enable link time code generation
+        self.add_default(
+            WholeProgramOptimization(
+                configuration,
+                configuration.link_time_code_generation))
+
+        # Paths for file references (2003 only)
+        self.add_default(ReferencesPath(configuration))
 
         # Include all the data chunks
         self.vcprebuildeventtool = VCPreBuildEventTool(configuration)
@@ -5657,8 +6143,9 @@ class VS2003FileConfiguration(VS2003XML):
         self.configuration = configuration
         self.source_file = source_file
 
-        VS2003XML.__init__(self, "FileConfiguration", [
-            StringName(configuration.vs_configuration_name)])
+        VS2003XML.__init__(self, "FileConfiguration")
+
+        self.add_default(Name(configuration.vs_configuration_name))
 
         self.check_for_exclusion(base_name)
 
@@ -5719,7 +6206,8 @@ class VS2003FileConfiguration(VS2003XML):
 
         # Special case, only build assembly files on the proper cpu
         if source_file.type is FileTypes.x86:
-            if configuration.platform is not PlatformTypes.win32:
+            if configuration.platform not in (
+                    PlatformTypes.win32, PlatformTypes.xbox):
                 self.add_default(BoolExcludedFromBuild(True))
                 return
 
