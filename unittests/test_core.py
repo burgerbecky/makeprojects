@@ -23,8 +23,9 @@ import os
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.core import Attributes, Configuration, Project, Solution
+
 from makeprojects.enums import PlatformTypes, ProjectTypes, IDETypes
+from makeprojects.core import Attributes, Configuration, Project, Solution
 
 ########################################
 
@@ -158,13 +159,12 @@ class TestCore(unittest.TestCase):
         # test use_mfc
         self.assertIsNone(a.use_mfc)
         a.use_mfc = "true"
-        self.assertIs(a.use_mfc, True)
-        a.use_mfc = "false"
-        self.assertIs(a.use_mfc, False)
-        a.use_mfc = False
-        self.assertIs(a.use_mfc, False)
         with self.assertRaises(ValueError):
-            a.use_mfc = "anchovy"
+            a.use_mfc = True
+        a.use_mfc = "false"
+        with self.assertRaises(ValueError):
+            a.use_mfc = False
+        a.use_mfc = "anchovy"
         with self.assertRaises(ValueError):
             a.use_mfc = self
         a.use_mfc = None
@@ -173,13 +173,12 @@ class TestCore(unittest.TestCase):
         # test use_mfc
         self.assertIsNone(a.use_atl)
         a.use_atl = "true"
-        self.assertIs(a.use_atl, True)
         a.use_atl = "false"
-        self.assertIs(a.use_atl, False)
-        a.use_atl = False
-        self.assertIs(a.use_atl, False)
         with self.assertRaises(ValueError):
-            a.use_atl = "garden"
+            a.use_atl = True
+        with self.assertRaises(ValueError):
+            a.use_atl = False
+        a.use_atl = "garden"
         with self.assertRaises(ValueError):
             a.use_atl = self
         a.use_atl = None
@@ -188,13 +187,13 @@ class TestCore(unittest.TestCase):
         # test clr_support
         self.assertIsNone(a.clr_support)
         a.clr_support = "true"
-        self.assertIs(a.clr_support, True)
-        a.clr_support = "n"
-        self.assertIs(a.clr_support, False)
-        a.clr_support = False
-        self.assertIs(a.clr_support, False)
         with self.assertRaises(ValueError):
-            a.clr_support = "elvis"
+            a.clr_support = True
+        a.clr_support = "n"
+        with self.assertRaises(ValueError):
+            a.clr_support = False
+        with self.assertRaises(ValueError):
+            a.clr_support = 99
         with self.assertRaises(ValueError):
             a.clr_support = self
         a.clr_support = None

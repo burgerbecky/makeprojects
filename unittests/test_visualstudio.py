@@ -65,14 +65,14 @@ class TestVisualStudio(unittest.TestCase):
             '<VisualStudioProject>\n</VisualStudioProject>')
 
         # Entry with only attributes
-        vs_project.add_default(VSStringProperty('ProjectType', 'Visual C++'))
+        vs_project.add_attribute(VSStringProperty('ProjectType', 'Visual C++'))
         self.assertEqual(str(vs_project), (
             '<VisualStudioProject\n'
             '\tProjectType="Visual C++"\n/>'))
 
         # Test a second element
         platform = VS2003XML('Platform')
-        platform.add_default(VSStringProperty('Name', 'Win32'))
+        platform.add_attribute(VSStringProperty('Name', 'Win32'))
         self.assertEqual(str(platform), '<Platform\n\tName="Win32"\n/>')
 
         # Test an element in an element
@@ -85,7 +85,7 @@ class TestVisualStudio(unittest.TestCase):
             '</VisualStudioProject>'))
 
         # Test with element in an element with attributes
-        vs_project.add_default(VSStringProperty('ProjectType', 'Visual C++'))
+        vs_project.add_attribute(VSStringProperty('ProjectType', 'Visual C++'))
         self.assertEqual(str(vs_project), (
             '<VisualStudioProject\n'
             '\tProjectType="Visual C++"\n\t>\n'
@@ -101,7 +101,7 @@ class TestVisualStudio(unittest.TestCase):
             '\t\tName="Win32"\n\t/>\n'
             '</VisualStudioProject>'))
 
-        vs_project.add_default(VSStringProperty('ProjectGUID', 'GUID'))
+        vs_project.add_attribute(VSStringProperty('ProjectGUID', 'GUID'))
         self.assertEqual(str(vs_project), (
             '<VisualStudioProject\n'
             '\tProjectType="Visual C"\n'
