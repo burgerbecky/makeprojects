@@ -9,14 +9,14 @@ by Microsoft's Visual Studio 2003, 2005 and 2008.
 
 @package makeprojects.visual_studio
 
-@var makeprojects.visual_studio._SLNFILE_MATCH
-Regex for matching files with *.sln
-
 @var makeprojects.visual_studio.SUPPORTED_IDES
 List of IDETypes the visual_studio module supports.
 
+@var makeprojects.visual_studio._SLNFILE_MATCH
+Regex for matching files with *.sln
+
 @var makeprojects.visual_studio._VS_VERSION_YEARS
-Dict of version year strings to integers
+Dict of version year strings to integers 2012-2022
 
 @var makeprojects.visual_studio._VS_OLD_VERSION_YEARS
 Dict of version year strings 2003-2012 to integers
@@ -26,6 +26,9 @@ Dict of environment variables for game consoles
 
 @var makeprojects.visual_studio._VS_SLOW_MSBUILD
 Tuple of Visual Studio targets that build slowly with msbuild
+
+@var makeprojects.visual_studio._VS_PLATFORM_HACK
+Dict of android targets to remap from nVidia to Microsoft tool chains
 """
 
 # pylint: disable=consider-using-f-string
@@ -37,12 +40,10 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 import sys
 import operator
-from uuid import NAMESPACE_DNS, UUID
 from re import compile as re_compile
-from hashlib import md5
 from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     escape_xml_cdata, escape_xml_attribute, where_is_visual_studio, \
-    load_text_file, string_to_bool
+    load_text_file, string_to_bool, delete_file
 
 try:
     from wslwinreg import convert_to_windows_path
@@ -56,15 +57,26 @@ from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
 from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
-from .visual_studio_utils import get_path_property, convert_file_name_vs2010, \
-    add_masm_support, get_cpu_folder, generate_solution_file
+from .visual_studio_utils import get_uuid, get_path_property, \
+    convert_file_name_vs2010, add_masm_support, create_deploy_script, \
+    generate_solution_file, wiiu_props
+from .visual_studio_2010 import VS2010vcproj, VS2010vcprojfilter
 from .core import Configuration
 
 ########################################
 
-# This is for the old version of Visual Studio, look at visual_studio_2010
-# for modern format
-SUPPORTED_IDES = (IDETypes.vs2003, IDETypes.vs2005, IDETypes.vs2008)
+# List of all Visual Studio versions supported
+SUPPORTED_IDES = (
+    IDETypes.vs2003,
+    IDETypes.vs2005,
+    IDETypes.vs2008,
+    IDETypes.vs2010,
+    IDETypes.vs2012,
+    IDETypes.vs2013,
+    IDETypes.vs2015,
+    IDETypes.vs2017,
+    IDETypes.vs2019,
+    IDETypes.vs2022)
 
 # Match .sln files
 _SLNFILE_MATCH = re_compile("(?is).*\\.sln\\Z")
@@ -123,6 +135,13 @@ _VS_SLOW_MSBUILD = (
     "x64-Android-NVIDIA",       # nVidia android tools
     "Tegra-Android"
 )
+
+# Dict of android targets to remap to Microsoft tool chain
+_VS_PLATFORM_HACK = {
+    "x86-Android-NVIDIA": "x86",
+    "x64-Android-NVIDIA": "x64",
+    "ARM-Android-NVIDIA": "ARM",
+    "AArch64-Android-NVIDIA": "ARM64"}
 
 ########################################
 
@@ -500,8 +519,10 @@ def test(ide, platform_type):
     """
     Filter for supported platforms
 
-    Test for Windows, Classic xbox that can be built with
-    Visual Studio 2003-2008.
+    Test for classic xbox that can be built with
+    Visual Studio 2003. Windows on all versions.
+
+    Game consoles, are a long list...
 
     Args:
         ide: enums.IDETypes
@@ -511,180 +532,66 @@ def test(ide, platform_type):
         True if supported, False if not
     """
 
+    # pylint: disable=too-many-branches
+    # pylint: disable=too-many-return-statements
+
     # Windows 32 is always supported
     if platform_type is PlatformTypes.win32:
         return True
 
-    # Only vs 2003 supports xbox classic
+    # VS 2003 only supports Xbox Classic or Windows 32
+    # so early out
     if ide is IDETypes.vs2003:
         return platform_type is PlatformTypes.xbox
 
-    # Only vs 2005 and 2008 support Windows 64
-    return platform_type is PlatformTypes.win64
+    # Everyone else supports AMD 64
+    if platform_type is PlatformTypes.win64:
+        return True
 
+    # Windows for ARM only shows up on Visual Studio 2017 and higher
+    if platform_type in (PlatformTypes.winarm32, PlatformTypes.winarm64):
+        return ide >= IDETypes.vs2017
 
-########################################
+    # Xbox platforms
+    if platform_type is PlatformTypes.xbox360:
+        return IDETypes.vs2010 <= ide <= IDETypes.vs2017
 
+    if platform_type.is_xboxone():
+        return ide >= IDETypes.vs2015
 
-def get_uuid(input_str):
-    """
-    Convert a string to a UUID.
+    # Sony platforms
+    if ide < IDETypes.vs2017:
+        if platform_type in (PlatformTypes.ps3, PlatformTypes.vita):
+            return True
 
-    Given a project name string, create a 128 bit unique hash for
-    Visual Studio.
+    if ide >= IDETypes.vs2017:
+        if platform_type in (PlatformTypes.ps4, PlatformTypes.ps5):
+            return True
 
-    Args:
-        input_str: Unicode string of the filename to convert into a hash
-    Returns:
-        A string in the format of CF994A05-58B3-3EF5-8539-E7753D89E84F
-    """
+    # Google platforms
+    if ide >= IDETypes.vs2017:
+        if platform_type is PlatformTypes.stadia:
+            return True
 
-    # Generate using md5 with NAMESPACE_DNS as salt
-    temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode("utf-8")).digest()
-    return str(UUID(bytes=temp_md5[:16], version=3)).upper()
+    # Nintendo platforms
+    if ide >= IDETypes.vs2012:
+        if platform_type is PlatformTypes.wiiu:
+            return True
 
-########################################
+    if ide >= IDETypes.vs2015:
+        if platform_type in (PlatformTypes.switch32, PlatformTypes.switch64):
+            return True
 
+    # Android
+    if ide >= IDETypes.vs2013:
+        if platform_type in (PlatformTypes.tegra,
+                             PlatformTypes.androidarm32,
+                             PlatformTypes.androidarm64,
+                             PlatformTypes.androidintel32,
+                             PlatformTypes.androidintel64):
+            return True
 
-def create_copy_file_script(source_file, dest_file, perforce):
-    """
-    Create a batch file to copy a single file.
-
-    Create a list of command lines to copy a file from source_file to
-    dest_file with perforce support.
-
-    This is an example of the Windows batch file. The lines for the
-    tool ``p4`` are added if perforce=True.
-
-    ```bash
-    p4 edit dest_file
-    copy /Y source_file dest_file
-    p4 revert -a dest_file
-    ```
-
-    Args:
-        source_file: Pathname to the source file
-        dest_file: Pathname to where to copy source file
-        perforce: True if perforce commands should be generated.
-
-    Returns:
-        List of command strings for Windows Command shell.
-
-    See Also:
-        create_deploy_script
-    """
-
-    command_list = []
-
-    # Check out the file
-    if perforce:
-        # Note, use ``cmd /c``` so if the call fails, the batch file will
-        # continue
-        command_list.append("cmd /c p4 edit \"{}\"".format(dest_file))
-
-    # Perform the copy
-    command_list.append(
-        "copy /Y \"{}\" \"{}\"".format(source_file, dest_file))
-
-    # Revert the file if it hasn't changed
-    if perforce:
-        command_list.append(
-            "cmd /c p4 revert -a \"{}\"".format(dest_file))
-
-    return command_list
-
-########################################
-
-
-def create_deploy_script(configuration):
-    """
-    Create a deployment batch file if needed.
-
-    If an attribute of ``deploy_folder`` exists, a batch file
-    will be returned that has the commands to copy the output file
-    to the folder named in ``deploy_folder``.
-
-    Two values are returned, the first is the command description
-    suitable for Visual Studio Post Build and the second is the batch
-    file string to perform the file copy. Both values are set to None
-    if ``deploy_folder`` is empty.
-
-    Note:
-        If the output is ``project_type`` of Tool, the folder will have
-        cpu name appended to it and any suffix stripped.
-
-    ```bash
-    mkdir final_folder
-    p4 edit dest_file
-    copy /Y source_file dest_file
-    p4 revert -a dest_file
-    ```
-
-    Args:
-        configuration: Configuration record.
-    Returns:
-        None, None or description and batch file string.
-
-    See Also:
-        create_copy_file_script
-    """
-
-    # Is there an override?
-    post_build = configuration.get_chained_value("post_build")
-    if post_build:
-        # Return the tuple, message, then command
-        return post_build
-
-    deploy_folder = configuration.deploy_folder
-
-    # Don't deploy if no folder is requested.
-    if not deploy_folder:
-        return None, None
-
-    # Ensure it's the correct slashes and end with a slash
-    deploy_folder = convert_to_windows_slashes(deploy_folder, True)
-
-    # Get the project and platform
-    project_type = configuration.project_type
-    platform = configuration.platform
-    perforce = configuration.get_chained_value("perforce")
-
-    # Determine where to copy and if pdb files are involved
-    if project_type.is_library():
-        deploy_name = "$(TargetName)"
-    else:
-        # For executables, use ProjectName to strip the suffix
-        deploy_name = "$(ProjectName)"
-
-        # Windows doesn't support fat files, so deploy to different
-        # folders for tools
-        if project_type is ProjectTypes.tool:
-            item = get_cpu_folder(platform)
-            if item:
-                deploy_folder = deploy_folder + item + "\\"
-
-    # Create the batch file
-    # Make sure the destination directory is present
-    command_list = ["mkdir \"{}\" 2>nul".format(deploy_folder)]
-
-    # Copy the executable
-    command_list.extend(
-        create_copy_file_script(
-            "$(TargetPath)",
-            "{}{}$(TargetExt)".format(deploy_folder, deploy_name),
-            perforce))
-
-    # Copy the symbols on Microsoft platforms
-    # if platform.is_windows() or platform.is_xbox():
-    #    if project_type.is_library() or configuration.debug:
-    #       command_list.extend(
-    #           create_copy_file_script(
-    #              "$(TargetDir)$(TargetName).pdb",
-    #               "{}{}.pdb".format(deploy_folder, deploy_name),
-    #               perforce))
-
-    return "Copying $(TargetFileName) to {}".format(
-        deploy_folder), "\n".join(command_list) + "\n"
+    return False
 
 ########################################
 
@@ -4183,12 +4090,12 @@ class VS2003XML():
 
     ########################################
 
-    def add_default(self, attribute):
+    def add_attribute(self, attribute):
         """
-        Add a dict of attribute defaults.
+        Add an attribute object.
         @details
-        If any defaults were already present, they will be overwritten
-        with the new values.
+        Append the passed attribute to the end of the attribute list
+        for this XML element.
 
         Args:
             attribute: A validator class instance
@@ -4196,37 +4103,30 @@ class VS2003XML():
 
         # Test for None
         if attribute is not None:
-            # Does the item already exist?
-            for index, value in enumerate(self.attributes):
-                if value.name == attribute.name:
-                    # Replace the item
-                    self.attributes[index] = attribute
-                    break
-            else:
-                # Append the item to the list
-                self.attributes.append(attribute)
+            # Append the item to the list
+            self.attributes.append(attribute)
 
     ########################################
 
-    def add_defaults(self, attributes):
+    def add_attributes(self, attributes):
         """
-        Add a dict of attribute defaults.
+        Add a list of attribute objects.
         @details
-        If any defaults were already present, they will be overwritten
-        with the new values.
+        Iterate over the list of attribute objects and append them
+        to the end of the attribute list.
 
         Args:
-            attributes: list of attribute names and default values.
+            attributes: list of attribute objects.
         """
 
         # Test for None
         if attributes is not None:
             if not isinstance(attributes, list):
-                self.add_default(attributes)
+                self.add_attribute(attributes)
             else:
                 # Update the list with the new entries
                 for attribute in attributes:
-                    self.add_default(attribute)
+                    self.add_attribute(attribute)
 
     ########################################
 
@@ -4485,52 +4385,52 @@ class VCCLCompilerTool(VS2003Tool):
         # in Visual Studio
 
         # Unicode response files (Only on 2005/2008)
-        self.add_default(UseUnicodeResponseFiles(configuration))
+        self.add_attribute(UseUnicodeResponseFiles(configuration))
 
         # List of custom compiler options as a single string
-        self.add_default(AdditionalOptions(configuration))
+        self.add_attribute(AdditionalOptions(configuration))
 
         # Optimizations
         item = "Full Optimization" if optimization else "Disabled"
-        self.add_default(Optimization(configuration, item))
+        self.add_attribute(Optimization(configuration, item))
 
         # Global optimizations (2003 only)
-        self.add_default(
+        self.add_attribute(
             GlobalOptimizations(configuration, optimization))
 
         # Inline functions
         item = "Any Suitable" if optimization else None
-        self.add_default(InlineFunctionExpansion(configuration, item))
+        self.add_attribute(InlineFunctionExpansion(configuration, item))
 
         # Enable intrinsics
-        self.add_default(
+        self.add_attribute(
             EnableIntrinsicFunctions(configuration, optimization))
 
         # True if floating point consistency is important (2003 only)
-        self.add_default(ImproveFloatingPointConsistency(configuration))
+        self.add_attribute(ImproveFloatingPointConsistency(configuration))
 
         # Size or speed?
-        self.add_default(FavorSizeOrSpeed(configuration, "Favor Fast Code"))
+        self.add_attribute(FavorSizeOrSpeed(configuration, "Favor Fast Code"))
 
         # Get rid of stack frame pointers for speed
-        self.add_default(
+        self.add_attribute(
             OmitFramePointers(configuration, optimization))
 
         # Enable memory optimizations for fibers
-        self.add_default(
+        self.add_attribute(
             EnableFiberSafeOptimizations(configuration, optimization))
 
         # Build for Pentium, Pro, P4
-        self.add_default(
+        self.add_attribute(
             OptimizeForProcessor(configuration, "Pentium 4"))
 
         # Optimize for Windows Applications
         # Default to True because it's the 21st century.
-        self.add_default(
+        self.add_attribute(
             OptimizeForWindowsApplication(configuration, True))
 
         # Enable cross function optimizations
-        self.add_default(
+        self.add_attribute(
             WholeProgramOptimization2003(
                 configuration,
                 configuration.link_time_code_generation))
@@ -4540,172 +4440,172 @@ class VCCLCompilerTool(VS2003Tool):
             "_source_include_list")
         item.extend(configuration.get_unique_chained_list(
             "include_folders_list"))
-        self.add_default(
+        self.add_attribute(
             AdditionalIncludeDirectories(configuration, item))
 
         # Directory for #using includes
-        self.add_default(
+        self.add_attribute(
             AdditionalUsingDirectories(configuration))
 
         # Get the defines
         item = configuration.get_chained_list("define_list")
-        self.add_default(
+        self.add_attribute(
             PreprocessorDefinitions(configuration, item))
 
         # Ignore standard include path if true
-        self.add_default(IgnoreStandardIncludePath(configuration))
+        self.add_attribute(IgnoreStandardIncludePath(configuration))
 
         # Create a preprocessed file
-        self.add_default(GeneratePreprocessedFile(configuration))
+        self.add_attribute(GeneratePreprocessedFile(configuration))
 
         # Keep comments in a preprocessed file
-        self.add_default(KeepComments(configuration))
+        self.add_attribute(KeepComments(configuration))
 
         # Pool all constant strings
-        self.add_default(StringPooling(configuration, True))
+        self.add_attribute(StringPooling(configuration, True))
 
         # Enable code analysis for minimal rebuild
-        self.add_default(MinimalRebuild(configuration))
+        self.add_attribute(MinimalRebuild(configuration))
 
         # Set up exceptions
-        self.add_default(
+        self.add_attribute(
             ExceptionHandling(
                 configuration,
                 configuration.exceptions))
 
         # Runtime checks (Only valid if no optimizations)
         item = None if optimization else "Both"
-        self.add_default(BasicRuntimeChecks(configuration, item))
+        self.add_attribute(BasicRuntimeChecks(configuration, item))
 
         # Test for data size shrinkage (Only valid if no optimizations)
-        self.add_default(SmallerTypeCheck(configuration))
+        self.add_attribute(SmallerTypeCheck(configuration))
 
         # Which run time library to use?
         item = "Multi-Threaded Debug" if debug else "Multi-Threaded"
-        self.add_default(RuntimeLibrary(configuration, item))
+        self.add_attribute(RuntimeLibrary(configuration, item))
 
         # Structure alignment
-        self.add_default(StructMemberAlignment(configuration, "8 Bytes"))
+        self.add_attribute(StructMemberAlignment(configuration, "8 Bytes"))
 
         # Check for buffer overrun
-        self.add_default(BufferSecurityCheck(configuration, bool(debug)))
+        self.add_attribute(BufferSecurityCheck(configuration, bool(debug)))
 
         # Function level linking
-        self.add_default(EnableFunctionLevelLinking(configuration, True))
+        self.add_attribute(EnableFunctionLevelLinking(configuration, True))
 
         # Enhanced instruction set
-        self.add_default(EnableEnhancedInstructionSet(configuration))
+        self.add_attribute(EnableEnhancedInstructionSet(configuration))
 
         # Floating point precision (2005/2008 only)
-        self.add_default(FloatingPointModel(configuration, "Fast"))
+        self.add_attribute(FloatingPointModel(configuration, "Fast"))
 
         # Floating point exception support (2005/2008 only)
-        self.add_default(FloatingPointExceptions(configuration))
+        self.add_attribute(FloatingPointExceptions(configuration))
 
         # Enable Microsoft specific extensions
-        self.add_default(DisableLanguageExtensions(configuration))
+        self.add_attribute(DisableLanguageExtensions(configuration))
 
         # "char" is unsigned
-        self.add_default(DefaultCharIsUnsigned(configuration))
+        self.add_attribute(DefaultCharIsUnsigned(configuration))
 
         # Enable wchar_t
-        self.add_default(TreatWChar_tAsBuiltInType(configuration, True))
+        self.add_attribute(TreatWChar_tAsBuiltInType(configuration, True))
 
         # for (int i) "i" stays in the loop
-        self.add_default(ForceConformanceInForLoopScope(configuration))
+        self.add_attribute(ForceConformanceInForLoopScope(configuration))
 
         # Enable run time type info
-        self.add_default(RuntimeTypeInfo(configuration, False))
+        self.add_attribute(RuntimeTypeInfo(configuration, False))
 
         # OpenMP support (2005/2008 only)
-        self.add_default(OpenMP(configuration))
+        self.add_attribute(OpenMP(configuration))
 
         # Enable precompiled headers
-        self.add_default(UsePrecompiledHeader(configuration))
+        self.add_attribute(UsePrecompiledHeader(configuration))
 
         # Text header file for precompilation
-        self.add_default(PrecompiledHeaderThrough(configuration))
+        self.add_attribute(PrecompiledHeaderThrough(configuration))
 
         # Binary header file for precompilation
-        self.add_default(PrecompiledHeaderFile(configuration))
+        self.add_attribute(PrecompiledHeaderFile(configuration))
 
         # Add extended attributes to .asm output
-        self.add_default(ExpandAttributedSource(configuration))
+        self.add_attribute(ExpandAttributedSource(configuration))
 
         # Format of the assembly output
-        self.add_default(AssemblerOutput(configuration))
+        self.add_attribute(AssemblerOutput(configuration))
 
         # Output location for .asm file
-        self.add_default(AssemblerListingLocation(configuration))
+        self.add_attribute(AssemblerListingLocation(configuration))
 
         # Output location for .obj file
-        self.add_default(ObjectFile(configuration))
+        self.add_attribute(ObjectFile(configuration))
 
         # Output location of shared .pdb file
-        self.add_default(ProgramDataBaseFileName(configuration,
+        self.add_attribute(ProgramDataBaseFileName(configuration,
             "\"$(OutDir)$(TargetName).pdb\""))
 
         # Generate XML formatted documentation (2005/2008 only)
-        self.add_default(GenerateXMLDocumentationFiles(configuration))
+        self.add_attribute(GenerateXMLDocumentationFiles(configuration))
 
         # Name of the XML formatted documentation file (2005/2008 only)
-        self.add_default(XMLDocumentationFileName(configuration))
+        self.add_attribute(XMLDocumentationFileName(configuration))
 
         # Type of source browsing information
-        self.add_default(BrowseInformation(configuration))
+        self.add_attribute(BrowseInformation(configuration))
 
         # Name of the browsing file
-        self.add_default(BrowseInformationFile(configuration))
+        self.add_attribute(BrowseInformationFile(configuration))
 
         # Warning level
-        self.add_default(WarningLevel(configuration, "All"))
+        self.add_attribute(WarningLevel(configuration, "All"))
 
         # Warnings are errors
-        self.add_default(WarnAsError(configuration))
+        self.add_attribute(WarnAsError(configuration))
 
         # Don't show startup banner
-        self.add_default(SuppressStartupBanner(configuration))
+        self.add_attribute(SuppressStartupBanner(configuration))
 
         # Warnings for 64 bit code issues
-        self.add_default(Detect64BitPortabilityProblems(configuration))
+        self.add_attribute(Detect64BitPortabilityProblems(configuration))
 
         # Debug information type
         item = "/C7" if debug or project_type.is_library() else None
-        self.add_default(DebugInformationFormat(configuration, item))
+        self.add_attribute(DebugInformationFormat(configuration, item))
 
         # Code calling convention
         item = "__fastcall" if configuration.fastcall else None
-        self.add_default(CallingConvention(configuration, item))
+        self.add_attribute(CallingConvention(configuration, item))
 
         # C or C++
-        self.add_default(CompileAs(configuration))
+        self.add_attribute(CompileAs(configuration))
 
         # Disable these warnings
-        self.add_default(DisableSpecificWarnings(configuration, ["4201"]))
+        self.add_attribute(DisableSpecificWarnings(configuration, ["4201"]))
 
         # List of include files to force inclusion
-        self.add_default(ForcedIncludeFiles(configuration))
+        self.add_attribute(ForcedIncludeFiles(configuration))
 
         # List of using files to force inclusion
-        self.add_default(ForcedUsingFiles(configuration))
+        self.add_attribute(ForcedUsingFiles(configuration))
 
         # Show include file list
-        self.add_default(ShowIncludes(configuration))
+        self.add_attribute(ShowIncludes(configuration))
 
         # List of defines to remove
-        self.add_default(UndefinePreprocessorDefinitions(configuration))
+        self.add_attribute(UndefinePreprocessorDefinitions(configuration))
 
         # Remove all compiler definitions
-        self.add_default(UndefineAllPreprocessorDefinitions(configuration))
+        self.add_attribute(UndefineAllPreprocessorDefinitions(configuration))
 
         # Use full pathnames in error messages (2005/2008 only)
-        self.add_default(UseFullPaths(configuration))
+        self.add_attribute(UseFullPaths(configuration))
 
         # Remove default library names (2005/2008 only)
-        self.add_default(OmitDefaultLibName(configuration))
+        self.add_attribute(OmitDefaultLibName(configuration))
 
         # Error reporting style (2005/2008 only)
-        self.add_default(ErrorReporting(configuration))
+        self.add_attribute(ErrorReporting(configuration))
 
 ########################################
 
@@ -4755,17 +4655,17 @@ class VCCustomBuildTool(VS2003Tool):
         VS2003Tool.__init__(self, name="VCCustomBuildTool")
 
         # Describe the build step
-        self.add_default(Description(configuration))
+        self.add_attribute(Description(configuration))
 
         # Command line to perform the build
-        self.add_default(CommandLine(configuration))
+        self.add_attribute(CommandLine(configuration))
 
         # List of files this step depends on
-        self.add_default(
+        self.add_attribute(
             AdditionalDependencies(configuration, prefix="Custom"))
 
         # List of files created by this build step
-        self.add_default(Outputs(configuration))
+        self.add_attribute(Outputs(configuration))
 
 
 ########################################
@@ -4801,25 +4701,25 @@ class VCLinkerTool(VS2003Tool):
         link_time_code_generation = configuration.link_time_code_generation
 
         # Register the output on completion
-        self.add_default(BoolRegisterOutput(configuration))
+        self.add_attribute(BoolRegisterOutput(configuration))
 
         # Register per user instead of for everyone
-        self.add_default(BoolPerUserRedirection(configuration))
+        self.add_attribute(BoolPerUserRedirection(configuration))
 
         # Don't allow this library generated be imported by dependent projects
-        self.add_default(BoolIgnoreImportLibrary(configuration))
+        self.add_attribute(BoolIgnoreImportLibrary(configuration))
 
         # Link in libraries from dependent projects
-        self.add_default(BoolLinkLibraryDependencies(configuration))
+        self.add_attribute(BoolLinkLibraryDependencies(configuration))
 
         # Use the librarian for input
-        self.add_default(BoolUseLibraryDependencyInputs(configuration))
+        self.add_attribute(BoolUseLibraryDependencyInputs(configuration))
 
         # Unicode response files (Only on 2005/2008)
-        self.add_default(UseUnicodeResponseFiles(configuration, "Linker"))
+        self.add_attribute(UseUnicodeResponseFiles(configuration, "Linker"))
 
         # Additional commands
-        self.add_default(AdditionalOptions(configuration, prefix="Linker"))
+        self.add_attribute(AdditionalOptions(configuration, prefix="Linker"))
 
         # Additional libraries
         default = configuration.get_unique_chained_list(
@@ -4836,11 +4736,11 @@ class VCLinkerTool(VS2003Tool):
                 item = "nafxcwd.lib" if configuration.debug else "nafxcw.lib"
                 default.insert(0, item)
 
-        self.add_default(AdditionalDependencies(configuration, default))
+        self.add_attribute(AdditionalDependencies(configuration, default))
 
         # Show progress in linking
         default = None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("ShowProgress", default,
                          (("Default", "No", "None"),
                           ("/VERBOSE", "All"),
@@ -4851,104 +4751,106 @@ class VCLinkerTool(VS2003Tool):
         default = "\"$(OutDir){}{}.exe\"".format(
             configuration.project.name,
             configuration.get_suffix())
-        self.add_default(StringOutputFile(default))
+        self.add_attribute(StringOutputFile(default))
 
         # Version number
-        self.add_default(VSStringProperty("Version", None))
+        self.add_attribute(VSStringProperty("Version", None))
 
        # Show progress in linking
         default = "No" if optimization else "Yes"
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("LinkIncremental", default,
                          ("Default",
                           ("/INCREMENTAL:NO", "No"),
                           ("/INCREMENTAL", "Yes"))))
 
         # Turn off startup banner
-        self.add_default(
+        self.add_attribute(
             SuppressStartupBanner(configuration, prefix="Linker"))
 
         # Library folders
         default = configuration.get_unique_chained_list("library_folders_list")
-        self.add_default(
+        self.add_attribute(
             VSStringListProperty(
                 "AdditionalLibraryDirectories",
                 default,
                 slashes="\\"))
 
         # Generate a manifest file
-        self.add_default(BoolGenerateManifest(configuration))
+        self.add_attribute(BoolGenerateManifest(configuration))
 
         if ide > IDETypes.vs2003:
             # Name of the manifest file
-            self.add_default(VSStringProperty("ManifestFile", None))
+            self.add_attribute(VSStringProperty("ManifestFile", None))
 
             # Manifests this one is dependent on
-            self.add_default(
+            self.add_attribute(
                 VSStringListProperty(
                     "AdditionalManifestDependencies", []))
 
         # Enable User Access Control
-        self.add_default(BoolEnableUAC(configuration))
+        self.add_attribute(BoolEnableUAC(configuration))
 
         if ide > IDETypes.vs2005:
             # Generate a manifest file
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("UACExecutionLevel", None,
                              ("asInvoker",
                               "highestAvailable",
                               "requireAdministrator")))
 
         # Enable UI bypass for User Access Control
-        self.add_default(BoolUACUIAccess(configuration))
+        self.add_attribute(BoolUACUIAccess(configuration))
 
         # Ignore default libraries
-        self.add_default(BoolIgnoreAllDefaultLibraries(configuration))
+        self.add_attribute(BoolIgnoreAllDefaultLibraries(configuration))
 
         # Manifests this one is dependent on
-        self.add_default(VSStringListProperty("IgnoreDefaultLibraryNames", []))
+        self.add_attribute(
+            VSStringListProperty(
+                "IgnoreDefaultLibraryNames", []))
 
         # Module definition file, if one exists
-        self.add_default(VSStringProperty("ModuleDefinitionFile", None))
+        self.add_attribute(VSStringProperty("ModuleDefinitionFile", None))
 
         # Add these modules to the C# assembly
-        self.add_default(VSStringListProperty("AddModuleNamesToAssembly", []))
+        self.add_attribute(VSStringListProperty("AddModuleNamesToAssembly", []))
 
         # Embed these resource fildes
-        self.add_default(VSStringListProperty("EmbedManagedResourceFile", []))
+        self.add_attribute(VSStringListProperty("EmbedManagedResourceFile", []))
 
         # Force these symbols
-        self.add_default(VSStringListProperty("ForceSymbolReferences", []))
+        self.add_attribute(VSStringListProperty("ForceSymbolReferences", []))
 
         # Load these DLLs only when called.
-        self.add_default(VSStringListProperty("DelayLoadDLLs", []))
+        self.add_attribute(VSStringListProperty("DelayLoadDLLs", []))
 
         if ide > IDETypes.vs2003:
             # Link in these assemblies
-            self.add_default(VSStringListProperty("AssemblyLinkResource", []))
+            self.add_attribute(VSStringListProperty("AssemblyLinkResource", []))
 
         # Contents of a Midl comment file (Actual commands)
-        self.add_default(VSStringProperty("MidlCommandFile", None))
+        self.add_attribute(VSStringProperty("MidlCommandFile", None))
 
         # Ignore embedded .idlsym sections
-        self.add_default(BoolIgnoreEmbeddedIDL(configuration))
+        self.add_attribute(BoolIgnoreEmbeddedIDL(configuration))
 
         # Filename the contains the contents of the merged idl
-        self.add_default(VSStringProperty("MergedIDLBaseFileName", None))
+        self.add_attribute(VSStringProperty("MergedIDLBaseFileName", None))
 
         # Name of the type library
-        self.add_default(VSStringProperty("TypeLibraryFile", None))
+        self.add_attribute(VSStringProperty("TypeLibraryFile", None))
 
         # ID number of the library resource
-        self.add_default(IntTypeLibraryResourceID())
+        self.add_attribute(IntTypeLibraryResourceID())
 
         # Generate debugging information
-        self.add_default(BoolGenerateDebugInformation(configuration))
+        self.add_attribute(BoolGenerateDebugInformation(configuration))
 
         # Add debugging infromation in assembly
         default = None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty(
                 "AssemblyDebug", default,
                 (("No", "None"),
@@ -4957,22 +4859,22 @@ class VCLinkerTool(VS2003Tool):
 
         # Name of the program database file
         default = "\"$(OutDir)$(TargetName).pdb\""
-        self.add_default(VSStringProperty("ProgramDatabaseFile", default))
+        self.add_attribute(VSStringProperty("ProgramDatabaseFile", default))
 
         # Do not put private symboles in this program database file
-        self.add_default(VSStringProperty("StripPrivateSymbols", None))
+        self.add_attribute(VSStringProperty("StripPrivateSymbols", None))
 
         # Generate the map file
-        self.add_default(BoolGenerateMapFile(configuration))
+        self.add_attribute(BoolGenerateMapFile(configuration))
 
         # Name of the map file
-        self.add_default(VSStringProperty("MapFileName", None))
+        self.add_attribute(VSStringProperty("MapFileName", None))
 
         # Include exported symbols in the map file
-        self.add_default(BoolMapExports(configuration))
+        self.add_attribute(BoolMapExports(configuration))
 
         # Include source code line numbers in the map file
-        self.add_default(BoolMapLines(configuration))
+        self.add_attribute(BoolMapLines(configuration))
 
         # Subsystem to link to
         default = "Console" if project_type is ProjectTypes.tool else "Windows"
@@ -4995,24 +4897,24 @@ class VCLinkerTool(VS2003Tool):
             if ide is IDETypes.vs2005:
                 enum_list.insert(-1, ("/SUBSYSTEM:POSIX", "Posix"))
 
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("SubSystem", default, enum_list))
 
         # Amount of heap to reserve
-        self.add_default(IntHeapReserveSize())
+        self.add_attribute(IntHeapReserveSize())
 
         # Amount of heap to commit
-        self.add_default(IntHeapCommitSize())
+        self.add_attribute(IntHeapCommitSize())
 
         # Amount of stack to reserve
-        self.add_default(IntStackReserveSize())
+        self.add_attribute(IntStackReserveSize())
 
         # Amount of stack to commit
-        self.add_default(IntStackCommitSize())
+        self.add_attribute(IntStackCommitSize())
 
         # Large address space aware?
         default = None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("LargeAddressAware", default,
                          ("Default",
                           ("/LARGEADDRESSAWARE:NO", "Disable"),
@@ -5020,22 +4922,22 @@ class VCLinkerTool(VS2003Tool):
 
         # Terminal server aware?
         default = None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("TerminalServerAware", default,
                          ("Default",
                           ("/TSAWARE:NO", "Disable"),
                           ("/TSAWARE", "Enable"))))
 
         # Run the file from swap location on CD
-        self.add_default(BoolSwapRunFromCD(configuration))
+        self.add_attribute(BoolSwapRunFromCD(configuration))
 
         # Run the file from swap location for network
-        self.add_default(BoolSwapRunFromNet(configuration))
+        self.add_attribute(BoolSwapRunFromNet(configuration))
 
         # Device driver?
         if ide > IDETypes.vs2003:
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("Driver", default,
                              (("No", "Not Set"),
                               ("/DRIVER:NO", "Driver"),
@@ -5044,7 +4946,7 @@ class VCLinkerTool(VS2003Tool):
 
         # Remove unreferenced code
         default = "/OPT:REF"
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("OptimizeReferences", default,
                          ("Default",
                           ("/OPT:NOREF", "Disable"),
@@ -5052,7 +4954,7 @@ class VCLinkerTool(VS2003Tool):
 
         # Remove redundant COMDAT symbols
         default = "/OPT:ICF" if optimization else None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("EnableCOMDATFolding", default,
                          ("Default",
                           ("/OPT:NOICF", "Disable"),
@@ -5060,20 +4962,20 @@ class VCLinkerTool(VS2003Tool):
 
         # Align code on 4K boundaries for Windows 98
         default = None
-        self.add_default(
+        self.add_attribute(
             VSEnumProperty("OptimizeForWindows98", default,
                          ("Default",
                           ("/OPT:NOWIN98", "Disable"),
                           ("/OPT:WIN98", "Enable"))))
 
         # Name of file containing the function link order
-        self.add_default(VSStringProperty("FunctionOrder", None))
+        self.add_attribute(VSStringProperty("FunctionOrder", None))
 
         if ide > IDETypes.vs2003:
 
             # Link using link time code generation
             default = "Enable" if link_time_code_generation else None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("LinkTimeCodeGeneration", default,
                              ("Default",
                               ("/ltcg", "Enable"),
@@ -5082,25 +4984,25 @@ class VCLinkerTool(VS2003Tool):
                               ("/ltcg:pgupdate", "Update"))))
 
             # Database file for profile based optimizations
-            self.add_default(VSStringProperty("ProfileGuidedDatabase", None))
+            self.add_attribute(VSStringProperty("ProfileGuidedDatabase", None))
 
         # Code entry point symbol
-        self.add_default(VSStringProperty("EntryPointSymbol", None))
+        self.add_attribute(VSStringProperty("EntryPointSymbol", None))
 
         # No entry point (Resource only DLL)
-        self.add_default(BoolResourceOnlyDLL(configuration))
+        self.add_attribute(BoolResourceOnlyDLL(configuration))
 
         # Create a checksum in the header of the exe file
-        self.add_default(BoolSetChecksum(configuration))
+        self.add_attribute(BoolSetChecksum(configuration))
 
         # Base address for execution
-        self.add_default(VSStringProperty("BaseAddress", None))
+        self.add_attribute(VSStringProperty("BaseAddress", None))
 
         if ide > IDETypes.vs2005:
 
             # Enable base address randomization
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("RandomizedBaseAddress", default,
                              ("Default",
                               ("/DYNAMICBASE:NO", "Disable"),
@@ -5108,7 +5010,7 @@ class VCLinkerTool(VS2003Tool):
 
             # Enable fixed address code generation
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("FixedBaseAddress", default,
                              ("Default",
                               ("/FIXED:NO", "Relocatable"),
@@ -5116,23 +5018,23 @@ class VCLinkerTool(VS2003Tool):
 
             # Enable Data execution protection
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("DataExecutionPrevention", default,
                              ("Default",
                               ("/NXCOMPAT:NO", "Disable"),
                               ("/NXCOMPAT", "Enable"))))
 
         # Don't output assembly for C#
-        self.add_default(BoolTurnOffAssemblyGeneration(configuration))
+        self.add_attribute(BoolTurnOffAssemblyGeneration(configuration))
 
         # Disable unloading of delayed load DLLs
-        self.add_default(BoolSupportUnloadOfDelayLoadedDLL(configuration))
+        self.add_attribute(BoolSupportUnloadOfDelayLoadedDLL(configuration))
 
         # Name of the import library to generate
-        self.add_default(VSStringProperty("ImportLibrary", None))
+        self.add_attribute(VSStringProperty("ImportLibrary", None))
 
         # Sections to merge on link
-        self.add_default(VSStringProperty("MergeSections", None))
+        self.add_attribute(VSStringProperty("MergeSections", None))
 
         # Target machine to build data for.
         default = None
@@ -5160,14 +5062,14 @@ class VCLinkerTool(VS2003Tool):
                 ("/MACHINE:X64", "X64")
             ])
 
-        self.add_default(VSStringListProperty(
+        self.add_attribute(VSStringListProperty(
             "TargetMachine", None, enum_list))
 
         # This is a duplication of what is in 2008 for sorting
         if ide < IDETypes.vs2008:
             # Enable fixed address code generation
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("FixedBaseAddress", default,
                              ("Default",
                               ("/FIXED:NO", "Relocatable"),
@@ -5177,25 +5079,25 @@ class VCLinkerTool(VS2003Tool):
         if ide > IDETypes.vs2003:
 
             # File with key for signing
-            self.add_default(VSStringProperty("KeyFile", None))
+            self.add_attribute(VSStringProperty("KeyFile", None))
 
             # Name of the container of the key
-            self.add_default(VSStringProperty("KeyContainer", None))
+            self.add_attribute(VSStringProperty("KeyContainer", None))
 
         # Output should be delay signed
-        self.add_default(BoolDelaySign(configuration))
+        self.add_attribute(BoolDelaySign(configuration))
 
         # Allow assemblies to be isolated in the manifest
-        self.add_default(BoolAllowIsolation(configuration))
+        self.add_attribute(BoolAllowIsolation(configuration))
 
         # Enable profiling
-        self.add_default(BoolProfile(configuration))
+        self.add_attribute(BoolProfile(configuration))
 
         # New entries for Visual Studio 2005 and 2008
         if ide > IDETypes.vs2003:
             # CLR Thread attribute
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("CLRThreadAttribute", default,
                              ("Default",
                               ("/CLRTHREADATTRIBUTE:MTA", "MTA"),
@@ -5203,7 +5105,7 @@ class VCLinkerTool(VS2003Tool):
 
             # CLR data image type
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("CLRImageType", default,
                              ("Default",
                               ("/CLRIMAGETYPE:IJW", "IJW"),
@@ -5212,14 +5114,14 @@ class VCLinkerTool(VS2003Tool):
 
             # Error reporting
             default = None
-            self.add_default(
+            self.add_attribute(
                 VSEnumProperty("ErrorReporting", default,
                              ("Default",
                               ("/ERRORREPORT:PROMPT", "Prompt"),
                               ("/ERRORREPORT:QUEUE", "Queue"))))
 
         # Check for unmanaged code
-        self.add_default(BoolCLRUnmanagedCodeCheck(configuration))
+        self.add_attribute(BoolCLRUnmanagedCodeCheck(configuration))
 
 ########################################
 
@@ -5245,59 +5147,59 @@ class VCLibrarianTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCLibrarianTool")
 
         # Unicode response files (Only on 2005/2008)
-        self.add_default(UseUnicodeResponseFiles(configuration, "Linker"))
+        self.add_attribute(UseUnicodeResponseFiles(configuration, "Linker"))
 
         # Link in library dependencies
-        self.add_default(BoolLinkLibraryDependencies(configuration))
+        self.add_attribute(BoolLinkLibraryDependencies(configuration))
 
         # Additional command lines
-        self.add_default(AdditionalOptions(configuration, prefix="Linker"))
+        self.add_attribute(AdditionalOptions(configuration, prefix="Linker"))
 
         # Libaries to link in
-        self.add_default(AdditionalDependencies(configuration))
+        self.add_attribute(AdditionalDependencies(configuration))
 
         # Name of the output file
         # Don't use $(TargetExt)
         default = "\"$(OutDir){}{}.lib\"".format(
             configuration.project.name,
             configuration.get_suffix())
-        self.add_default(StringOutputFile(default))
+        self.add_attribute(StringOutputFile(default))
 
         # Library folders
         default = configuration.get_unique_chained_list("library_folders_list")
-        self.add_default(
+        self.add_attribute(
             VSStringListProperty(
                 "AdditionalLibraryDirectories",
                 default,
                 slashes="\\"))
 
         # Suppress the startup banner
-        self.add_default(
+        self.add_attribute(
             SuppressStartupBanner(configuration, prefix="Linker"))
 
         # Name of the module file name
-        self.add_default(VSStringProperty("ModuleDefinitionFile", None))
+        self.add_attribute(VSStringProperty("ModuleDefinitionFile", None))
 
         # Ignore the default libraries
-        self.add_default(BoolIgnoreAllDefaultLibraries(configuration))
+        self.add_attribute(BoolIgnoreAllDefaultLibraries(configuration))
 
         # Ignore these libraries
         default = []
-        self.add_default(
+        self.add_attribute(
             VSStringListProperty(
                 "IgnoreDefaultLibraryNames",
                 default))
 
         # Export these functions
         default = []
-        self.add_default(
+        self.add_attribute(
             VSStringListProperty(
                 "ExportNamedFunctions",
                 default))
 
         # Force linking to these symbols
         default = []
-        self.add_default(
+        self.add_attribute(
             VSStringListProperty(
                 "ForceSymbolReferences",
                 default))
@@ -5507,21 +5409,21 @@ class VCPostBuildEventTool(VS2003Tool):
         vs_description, vs_cmd = create_deploy_script(configuration)
 
         # Message to print in the console
-        self.add_default(
+        self.add_attribute(
             Description(
                 configuration,
                 vs_description,
                 prefix="PostBuild"))
 
         # Batch file contents
-        self.add_default(
+        self.add_attribute(
             CommandLine(
                 configuration,
                 vs_cmd,
                 prefix="PostBuild"))
 
         # Ignore from build
-        self.add_default(BoolExcludedFromBuild())
+        self.add_attribute(BoolExcludedFromBuild())
 
 
 ########################################
@@ -5547,13 +5449,13 @@ class VCPreBuildEventTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCPreBuildEventTool")
 
         # Message to print in the console
-        self.add_default(Description(configuration, prefix="PreBuild"))
+        self.add_attribute(Description(configuration, prefix="PreBuild"))
 
         # Batch file contents
-        self.add_default(CommandLine(configuration, prefix="PreBuild"))
+        self.add_attribute(CommandLine(configuration, prefix="PreBuild"))
 
         # Ignore from build
-        self.add_default(BoolExcludedFromBuild())
+        self.add_attribute(BoolExcludedFromBuild())
 
 
 ########################################
@@ -5580,13 +5482,13 @@ class VCPreLinkEventTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCPreLinkEventTool")
 
         # Message to print in the console
-        self.add_default(Description(configuration, prefix="PreLink"))
+        self.add_attribute(Description(configuration, prefix="PreLink"))
 
         # Batch file contents
-        self.add_default(CommandLine(configuration, prefix="PreLink"))
+        self.add_attribute(CommandLine(configuration, prefix="PreLink"))
 
         # Ignore from build
-        self.add_default(BoolExcludedFromBuild())
+        self.add_attribute(BoolExcludedFromBuild())
 
 ########################################
 
@@ -5612,7 +5514,7 @@ class VCResourceCompilerTool(VS2003Tool):
         VS2003Tool.__init__(self, "VCResourceCompilerTool")
 
         # Language
-        self.add_default(VSStringProperty("Culture", "1033"))
+        self.add_attribute(VSStringProperty("Culture", "1033"))
 
 ########################################
 
@@ -5793,7 +5695,7 @@ class VS2003Platform(VS2003XML):
         VS2003XML.__init__(self, "Platform")
 
         # Only one entry, the target platform
-        self.add_default(VSStringProperty(
+        self.add_attribute(VSStringProperty(
             "Name", platform.get_vs_platform()[0]))
 
 ########################################
@@ -5852,7 +5754,7 @@ class VS2003ToolFile(VS2003XML):
         VS2003XML.__init__(self, item)
 
         # Is this a RelativePath or FileName object?
-        self.add_default(get_path_property(project.ide, rules))
+        self.add_attribute(get_path_property(project.ide, rules))
 
 ########################################
 
@@ -5921,22 +5823,6 @@ class VS2003Configuration(VS2003XML):
 
     Attributes:
         configuration: Parent configuration
-        vcprebuildeventtool: Pre build settings
-        vcpostbuildeventtool: Post build settings
-        vcprelinkeventtool: Pre link custom settings
-        vccustombuildtool: Custom build settings
-        vcclcompilertool: C++ compiler settings
-        vcmidltool: Midl tool settings
-        vcmanagedresourcecompilertool: Managed resource settings
-        vcresourcecompilertool: Resource compiler settings
-        vcxmldatageneratortool: XML data generator settings
-        vcwebserviceproxygeneratortool: Web service proxy settings
-        vcwebdeploymenttool: Web deployment settings
-        vcmanagedwrappergeneratortool: Managed wrapper settings
-        vcauxiliarymanagedwrappedgeneratortool: Aux Managed Wrapper settings
-        xboxdeploymenttool: Xbox deployment settings
-        xboximagetool: Xbox game imaging settings
-        vclinkertool: Linker settings
     """
 
     # pylint: disable=too-many-instance-attributes
@@ -5962,131 +5848,120 @@ class VS2003Configuration(VS2003XML):
         # Add attributes
 
         # Name of the configuration
-        self.add_default(Name(configuration.vs_configuration_name))
+        self.add_attribute(Name(configuration.vs_configuration_name))
 
         # Set the output directory for final binaries
-        self.add_default(OutputDirectory(configuration, "$(ProjectDir)bin"))
+        self.add_attribute(OutputDirectory(configuration, "$(ProjectDir)bin"))
 
         # Set the directory for temp files
         item = "$(ProjectDir)temp\\" + configuration.project.name + \
             configuration.get_suffix()
-        self.add_default(IntermediateDirectory(configuration, item))
+        self.add_attribute(IntermediateDirectory(configuration, item))
 
         # Set the configuration type
-        self.add_default(ConfigurationType(configuration))
+        self.add_attribute(ConfigurationType(configuration))
 
         # Enable/disable MFC
-        self.add_default(UseOfMFC(configuration, configuration.use_mfc))
+        self.add_attribute(UseOfMFC(configuration, configuration.use_mfc))
 
         # Enable/disable ATL
-        self.add_default(UseOfATL(configuration, configuration.use_atl))
+        self.add_attribute(UseOfATL(configuration, configuration.use_atl))
 
         # Enable/disable ATL linkage at runtime (2003/2005 only)
-        self.add_default(ATLMinimizesCRunTimeLibraryUsage(configuration))
+        self.add_attribute(ATLMinimizesCRunTimeLibraryUsage(configuration))
 
         # Set whether it's ASCII or Unicode compilation
-        self.add_default(CharacterSet(configuration))
+        self.add_attribute(CharacterSet(configuration))
 
         # Is CLR support enabled?
-        self.add_default(
+        self.add_attribute(
             ManagedExtensions(configuration, configuration.clr_support))
 
         # List of file extensions to delete on clean
-        self.add_default(DeleteExtensionsOnClean(configuration))
+        self.add_attribute(DeleteExtensionsOnClean(configuration))
 
         # Enable link time code generation
-        self.add_default(
+        self.add_attribute(
             WholeProgramOptimization(
                 configuration,
                 configuration.link_time_code_generation))
 
         # Paths for file references (2003 only)
-        self.add_default(ReferencesPath(configuration))
+        self.add_attribute(ReferencesPath(configuration))
 
-        # Include all the data chunks
-        self.vcprebuildeventtool = VCPreBuildEventTool(configuration)
-        self.vcpostbuildeventtool = VCPostBuildEventTool(configuration)
-        self.vcprelinkeventtool = VCPreLinkEventTool(configuration)
-        self.vccustombuildtool = VCCustomBuildTool(configuration)
-        self.vcclcompilertool = VCCLCompilerTool(configuration)
-
-        self.vcmidltool = None
-        self.vcmanagedresourcecompilertool = None
-        self.vcresourcecompilertool = None
-        self.vcxmldatageneratortool = None
-        self.vcwebserviceproxygeneratortool = None
-        self.vcwebdeploymenttool = None
-        self.vcmanagedwrappergeneratortool = None
-        self.vcauxiliarymanagedwrappedgeneratortool = None
-
-        if platform.is_windows():
-            self.vcmidltool = VCMIDLTool(configuration)
-            self.vcmanagedresourcecompilertool = \
-                VCManagedResourceCompilerTool(
-                    configuration)
-            self.vcresourcecompilertool = VCResourceCompilerTool(configuration)
-            self.vcxmldatageneratortool = VCXMLDataGeneratorTool(configuration)
-            self.vcwebserviceproxygeneratortool = \
-                VCWebServiceProxyGeneratorTool(
-                    configuration)
-            if ide < IDETypes.vs2008:
-                self.vcwebdeploymenttool = VCWebDeploymentTool(configuration)
-            if ide is IDETypes.vs2003:
-                self.vcmanagedwrappergeneratortool = \
-                    VCManagedWrapperGeneratorTool(
-                        configuration)
-                self.vcauxiliarymanagedwrappedgeneratortool = \
-                    VCAuxiliaryManagedWrapperGeneratorTool(
-                        configuration)
-
-        self.xboxdeploymenttool = None
-        self.xboximagetool = None
-        if platform is PlatformTypes.xbox:
-            self.xboxdeploymenttool = XboxDeploymentTool(configuration)
-            self.xboximagetool = XboxImageTool(configuration)
-
-        if project_type.is_library():
-            self.vclinkertool = VCLibrarianTool(configuration)
-        else:
-            self.vclinkertool = VCLinkerTool(configuration)
-
-        # Add elements in the order expected by Visual Studio 2003.
+        # The data chunks are in different orders on 2003 vs
+        # 2005/2008, so break it into two paths
         if ide is IDETypes.vs2003:
-            self.add_element(self.vcclcompilertool)
-            self.add_element(self.vccustombuildtool)
-            self.add_element(self.vclinkertool)
-            self.add_element(self.vcmidltool)
-            self.add_element(self.vcpostbuildeventtool)
-            self.add_element(self.vcprebuildeventtool)
-            self.add_element(self.vcprelinkeventtool)
-            self.add_element(self.vcresourcecompilertool)
-            self.add_element(self.vcwebserviceproxygeneratortool)
-            self.add_element(self.vcxmldatageneratortool)
-            self.add_element(self.vcwebdeploymenttool)
-            self.add_element(self.vcmanagedwrappergeneratortool)
-            self.add_element(self.vcauxiliarymanagedwrappedgeneratortool)
+            self.add_element(VCCLCompilerTool(configuration))
+            self.add_element(VCCustomBuildTool(configuration))
 
+            if project_type.is_library():
+                self.add_element(VCLibrarianTool(configuration))
+            else:
+                self.add_element(VCLinkerTool(configuration))
+
+            if platform.is_windows():
+                self.add_element(VCMIDLTool(configuration))
+
+            self.add_element(VCPostBuildEventTool(configuration))
+            self.add_element(VCPreBuildEventTool(configuration))
+            self.add_element(VCPreLinkEventTool(configuration))
+
+            # Add in the windows specific records
+            if platform.is_windows():
+                self.add_element(VCResourceCompilerTool(configuration))
+                self.add_element(VCWebServiceProxyGeneratorTool(
+                    configuration))
+                self.add_element(VCXMLDataGeneratorTool(configuration))
+                self.add_element(VCWebDeploymentTool(configuration))
+                self.add_element(VCManagedWrapperGeneratorTool(
+                    configuration))
+                self.add_element(VCAuxiliaryManagedWrapperGeneratorTool(
+                    configuration))
+
+            # Add in the Xbox specific records
+            if platform is PlatformTypes.xbox and \
+                    not project_type.is_library():
+                self.add_element(XboxDeploymentTool(configuration))
+                self.add_element(XboxImageTool(configuration))
+
+        # Add elements in the order expected by Visual Studio 2005/2008.
         else:
-            self.add_element(self.vcprebuildeventtool)
-            self.add_element(self.vccustombuildtool)
-            self.add_element(self.vcxmldatageneratortool)
-            self.add_element(self.vcwebserviceproxygeneratortool)
-            self.add_element(self.vcmidltool)
-            self.add_element(self.vcclcompilertool)
-            self.add_element(self.vcmanagedresourcecompilertool)
-            self.add_element(self.vcresourcecompilertool)
-            self.add_element(self.vcprelinkeventtool)
-            self.add_element(self.vclinkertool)
-            self.add_element(self.xboxdeploymenttool)
-            self.add_element(self.xboximagetool)
+            self.add_element(VCPreBuildEventTool(configuration))
+            self.add_element(VCCustomBuildTool(configuration))
+
+            if platform.is_windows():
+                self.add_element(VCXMLDataGeneratorTool(configuration))
+                self.add_element(VCWebServiceProxyGeneratorTool(
+                    configuration))
+                self.add_element(VCMIDLTool(configuration))
+
+            self.add_element(VCCLCompilerTool(configuration))
+
+            if platform.is_windows():
+                self.add_element(VCManagedResourceCompilerTool(
+                    configuration))
+                self.add_element(VCResourceCompilerTool(configuration))
+
+            self.add_element(VCPreLinkEventTool(configuration))
+
+            if project_type.is_library():
+                self.add_element(VCLibrarianTool(configuration))
+            else:
+                self.add_element(VCLinkerTool(configuration))
+
             self.add_element(VCALinkTool(configuration))
             self.add_element(VCManifestTool(configuration))
             self.add_element(VCXDCMakeTool(configuration))
             self.add_element(VCBscMakeTool(configuration))
             self.add_element(VCFxCopTool(configuration))
             self.add_element(VCAppVerifierTool(configuration))
-            self.add_element(self.vcwebdeploymenttool)
-            self.add_element(self.vcpostbuildeventtool)
+
+            # Only available on 2005
+            if ide is IDETypes.vs2005:
+                self.add_element(VCWebDeploymentTool(configuration))
+
+            self.add_element(VCPostBuildEventTool(configuration))
 
 ########################################
 
@@ -6145,7 +6020,7 @@ class VS2003FileConfiguration(VS2003XML):
 
         VS2003XML.__init__(self, "FileConfiguration")
 
-        self.add_default(Name(configuration.vs_configuration_name))
+        self.add_attribute(Name(configuration.vs_configuration_name))
 
         self.check_for_exclusion(base_name)
 
@@ -6201,19 +6076,19 @@ class VS2003FileConfiguration(VS2003XML):
         # Check if it's excluded from the discard regex
         for exclude in configuration.exclude_list_regex:
             if exclude(base_name):
-                self.add_default(BoolExcludedFromBuild(True))
+                self.add_attribute(BoolExcludedFromBuild(True))
                 return
 
         # Special case, only build assembly files on the proper cpu
         if source_file.type is FileTypes.x86:
             if configuration.platform not in (
                     PlatformTypes.win32, PlatformTypes.xbox):
-                self.add_default(BoolExcludedFromBuild(True))
+                self.add_attribute(BoolExcludedFromBuild(True))
                 return
 
         if source_file.type is FileTypes.x64:
             if configuration.platform is not PlatformTypes.win64:
-                self.add_default(BoolExcludedFromBuild(True))
+                self.add_attribute(BoolExcludedFromBuild(True))
 
     def handle_vs2003_rules(self, rule_list, base_name, tool_name, tool_enums):
         """
@@ -6334,7 +6209,7 @@ class VS2003FileConfiguration(VS2003XML):
                                 value = str(new_value)
 
                         # Add the rule
-                        tool_root.add_default(
+                        tool_root.add_attribute(
                             VSStringProperty(
                                 item,
                                 convert_file_name_vs2010(value)))
@@ -6507,7 +6382,7 @@ class VS2003vcproj(VS2003XML):
             self, "VisualStudioProject")
 
         # Always C++ for makeprojects
-        self.add_default(VSStringProperty("ProjectType", "Visual C++"))
+        self.add_attribute(VSStringProperty("ProjectType", "Visual C++"))
 
         # Which project version?
         ide = project.ide
@@ -6517,26 +6392,26 @@ class VS2003vcproj(VS2003XML):
             version = "8.00"
         else:
             version = "9.00"
-        self.add_default(VSStringProperty("Version", version))
+        self.add_attribute(VSStringProperty("Version", version))
 
         # Name of the project
-        self.add_default(VSStringProperty("Name", project.name))
+        self.add_attribute(VSStringProperty("Name", project.name))
 
         # Set the GUID
-        self.add_default(
+        self.add_attribute(
             VSStringProperty("ProjectGUID",
                             "{" + project.vs_uuid + "}"))
 
         # Set the root namespace to the same name as the project
-        self.add_default(
+        self.add_attribute(
             VSStringProperty("RootNamespace", project.name))
 
         # Hard coded for VC projects, not C#
-        self.add_default(VSStringProperty("Keyword", "Win32Proj"))
+        self.add_attribute(VSStringProperty("Keyword", "Win32Proj"))
 
         # VS 2008 sets the framework version
         if ide is IDETypes.vs2008:
-            self.add_default(
+            self.add_attribute(
                 VSStringProperty("TargetFrameworkVersion", "196613"))
 
         # Add all the sub chunks
@@ -6589,7 +6464,9 @@ def generate(solution):
         Zero if no error, non-zero on error.
     """
 
-    # Failsafe
+    # pylint: disable=too-many-branches
+
+    # Failsafe, return error if not supported
     if solution.ide not in SUPPORTED_IDES:
         return 10
 
@@ -6603,8 +6480,12 @@ def generate(solution):
         # Set the project filename
         item = getattr(project, "vs_output_filename", None)
         if not item:
-            project.vs_output_filename = "{}{}{}.vcproj".format(
-                project.name, solution.ide_code, project.platform_code)
+
+            # Visual Studio 2003-2008 uses the vcproj extension, where
+            # 2010 or higher uses vcxproj
+            item = ".vcproj" if solution.ide < IDETypes.vs2010 else ".vcxproj"
+            project.vs_output_filename = project.name + solution.ide_code + \
+                project.platform_code + item
 
         # Set the project UUID
         item = getattr(project, "vs_uuid", None)
@@ -6614,12 +6495,17 @@ def generate(solution):
         for configuration in project.configuration_list:
 
             # Get the Visual Studio platform code
-            vs_platform = configuration.platform.get_vs_platform()[0]
-            configuration.vs_platform = vs_platform
+            item = configuration.platform.get_vs_platform()[0]
+
+            # A hack is applied to map NVidia Android types to
+            # Microsoft Android types
+            if solution.ide >= IDETypes.vs2022:
+                item = _VS_PLATFORM_HACK.get(item, item)
+            configuration.vs_platform = item
 
             # Create the merged configuration/platform code
-            configuration.vs_configuration_name = "{}|{}".format(
-                configuration.name, vs_platform)
+            configuration.vs_configuration_name = configuration.name + "|" + \
+                item
 
     # Write to memory for file comparison
     solution_lines = []
@@ -6632,11 +6518,14 @@ def generate(solution):
     verbose = solution.verbose
 
     # Create the final filename for the Visual Studio Solution file
-    solution_filename = "{}{}{}.sln".format(
-        solution.name, solution.ide_code, solution.platform_code)
+    item = getattr(solution, "vs_output_filename", None)
+    if not item:
+        item = solution.name + solution.ide_code + \
+            solution.platform_code + ".sln"
 
+    # Save out the solution file
     save_text_file_if_newer(
-        os.path.join(solution.working_directory, solution_filename),
+        os.path.join(solution.working_directory, item),
         solution_lines,
         bom=solution.ide != IDETypes.vs2003,
         perforce=perforce,
@@ -6648,18 +6537,28 @@ def generate(solution):
     for project in solution.project_list:
         project.get_file_list(
             [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.rc,
-            FileTypes.x86, FileTypes.x64,
-            FileTypes.hlsl, FileTypes.glsl, FileTypes.ico, FileTypes.image
-             ])
+             FileTypes.x86, FileTypes.x64, FileTypes.ppc, FileTypes.arm,
+             FileTypes.arm64, FileTypes.s,
+             FileTypes.hlsl, FileTypes.glsl, FileTypes.x360sl, FileTypes.vitacg,
+             FileTypes.ico, FileTypes.appxmanifest, FileTypes.image])
+
+        # Handle WiiU extensions based on found files
+        wiiu_props(project)
 
         # Check if masm.rules needs to be added
         add_masm_support(project)
 
         # Create the project file template
-        exporter = VS2003vcproj(project)
+        if solution.ide >= IDETypes.vs2010:
+            exporter = VS2010vcproj(project)
+        else:
+            exporter = VS2003vcproj(project)
 
         # Convert to a text file
-        project_lines = exporter.generate(ide=solution.ide)
+        project_lines = []
+
+        # Convert to a text file
+        exporter.generate(project_lines, ide=solution.ide)
 
         # Handle any post processing
         project_lines = solution.post_process(project_lines)
@@ -6674,4 +6573,33 @@ def generate(solution):
             perforce=perforce,
             verbose=verbose)
 
+        # Visual Studio 2010 and higher has a 3rd file, filters
+        if solution.ide >= IDETypes.vs2010:
+
+            # Generate the filter
+            exporter = VS2010vcprojfilter(project)
+
+            # Create the file
+            filter_lines = []
+            exporter.generate(filter_lines)
+
+            # Save it out
+            item = os.path.join(
+                solution.working_directory,
+                project.vs_output_filename + ".filters")
+
+            # Is there any data besides the header?
+            if len(filter_lines) >= 4:
+
+                # Save it
+                save_text_file_if_newer(
+                    item,
+                    filter_lines,
+                    bom=True,
+                    perforce=perforce,
+                    verbose=verbose)
+            else:
+
+                # File is not needed, remove it.
+                delete_file(item)
     return 0

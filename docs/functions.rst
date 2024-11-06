@@ -315,18 +315,6 @@ visual_studio.test
 ^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::test
 
-visual_studio.get_uuid
-^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::visual_studio::get_uuid
-
-visual_studio.create_copy_file_script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::visual_studio::create_copy_file_script
-
-visual_studio.create_deploy_script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::visual_studio::create_deploy_script
-
 visual_studio.do_filter_tree
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::do_filter_tree
@@ -334,6 +322,10 @@ visual_studio.do_filter_tree
 visual_studio.generate
 ^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::generate
+
+visual_studio_utils.get_uuid
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::get_uuid
 
 visual_studio_utils.get_path_property
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -362,6 +354,14 @@ visual_studio_utils.get_cpu_folder
 visual_studio_utils.generate_solution_file
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio_utils::generate_solution_file
+
+visual_studio_utils.create_copy_file_script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::create_copy_file_script
+
+visual_studio_utils.create_deploy_script
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::visual_studio_utils::create_deploy_script
 
 Watcom
 ------

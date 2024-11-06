@@ -21,7 +21,8 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.visual_studio import get_uuid, VS2003XML
+from makeprojects.visual_studio_utils import get_uuid
+from makeprojects.visual_studio import VS2003XML
 from makeprojects.validators import VSStringProperty
 
 ########################################

@@ -10,8 +10,6 @@ Microsoft's Visual Studio IDE
 
 @package makeprojects.visual_studio_2010
 
-@var makeprojects.visual_studio_2010.SUPPORTED_IDES
-List of IDETypes the visual_studio_2010 module supports.
 """
 
 # pylint: disable=consider-using-f-string
@@ -20,82 +18,13 @@ List of IDETypes the visual_studio_2010 module supports.
 from __future__ import absolute_import, print_function, unicode_literals
 
 import os
-from burger import save_text_file_if_newer, convert_to_windows_slashes, \
-    delete_file, escape_xml_cdata, escape_xml_attribute, \
-    packed_paths, truefalse
+from burger import convert_to_windows_slashes, escape_xml_cdata, \
+    escape_xml_attribute, packed_paths, truefalse
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     source_file_filter
-from .visual_studio import get_uuid, create_deploy_script
-from .visual_studio_utils import wiiu_props, add_masm_support, \
-    get_toolset_version, generate_solution_file
-
-SUPPORTED_IDES = (
-    IDETypes.vs2010,
-    IDETypes.vs2012,
-    IDETypes.vs2013,
-    IDETypes.vs2015,
-    IDETypes.vs2017,
-    IDETypes.vs2019,
-    IDETypes.vs2022)
-
-########################################
-
-
-def test(ide, platform_type):
-    """ Filter for supported platforms
-
-    Args:
-        ide: IDETypes
-        platform_type: PlatformTypes
-    Returns:
-        True if supported, False if not
-    """
-
-    # pylint: disable=too-many-branches
-    # pylint: disable=too-many-return-statements
-
-    if platform_type in (PlatformTypes.win32, PlatformTypes.win64):
-        return True
-
-    if platform_type in (PlatformTypes.winarm32, PlatformTypes.winarm64):
-        return ide >= IDETypes.vs2017
-
-    if platform_type is PlatformTypes.xbox360:
-        return IDETypes.vs2010 <= ide <= IDETypes.vs2017
-
-    if platform_type.is_xboxone():
-        return ide >= IDETypes.vs2015
-
-    if ide < IDETypes.vs2017:
-        if platform_type in (PlatformTypes.ps3, PlatformTypes.vita):
-            return True
-
-    if ide >= IDETypes.vs2017:
-        if platform_type in (PlatformTypes.ps4, PlatformTypes.ps5):
-            return True
-
-    if ide >= IDETypes.vs2017:
-        if platform_type is PlatformTypes.stadia:
-            return True
-
-    if ide >= IDETypes.vs2012:
-        if platform_type is PlatformTypes.wiiu:
-            return True
-
-    if ide >= IDETypes.vs2013:
-        if platform_type in (PlatformTypes.tegra,
-                             PlatformTypes.androidarm32,
-                             PlatformTypes.androidarm64,
-                             PlatformTypes.androidintel32,
-                             PlatformTypes.androidintel64):
-            return True
-
-    if ide >= IDETypes.vs2015:
-        if platform_type in (PlatformTypes.switch32, PlatformTypes.switch64):
-            return True
-
-    return False
+from .visual_studio_utils import get_toolset_version, get_uuid, \
+    create_deploy_script
 
 ########################################
 
@@ -1778,7 +1707,7 @@ class VS2010vcproj(VS2010XML):
 
     ########################################
 
-    def generate(self, line_list=None, indent=0):
+    def generate(self, line_list=None, indent=0, ide=None):
         """
         Write out the VisualStudioProject record.
 
@@ -1786,6 +1715,8 @@ class VS2010vcproj(VS2010XML):
             line_list: string list to save the XML text
             indent: Level of indentation to begin with.
         """
+
+        # pylint: disable=unused-argument
 
         if line_list is None:
             line_list = []
@@ -1952,144 +1883,3 @@ class VS2010vcprojfilter(VS2010XML):
         line_list.append("<?xml version=\"1.0\" encoding=\"utf-8\"?>")
         return VS2010XML.generate(
             self, line_list, indent=indent)
-
-
-########################################
-
-
-def generate(solution):
-    """
-    Create a solution and project(s) file for Visual Studio.
-
-    Given a Solution object, create an appropriate Visual Studio solution
-    and project files to allow this project to build.
-
-    Args:
-        solution: Solution instance.
-
-    Returns:
-        Zero if no error, non-zero on error.
-    """
-
-    # pylint: disable=too-many-statements
-
-    # Failsafe
-    if solution.ide not in SUPPORTED_IDES:
-        return 10
-
-    # For starters, generate the UUID and filenames for the solution file
-    # for visual studio, since each solution and project file generate
-    # seperately
-
-    # Iterate over the project files and create the filenames
-    for project in solution.project_list:
-
-        # Set the project filename
-        item = getattr(project, "vs_output_filename", None)
-        if not item:
-            project.vs_output_filename = "{}{}{}.vcxproj".format(
-                project.name, solution.ide_code, project.platform_code)
-
-        # Set the project UUID
-        item = getattr(project, "vs_uuid", None)
-        if not item:
-            project.vs_uuid = get_uuid(project.vs_output_filename)
-
-        for configuration in project.configuration_list:
-
-            # Get the Visual Studio platform code
-            # A hack is applied to map NVidia Android types to
-            # Microsoft Android types
-            vs_platform = configuration.platform.get_vs_platform()[0]
-            if solution.ide >= IDETypes.vs2022:
-                vs_platform = {"x86-Android-NVIDIA": "x86",
-                "x64-Android-NVIDIA": "x64",
-               "ARM-Android-NVIDIA": "ARM",
-               "AArch64-Android-NVIDIA": "ARM64"}.get(vs_platform, vs_platform)
-            configuration.vs_platform = vs_platform
-
-            # Create the merged configuration/platform code
-            configuration.vs_configuration_name = "{}|{}".format(
-                configuration.name, vs_platform)
-
-    # Write to memory for file comparison
-    solution_lines = []
-    error = generate_solution_file(solution_lines, solution)
-    if error:
-        return error
-
-    # Get the output flags
-    perforce = solution.perforce
-    verbose = solution.verbose
-
-    # Create the final filename for the Visual Studio Solution file
-    solution_filename = "{}{}{}.sln".format(
-        solution.name, solution.ide_code, solution.platform_code)
-
-    save_text_file_if_newer(
-        os.path.join(solution.working_directory, solution_filename),
-        solution_lines,
-        bom=True,
-        perforce=perforce,
-        verbose=verbose)
-
-    # Now that the solution file was generated, create the individual project
-    # files using the format appropriate for the selected IDE
-
-    for project in solution.project_list:
-        project.get_file_list(
-            [FileTypes.h, FileTypes.cpp, FileTypes.c, FileTypes.rc,
-             FileTypes.x86, FileTypes.x64, FileTypes.ppc, FileTypes.arm,
-             FileTypes.arm64, FileTypes.s,
-             FileTypes.hlsl, FileTypes.glsl, FileTypes.x360sl, FileTypes.vitacg,
-             FileTypes.ico, FileTypes.appxmanifest, FileTypes.image])
-
-        # Handle WiiU extensions based on found files
-        wiiu_props(project)
-
-        # Handle x86/x64 support
-        add_masm_support(project)
-
-        # Create the project file template
-        exporter = VS2010vcproj(project)
-
-        # Convert to a text file
-        project_lines = []
-
-        # Convert to a text file
-        exporter.generate(project_lines)
-
-        # Save the text
-        save_text_file_if_newer(
-            os.path.join(
-                solution.working_directory,
-                project.vs_output_filename),
-            project_lines,
-            bom=True,
-            perforce=perforce,
-            verbose=verbose)
-
-        # Visual Studio 2010 and higher has a 3rd file, filters
-        exporter = VS2010vcprojfilter(project)
-        filter_lines = []
-        exporter.generate(filter_lines)
-
-        file_name = os.path.join(
-            solution.working_directory,
-            project.vs_output_filename + ".filters")
-
-        # Is there any data besides the header?
-        if len(filter_lines) >= 4:
-
-            # Save it
-            save_text_file_if_newer(
-                file_name,
-                filter_lines,
-                bom=True,
-                perforce=perforce,
-                verbose=verbose)
-        else:
-
-            # File is not needed, remove it.
-            delete_file(file_name)
-    return 0

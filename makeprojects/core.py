@@ -1490,14 +1490,12 @@ class Solution(Attributes):
         import makeprojects.watcom
         import makeprojects.makefile
         import makeprojects.visual_studio
-        import makeprojects.visual_studio_2010
         import makeprojects.codewarrior
         import makeprojects.xcode
         import makeprojects.codeblocks
 
         generator_list = (
             makeprojects.visual_studio,
-            makeprojects.visual_studio_2010,
             makeprojects.watcom,
             makeprojects.makefile,
             makeprojects.codewarrior,
