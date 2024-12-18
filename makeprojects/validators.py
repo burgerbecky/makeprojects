@@ -500,13 +500,12 @@ class VSIntegerProperty(object):
 
     Attributes:
         name: Name of the validator
-        switch: Value if enabled
         value: Integer value
     """
 
     value = IntegerProperty("_value")
 
-    def __init__(self, name, fallback=None, switch=None):
+    def __init__(self, name, fallback=None):
         """
         Initialize the default values.
         Set the name (Required), value and compiler switch.
@@ -514,12 +513,10 @@ class VSIntegerProperty(object):
         Args:
             name: Name of the validator
             fallback: Default value, ``None`` is acceptable
-            switch: Switch for integer found
         """
 
         # Init the defaults
         self.name = name
-        self.switch = switch
         self.value = fallback
 
     ########################################
@@ -535,6 +532,37 @@ class VSIntegerProperty(object):
         if temp is not None:
             temp = str(temp)
         return temp
+
+    ########################################
+
+    @staticmethod
+    def vs_validate(key, configuration, fallback=None, prefix=None):
+        """
+        Check if there is an override with a vs_ prefix.
+        @details
+        Check if the configuration has a key of \"vs_\" + prefix + key in the
+        configuration and if not found or None, use the fallback as is.
+
+        Args:
+            key: Name of the XML attribute key
+            configuration: configuration to scan for an override
+            fallback: Value to use in case there is no override.
+            prefix: String to insert after "vs_"
+
+        Returns:
+            VSIntegerProperty instance
+        """
+
+        # Insert the optional prefix
+        new_key = "vs_"
+        if prefix:
+            new_key = new_key + prefix
+        new_key = new_key + key
+
+        value = configuration.get_chained_value(new_key)
+        if value is None:
+            return VSIntegerProperty(key, fallback)
+        return VSIntegerProperty(key, value)
 
     ########################################
 

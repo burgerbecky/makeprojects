@@ -140,22 +140,22 @@ python.BUILD_LIST
 ^^^^^^^^^^^^^^^^^^
 .. doxygenvariable:: makeprojects::python::BUILD_LIST
 
-buildme.CODEWARRIOR_ERRORS
-^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::CODEWARRIOR_ERRORS
+codewarrior.CODEWARRIOR_ERRORS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::codewarrior::CODEWARRIOR_ERRORS
 
-buildme._CW_SUPPORTED_LINKERS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::_CW_SUPPORTED_LINKERS
+codewarrior._CW_SUPPORTED_LINKERS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::codewarrior::_CW_SUPPORTED_LINKERS
 
-buildme._VS_VERSION_YEARS
-^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::_VS_VERSION_YEARS
+visual_studio._VS_VERSION_YEARS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::visual_studio::_VS_VERSION_YEARS
 
-buildme._VS_OLD_VERSION_YEARS
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::_VS_OLD_VERSION_YEARS
+visual_studio._VS_OLD_VERSION_YEARS
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::visual_studio::_VS_OLD_VERSION_YEARS
 
-buildme._VS_SDK_ENV_VARIABLE
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenvariable:: makeprojects::buildme::_VS_SDK_ENV_VARIABLE
+visual_studio._VS_SDK_ENV_VARIABLE
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenvariable:: makeprojects::visual_studio::_VS_SDK_ENV_VARIABLE

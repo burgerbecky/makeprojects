@@ -23,10 +23,6 @@ makeprojects.new_solution
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::new_solution
 
-makeprojects.new_project
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::new_project
-
 makeprojects.new_configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::new_configuration
@@ -45,13 +41,33 @@ config.find_default_build_rules
 Clean
 -----
 
-cleanme.dispatch
-^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::cleanme::dispatch
+cleanme.create_parser
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::create_parser
 
-cleanme.process
-^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::cleanme::process
+cleanme.add_clean_rules
+^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::add_clean_rules
+
+cleanme.add_project
+^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::add_project
+
+cleanme.process_projects
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::process_projects
+
+cleanme.process_files
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::process_files
+
+cleanme.process_directories
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::process_directories
+
+cleanme.process_dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::cleanme::process_dependencies
 
 cleanme.main
 ^^^^^^^^^^^^
@@ -60,49 +76,9 @@ cleanme.main
 Build
 -----
 
-buildme.build_rez_script
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_rez_script
-
-buildme.build_slicer_script
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_slicer_script
-
-buildme.build_doxygen
+buildme.create_parser
 ^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_doxygen
-
-buildme.build_makefile
-^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_makefile
-
-buildme.parse_sln_file
-^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::parse_sln_file
-
-buildme.parse_mcp_file
-^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::parse_mcp_file
-
-buildme.build_codewarrior
-^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_codewarrior
-
-buildme.parse_xcodeproj_file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::parse_xcodeproj_file
-
-buildme.build_xcode
-^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_xcode
-
-buildme.parse_codeblocks_file
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::parse_codeblocks_file
-
-buildme.build_codeblocks
-^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::build_codeblocks
+.. doxygenfunction:: makeprojects::buildme::create_parser
 
 buildme.add_build_rules
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -112,13 +88,21 @@ buildme.add_project
 ^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::buildme::add_project
 
-buildme.get_projects
-^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::get_projects
+buildme.process_projects
+^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::process_projects
 
-buildme.process
-^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::buildme::process
+buildme.process_files
+^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::process_files
+
+buildme.process_directories
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::process_directories
+
+buildme.process_dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. doxygenfunction:: makeprojects::buildme::process_dependencies
 
 buildme.main
 ^^^^^^^^^^^^
