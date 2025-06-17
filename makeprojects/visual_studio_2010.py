@@ -1714,6 +1714,7 @@ class VS2010vcproj(VS2010XML):
         Args:
             line_list: string list to save the XML text
             indent: Level of indentation to begin with.
+            ide: Version of Visual Studio to build for
         """
 
         # pylint: disable=unused-argument

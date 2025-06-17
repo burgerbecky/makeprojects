@@ -614,7 +614,8 @@ def main(working_directory=None, args=None):
 
     # If invoked without any parameters, try if build_rules.py
     # has a list of projects to build
-    if args is None and len(sys.argv) < 2:
+    len_test = 3 if parsed.verbose else 2
+    if args is None and len(sys.argv) < len_test:
         error = process_makeprojects(parsed, working_directory)
         if error is not None:
             return error

@@ -365,6 +365,7 @@ class JSONArray(JSONRoot):
             suffix: Suffix, either ";" or ","
             enabled: If False, don't output this object in the generated object.
             disable_if_empty: If True, don't output if no items in the list.
+            fold_array: True if the array should be in one line
         """
 
         if value is None:
@@ -379,6 +380,8 @@ class JSONArray(JSONRoot):
             value=value)
 
         self.disable_if_empty = disable_if_empty
+
+        ## Default array folding
         self.fold_array = fold_array
 
     def add_array_entry(self, name):
@@ -492,6 +495,8 @@ class JSONDict(JSONRoot):
 
         self.disable_if_empty = disable_if_empty
         self.isa = isa
+
+        ## Default flattened state
         self.flattened = flattened
 
         if isa is not None:
@@ -780,7 +785,7 @@ class PBXFileReference(JSONDict):
         # core.SourceFile record
         self.source_file = source_file
 
-        # Save the MacOS version of the relative pathname
+        ## Save the MacOS version of the relative pathname
         self.relative_pathname = relative_pathname
 
         # If not binary, assume UTF-8 encoding

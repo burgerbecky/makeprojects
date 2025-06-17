@@ -142,6 +142,7 @@ def make_hlsl_command(command_dict, source_file):
     """ Create HLSL command line
     Args:
         command_dict: Dict with command overrides
+        source_file: File to process
     Returns:
         Command line, Description, Output list
     """

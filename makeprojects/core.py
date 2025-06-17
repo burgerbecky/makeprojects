@@ -68,7 +68,7 @@ class Attributes(object):
         _debug: True @ref makeprojects.core.Attributes.debug
         _link_time_code_generation: True @ref makeprojects.core.Attributes.link_time_code_generation
         _optimization: True @ref makeprojects.core.Attributes.optimization
-        _exceptions: False @ref makeprojects.code.Attributes.exceptions
+        _exceptions: False @ref makeprojects.core.Attributes.exceptions
         _analyze: True @ref makeprojects.core.Attributes.analyze
         _use_mfc: @ref makeprojects.core.Attributes.use_mfc
         _use_atl: @ref makeprojects.core.Attributes.use_atl

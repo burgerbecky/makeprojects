@@ -9,6 +9,12 @@ building MASM files
 
 @package makeprojects.masm_support
 
+@var makeprojects.masm_support.MASM_WARNINGLEVEL
+Enumerations for MASM warning levels
+
+@var makeprojects.masm_support.MASM_ENUMS
+Names, default, lookup tables for MASM enums
+
 @var makeprojects.masm_support.MASM_BOOLEANS
 Boolean list for MASM, Name, Default, switches
 
@@ -62,6 +68,7 @@ def make_masm_command(command_dict, source_file):
 
     Args:
         command_dict: Dict with command overrides
+        source_file: File to process
     Returns:
         Command line, Description, Output list
     """

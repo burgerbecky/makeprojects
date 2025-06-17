@@ -30,6 +30,10 @@ Supported IDE codes for the XCode exporter
 
 @var makeprojects.xcode.OBJECT_VERSIONS
 Version values
+
+@var makeprojects.xcode.SUPPORTED_FILES
+Supported input files
+
 """
 
 # pylint: disable=too-many-arguments
@@ -632,6 +636,7 @@ class PBXNativeTarget(JSONDict):
             productreference: Reference to the object being built
             productname: Name of the project being built
             producttype: Type of product being built
+            build_rules: Build_rules reference
         """
 
         uuid = calcuuid("PBXNativeTarget" + name)
@@ -1135,7 +1140,7 @@ class XCBuildConfiguration(JSONDict):
             # build_settings.add_dict_entry("FRAMEWORK_VERSION")
 
             # PowerPC only, enable altivec
-            # build_settings.add_dict_entry("GCC_ALTIVEC_EXTENSIONS")
+            build_settings.add_dict_entry("GCC_ALTIVEC_EXTENSIONS", "YES")
 
             # Enable vectorization on loops
             # build_settings.add_dict_entry("GCC_AUTO_VECTORIZATION")
@@ -1829,7 +1834,8 @@ class XCConfigurationList(JSONDict):
 
 class XCProject(JSONDict):
     """
-    Root object for an XCode IDE project file.
+    Root object for an XCode IDE project file
+
     Created with the name of the project, the IDE code (xc3, xc5)
     the platform code (ios, osx)
 
