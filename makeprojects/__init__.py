@@ -102,7 +102,7 @@ __email__ = "becky@burgerbecky.com"
 __license__ = "MIT License"
 
 # Copyright owner
-__copyright__ = "Copyright 2013-2024 Rebecca Ann Heineman"
+__copyright__ = "Copyright 2013-2025 Rebecca Ann Heineman"
 
 # Items to import on "from makeprojects import *"
 __all__ = [

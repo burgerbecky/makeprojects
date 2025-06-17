@@ -9,6 +9,12 @@ command line tools to clean, build and generate project files.
 
 When any of these tools are invoked, this file is loaded and parsed to
 determine special rules on how to handle building the code and / or data.
+
+python -m twine upload --verbose dist/*
+
+cd docs
+sphinx-build -M html . temp\build
+
 """
 
 # pylint: disable=unused-argument
@@ -17,7 +23,8 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import sys
-from burger import import_py_script, run_command, clean_directories
+from burger import clean_directories, run_command, __version__, \
+    delete_directory, clean_files, lock_files, unlock_files
 
 # If set to True, ``buildme -r``` will not parse directories in this folder.
 BUILDME_NO_RECURSE = False
@@ -28,7 +35,33 @@ DEPENDENCIES = []
 # If set to True, ``cleanme -r``` will not parse directories in this folder.
 CLEANME_NO_RECURSE = True
 
-CLEANME_CONTINUE = True
+# ``cleanme`` will clean the listed folders before cleaning this folder.
+CLEANME_DEPENDENCIES = []
+
+# Directories to clean
+CLEAN_DIR_LIST = [
+    "makeprojects.egg-info",
+    "makeprojects-" + __version__,
+    "dist",
+    "build",
+    "temp",
+    ".pytest_cache",
+    ".tox",
+    ".vscode"
+]
+
+# Recurse these directories clean
+CLEAN_DIR_RECURSE_LIST = (
+    "temp",
+    "__pycache__",
+    "_build"
+)
+
+# Delete any files with these extensions
+CLEAN_EXTENSION_LIST = (
+    "*.pyc",
+    "*.pyo"
+)
 
 ########################################
 
@@ -51,10 +84,20 @@ def build(working_directory, configuration):
         None if not implemented, otherwise an integer error code.
     """
 
-    # Call setup.py to create the distribution files.
-    run_command(
-        ("python", "setup.py", "sdist", "bdist_wheel"),
-        working_dir=working_directory)
+    # Unlock the files to handle Perforce locking
+    lock_list = unlock_files(working_directory) + \
+        unlock_files(os.path.join(working_directory, "makeprojects"))
+
+    try:
+        # Use "build" from python to build everything
+        run_command(
+            ("python", "-m", "build"),
+            working_dir=working_directory)
+
+    # If any files were unlocked, relock them
+    finally:
+        lock_files(lock_list)
+
     return 0
 
 ########################################
@@ -77,13 +120,21 @@ def clean(working_directory):
         None if not implemented, otherwise an integer error code.
     """
 
-    # Clean up tox, or pylint
-    clean_directories(working_directory, "temp")
+    # Delete all folders, including read only files
+    for item in CLEAN_DIR_LIST:
+        delete_directory(os.path.join(working_directory, item))
 
-    # The function exists in setup.py.
-    # It can be manually invoked with "setup.py clean"
-    setup = import_py_script(os.path.join(working_directory, "setup.py"))
-    setup.clean(working_directory)
+    clean_directories(
+        working_directory,
+        CLEAN_DIR_RECURSE_LIST,
+        recursive=True)
+
+    # Delete all *.pyc and *.pyo files
+    clean_files(
+        working_directory,
+        name_list=CLEAN_EXTENSION_LIST,
+        recursive=True)
+
     return 0
 
 

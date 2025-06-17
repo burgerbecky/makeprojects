@@ -14,7 +14,8 @@ import subprocess
 import os
 import sys
 import errno
-import sphinx_rtd_theme
+
+from burger import import_py_script
 
 # Determine if running on "ReadTheDocs.org"
 
@@ -102,7 +103,6 @@ html_theme = "sphinx_rtd_theme"
 
 # Add any paths that contain custom themes here, relative to this directory.
 # html_theme_path = ["_themes",]
-html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further. For a list of options available for each theme, see the
@@ -257,10 +257,9 @@ def generate_doxygen_xml(app):
 
     # Invoke the prebuild python script to create the README.html
     # file if needed using pandoc
-    sys.path.append(CWD)
-    build_rules = __import__("build_rules")
-    sys.path.pop()
-    build_rules.build(CWD, "all")
+    build_rules = import_py_script(
+        os.path.join(CWD, "build_rules.py"))
+    build_rules.build(CWD, None)
 
     # Call Doxygen to build the documentation
     try:

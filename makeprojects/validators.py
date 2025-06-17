@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# Copyright 2013-2024 by Rebecca Ann Heineman becky@burgerbecky.com
+# Copyright 2013-2025 by Rebecca Ann Heineman becky@burgerbecky.com
 #
 # It is released under an MIT Open Source license. Please see LICENSE
 # for license details. Yes, you can use it in a
