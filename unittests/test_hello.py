@@ -17,13 +17,14 @@ import sys
 import unittest
 import tempfile
 import shutil
-from burger import compare_files
+# from burger import compare_files
 
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import makeprojects
+# pylint: disable=wrong-import-position
 from makeprojects.enums import IDETypes
+import makeprojects
 
 ########################################
 
@@ -44,7 +45,6 @@ class TestHello(unittest.TestCase):
         self.tmpdir = os.path.realpath(tempfile.mkdtemp())
         # Make sure anything left behind is removed
         self.addCleanup(shutil.rmtree, self.tmpdir)
-
 
 ########################################
 
@@ -115,7 +115,7 @@ class TestHello(unittest.TestCase):
             # empty_file = os.path.join(
             #    os.path.dirname(os.path.abspath(__file__)),
             #    'assets', 'hello', item[1])
-            #assert compare_files(empty_file, str(tmpdir.join(item[1])))
+            # assert compare_files(empty_file, str(tmpdir.join(item[1])))
 
 ########################################
 

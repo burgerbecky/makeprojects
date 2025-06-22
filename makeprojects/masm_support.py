@@ -86,6 +86,6 @@ def make_masm_command(command_dict, source_file):
     cmd = convert_file_name(" ".join(cmd), source_file)
     description = convert_file_name(
         "Assembling %(FileName)%(Extension)...", source_file)
-    outputs = [convert_file_name(x, source_file) for x in outputs]    
+    outputs = [convert_file_name(x, source_file) for x in outputs]
 
     return cmd, description, outputs

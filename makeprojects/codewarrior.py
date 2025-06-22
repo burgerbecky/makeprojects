@@ -44,6 +44,7 @@ Tab character for XML output
 # pylint: disable=consider-using-f-string
 # pylint: disable=too-few-public-methods
 # pylint: disable=useless-object-inheritance
+# pylint: disable=possibly-used-before-assignment
 
 from __future__ import absolute_import, print_function, unicode_literals
 
@@ -338,7 +339,7 @@ class BuildCodeWarriorFile(BuildObject):
                             self.file_name))[0],
                     self.configuration))
             cmd = ['cmdide', '-proj', '-bcwef', error_file,
-                '-y', cw_path, '-z', self.configuration, self.file_name]
+                   '-y', cw_path, '-z', self.configuration, self.file_name]
 
         if self.verbose:
             print(' '.join(cmd))
@@ -397,7 +398,7 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildMakeFile build records for every desired configuration
 
@@ -434,13 +435,13 @@ def create_build_object(file_name, priority=50,
         if '68K Linker' in linkers:
             print(
                 ('"{}" requires a 68k linker '
-                'which Windows doesn\'t support.').format(file_name))
+                 'which Windows doesn\'t support.').format(file_name))
             return []
 
         if 'PPC Linker' in linkers:
             print(
                 ('"{}" requires a PowerPC linker '
-                'which Windows doesn\'t support.').format(file_name))
+                 'which Windows doesn\'t support.').format(file_name))
             return []
 
     # If everything is requested, then only build 'Everything'
@@ -473,7 +474,7 @@ def create_build_object(file_name, priority=50,
 
 
 def create_clean_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildMakeFile build records for every desired configuration
 
@@ -510,13 +511,13 @@ def create_clean_object(file_name, priority=50,
         if '68K Linker' in linkers:
             print(
                 ("\"{}\" requires a 68k linker "
-                "which Windows doesn't support.").format(file_name))
+                 "which Windows doesn't support.").format(file_name))
             return []
 
         if "PPC Linker" in linkers:
             print(
                 ('"{}" requires a PowerPC linker '
-                'which Windows doesn\'t support.').format(file_name))
+                 'which Windows doesn\'t support.').format(file_name))
             return []
 
     # If everything is requested, then only build 'Everything'
@@ -1132,7 +1133,7 @@ class FILE(object):
         line_list.append(tabs + "<FILE>")
         line_list.append(tabs2 + "<PATHTYPE>Name</PATHTYPE>")
         line_list.append(tabs2 + "<PATH>" + self.filename + "</PATH>")
-        line_list.append(tabs2 + "<PATHFORMAT>" + \
+        line_list.append(tabs2 + "<PATHFORMAT>" +
                          self.format + "</PATHFORMAT>")
         line_list.append(tabs2 + "<FILEKIND>" + self.kind + "</FILEKIND>")
         line_list.append(tabs2 + "<FILEFLAGS>" + self.flags + "</FILEFLAGS>")
@@ -1175,7 +1176,7 @@ class FILEREF(object):
                              "</TARGETNAME>")
         line_list.append(tabs2 + "<PATHTYPE>Name</PATHTYPE>")
         line_list.append(tabs2 + "<PATH>" + self.filename + "</PATH>")
-        line_list.append(tabs2 + "<PATHFORMAT>" + \
+        line_list.append(tabs2 + "<PATHFORMAT>" +
                          self.format + "</PATHFORMAT>")
         line_list.append(tabs + "</FILEREF>")
 
@@ -1572,7 +1573,8 @@ class Project(object):
                                     break
                             else:
                                 # Insert the library
-                                item = "MFCcw_D.lib" if configuration.debug else "MFCcw.lib"
+                                item = "MFCcw_D.lib" \
+                                    if configuration.debug else "MFCcw.lib"
                                 liblist.insert(0, item)
 
                 # Generate the file and group lists

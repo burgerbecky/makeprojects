@@ -49,7 +49,8 @@ class Attributes(object):
         cw_environment_variables: List of CodeWarrior environment variables
         custom_rules: Custom build rules
         platform: @ref makeprojects.enums.PlatformTypes enum for target platform
-        project_type: @ref makeprojects.enums.ProjectTypes enum for target output
+        project_type: @ref makeprojects.enums.ProjectTypes
+            enum for target output
         debug: Boolean for debug information generation
         link_time_code_generation: Boolean for LTCG
         optimization: Boolean for optimization enable
@@ -66,7 +67,8 @@ class Attributes(object):
         _platform: platform value
         _project_type: True @ref makeprojects.core.Attributes.project_type
         _debug: True @ref makeprojects.core.Attributes.debug
-        _link_time_code_generation: True @ref makeprojects.core.Attributes.link_time_code_generation
+        _link_time_code_generation: True
+            @ref makeprojects.core.Attributes.link_time_code_generation
         _optimization: True @ref makeprojects.core.Attributes.optimization
         _exceptions: False @ref makeprojects.core.Attributes.exceptions
         _analyze: True @ref makeprojects.core.Attributes.analyze
@@ -74,7 +76,8 @@ class Attributes(object):
         _use_atl: @ref makeprojects.core.Attributes.use_atl
         _clr_support: @ref makeprojects.core.Attributes.clr_support
         _name: True @ref makeprojects.core.Attributes.name
-        _working_directory: True @ref makeprojects.core.Attributes.working_directory
+        _working_directory: True
+            @ref makeprojects.core.Attributes.working_directory
         _deploy_folder: True @ref makeprojects.core.Attributes.deploy_folder
         _fastcall: None @ref makeprojects.core.Attributes.fastcall
     """
@@ -499,8 +502,9 @@ class SourceFile(object):
     for processing.
 
     @note
-    For hash consistency, @ref makeprojects.core.SourceFile.relative_pathname has all directory
-    slashes in Windows format "\" instead of Linux/BSD format on all platforms.
+    For hash consistency, @ref makeprojects.core.SourceFile.relative_pathname
+    has all directory slashes in Windows format "\" instead of Linux/BSD
+    format on all platforms.
 
     Attributes:
         relative_pathname: File base name with extension
@@ -598,7 +602,7 @@ class SourceFile(object):
         """
 
         return "FileType: {} Pathname: \"{}\"".format(str(self.type),
-                                                    self.get_abspath())
+                                                      self.get_abspath())
 
     def __str__(self):
         """
@@ -1276,7 +1280,8 @@ class Solution(Attributes):
         ide_code: IDE code for generation
         platform_code: Platform code for generation
         project_list: List of dependent projects
-        project_type: @ref makeprojects.enums.ProjectTypes enum for target output
+        project_type: @ref makeprojects.enums.ProjectTypes enum
+            for target output
         post_process: Python function to handle post processing
         _ide: Private instance of @ref makeprojects.enums.IDETypes
     """
@@ -1551,8 +1556,8 @@ class Solution(Attributes):
         # No configurations passed? Abort
         if not configuration_list:
             print(
-                "Generator for IDE \"{}\" is incompatible with platform \"{}\"".format(
-                    ide, last_failed))
+                ("Generator for IDE \"{}\" is incompatible with platform "
+                 "\"{}\"").format(ide, last_failed))
             return 10
 
         # Get the platform code

@@ -12,8 +12,6 @@ Please? It's not like I'm asking you for money!
 
 """
 
-# pylint: disable=wrong-import-position
-
 import sys
 import unittest
 import os
@@ -21,9 +19,10 @@ import os
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.util import validate_enum_type, regex_dict, validate_boolean, \
-    validate_string, remove_ending_os_sep, was_processed
+# pylint: disable=wrong-import-position
 from makeprojects.enums import PlatformTypes, IDETypes, ProjectTypes
+from makeprojects.util import validate_enum_type, regex_dict, \
+    validate_boolean, validate_string, remove_ending_os_sep, was_processed
 
 ########################################
 
@@ -167,7 +166,6 @@ class TestUtil(unittest.TestCase):
             remove_ending_os_sep(0)
         with self.assertRaises(TypeError):
             remove_ending_os_sep(False)
-
 
 ########################################
 

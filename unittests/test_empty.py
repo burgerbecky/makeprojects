@@ -12,8 +12,6 @@ Please? It's not like I'm asking you for money!
 
 """
 
-# pylint: disable=wrong-import-position
-
 import os
 import sys
 import unittest
@@ -24,8 +22,9 @@ import burger
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from makeprojects.enums import IDETypes
+# pylint: disable=wrong-import-position
 import makeprojects
+from makeprojects.enums import IDETypes
 
 ########################################
 
@@ -42,14 +41,13 @@ class TestEmpty(unittest.TestCase):
         """
         Handle temporary directory
         """
+
         self.saved_cwd = os.getcwd()
         self.tmpdir = os.path.realpath(tempfile.mkdtemp())
         # Make sure anything left behind is removed
         self.addCleanup(shutil.rmtree, self.tmpdir)
 
-
 ########################################
-
 
     def tearDown(self):
         """

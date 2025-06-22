@@ -12,8 +12,6 @@ commercial title without paying anything, just give me a credit.
 Please? It's not like I'm asking you for money!
 """
 
-# pylint: disable=wrong-import-position
-
 import sys
 import unittest
 import os
@@ -21,6 +19,7 @@ import os
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# pylint: disable=wrong-import-position
 from makeprojects.enums import IDETypes, FileTypes, ProjectTypes, PlatformTypes
 
 ########################################
@@ -86,9 +85,7 @@ class TestEnums(unittest.TestCase):
         for test in tests:
             self.assertEqual(ProjectTypes.lookup(test[0]), test[1])
 
-
 ########################################
-
 
     def test_idetypes_is_visual_studio(self):
         """
@@ -105,9 +102,7 @@ class TestEnums(unittest.TestCase):
             else:
                 self.assertFalse(item.is_visual_studio())
 
-
 ########################################
-
 
     def test_idetypes_is_xcode(self):
         """
@@ -123,9 +118,7 @@ class TestEnums(unittest.TestCase):
             else:
                 self.assertFalse(item.is_xcode())
 
-
 ########################################
-
 
     def test_idetypes_is_codewarrior(self):
         """
@@ -139,9 +132,7 @@ class TestEnums(unittest.TestCase):
             else:
                 self.assertFalse(item.is_codewarrior())
 
-
 ########################################
-
 
     def test_idetypes_lookup(self):
         """
@@ -260,9 +251,7 @@ class TestEnums(unittest.TestCase):
             else:
                 self.assertFalse(item.is_macos_classic())
 
-
 ########################################
-
 
     def test_platformtypes_lookup(self):
         """

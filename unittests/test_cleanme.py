@@ -12,8 +12,6 @@ Please? It's not like I'm asking you for money!
 
 """
 
-# pylint: disable=wrong-import-position
-
 import sys
 import unittest
 import os
@@ -24,6 +22,8 @@ from burger import save_text_file, delete_file, Interceptstdout
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# pylint: disable=wrong-import-position
 import makeprojects
 from makeprojects.config import BUILD_RULES_PY
 
@@ -70,9 +70,7 @@ class TestCleanme(unittest.TestCase):
         # Make sure anything left behind is removed
         self.addCleanup(shutil.rmtree, self.tmpdir)
 
-
 ########################################
-
 
     def tearDown(self):
         """
@@ -82,9 +80,7 @@ class TestCleanme(unittest.TestCase):
         # Restore the working directory, if the test did not.
         os.chdir(self.saved_cwd)
 
-
 ########################################
-
 
     @staticmethod
     def mkdir(path, *paths):
@@ -155,7 +151,7 @@ class TestCleanme(unittest.TestCase):
             _IMPORT_BURGER,
             _DEF_CLEAN,
             ("\tburger.clean_directories(working_directory, "
-            "(\"temp\", \"bin\"))"),
+             "(\"temp\", \"bin\"))"),
             _RETURN_NONE]
         )
         # Make sure it was written

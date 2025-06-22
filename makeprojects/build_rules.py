@@ -97,12 +97,12 @@ PROCESS_PROJECT_FILES = True
 # without any parameters, default create recommended
 # project for the host machine
 MAKEPROJECTS = (
-# This example builds Visual Studio 2019 and 2022 for Windows
-#    {"platform": "windows",
-#     "type": "library",
-#     "name": "project",
-#     "configuration": "Release",
-#     "ide": ("vs2019", "vs2022")},
+    # This example builds Visual Studio 2019 and 2022 for Windows
+    #    {"platform": "windows",
+    #     "type": "library",
+    #     "name": "project",
+    #     "configuration": "Release",
+    #     "ide": ("vs2019", "vs2022")},
 )
 
 ########################################

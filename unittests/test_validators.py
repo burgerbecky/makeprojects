@@ -12,7 +12,6 @@ commercial title without paying anything, just give me a credit.
 Please? It's not like I'm asking you for money!
 """
 
-# pylint: disable=wrong-import-position
 # pylint: disable=invalid-name
 
 import unittest
@@ -22,12 +21,14 @@ import sys
 # Insert the location of makeprojects at the begining so it's the first
 # to be processed
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# pylint: disable=wrong-import-position
+from makeprojects.core import Configuration
+from makeprojects.hlsl_support import HLSL_ENUMS
 from makeprojects.validators import lookup_enum_append_key, lookup_enum_value, \
     lookup_enum_append_keys, lookup_strings, lookup_string_list, \
-    lookup_string_lists, lookup_booleans, VSBooleanProperty, VSIntegerProperty, \
-    VSStringProperty, VSStringListProperty, VSEnumProperty
-from makeprojects.hlsl_support import HLSL_ENUMS
-from makeprojects.core import Configuration
+    lookup_string_lists, lookup_booleans, VSBooleanProperty, \
+    VSIntegerProperty, VSStringProperty, VSStringListProperty, VSEnumProperty
 
 ########################################
 
@@ -51,9 +52,7 @@ class TestValidators(unittest.TestCase):
         self.assertIs(lookup_enum_value(enum_test1, "foo", None), None)
         self.assertIs(lookup_enum_value(enum_test1, 0, None), None)
 
-
 ########################################
-
 
     def test_lookup_enum_append_key(self):
         """
@@ -143,7 +142,13 @@ class TestValidators(unittest.TestCase):
 
         result = lookup_strings(cmd, string_entries, {})
         self.assertListEqual(
-            cmd, ["foo.exe", "\"Test1.h\"", "/2 Test2.h", "/3\"Test3.h\"", "/4Test4.h"])
+            cmd, [
+                "foo.exe",
+                "\"Test1.h\"",
+                "/2 Test2.h",
+                "/3\"Test3.h\"",
+                "/4Test4.h"
+            ])
         self.assertListEqual(result, ["Test1.h", "Test4.h"])
 
         cmd = ["foo.exe"]
@@ -154,7 +159,13 @@ class TestValidators(unittest.TestCase):
             "Test4": "bar4.h"
         })
         self.assertListEqual(
-            cmd, ["foo.exe", "\"bar1.h\"", "/2 bar2.h", "/3\"bar3.h\"", "/4bar4.h"])
+            cmd, [
+                "foo.exe",
+                "\"bar1.h\"",
+                "/2 bar2.h",
+                "/3\"bar3.h\"",
+                "/4bar4.h"
+            ])
         self.assertListEqual(result, ["bar1.h", "bar4.h"])
 
         cmd = ["foo.exe"]
@@ -164,7 +175,12 @@ class TestValidators(unittest.TestCase):
             "Test3": None,
         })
         self.assertListEqual(
-            cmd, ["foo.exe", "\"Test1.h\"", "/2 bar2.h", "/3\"Test3.h\"", "/4Test4.h"])
+            cmd, [
+                "foo.exe",
+                "\"Test1.h\"",
+                "/2 bar2.h",
+                "/3\"Test3.h\"",
+                "/4Test4.h"])
         self.assertListEqual(result, ["Test1.h", "Test4.h"])
 
 ########################################
@@ -178,12 +194,28 @@ class TestValidators(unittest.TestCase):
         entry_list = ("bar.h", "barf.h", "temp.h")
         lookup_string_list(cmd, "/I ", entry_list, False)
         self.assertListEqual(
-            cmd, ["foo.exe", "/I", "bar.h", "/I", "barf.h", "/I", "temp.h"])
+            cmd, [
+                "foo.exe",
+                "/I",
+                "bar.h",
+                "/I",
+                "barf.h",
+                "/I",
+                "temp.h"
+            ])
 
         cmd = ["foo.exe"]
         lookup_string_list(cmd, "/I ", entry_list, True)
         self.assertListEqual(
-            cmd, ["foo.exe", "/I", "\"bar.h\"", "/I", "\"barf.h\"", "/I", "\"temp.h\""])
+            cmd, [
+                "foo.exe",
+                "/I",
+                "\"bar.h\"",
+                "/I",
+                "\"barf.h\"",
+                "/I",
+                "\"temp.h\""
+            ])
 
         cmd = ["foo.exe"]
         lookup_string_list(cmd, "/T", entry_list, False)
@@ -193,7 +225,12 @@ class TestValidators(unittest.TestCase):
         cmd = ["foo.exe"]
         lookup_string_list(cmd, "/T", entry_list, True)
         self.assertListEqual(
-            cmd, ["foo.exe", "/T\"bar.h\"", "/T\"barf.h\"", "/T\"temp.h\""])
+            cmd, [
+                "foo.exe",
+                "/T\"bar.h\"",
+                "/T\"barf.h\"",
+                "/T\"temp.h\""
+            ])
 
 ########################################
 
@@ -321,20 +358,20 @@ class TestValidators(unittest.TestCase):
         t = VSIntegerProperty("Test")
         self.assertEqual(t.name, "Test")
         self.assertIs(t.value, None)
-        #self.assertIs(t.switch, None)
+        # self.assertIs(t.switch, None)
 
-        #t = VSIntegerProperty("Test", switch="/Foo")
+        # t = VSIntegerProperty("Test", switch="/Foo")
         t = VSIntegerProperty("Test")
         self.assertEqual(t.name, "Test")
         self.assertIs(t.value, None)
-        #self.assertEqual(t.switch, "/Foo")
+        # self.assertEqual(t.switch, "/Foo")
 
         t = VSIntegerProperty("Test", 33)
         self.assertEqual(t.name, "Test")
 
         # Use Equal, Python 2.7 returns 33L so is doesn't match
         self.assertEqual(t.value, 33)
-        #self.assertIs(t.switch, None)
+        # self.assertIs(t.switch, None)
 
         # Failure cases
         with self.assertRaises(ValueError):

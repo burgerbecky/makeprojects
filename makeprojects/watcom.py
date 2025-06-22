@@ -110,8 +110,8 @@ class BuildWatcomFile(BuildObject):
         if watcom_path is None:
             file_name = self.file_name
             return BuildError(0, file_name,
-                msg="{} requires Watcom to be installed to build!".format(
-                    file_name))
+                              msg=("{} requires Watcom to be installed "
+                                   "to build!").format(file_name))
 
         # Watcom requires the path set up so it can access link files
         exe_name = where_is_watcom("wmake", verbose=self.verbose)
@@ -188,7 +188,7 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildWatcomFile build records for every desired configuration
 
@@ -219,7 +219,7 @@ def create_build_object(file_name, priority=50,
 
 
 def create_clean_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildWatcomFile clean records for every desired configuration
 
@@ -393,8 +393,8 @@ class WatcomProject(object):
 
                 # Get the rule list
                 rule_list = (configuration.custom_rules,
-                    configuration.parent.custom_rules,
-                    configuration.parent.parent.custom_rules)
+                             configuration.parent.custom_rules,
+                             configuration.parent.parent.custom_rules)
                 get_custom_list(custom_list, rule_list, codefiles)
 
         self.custom_list = custom_list
@@ -720,8 +720,8 @@ class WatcomProject(object):
                     "",
                     target_name + ": .SYMBOLIC",
                     "\t@if not exist bin @mkdir bin",
-   	                "\t@if not exist \"temp\\{0}\" @mkdir \"temp\\{0}\"".format(
-   	                    bin_folder),
+                    "\t@if not exist \"temp\\{0}\" @mkdir \"temp\\{0}\"".format(
+                        bin_folder),
                     "\t@set CONFIG=" + configuration.name,
                     "\t@set TARGET=" + platform_short_code,
                     "\t@%make bin\\" + bin_name
@@ -1454,7 +1454,7 @@ class WatcomProject(object):
                 line_list.extend([
                     "\t@SET WOW={$+$(OBJS)$-}",
                     "\t@echo Performing link...",
-                    "\t@$(LINK) $(LFlags" + configuration.name + \
+                    "\t@$(LINK) $(LFlags" + configuration.name +
                     configuration.platform.get_short_code() + ") "
                     "NAME $^@ FILE @wow"
                 ])

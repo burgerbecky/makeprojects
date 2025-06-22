@@ -85,8 +85,7 @@ def build(working_directory, configuration):
             run_command(
                 ("dot", "-Tpng", item, "-otemp{0}images{0}{1}.png".format(
                     os.sep, item[:-4])),
-                    working_dir=working_directory)
-
+                working_dir=working_directory)
 
     # Get the input and output file names
     source = os.path.join(os.path.dirname(working_directory), "README.rst")
