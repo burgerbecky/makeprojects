@@ -13,9 +13,9 @@ description = "IDE project generator for Visual Studio, XCode, etc..."
 license = "MIT"
 license-files = ["LICENSE.txt"]
 dependencies = [
-    "setuptools>=77.0.0",
+    "setuptools>=44.0.0",
     "enum34>=1.0.0",
-    "burger>=1.3.1",
+    "burger>=1.5.0",
     "argparse>=1.0",
     "glob2>=0.6",
 ]
@@ -70,6 +70,15 @@ keywords = [
     "switch"
 ]
 
+[project.scripts]
+makeprojects = "makeprojects.__main__:main"
+buildme = "makeprojects.buildme:main"
+cleanme = "makeprojects.cleanme:main"
+rebuildme = "makeprojects.rebuildme:main"
+
+[tool.setuptools]
+platforms = ["Any"]
+
 [tool.setuptools.dynamic]
 version = { attr = "makeprojects.__version__" }
 
@@ -83,8 +92,83 @@ include = ["makeprojects"]
 exclude = ["unittests"]
 namespaces = false
 
-[project.scripts]
-makeprojects = "makeprojects.__main__:main"
-buildme = "makeprojects.buildme:main"
-cleanme = "makeprojects.cleanme:main"
-rebuildme = "makeprojects.rebuildme:main"
+[tool.tox]
+requires = ["tox>=4.23.0"]
+toxworkdir = "{toxinidir}/temp/tox"
+envlist = [
+    "py27",
+    "py34",
+    "py35",
+    "py36",
+    "py37",
+    "py38",
+    "py39",
+    "py310",
+    "py311",
+    "py312",
+    "py313",
+    "pypy",
+    "pypy3",
+]
+skipsdist = true
+skip_missing_interpreters = true
+
+[tool.tox.env_run_base]
+description = "Run test under {base_python}"
+commands = [["pytest"]]
+allowlist_externals = ["pytest"]
+setenv = {"PYTHONPATH" = "{toxinidir}"}
+changedir = "{toxinidir}/unittests"
+deps = ["pytest", "burger", "enum34"]
+
+# Settings for Autopep8
+# Visual Studio Code needs --global-config ${workspaceFolder}/pyproject.toml
+# in user settings
+[tool.autopep8]
+max-line-length = 80
+ignore = ["W191", "E266", "E101", "E111"]
+verbose = 1
+aggressive = 1
+indent-size = 4
+
+# Requires flake8-pyproject installed
+[tool.flake8]
+max-line-length = 80
+extend-ignore = [
+    # W191 using tabs
+    "W191",
+    # E266 Too many leading #'s
+    "E266",
+    # E128 under indented line continuation
+    "E128",
+    # E502 Redunant backslash between brackets
+    "E502",
+    # N802 Function name should be lowercase
+    "N802",
+    # F401 Imported but unused
+    "F401",
+    # F402 Import not at top of file
+    "F402",
+    "E402",
+    # F405 May be undefined or star imported
+    "F405",
+    # F403 * used but unable to detect imported names
+    "F403",
+]
+exclude = [
+    ".tox",
+    ".git",
+    "__pycache__",
+    "docs/conf.py",
+    "build",
+    "dist",
+    "temp",
+    "*.pyc",
+    "*.egg-info",
+    ".cache",
+    ".eggs",
+]
+
+# Parameters for Pytest
+[tool.pytest.ini_options]
+cache_dir = "temp/.pytest_cache"

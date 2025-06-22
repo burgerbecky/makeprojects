@@ -56,3 +56,4 @@ build:
       - buildme -h
       # Install Doxypypy
       - ${READTHEDOCS_VIRTUALENV_PATH}/bin/python -m pip install ./doxypypy
+

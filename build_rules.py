@@ -23,25 +23,37 @@ from __future__ import absolute_import, print_function, unicode_literals
 
 import os
 import sys
-from burger import clean_directories, run_command, __version__, \
-    delete_directory, clean_files, lock_files, unlock_files
+from burger import clean_directories, run_command, delete_file, \
+    delete_directory, clean_files, lock_files, unlock_files, \
+    create_setup_py
+
+# Buildme and Cleanme are invoked from another folder
+# so Python will pull in the version of makeprojects that's
+# already installed. To force it to use the one in this
+# folder, manually purge it first, then insert the current
+# working directory into the search path, then reload
+# with the import call
+
+# Remove old copy of makeprojects
+if "makeprojects" in sys.modules:
+    del sys.modules["makeprojects"]
+
+# Update the path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+# Import this copy of makeprojects
+# pylint: disable=wrong-import-position
+from makeprojects import __version__
 
 # If set to True, ``buildme -r``` will not parse directories in this folder.
 BUILDME_NO_RECURSE = False
 
-# ``buildme``` will build these files and folders first.
-DEPENDENCIES = []
-
 # If set to True, ``cleanme -r``` will not parse directories in this folder.
 CLEANME_NO_RECURSE = True
-
-# ``cleanme`` will clean the listed folders before cleaning this folder.
-CLEANME_DEPENDENCIES = []
 
 # Directories to clean
 CLEAN_DIR_LIST = [
     "makeprojects.egg-info",
-    "makeprojects-" + __version__,
     "dist",
     "build",
     "temp",
@@ -84,6 +96,11 @@ def build(working_directory, configuration):
         None if not implemented, otherwise an integer error code.
     """
 
+    # Create setup.py for Python 2.7 distribution
+    input_file = os.path.join(working_directory, "pyproject.toml")
+    output_file = os.path.join(working_directory, "setup.py")
+    create_setup_py(input_file, output_file)
+
     # Unlock the files to handle Perforce locking
     lock_list = unlock_files(working_directory) + \
         unlock_files(os.path.join(working_directory, "makeprojects"))
@@ -124,6 +141,9 @@ def clean(working_directory):
     for item in CLEAN_DIR_LIST:
         delete_directory(os.path.join(working_directory, item))
 
+    # Get rid of extra binaries
+    delete_file(os.path.join(working_directory, "setup.py"))
+
     clean_directories(
         working_directory,
         CLEAN_DIR_RECURSE_LIST,
@@ -133,7 +153,8 @@ def clean(working_directory):
     clean_files(
         working_directory,
         name_list=CLEAN_EXTENSION_LIST,
-        recursive=True)
+        recursive=True,
+        delete_read_only=True)
 
     return 0
 
