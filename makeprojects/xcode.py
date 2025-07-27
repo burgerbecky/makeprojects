@@ -54,15 +54,16 @@ from operator import attrgetter, itemgetter
 from burger import create_folder_if_needed, save_text_file_if_newer, \
     convert_to_linux_slashes, PY2, \
     get_mac_host_type, where_is_xcode, run_command
-from .enums import FileTypes, ProjectTypes, PlatformTypes, IDETypes, \
-    source_file_detect
+from ide_gen import xcode_calcuuid, JSONEntry, JSONArray, JSONDict, \
+    XCProject, PBXFileReference, PBXBuildFile, PBXGroup, PBXBuildRule, \
+    PBXFrameworksBuildPhase
+
+from .enums import ProjectTypes, PlatformTypes, IDETypes, FileTypes
 from .core import SourceFile, Configuration, Project
 from .config import _XCODEPROJECT_FILE
 from .build_objects import BuildError, BuildObject
-from .xcode_utils import get_sdk_root, calcuuid, JSONDict, JSONEntry, \
-    JSONArray, JSONObjects, PBXBuildRuleGLSL, PBXFileReference, \
-    PBXShellScriptBuildPhase, PBXBuildFile, PBXGroup, PERFORCE_PATH, \
-    TEMP_EXE_NAME, copy_tool_to_bin
+from .xcode_utils import get_sdk_root, PBXShellScriptBuildPhase, \
+    PERFORCE_PATH, TEMP_EXE_NAME, copy_tool_to_bin
 
 # Notes for macOS:
 # Xcode 3 is the only one that builds PowerPC
@@ -80,7 +81,8 @@ _XCODE_SUFFIXES = (
     ("xc3", 3), ("xc4", 4), ("xc5", 5),
     ("xc6", 6), ("xc7", 7), ("xc8", 8),
     ("xc9", 9), ("x10", 10), ("x11", 11),
-    ("x12", 12), ("x13", 13)
+    ("x12", 12), ("x13", 13), ("x14", 14),
+    ("x15", 15), ("x16", 16)
 )
 
 # Supported IDE codes for the XCode exporter
@@ -88,25 +90,28 @@ SUPPORTED_IDES = (
     IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5,
     IDETypes.xcode6, IDETypes.xcode7, IDETypes.xcode8,
     IDETypes.xcode9, IDETypes.xcode10, IDETypes.xcode11,
-    IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14
+    IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14,
+    IDETypes.xcode15, IDETypes.xcode16
 )
 
 # Tuple of objectVersion, , compatibilityVersion, developmentRegion
 OBJECT_VERSIONS = {
-    IDETypes.xcode3: ("45", None, "Xcode 3.1", "English"),
-    IDETypes.xcode4: ("46", "0420", "Xcode 3.2", "English"),
-    IDETypes.xcode5: ("46", "0510", "Xcode 3.2", "English"),
-    IDETypes.xcode6: ("47", "0600", "Xcode 6.3", None),
-    IDETypes.xcode7: ("47", "0700", "Xcode 6.3", None),
-    IDETypes.xcode8: ("48", "0800", "Xcode 8.0", None),
+    IDETypes.xcode3: (45, None, "Xcode 3.1", "English"),
+    IDETypes.xcode4: (46, "0420", "Xcode 3.2", "English"),
+    IDETypes.xcode5: (46, "0510", "Xcode 3.2", "English"),
+    IDETypes.xcode6: (47, "0600", "Xcode 6.3", None),
+    IDETypes.xcode7: (47, "0700", "Xcode 6.3", None),
+    IDETypes.xcode8: (48, "0800", "Xcode 8.0", None),
     # No version 49
-    IDETypes.xcode9: ("50", "0900", "Xcode 9.3", None),
-    IDETypes.xcode10: ("51", "1030", "Xcode 10.0", None),
-    IDETypes.xcode11: ("52", "1100", "Xcode 11.0", None),
+    IDETypes.xcode9: (50, "0900", "Xcode 9.3", None),
+    IDETypes.xcode10: (51, "1030", "Xcode 10.0", None),
+    IDETypes.xcode11: (52, "1100", "Xcode 11.0", None),
     # 53 is 11.4 or higher
-    IDETypes.xcode12: ("54", "1200", "Xcode 12.0", None),
-    IDETypes.xcode13: ("55", "1300", "Xcode 13.0", None),
-    IDETypes.xcode14: ("56", "1400", "Xcode 14.0", None)
+    IDETypes.xcode12: (54, "1200", "Xcode 12.0", None),
+    IDETypes.xcode13: (55, "1300", "Xcode 13.0", None),
+    IDETypes.xcode14: (56, "1400", "Xcode 14.0", None),
+    IDETypes.xcode15: (60, "1500", "Xcode 15.0", None),
+    IDETypes.xcode16: (77, "1600", "Xcode 16.0", None)
 }
 
 # Supported input files
@@ -229,10 +234,10 @@ class BuildXCodeFile(BuildObject):
         # Is this version of XCode installed?
         if not xcode or not os.path.isfile(xcode[0]):
             msg = ("Can't build {}, the proper version "
-                "of XCode is not installed").format(file_dir_name)
+                   "of XCode is not installed").format(file_dir_name)
             print(msg)
             return BuildError(0, file_dir_name,
-                            msg=msg)
+                              msg=msg)
 
         xcodebuild = xcode[0]
         # Create the build command
@@ -324,7 +329,7 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildXCodeFile build records for every desired configuration
 
@@ -369,7 +374,7 @@ def create_build_object(file_name, priority=50,
 
 
 def create_clean_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildXCodeFile build records for every desired configuration
 
@@ -461,7 +466,7 @@ def add_XCBuildConfiguration(build_settings, configuration):
         build_settings.add_dict_entry(
             "CONFIGURATION_TEMP_DIR", "$(SYMROOT)/$(PRODUCT_NAME)$(SUFFIX)")
         build_settings.add_dict_entry(
-            "DEVELOPMENT_TEAM", "SK433TW842")
+            "DEVELOPMENT_TEAM", "5W97LSL4K2")
         build_settings.add_dict_entry(
             "PROVISIONING_PROFILE_SPECIFIER", "")
 
@@ -508,106 +513,30 @@ class PBXContainerItemProxy(JSONDict):
             raise TypeError(
                 "parameter \"native_target\" must be of type PBXNativeTarget")
 
-        uuid = calcuuid("PBXContainerItemProxy" + native_target.target_name)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXContainerItemProxy",
-            comment="PBXContainerItemProxy",
-            uuid=uuid)
+        uuid = xcode_calcuuid(
+            "PBXContainerItemProxy" + native_target.target_name)
+        JSONDict.__init__(self, uuid,
+                          isa="PBXContainerItemProxy",
+                          comment="PBXContainerItemProxy",
+                          uuid=uuid)
         self.add_item(
             JSONEntry(
-                name="containerPortal",
-                value=project_uuid,
-                comment="Project object"))
-        self.add_item(JSONEntry(name="proxyType", value="1"))
+                "containerPortal",
+                "Project object",
+                project_uuid))
+        self.add_item(JSONEntry("proxyType", value="1"))
         self.add_item(
             JSONEntry(
-                name="remoteGlobalIDString",
+                "remoteGlobalIDString",
                 value=native_target.uuid))
         self.add_item(
             JSONEntry(
-                name="remoteInfo",
+                "remoteInfo",
                 value="\"{}\"".format(
                     native_target.target_name)))
 
         # PBXNativeTarget to build.
         self.native_target = native_target
-
-########################################
-
-
-class PBXFrameworksBuildPhase(JSONDict):
-    """
-    Each PBXFrameworksBuildPhase entry
-
-    Attributes:
-        files: JSONArray of PBXBuildFile records
-    """
-
-    def __init__(self, file_reference):
-        """
-        Initialize PBXFrameworksBuildPhase
-        Args:
-            file_reference: PBXFileReference record
-        """
-
-        # Sanity check
-        if not isinstance(file_reference, PBXFileReference):
-            raise TypeError(
-                "parameter \"file_reference\" must be of type PBXFileReference")
-
-        uuid = calcuuid(
-            "PBXFrameworksBuildPhase" +
-            file_reference.relative_pathname)
-
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXFrameworksBuildPhase",
-            comment="Frameworks",
-            uuid=uuid)
-
-        self.add_item(JSONEntry(name="buildActionMask", value="2147483647"))
-
-        files = JSONArray(name="files")
-        self.add_item(files)
-
-        self.add_item(
-            JSONEntry(
-                name="runOnlyForDeploymentPostprocessing",
-                value="0"))
-
-        # JSONArray of PBXBuildFile records
-        self.files = files
-
-    def add_build_file(self, build_file):
-        """
-        Add a framework to the files record
-
-        Args:
-            build_file: PBXBuildFile record
-        """
-
-        # Sanity check
-        if not isinstance(build_file, PBXBuildFile):
-            raise TypeError(
-                "parameter \"build_file\" must be of type PBXBuildFile")
-
-        self.files.add_item(
-            JSONEntry(
-                build_file.uuid,
-                comment=os.path.basename(
-                    build_file.file_reference.relative_pathname) +
-                " in Frameworks", suffix=","))
-
-    @staticmethod
-    def get_phase_name():
-        """
-        Return the build phase name for XCode.
-        """
-        return "Frameworks"
-
 
 ########################################
 
@@ -639,18 +568,15 @@ class PBXNativeTarget(JSONDict):
             build_rules: Build_rules reference
         """
 
-        uuid = calcuuid("PBXNativeTarget" + name)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXNativeTarget",
-            comment=name,
-            uuid=uuid)
+        uuid = xcode_calcuuid("PBXNativeTarget" + name)
+        JSONDict.__init__(self, uuid,
+                          isa="PBXNativeTarget",
+                          comment=name,
+                          uuid=uuid)
 
         self.build_config_list = JSONEntry(
             "buildConfigurationList",
-            comment=(
-                "Build configuration list "
+            ("Build configuration list "
                 "for PBXNativeTarget \"{}\"").format(name),
             enabled=False)
         self.add_item(self.build_config_list)
@@ -661,7 +587,7 @@ class PBXNativeTarget(JSONDict):
         self.build_rules = JSONArray("buildRules")
         self.add_item(self.build_rules)
         for item in build_rules:
-            self.build_rules.add_array_entry(
+            self.build_rules.add_string_entry(
                 item.name).comment = "PBXBuildRule"
 
         self.dependencies = JSONArray("dependencies")
@@ -673,8 +599,8 @@ class PBXNativeTarget(JSONDict):
         self.add_item(
             JSONEntry(
                 "productReference",
-                value=productreference.uuid,
-                comment=productreference.relative_pathname))
+                productreference.file_name,
+                value=productreference.uuid))
 
         self.add_item(
             JSONEntry(
@@ -695,8 +621,7 @@ class PBXNativeTarget(JSONDict):
         self.build_phases.add_item(
             JSONEntry(
                 build_phase.uuid,
-                comment=build_phase.get_phase_name(),
-                suffix=","))
+                build_phase.comment))
 
     def add_dependency(self, target_dependency):
         """
@@ -709,8 +634,7 @@ class PBXNativeTarget(JSONDict):
         self.dependencies.add_item(
             JSONEntry(
                 target_dependency.uuid,
-                comment=target_dependency.isa,
-                suffix=","))
+                target_dependency.isa))
 
     def set_config_list(self, config_list_reference):
         """
@@ -747,12 +671,10 @@ class PBXProject(JSONDict):
             uuid: Unique UUID
             solution: Parent solution
         """
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXProject",
-            comment="Project object",
-            uuid=uuid)
+        JSONDict.__init__(self, uuid,
+                          isa="PBXProject",
+                          comment="Project object",
+                          uuid=uuid)
 
         # Look up versioning information
         object_versions = OBJECT_VERSIONS.get(solution.ide)
@@ -774,10 +696,9 @@ class PBXProject(JSONDict):
 
         self.build_config_list = JSONEntry(
             "buildConfigurationList",
-            comment=(
-                "Build configuration list "
+            ("Build configuration list "
                 "for PBXProject \"{}\""
-            ).format(solution.name), enabled=False)
+             ).format(solution.name), enabled=False)
         self.add_item(self.build_config_list)
 
         self.add_item(
@@ -800,7 +721,7 @@ class PBXProject(JSONDict):
 
         known_regions = JSONArray("knownRegions")
         self.add_item(known_regions)
-        known_regions.add_array_entry("en")
+        known_regions.add_string_entry("en")
 
         self.main_group = JSONEntry("mainGroup", enabled=False)
         self.add_item(self.main_group)
@@ -819,8 +740,7 @@ class PBXProject(JSONDict):
         self.targets.add_item(
             JSONEntry(
                 item.uuid,
-                comment=item.target_name,
-                suffix=","))
+                item.target_name))
 
     def set_config_list(self, config_list_reference):
         """
@@ -834,7 +754,7 @@ class PBXProject(JSONDict):
         Set the root group.
         """
         self.main_group.value = rootgroup.uuid
-        self.main_group.comment = rootgroup.group_name
+        self.main_group.comment = rootgroup.name_entry.value
         self.main_group.enabled = True
 
 
@@ -859,15 +779,12 @@ class PBXSourcesBuildPhase(JSONDict):
         Args:
             owner: Parent object
         """
-        uuid = calcuuid(
+        uuid = xcode_calcuuid(
             "PBXSourcesBuildPhase" +
-            owner.relative_pathname)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXSourcesBuildPhase",
-            comment="Sources",
-            uuid=uuid)
+            owner.file_name)
+        JSONDict.__init__(self, uuid,"Sources",
+                          isa="PBXSourcesBuildPhase",
+                          uuid=uuid)
 
         self.add_item(JSONEntry("buildActionMask", value="2147483647"))
         files = JSONArray("files")
@@ -886,19 +803,12 @@ class PBXSourcesBuildPhase(JSONDict):
         Append a file uuid and name to the end of the list
         """
 
-        if item.file_reference.source_file.type == FileTypes.glsl:
+        if item.file_reference.file_type == "sourcecode.glsl":
             self.buildfirstlist.append([item, os.path.basename(
-                item.file_reference.relative_pathname)])
+                item.file_reference.file_name)])
         else:
             self.buildlist.append([item, os.path.basename(
-                item.file_reference.relative_pathname)])
-
-    @staticmethod
-    def get_phase_name():
-        """
-        Return the build phase name for XCode.
-        """
-        return "Sources"
+                item.file_reference.file_name)])
 
     def generate(self, line_list, indent=0):
         """
@@ -913,15 +823,15 @@ class PBXSourcesBuildPhase(JSONDict):
             self.files.add_item(
                 JSONEntry(
                     item[0].uuid,
-                    comment="{} in Sources".format(
-                        item[1]), suffix=","))
+                    "{} in Sources".format(
+                        item[1])))
 
         for item in self.buildlist:
             self.files.add_item(
                 JSONEntry(
                     item[0].uuid,
-                    comment="{} in Sources".format(
-                        item[1]), suffix=","))
+                    "{} in Sources".format(
+                        item[1])))
         return JSONDict.generate(self, line_list, indent)
 
 
@@ -941,27 +851,25 @@ class PBXTargetDependency(JSONDict):
             proxy: target proxy
             nativetarget: Native target
         """
-        uuid = calcuuid(
+        uuid = xcode_calcuuid(
             "PBXTargetDependency" +
             proxy.native_target.target_name +
             nativetarget.target_name)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="PBXTargetDependency",
-            comment="PBXTargetDependency",
-            uuid=uuid)
+        JSONDict.__init__(self, uuid,
+                          isa="PBXTargetDependency",
+                          comment="PBXTargetDependency",
+                          uuid=uuid)
 
         self.add_item(
             JSONEntry(
                 "target",
-                value=nativetarget.uuid,
-                comment=nativetarget.target_name))
+                nativetarget.target_name,
+                nativetarget.uuid))
         self.add_item(
             JSONEntry(
                 "targetProxy",
-                value=proxy.uuid,
-                comment="PBXContainerItemProxy"))
+                "PBXContainerItemProxy",
+                proxy.uuid))
 
 ########################################
 
@@ -999,14 +907,14 @@ class XCBuildConfiguration(JSONDict):
         project = configuration.project
         solution = project.solution
 
-        uuid = calcuuid("XCBuildConfiguration" +
-                        owner.pbxtype + owner.targetname + configuration.name)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="XCBuildConfiguration",
-            comment=configuration.name,
-            uuid=uuid)
+        uuid = xcode_calcuuid("XCBuildConfiguration" +
+                              owner.pbxtype +
+                              owner.targetname + configuration.name)
+
+        JSONDict.__init__(self, uuid,
+                          isa="XCBuildConfiguration",
+                          comment=configuration.name,
+                          uuid=uuid)
 
         # Was there a configuration file?
         if configfilereference is not None:
@@ -1234,10 +1142,10 @@ class XCBuildConfiguration(JSONDict):
 
             # Set defines
             temp_array = JSONArray("GCC_PREPROCESSOR_DEFINITIONS",
-                             disable_if_empty=True, fold_array=True)
+                                   disable_if_empty=True, fold_array=True)
             build_settings.add_item(temp_array)
             for item in configuration.get_chained_list("define_list"):
-                temp_array.add_array_entry(item)
+                temp_array.add_string_entry(item)
 
             # Disabled defines
             # build_settings.add_dict_entry(
@@ -1417,7 +1325,7 @@ class XCBuildConfiguration(JSONDict):
             # Location of extra header paths
             for item in configuration.get_chained_list(
                     "include_folders_list"):
-                temp_array.add_array_entry(item)
+                temp_array.add_string_entry(convert_to_linux_slashes(item))
 
             # Directories for recursive search
             # build_settings.add_dict_entry(
@@ -1483,7 +1391,7 @@ class XCBuildConfiguration(JSONDict):
             # Location of libraries
             for item in configuration.get_chained_list(
                     "library_folders_list"):
-                temp_array.add_array_entry(item)
+                temp_array.add_string_entry(convert_to_linux_slashes(item))
 
             # Display mangled names in linker
             # build_settings.add_dict_entry("LINKER_DISPLAYS_MANGLED_NAMES")
@@ -1549,7 +1457,7 @@ class XCBuildConfiguration(JSONDict):
                     item = item[3:]
                 if item.endswith(".a"):
                     item = item[:-2]
-                temp_array.add_array_entry("-l" + item)
+                temp_array.add_string_entry("-l" + item)
 
             # Extra flags to pass to the unit test tool
             # build_settings.add_dict_entry("OTHER_TEST_FLAGS")
@@ -1708,7 +1616,7 @@ class XCBuildConfiguration(JSONDict):
         xc_archs = self.configuration.get_chained_value("xc_archs")
         if xc_archs:
             for item in xc_archs:
-                archs.add_array_entry(item)
+                archs.add_string_entry(item)
             return None
 
         # Start by getting the IDE and platform
@@ -1724,36 +1632,36 @@ class XCBuildConfiguration(JSONDict):
                 version = 6
 
             if ide is IDETypes.xcode3:
-                archs.add_array_entry("ppc")
+                archs.add_string_entry("ppc")
 
                 # macosx 10.3.9 is ppc 32 bit only
                 if version >= 4:
-                    archs.add_array_entry("ppc64")
+                    archs.add_string_entry("ppc64")
 
             # Xcode 14 dropped x86
             if ide < IDETypes.xcode14:
-                archs.add_array_entry("i386")
+                archs.add_string_entry("i386")
 
             # Everyone has x64
-            archs.add_array_entry("x86_64")
+            archs.add_string_entry("x86_64")
 
             # Xcode 12 supports arm64
             if ide >= IDETypes.xcode12:
-                archs.add_array_entry("arm64")
+                archs.add_string_entry("arm64")
             return None
 
         if self.configuration.platform in (
                 PlatformTypes.iosemu32, PlatformTypes.iosemu64):
-            archs.add_array_entry("i386")
-            archs.add_array_entry("x86_64")
+            archs.add_string_entry("i386")
+            archs.add_string_entry("x86_64")
             return None
 
         if self.configuration.platform in (
                 PlatformTypes.ios32, PlatformTypes.ios64):
-            archs.add_array_entry("armv6")
-            archs.add_array_entry("armv7")
-            archs.add_array_entry("i386")
-            archs.add_array_entry("x86_64")
+            archs.add_string_entry("armv6")
+            archs.add_string_entry("armv7")
+            archs.add_string_entry("i386")
+            archs.add_string_entry("x86_64")
 
         return None
 
@@ -1781,15 +1689,14 @@ class XCConfigurationList(JSONDict):
             targetname: Name of the target
         """
 
-        uuid = calcuuid("XCConfigurationList" + pbxtype + targetname)
-        JSONDict.__init__(
-            self,
-            name=uuid,
-            isa="XCConfigurationList",
-            comment="Build configuration list for {} \"{}\"".format(
-                pbxtype,
-                targetname),
-            uuid=uuid)
+        uuid = xcode_calcuuid("XCConfigurationList" + pbxtype + targetname)
+        JSONDict.__init__(self, uuid,
+                          isa="XCConfigurationList",
+                          comment=("Build configuration "
+                                   "list for {} \"{}\"").format(
+                              pbxtype,
+                              targetname),
+                          uuid=uuid)
         self.build_configurations = JSONArray("buildConfigurations")
         self.add_item(self.build_configurations)
         self.add_item(JSONEntry("defaultConfigurationIsVisible", value="0"))
@@ -1819,8 +1726,7 @@ class XCConfigurationList(JSONDict):
             self.build_configurations.add_item(
                 JSONEntry(
                     item.uuid,
-                    comment=item.configuration.name,
-                    suffix=","))
+                    item.configuration.name))
 
         if default is None:
             default = "Release"
@@ -1832,7 +1738,7 @@ class XCConfigurationList(JSONDict):
 
 ########################################
 
-class XCProject(JSONDict):
+class MakeXCProject(XCProject):
     """
     Root object for an XCode IDE project file
 
@@ -1859,14 +1765,14 @@ class XCProject(JSONDict):
 
         # Set the parent, uuid, and solution
         self.solution = solution
-        uuid = calcuuid("PBXProjectRoot" + solution.xcode_folder_name)
+        uuid = xcode_calcuuid("PBXProjectRoot" + solution.xcode_folder_name)
+
+        object_versions = OBJECT_VERSIONS.get(self.solution.ide)
 
         # Init the solution
-        JSONDict.__init__(self, solution.name, uuid=uuid)
+        XCProject.__init__(self, solution.name, object_versions[0], uuid)
 
-        # Initialize entries for master dictionary for the XCode project.
-        objects = self.init_root_entries()
-        self.objects = objects
+        objects = self.objects
 
         idecode = solution.ide.get_short_code()
         rootproject = PBXProject(self.uuid, solution)
@@ -1892,16 +1798,19 @@ class XCProject(JSONDict):
             # Make a list of build rules for files that need custom compilers
             build_rules = []
 
-            # Check if there are GLSL Files
-            if source_file_detect(project.codefiles, FileTypes.glsl):
-                glsl_build_rule = PBXBuildRuleGLSL(solution.ide)
-                objects.add_item(glsl_build_rule)
-                build_rules.append(glsl_build_rule)
+            # Check if there are custom build rules
+            xc_build_rules = getattr(project, "xc_build_rules")
+            if xc_build_rules:
+                # Add the build rules to the project
+                for item in xc_build_rules:
+                    build_rule = PBXBuildRule(**item)
+                    objects.add_item(build_rule)
+                    build_rules.append(build_rule)
 
             # Create all the file references
             file_references = []
             for item in project.codefiles:
-                file_reference = PBXFileReference(item, solution.ide)
+                file_reference = PBXFileReference(item.relative_pathname)
                 objects.add_item(file_reference)
                 file_references.append(file_reference)
 
@@ -1911,19 +1820,18 @@ class XCProject(JSONDict):
                     libextension = "ios.a"
                 else:
                     libextension = "osx.a"
-                outputfilereference = PBXFileReference(SourceFile(
-                    "lib" + solution.name + idecode + libextension, "",
-                    FileTypes.library), solution.ide)
+                outputfilereference = PBXFileReference(
+                    "lib" + solution.name + idecode + libextension)
                 objects.add_item(outputfilereference)
 
             elif project.project_type is ProjectTypes.app:
-                outputfilereference = PBXFileReference(SourceFile(
-                    solution.name + ".app", "", FileTypes.exe), solution.ide)
+                outputfilereference = PBXFileReference(
+                    solution.name + ".app")
                 objects.add_item(outputfilereference)
 
             elif project.project_type is not ProjectTypes.empty:
-                outputfilereference = PBXFileReference(SourceFile(
-                    solution.name, "", FileTypes.exe), solution.ide)
+                outputfilereference = PBXFileReference(
+                    solution.name, file_type="compiled.mach-o.executable")
                 objects.add_item(outputfilereference)
             else:
                 outputfilereference = None
@@ -1939,16 +1847,12 @@ class XCProject(JSONDict):
 
             if ioslibrary:
                 devfilereference = PBXFileReference(
-                    SourceFile(
-                        "lib" + solution.name + "dev.a", "",
-                        FileTypes.library), solution.ide)
+                    "lib" + solution.name + "dev.a")
                 objects.add_item(devfilereference)
                 file_references.append(devfilereference)
 
                 simfilereference = PBXFileReference(
-                    SourceFile(
-                        "lib" + solution.name + "sim.a", "",
-                        FileTypes.library), solution.ide)
+                    "lib" + solution.name + "sim.a")
                 objects.add_item(simfilereference)
                 file_references.append(simfilereference)
 
@@ -1967,10 +1871,12 @@ class XCProject(JSONDict):
                 # Add source files to compile for the ARM and the Intel libs
 
                 for item in file_references:
-                    if item.source_file.type in (FileTypes.m, FileTypes.mm,
-                            FileTypes.cpp, FileTypes.c,
-                            FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
-                            FileTypes.x86, FileTypes.arm, FileTypes.arm64):
+                    if item.file_type in ("sourcecode.cpp.cpp",
+                                          "sourcecode.c.c",
+                                          "sourcecode.c.objc",
+                                          "sourcecode.cpp.objcpp",
+                                          "sourcecode.asm.asm",
+                                          "sourcecode.glsl"):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -1979,7 +1885,7 @@ class XCProject(JSONDict):
                         build_file = PBXBuildFile(item, simfilereference)
                         objects.add_item(build_file)
                         buildphase2.append_file(build_file)
-                    elif item.source_file.type is FileTypes.frameworks:
+                    elif item.file_type.startswith("wrapper.framework"):
 
                         build_file = PBXBuildFile(item, devfilereference)
                         objects.add_item(build_file)
@@ -2000,17 +1906,19 @@ class XCProject(JSONDict):
                     objects.add_item(framephase1)
 
                     for item in file_references:
-                        if item.source_file.type in (FileTypes.m, FileTypes.mm,
-                                FileTypes.cpp, FileTypes.c,
-                                FileTypes.glsl, FileTypes.ppc, FileTypes.x64,
-                                FileTypes.x86, FileTypes.arm, FileTypes.arm64):
+                        if item.file_type in ("sourcecode.cpp.cpp",
+                                              "sourcecode.c.c",
+                                              "sourcecode.c.objc",
+                                              "sourcecode.cpp.objcpp",
+                                              "sourcecode.asm.asm",
+                                              "sourcecode.glsl"):
 
                             build_file = PBXBuildFile(
                                 item, outputfilereference)
                             objects.add_item(build_file)
                             buildphase1.append_file(build_file)
 
-                        elif item.source_file.type is FileTypes.frameworks:
+                        elif item.file_type.startswith("wrapper.framework"):
                             build_file = PBXBuildFile(
                                 item, outputfilereference)
                             objects.add_item(build_file)
@@ -2304,44 +2212,6 @@ class XCProject(JSONDict):
 
     ########################################
 
-    def init_root_entries(self):
-        """
-        Init the root items for the XCProject
-
-        Creates the entries archiveVersion, classes, objectVersion,
-        objects, and rootObject
-
-        Returns:
-            objects, which is a JSONObjects object
-        """
-
-        # Always 1
-        self.add_item(JSONEntry("archiveVersion", value="1"))
-
-        # Always empty
-        self.add_item(JSONDict("classes"))
-
-        # Set to the version of XCode being generated for
-        self.add_item(
-            JSONEntry(
-                "objectVersion",
-                value=OBJECT_VERSIONS.get(self.solution.ide)[0]))
-
-        # Create the master object list
-        objects = JSONObjects("objects")
-        self.add_item(objects)
-
-        # UUID of the root object
-        rootobject = JSONEntry(
-            "rootObject",
-            value=self.uuid,
-            comment="Project object")
-        self.add_item(rootobject)
-
-        return objects
-
-    ########################################
-
     def create_directory_tree(self, file_references):
         """
         Create the directory tree for all files in the project
@@ -2375,32 +2245,33 @@ class XCProject(JSONDict):
         for item in file_references:
 
             # Products go into a special group
-            if item.source_file.type in (FileTypes.exe, FileTypes.library):
+            if item.file_type.startswith(
+                    "compiled") or item.file_type.startswith("archive"):
                 group_products.add_file(item)
                 continue
 
             # Frameworks go into the FrameWorks group
-            if item.source_file.type is FileTypes.frameworks:
+            if item.file_type.startswith("wrapper.framework"):
                 framework_group.add_file(item)
                 continue
 
             # Add to the hierarchical groups
 
             # Isolate the path
-            index = item.relative_pathname.rfind("/")
+            index = item.file_name.rfind("/")
             if index == -1:
                 # Put in the root group
                 group_root.add_file(item)
                 continue
 
             # Separate the path and name
-            path = item.relative_pathname[0:index]
+            path = item.file_name[0:index]
 
             # See if a group already exists
             for match_group in groups_made:
 
                 # Add to a pre-existing group if found
-                if match_group.path == path:
+                if match_group.path.value == path:
                     match_group.add_file(item)
                     break
             else:
@@ -2434,7 +2305,7 @@ class XCProject(JSONDict):
                     # See if a group already exists at this level
                     temppath = path[0:index + endindex]
                     for match_group in groups_made:
-                        if match_group.path == temppath:
+                        if match_group.path.value == temppath:
                             break
                     else:
 
@@ -2461,36 +2332,6 @@ class XCProject(JSONDict):
 
         return group_root
 
-    ########################################
-
-    def generate(self, line_list, indent=0):
-        """
-        Generate an entire XCode project file
-
-        Args:
-            line_list: Line list to append new lines.
-            indent: number of tabs to insert (For recursion)
-        Returns:
-            Non-zero on error.
-        """
-
-        # Write the XCode header for charset
-        line_list.append("// !$*UTF8*$!")
-
-        # Open brace for beginning
-        line_list.append("{")
-
-        # Increase indentatiopn
-        indent = indent + 1
-
-        # Dump everything in the project
-        for item in self.value:
-            item.generate(line_list, indent)
-
-        # Close up the project file
-        line_list.append("}")
-        return 0
-
 ########################################
 
 
@@ -2515,7 +2356,7 @@ def generate(solution):
     solution.xcode_folder_name = "{}{}{}.xcodeproj".format(
         solution.name, solution.ide_code, solution.platform_code)
     create_folder_if_needed(os.path.join(solution.working_directory,
-        solution.xcode_folder_name))
+                                         solution.xcode_folder_name))
 
     # Xcode requires configurations, if none are present, add one
     if not solution.project_list:
@@ -2537,7 +2378,7 @@ def generate(solution):
     solution._xc_sdkroot = get_sdk_root(solution)
 
     # Create the exporter
-    exporter = XCProject(solution)
+    exporter = MakeXCProject(solution)
 
     # Output the actual project file
     xcode_lines = []
@@ -2547,7 +2388,8 @@ def generate(solution):
 
     # Save the file if it changed
     xcode_filename = os.path.join(solution.working_directory,
-        solution.xcode_folder_name, _XCODEPROJECT_FILE)
+                                  solution.xcode_folder_name,
+                                  _XCODEPROJECT_FILE)
 
     save_text_file_if_newer(
         xcode_filename, xcode_lines, bom=False,

@@ -44,6 +44,7 @@ from re import compile as re_compile
 from burger import save_text_file_if_newer, convert_to_windows_slashes, \
     escape_xml_cdata, escape_xml_attribute, where_is_visual_studio, \
     load_text_file, string_to_bool, delete_file
+from ide_gen import vs_calcguid
 
 try:
     from wslwinreg import convert_to_windows_path
@@ -58,7 +59,7 @@ from .hlsl_support import HLSL_ENUMS, make_hlsl_command
 from .glsl_support import make_glsl_command
 from .masm_support import MASM_ENUMS, make_masm_command
 from .build_objects import BuildObject, BuildError
-from .visual_studio_utils import get_uuid, get_path_property, \
+from .visual_studio_utils import get_path_property, \
     convert_file_name_vs2010, add_masm_support, create_deploy_script, \
     generate_solution_file, wiiu_props
 from .visual_studio_2010 import VS2010vcproj, VS2010vcprojfilter
@@ -8240,7 +8241,7 @@ def generate(solution):
         # Set the project UUID
         item = getattr(project, "vs_uuid", None)
         if not item:
-            project.vs_uuid = get_uuid(project.vs_output_filename)
+            project.vs_uuid = vs_calcguid(project.vs_output_filename)
 
         for configuration in project.configuration_list:
 

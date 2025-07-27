@@ -23,7 +23,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 # pylint: disable=wrong-import-position
 from makeprojects.validators import VSStringProperty
 from makeprojects.visual_studio import VS2003XML
-from makeprojects.visual_studio_utils import get_uuid
 
 ########################################
 
@@ -32,21 +31,6 @@ class TestVisualStudio(unittest.TestCase):
     """
     Test visual studio text generation
     """
-
-########################################
-
-    def test_get_uuid(self):
-        """
-        Test makeprojects.visual_studio.get_uuid
-        """
-
-        tests = (
-            ('testme', '7A67F5D4-50FD-36F7-BBEB-1C739AB40B8C'),
-            ('helloworldvc7win.vcproj', 'D4B7B275-B4D2-3FEF-86CF-D2D640314544')
-        )
-
-        for test in tests:
-            self.assertEqual(get_uuid(test[0]), test[1])
 
 ########################################
 

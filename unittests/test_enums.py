@@ -113,7 +113,8 @@ class TestEnums(unittest.TestCase):
             if item in (IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5,
                         IDETypes.xcode6, IDETypes.xcode7, IDETypes.xcode8,
                         IDETypes.xcode9, IDETypes.xcode10, IDETypes.xcode11,
-                        IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14):
+                        IDETypes.xcode12, IDETypes.xcode13, IDETypes.xcode14,
+                        IDETypes.xcode15, IDETypes.xcode16):
                 self.assertTrue(item.is_xcode())
             else:
                 self.assertFalse(item.is_xcode())

@@ -307,10 +307,6 @@ visual_studio.generate
 ^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio::generate
 
-visual_studio_utils.get_uuid
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-.. doxygenfunction:: makeprojects::visual_studio_utils::get_uuid
-
 visual_studio_utils.get_path_property
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 .. doxygenfunction:: makeprojects::visual_studio_utils::get_path_property

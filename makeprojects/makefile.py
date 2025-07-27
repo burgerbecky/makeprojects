@@ -189,7 +189,7 @@ def match(filename):
 
 
 def create_build_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildMakeFile build records for every desired configuration
 
@@ -219,7 +219,7 @@ def create_build_object(file_name, priority=50,
 
 
 def create_clean_object(file_name, priority=50,
-                 configurations=None, verbose=False):
+                        configurations=None, verbose=False):
     """
     Create BuildMakeFile build records for every desired configuration
 
@@ -377,8 +377,8 @@ class MakeProject(object):
 
                 # Get the rule list
                 rule_list = (configuration.custom_rules,
-                    configuration.parent.custom_rules,
-                    configuration.parent.parent.custom_rules)
+                             configuration.parent.custom_rules,
+                             configuration.parent.parent.custom_rules)
                 get_custom_list(custom_list, rule_list, codefiles)
 
         self.custom_list = custom_list
@@ -998,7 +998,7 @@ class MakeProject(object):
                 lib_list = configuration.get_unique_chained_list(
                     "library_folders_list")
                 for item in lib_list:
-                    entries.append("-L" + item)
+                    entries.append("-L" + convert_to_linux_slashes(item))
 
             line_list.append(" ".join(entries))
 
@@ -1209,7 +1209,7 @@ class MakeProject(object):
                 line_list.extend(
                     ("",
                      "$(TEMP_DIR)/{0}.o: {1} ; $({2})".format(entry,
-                        item, build_cpp)
+                                                              item, build_cpp)
                      ))
         return 0
 

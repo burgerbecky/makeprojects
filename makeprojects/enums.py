@@ -552,6 +552,8 @@ class IDETypes(IntEnum):
         xcode12: XCode 12
         xcode13: XCode 13
         xcode14: XCode 14
+        xcode15: XCode 15
+        xcode16: XCode 16
 
         codeblocks: Codeblocks
 
@@ -597,20 +599,22 @@ class IDETypes(IntEnum):
     xcode12 = 23
     xcode13 = 24
     xcode14 = 25
+    xcode15 = 26
+    xcode16 = 27
 
-    codeblocks = 26
+    codeblocks = 28
 
-    nmake = 27
+    nmake = 29
 
-    make = 28
+    make = 30
 
-    bazel = 29
+    bazel = 31
 
-    mpw = 30
+    mpw = 32
 
-    buck = 31
+    buck = 33
 
-    ninja = 32
+    ninja = 34
 
     ########################################
 
@@ -657,7 +661,7 @@ class IDETypes(IntEnum):
             IDETypes.xcode3, IDETypes.xcode4, IDETypes.xcode5, IDETypes.xcode6,
             IDETypes.xcode7, IDETypes.xcode8, IDETypes.xcode9, IDETypes.xcode10,
             IDETypes.xcode11, IDETypes.xcode12, IDETypes.xcode13,
-            IDETypes.xcode14)
+            IDETypes.xcode14, IDETypes.xcode15, IDETypes.xcode16)
 
     ########################################
 
@@ -807,6 +811,8 @@ _IDETYPES_CODES = {
     IDETypes.xcode12: "x12",
     IDETypes.xcode13: "x13",
     IDETypes.xcode14: "x14",
+    IDETypes.xcode15: "x15",
+    IDETypes.xcode16: "x16",
     IDETypes.codeblocks: "cdb",             # Codeblocks
     IDETypes.nmake: "nmk",                  # nmake
     IDETypes.make: "mak",                   # make
@@ -843,6 +849,8 @@ _IDETYPES_READABLE = {
     IDETypes.xcode12: "XCode 12",
     IDETypes.xcode13: "XCode 13",
     IDETypes.xcode14: "XCode 14",
+    IDETypes.xcode15: "XCode 15",
+    IDETypes.xcode16: "XCode 16",
     IDETypes.codeblocks: "CodeBlocks 13.12",
     IDETypes.nmake: "GNU make",
     IDETypes.make: "Linux make",
@@ -899,6 +907,8 @@ def get_installed_xcode():
     """
 
     xcode_table = (
+        (16, IDETypes.xcode16),
+        (15, IDETypes.xcode15),
         (14, IDETypes.xcode14),
         (13, IDETypes.xcode13),
         (12, IDETypes.xcode12),

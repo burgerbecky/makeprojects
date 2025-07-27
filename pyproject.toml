@@ -16,6 +16,7 @@ dependencies = [
     "setuptools>=44.0.0",
     "enum34>=1.0.0",
     "burger>=1.5.0",
+    "ide_gen>=0.1.1",
     "argparse>=1.0",
     "glob2>=0.6",
 ]

@@ -20,10 +20,11 @@ from __future__ import absolute_import, print_function, unicode_literals
 import os
 from burger import convert_to_windows_slashes, escape_xml_cdata, \
     escape_xml_attribute, packed_paths, truefalse
+from ide_gen import vs_calcguid
 
 from .enums import FileTypes, ProjectTypes, IDETypes, PlatformTypes, \
     source_file_filter
-from .visual_studio_utils import get_toolset_version, get_uuid, \
+from .visual_studio_utils import get_toolset_version, \
     create_deploy_script
 
 ########################################
@@ -1830,7 +1831,7 @@ class VS2010vcprojfilter(VS2010XML):
         # Output the group list
         for item in groupset:
             item = convert_to_windows_slashes(item)
-            groupuuid = get_uuid(
+            groupuuid = vs_calcguid(
                 project.vs_output_filename + item)
             filterxml = VS2010XML("Filter", {"Include": item})
             self.main_element.add_element(filterxml)

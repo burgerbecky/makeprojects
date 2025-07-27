@@ -106,26 +106,6 @@ _SLN_POSTSOLUTION = {
 ########################################
 
 
-def get_uuid(input_str):
-    """
-    Convert a string to a UUID.
-
-    Given a project name string, create a 128 bit unique hash for
-    Visual Studio.
-
-    Args:
-        input_str: Unicode string of the filename to convert into a hash
-    Returns:
-        A string in the format of CF994A05-58B3-3EF5-8539-E7753D89E84F
-    """
-
-    # Generate using md5 with NAMESPACE_DNS as salt
-    temp_md5 = md5(NAMESPACE_DNS.bytes + input_str.encode("utf-8")).digest()
-    return str(UUID(bytes=temp_md5[:16], version=3)).upper()
-
-########################################
-
-
 def get_path_property(ide, pathname):
     """
     If a path is relative, return the proper object

@@ -24,8 +24,8 @@ Compatibility
 Installation
 ------------
 
-Type in ``pip install -U makeprojects``. Some platforms may require the ``sudo``
-prefix.
+Type in ``pip install -U makeprojects``. Some platforms may require the
+``sudo`` prefix.
 
 Bugs
 ----
